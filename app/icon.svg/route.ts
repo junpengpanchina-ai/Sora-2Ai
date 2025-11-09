@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
-import fs from 'fs'
+import { readFile } from 'fs/promises'
 import path from 'path'
+
+export const dynamic = 'force-static'
 
 // Handle icon.svg requests
 export async function GET() {
@@ -8,14 +10,16 @@ export async function GET() {
     // Read from public directory
     const publicIconPath = path.join(process.cwd(), 'public', 'icon.svg')
     
-    if (fs.existsSync(publicIconPath)) {
-      const iconContent = fs.readFileSync(publicIconPath, 'utf-8')
+    try {
+      const iconContent = await readFile(publicIconPath, 'utf-8')
       return new NextResponse(iconContent, {
         headers: {
           'Content-Type': 'image/svg+xml',
           'Cache-Control': 'public, max-age=31536000, immutable',
         },
       })
+    } catch (fileError) {
+      // File doesn't exist, return default SVG
     }
     
     // If not found, return default SVG
@@ -31,6 +35,7 @@ export async function GET() {
 </svg>`
     
     return new NextResponse(defaultIcon, {
+      status: 200,
       headers: {
         'Content-Type': 'image/svg+xml',
         'Cache-Control': 'public, max-age=31536000, immutable',

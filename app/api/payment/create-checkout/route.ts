@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getOrCreateUser } from '@/lib/user'
 import Stripe from 'stripe'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -35,24 +36,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = createCheckoutSchema.parse(body)
 
-    // 获取用户信息
-    const googleId = user.user_metadata?.provider_id || 
-                     user.user_metadata?.sub || 
-                     user.app_metadata?.provider_id ||
-                     user.id
-    
-    const { data: userProfile, error: userError } = await supabase
-      .from('users')
-      .select('id, email')
-      .eq('google_id', googleId)
-      .single()
+    // 获取或创建用户信息
+    const userProfile = await getOrCreateUser(supabase, user)
 
-    if (userError || !userProfile) {
+    if (!userProfile) {
       return NextResponse.json(
-        { error: 'User not found' },
+        { error: 'User not found or failed to create user' },
         { status: 404 }
       )
     }
+
+    // 获取用户邮箱（用于 Stripe）
+    const { data: userWithEmail } = await supabase
+      .from('users')
+      .select('email')
+      .eq('id', userProfile.id)
+      .single()
+
+    const userEmail = userWithEmail?.email || user.email || ''
 
     // 计算获得的积分
     const creditsToAdd = Math.floor(validatedData.amount * CREDITS_PER_YUAN)
@@ -103,7 +104,7 @@ export async function POST(request: NextRequest) {
       success_url: `${baseUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/payment/cancel`,
       client_reference_id: rechargeRecord.id, // 将充值记录ID传递给 Stripe
-      customer_email: userProfile.email,
+      customer_email: userEmail,
       metadata: {
         user_id: userProfile.id,
         recharge_id: rechargeRecord.id,

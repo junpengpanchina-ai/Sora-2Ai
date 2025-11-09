@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createSoraVideoTask } from '@/lib/grsai/client'
 import { deductCredits, refundCredits } from '@/lib/credits'
+import { getOrCreateUser } from '@/lib/user'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -29,21 +30,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get user profile
-    const googleId = user.user_metadata?.provider_id || 
-                     user.user_metadata?.sub || 
-                     user.app_metadata?.provider_id ||
-                     user.id
-    
-    const { data: userProfile, error: userError } = await supabase
-      .from('users')
-      .select('id, credits')
-      .eq('google_id', googleId)
-      .single()
+    // Get or create user profile
+    const userProfile = await getOrCreateUser(supabase, user)
 
-    if (userError || !userProfile) {
+    if (!userProfile) {
       return NextResponse.json(
-        { error: 'User not found' },
+        { error: 'User not found or failed to create user' },
         { status: 404 }
       )
     }

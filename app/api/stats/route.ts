@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getOrCreateUser } from '@/lib/user'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -18,21 +19,12 @@ export async function GET() {
       )
     }
 
-    // Get user information
-    const googleId = user.user_metadata?.provider_id || 
-                     user.user_metadata?.sub || 
-                     user.app_metadata?.provider_id ||
-                     user.id
-    
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('id, credits')
-      .eq('google_id', googleId)
-      .single()
+    // Get or create user information
+    const userProfile = await getOrCreateUser(supabase, user)
 
     if (!userProfile) {
       return NextResponse.json(
-        { error: 'User profile not found' },
+        { error: 'User profile not found or failed to create user' },
         { status: 404 }
       )
     }
