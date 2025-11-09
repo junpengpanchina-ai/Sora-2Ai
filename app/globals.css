@@ -104,8 +104,8 @@
 }
 
 .dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+    --background: #0a0a0a;
+    --foreground: #ededed;
   
   /* 深色模式下的中性色映射 */
   --color-gray-50: #111827;
@@ -345,9 +345,38 @@ body {
     animation: slide-left-to-right 30s linear infinite;
   }
   
+  /* Image carousel animations - move and reset */
+  @keyframes slide-right {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-100%);
+    }
+  }
+  
+  @keyframes slide-left {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(0);
+    }
+  }
+  
+  .animate-slide-right {
+    animation: slide-right 30s linear infinite;
+  }
+  
+  .animate-slide-left {
+    animation: slide-left 30s linear infinite;
+  }
+  
   /* Hover to pause */
   .animate-slide-right-to-left:hover,
-  .animate-slide-left-to-right:hover {
+  .animate-slide-left-to-right:hover,
+  .animate-slide-right:hover,
+  .animate-slide-left:hover {
     animation-play-state: paused;
   }
   

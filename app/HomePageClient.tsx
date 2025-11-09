@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
 import LogoutButton from '@/components/LogoutButton'
+import R2Image from '@/components/R2Image'
 
 interface Stats {
   total: number
@@ -97,6 +98,12 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               >
                 Video Generation
               </Link>
+              <Link
+                href="/storage-test"
+                className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
+              >
+                R2 Test
+              </Link>
             </div>
             <div className="flex items-center gap-4">
               {userProfile.avatar_url && (
@@ -129,6 +136,145 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               Start Generating Video
             </Button>
           </Link>
+        </div>
+
+        {/* Image Carousel - Always visible */}
+        <div className="mb-8 space-y-6">
+          {/* Top row: slide from right to left */}
+          <div className="overflow-hidden">
+            <div className="flex gap-6 animate-slide-right" style={{ width: '200%' }}>
+              {/* First set */}
+              <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="2b827a33e43a48b2b583ed428977712c.png"
+                    alt="Image 1"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="460bef39f6e34f82912a27e357827963.png"
+                    alt="Image 2"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="5995d3bfdb674ecebaccc581ed8940b3.png"
+                    alt="Image 3"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="7b0be82bb2134fca87519cbecf30aca9.png"
+                    alt="Image 4"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+              </div>
+              {/* Duplicate for seamless loop */}
+              <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="2b827a33e43a48b2b583ed428977712c.png"
+                    alt="Image 1"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="460bef39f6e34f82912a27e357827963.png"
+                    alt="Image 2"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="5995d3bfdb674ecebaccc581ed8940b3.png"
+                    alt="Image 3"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="7b0be82bb2134fca87519cbecf30aca9.png"
+                    alt="Image 4"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Bottom row: slide from left to right */}
+          <div className="overflow-hidden">
+            <div className="flex gap-6 animate-slide-left" style={{ width: '200%' }}>
+              {/* First set */}
+              <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="80dc75a06d0b49c29bdb78eb45dc70a0.png"
+                    alt="Image 5"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="b451ac136a474a9f91398a403af2d2a6.png"
+                    alt="Image 6"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="e6e1ebc8cea34e83a106009a485b1cbb.png"
+                    alt="Image 7"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="f566981bc27549b7a2389a6887e9c840.png"
+                    alt="Image 8"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+              </div>
+              {/* Duplicate for seamless loop */}
+              <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="80dc75a06d0b49c29bdb78eb45dc70a0.png"
+                    alt="Image 5"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="b451ac136a474a9f91398a403af2d2a6.png"
+                    alt="Image 6"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="e6e1ebc8cea34e83a106009a485b1cbb.png"
+                    alt="Image 7"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="f566981bc27549b7a2389a6887e9c840.png"
+                    alt="Image 8"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Stats Cards */}
