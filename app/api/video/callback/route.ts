@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { refundCreditsByVideoTaskId } from '@/lib/credits'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -53,11 +54,23 @@ export async function POST(request: NextRequest) {
       updateData.completed_at = new Date().toISOString()
     }
 
-    // If task failed, update error information
+    // If task failed, update error information and refund credits
     if (callbackData.status === 'failed') {
       updateData.failure_reason = callbackData.failure_reason || null
       updateData.error_message = callbackData.error || null
       updateData.completed_at = new Date().toISOString()
+      
+      // Refund credits when task fails
+      const refundResult = await refundCreditsByVideoTaskId(
+        supabase,
+        videoTask.user_id,
+        videoTask.id
+      )
+      
+      if (!refundResult.success) {
+        console.error('Failed to refund credits:', refundResult.error)
+        // Continue even if refund fails, as the task status is already updated
+      }
     }
 
     // Update database

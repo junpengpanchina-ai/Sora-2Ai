@@ -20,6 +20,7 @@ export interface Database {
           updated_at: string
           last_login_at: string | null
           status: 'active' | 'inactive' | 'banned'
+          credits: number
         }
         Insert: {
           id?: string
@@ -31,6 +32,7 @@ export interface Database {
           updated_at?: string
           last_login_at?: string | null
           status?: 'active' | 'inactive' | 'banned'
+          credits?: number
         }
         Update: {
           id?: string
@@ -42,6 +44,7 @@ export interface Database {
           updated_at?: string
           last_login_at?: string | null
           status?: 'active' | 'inactive' | 'banned'
+          credits?: number
         }
       }
       video_tasks: {
@@ -110,6 +113,76 @@ export interface Database {
           created_at?: string
           updated_at?: string
           completed_at?: string | null
+        }
+      }
+      recharge_records: {
+        Row: {
+          id: string
+          user_id: string
+          amount: number
+          credits: number
+          payment_method: string | null
+          payment_id: string | null
+          status: 'pending' | 'completed' | 'failed' | 'cancelled'
+          created_at: string
+          updated_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          amount: number
+          credits: number
+          payment_method?: string | null
+          payment_id?: string | null
+          status?: 'pending' | 'completed' | 'failed' | 'cancelled'
+          created_at?: string
+          updated_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          amount?: number
+          credits?: number
+          payment_method?: string | null
+          payment_id?: string | null
+          status?: 'pending' | 'completed' | 'failed' | 'cancelled'
+          created_at?: string
+          updated_at?: string
+          completed_at?: string | null
+        }
+      }
+      consumption_records: {
+        Row: {
+          id: string
+          user_id: string
+          video_task_id: string | null
+          credits: number
+          description: string | null
+          status: 'completed' | 'refunded'
+          created_at: string
+          refunded_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          video_task_id?: string | null
+          credits: number
+          description?: string | null
+          status?: 'completed' | 'refunded'
+          created_at?: string
+          refunded_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          video_task_id?: string | null
+          credits?: number
+          description?: string | null
+          status?: 'completed' | 'refunded'
+          created_at?: string
+          refunded_at?: string | null
         }
       }
     }

@@ -26,7 +26,7 @@ export async function GET() {
     
     const { data: userProfile } = await supabase
       .from('users')
-      .select('id')
+      .select('id, credits')
       .eq('google_id', googleId)
       .single()
 
@@ -74,6 +74,7 @@ export async function GET() {
         failed,
       },
       recentTasks: recentTasks || [],
+      credits: userProfile?.credits || 0,
     })
   } catch (error) {
     console.error('Failed to fetch statistics:', error)

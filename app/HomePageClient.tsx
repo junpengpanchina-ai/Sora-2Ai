@@ -28,6 +28,7 @@ interface HomePageClientProps {
     avatar_url?: string | null
     created_at: string
     last_login_at?: string | null
+    credits?: number
   }
 }
 
@@ -35,6 +36,10 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const [stats, setStats] = useState<Stats | null>(null)
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([])
   const [loading, setLoading] = useState(true)
+  const [credits, setCredits] = useState<number>(userProfile.credits || 0)
+  const [showRechargeModal, setShowRechargeModal] = useState(false)
+  const [rechargeAmount, setRechargeAmount] = useState('')
+  const [recharging, setRecharging] = useState(false)
 
   useEffect(() => {
     async function fetchStats() {
@@ -45,6 +50,9 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           if (data.success) {
             setStats(data.stats)
             setRecentTasks(data.recentTasks || [])
+            if (data.credits !== undefined) {
+              setCredits(data.credits)
+            }
           }
         }
       } catch (error) {
@@ -55,7 +63,46 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     }
 
     fetchStats()
+    // 每30秒刷新一次积分
+    const interval = setInterval(fetchStats, 30000)
+    return () => clearInterval(interval)
   }, [])
+
+  // 处理充值
+  const handleRecharge = async () => {
+    const amount = parseFloat(rechargeAmount)
+    if (!amount || amount <= 0) {
+      alert('请输入有效的充值金额')
+      return
+    }
+
+    setRecharging(true)
+    try {
+      const response = await fetch('/api/recharge', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: amount,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success && data.checkout_url) {
+        // 重定向到 Stripe Checkout
+        window.location.href = data.checkout_url
+      } else {
+        alert(`创建支付失败: ${data.error || 'Unknown error'}`)
+        setRecharging(false)
+      }
+    } catch (error) {
+      console.error('Failed to recharge:', error)
+      alert('充值失败，请稍后重试')
+      setRecharging(false)
+    }
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -100,6 +147,11 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               </Link>
             </div>
             <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900 rounded-lg">
+                <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
+                  积分: {credits}
+                </span>
+              </div>
               {userProfile.avatar_url && (
                 <img
                   src={userProfile.avatar_url}
@@ -110,6 +162,13 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:inline">
                 {userProfile.name || userProfile.email}
               </span>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setShowRechargeModal(true)}
+              >
+                充值
+              </Button>
               <LogoutButton />
             </div>
           </div>
@@ -125,11 +184,68 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           <p className="text-lg text-gray-600 dark:text-gray-400 mb-6">
             Transform your creativity into amazing videos with OpenAI Sora 2.0
           </p>
-          <Link href="/video">
-            <Button variant="primary" size="lg">
-              Start Generating Video
+          <div className="flex items-center justify-center gap-4">
+            <Link href="/video">
+              <Button variant="primary" size="lg">
+                Start Generating Video
+              </Button>
+            </Link>
+            <Button
+              variant="default"
+              size="lg"
+              onClick={() => setShowRechargeModal(true)}
+            >
+              充值积分
             </Button>
-          </Link>
+          </div>
+        </div>
+
+        {/* Pricing and Recharge Section */}
+        <div className="mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>价格说明</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    <strong className="text-gray-900 dark:text-white">视频生成价格：</strong>
+                    <span className="text-indigo-600 dark:text-indigo-400 font-semibold"> 10积分/次</span>
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-500">
+                    【无水印】OpenAI 最新发布的 Sora 模型 2.0，OpenAI官方内测，价格暂定，后续价格可能会有变动
+                  </p>
+                </div>
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    <strong className="text-gray-900 dark:text-white">充值比例：</strong>
+                    <span className="text-indigo-600 dark:text-indigo-400 font-semibold"> 1元 = 100积分</span>
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[10, 50, 100, 200].map((amount) => (
+                      <Button
+                        key={amount}
+                        variant="outline"
+                        onClick={() => {
+                          setRechargeAmount(amount.toString())
+                          setShowRechargeModal(true)
+                        }}
+                        className="flex flex-col items-center py-3"
+                      >
+                        <span className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
+                          ¥{amount}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {amount * 100}积分
+                        </span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Image Carousel - Always visible */}
@@ -850,6 +966,61 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           </div>
         </div>
       </main>
+
+      {/* Recharge Modal */}
+      {showRechargeModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>充值积分</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  充值金额（元）
+                </label>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={rechargeAmount}
+                  onChange={(e) => setRechargeAmount(e.target.value)}
+                  placeholder="请输入充值金额"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                {rechargeAmount && (
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    将获得 <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                      {Math.floor(parseFloat(rechargeAmount) * 100) || 0}
+                    </span> 积分
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="default"
+                  onClick={() => {
+                    setShowRechargeModal(false)
+                    setRechargeAmount('')
+                  }}
+                  className="flex-1"
+                  disabled={recharging}
+                >
+                  取消
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={handleRecharge}
+                  className="flex-1"
+                  disabled={recharging || !rechargeAmount}
+                >
+                  {recharging ? '充值中...' : '确认充值'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

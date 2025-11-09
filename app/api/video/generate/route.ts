@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createSoraVideoTask } from '@/lib/grsai/client'
+import { deductCredits, refundCredits } from '@/lib/credits'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -28,6 +29,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get user profile
+    const googleId = user.user_metadata?.provider_id || 
+                     user.user_metadata?.sub || 
+                     user.app_metadata?.provider_id ||
+                     user.id
+    
+    const { data: userProfile, error: userError } = await supabase
+      .from('users')
+      .select('id, credits')
+      .eq('google_id', googleId)
+      .single()
+
+    if (userError || !userProfile) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      )
+    }
+
     // Parse request body
     const body = await request.json()
     const validatedData = generateVideoSchema.parse(body)
@@ -39,6 +59,54 @@ export async function POST(request: NextRequest) {
     const webhookUrl = validatedData.useWebhook 
       ? `${baseUrl}/api/video/callback`
       : '-1' // Use polling method
+
+    // Create video task record first (before calling API)
+    const { data: videoTask, error: taskError } = await supabase
+      .from('video_tasks')
+      .insert({
+        user_id: userProfile.id,
+        model: 'sora-2',
+        prompt: validatedData.prompt,
+        reference_url: validatedData.url || null,
+        aspect_ratio: validatedData.aspectRatio,
+        duration: parseInt(validatedData.duration),
+        size: validatedData.size,
+        status: 'pending',
+        webhook_url: webhookUrl !== '-1' ? webhookUrl : null,
+      })
+      .select()
+      .single()
+
+    if (taskError || !videoTask) {
+      console.error('Failed to create video task:', taskError)
+      return NextResponse.json(
+        { error: 'Failed to create video task', details: taskError?.message },
+        { status: 500 }
+      )
+    }
+
+    // Deduct credits before calling API
+    const deductResult = await deductCredits(
+      supabase,
+      userProfile.id,
+      videoTask.id,
+      `Video generation: ${validatedData.prompt.substring(0, 50)}...`
+    )
+
+    if (!deductResult.success) {
+      // Delete the task record if credit deduction failed
+      await supabase
+        .from('video_tasks')
+        .delete()
+        .eq('id', videoTask.id)
+      
+      return NextResponse.json(
+        { error: deductResult.error || 'Insufficient credits' },
+        { status: 400 }
+      )
+    }
+
+    let consumptionId = deductResult.consumptionId
 
     // Call Grsai API
     const grsaiParams = {
@@ -52,7 +120,27 @@ export async function POST(request: NextRequest) {
       shutProgress: false,
     }
 
-    const grsaiResponse = await createSoraVideoTask(grsaiParams)
+    let grsaiResponse
+    try {
+      grsaiResponse = await createSoraVideoTask(grsaiParams)
+    } catch (apiError) {
+      // If API call fails, refund credits and update task status
+      if (consumptionId) {
+        await refundCredits(supabase, userProfile.id, consumptionId)
+      }
+      await supabase
+        .from('video_tasks')
+        .update({ 
+          status: 'failed',
+          error_message: apiError instanceof Error ? apiError.message : 'API call failed'
+        })
+        .eq('id', videoTask.id)
+      
+      return NextResponse.json(
+        { error: 'Failed to call video generation API', details: apiError instanceof Error ? apiError.message : 'Unknown error' },
+        { status: 500 }
+      )
+    }
 
     // Get task ID (for polling)
     let taskId: string | null = null
@@ -64,33 +152,75 @@ export async function POST(request: NextRequest) {
       taskId = grsaiResponse.id
     }
 
+    // Update task with grsai_task_id
+    await supabase
+      .from('video_tasks')
+      .update({ grsai_task_id: taskId })
+      .eq('id', videoTask.id)
+
     // If using streaming response and completed, return result directly
     if (!validatedData.useWebhook && 'status' in grsaiResponse) {
       if (grsaiResponse.status === 'succeeded' && grsaiResponse.results?.[0]) {
+        // Update task with result
+        await supabase
+          .from('video_tasks')
+          .update({
+            status: 'succeeded',
+            video_url: grsaiResponse.results[0].url,
+            remove_watermark: grsaiResponse.results[0].removeWatermark ?? true,
+            pid: grsaiResponse.results[0].pid || null,
+            completed_at: new Date().toISOString(),
+            progress: 100,
+          })
+          .eq('id', videoTask.id)
+
         return NextResponse.json({
           success: true,
           status: 'succeeded',
           video_url: grsaiResponse.results[0].url,
           remove_watermark: grsaiResponse.results[0].removeWatermark,
           pid: grsaiResponse.results[0].pid,
-          task_id: taskId,
+          task_id: videoTask.id,
         })
       } else if (grsaiResponse.status === 'failed') {
+        // Refund credits on failure
+        if (consumptionId) {
+          await refundCredits(supabase, userProfile.id, consumptionId)
+        }
+        
+        // Update task status
+        await supabase
+          .from('video_tasks')
+          .update({
+            status: 'failed',
+            failure_reason: grsaiResponse.failure_reason || null,
+            error_message: grsaiResponse.error || 'Generation failed',
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', videoTask.id)
+
         return NextResponse.json({
           success: false,
           status: 'failed',
           error: grsaiResponse.error || grsaiResponse.failure_reason || 'Generation failed',
-          task_id: taskId,
+          task_id: videoTask.id,
         }, { status: 500 })
       }
     }
+
+    // Update task status to processing
+    await supabase
+      .from('video_tasks')
+      .update({ status: 'processing' })
+      .eq('id', videoTask.id)
 
     // If using polling method, return task ID for frontend polling
     if (taskId) {
       return NextResponse.json({
         success: true,
         status: 'processing',
-        task_id: taskId,
+        task_id: videoTask.id, // Return our internal task ID
+        grsai_task_id: taskId, // Also return grsai task ID
         message: 'Video generation in progress, please wait...',
       })
     }
@@ -99,7 +229,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       status: 'processing',
-      task_id: taskId,
+      task_id: videoTask.id, // Return our internal task ID
+      grsai_task_id: taskId, // Also return grsai task ID
       message: 'Video generation in progress, result will be notified via webhook...',
     })
   } catch (error) {

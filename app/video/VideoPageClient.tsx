@@ -29,7 +29,28 @@ export default function VideoPageClient() {
   const [currentResult, setCurrentResult] = useState<VideoResult | null>(null)
   const [pollingTaskId, setPollingTaskId] = useState<string | null>(null)
   const [currentPrompt, setCurrentPrompt] = useState<string>('') // Save current prompt
+  const [credits, setCredits] = useState<number | null>(null)
   const hasReadPromptFromUrl = useRef(false)
+
+  // Fetch credits
+  useEffect(() => {
+    async function fetchCredits() {
+      try {
+        const response = await fetch('/api/stats')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.credits !== undefined) {
+            setCredits(data.credits)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch credits:', error)
+      }
+    }
+    fetchCredits()
+    const interval = setInterval(fetchCredits, 30000) // Refresh every 30 seconds
+    return () => clearInterval(interval)
+  }, [])
 
   // Read prompt from URL query parameter (only once)
   useEffect(() => {
@@ -118,6 +139,15 @@ export default function VideoPageClient() {
       const data = await response.json()
 
       if (data.success) {
+        // Refresh credits after successful generation
+        const statsResponse = await fetch('/api/stats')
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json()
+          if (statsData.success && statsData.credits !== undefined) {
+            setCredits(statsData.credits)
+          }
+        }
+
         // Save current prompt
         const submittedPrompt = prompt
         
@@ -149,7 +179,13 @@ export default function VideoPageClient() {
         setPrompt('')
         setReferenceUrl('')
       } else {
-        alert(`Generation failed: ${data.error || 'Unknown error'}`)
+        const errorMsg = data.error || 'Unknown error'
+        if (errorMsg.includes('Insufficient credits') || errorMsg.includes('积分')) {
+          alert(`积分不足！生成视频需要10积分。当前积分：${credits || 0}。请先充值。`)
+          router.push('/')
+        } else {
+          alert(`Generation failed: ${errorMsg}`)
+        }
         setCurrentResult(null)
       }
     } catch (error) {
@@ -208,6 +244,19 @@ export default function VideoPageClient() {
               </Link>
             </div>
             <div className="flex items-center gap-4">
+              {credits !== null && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900 rounded-lg">
+                  <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
+                    积分: {credits}
+                  </span>
+                </div>
+              )}
+              <Link
+                href="/"
+                className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
+              >
+                首页
+              </Link>
               <LogoutButton />
             </div>
           </div>
@@ -226,9 +275,16 @@ export default function VideoPageClient() {
 
         {/* Generation Form */}
         <div className="mb-8 rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-            Create New Task
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Create New Task
+            </h2>
+            {credits !== null && (
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                消耗积分: <span className="font-semibold text-indigo-600 dark:text-indigo-400">10积分/次</span>
+              </div>
+            )}
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

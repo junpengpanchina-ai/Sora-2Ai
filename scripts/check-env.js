@@ -19,6 +19,8 @@ const optionalEnvVars = [
   'SUPABASE_SERVICE_ROLE_KEY',
   'GRSAI_API_KEY',
   'GRSAI_API_URL',
+  'STRIPE_SECRET_KEY',
+  'STRIPE_WEBHOOK_SECRET',
 ];
 
 function checkEnvFile() {
