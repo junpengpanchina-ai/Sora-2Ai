@@ -59,7 +59,7 @@ export default function VideoPageClient() {
     },
   ]
 
-  // 从URL参数中读取提示词
+  // Read prompt from URL parameters
   useEffect(() => {
     const promptParam = searchParams.get('prompt')
     if (promptParam) {
@@ -235,12 +235,6 @@ export default function VideoPageClient() {
               </Link>
               <Link
                 href="/prompts"
-                className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
-              >
-                提示词库
-              </Link>
-              <Link
-                href="/prompts-en"
                 className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
               >
                 Prompt Library
