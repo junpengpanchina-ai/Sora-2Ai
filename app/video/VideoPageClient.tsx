@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import LogoutButton from '@/components/LogoutButton'
@@ -29,49 +29,22 @@ export default function VideoPageClient() {
   const [currentResult, setCurrentResult] = useState<VideoResult | null>(null)
   const [pollingTaskId, setPollingTaskId] = useState<string | null>(null)
   const [currentPrompt, setCurrentPrompt] = useState<string>('') // Save current prompt
-  const [showQuickPrompts, setShowQuickPrompts] = useState(false)
+  const hasReadPromptFromUrl = useRef(false)
 
-  // Quick prompt suggestions
-  const quickPrompts = [
-    {
-      title: 'Serene Forest',
-      prompt: 'A serene forest scene at dawn, with soft golden sunlight filtering through the dense canopy of ancient trees. Gentle morning mist floats between the tree trunks. Cinematic, 4K, natural lighting, peaceful atmosphere.',
-    },
-    {
-      title: 'Futuristic City',
-      prompt: 'A futuristic cityscape at night, flying through neon-lit skyscrapers. Holographic advertisements flicker on building facades. Cyberpunk aesthetic, cinematic camera movement, 4K, vibrant colors.',
-    },
-    {
-      title: 'Ocean Waves',
-      prompt: 'Powerful ocean waves crashing against rugged coastal rocks. White foam sprays into the air. Dramatic storm clouds gather overhead. Slow motion, cinematic, 4K, dramatic lighting.',
-    },
-    {
-      title: 'Space Station',
-      prompt: 'A detailed interior view of a modern space station. Astronauts float weightlessly through corridors. Earth visible through large windows. High-tech equipment and holographic displays. Cinematic, 4K, realistic lighting.',
-    },
-    {
-      title: 'Desert Stars',
-      prompt: 'A vast desert landscape at night under a starry sky. The Milky Way stretches across the horizon. Sand dunes create soft curves in the moonlight. Time-lapse, cinematic, 4K, peaceful and majestic.',
-    },
-    {
-      title: 'Abstract Particles',
-      prompt: 'Abstract flowing particles in vibrant colors, creating mesmerizing patterns. Smooth, fluid motion with glowing trails. Dark background with neon accents. Futuristic, hypnotic, 4K, smooth animation.',
-    },
-  ]
-
-  // Read prompt from URL parameters
+  // Read prompt from URL query parameter (only once)
   useEffect(() => {
+    if (hasReadPromptFromUrl.current) return
+    
     const promptParam = searchParams.get('prompt')
     if (promptParam) {
       setPrompt(decodeURIComponent(promptParam))
+      hasReadPromptFromUrl.current = true
+      // Clear the URL parameter after reading
+      const newUrl = new URL(window.location.href)
+      newUrl.searchParams.delete('prompt')
+      router.replace(newUrl.pathname + newUrl.search, { scroll: false })
     }
-  }, [searchParams])
-
-  // Handle quick prompt selection
-  const handleQuickPrompt = (quickPrompt: string) => {
-    setPrompt(quickPrompt)
-    setShowQuickPrompts(false)
-  }
+  }, [searchParams, router])
 
   // Poll task status
   useEffect(() => {
@@ -233,12 +206,6 @@ export default function VideoPageClient() {
               >
                 Video Generation
               </Link>
-              <Link
-                href="/prompts"
-                className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
-              >
-                Prompt Library
-              </Link>
             </div>
             <div className="flex items-center gap-4">
               <LogoutButton />
@@ -257,49 +224,6 @@ export default function VideoPageClient() {
           </p>
         </div>
 
-        {/* Quick Prompts Section */}
-        <div className="mb-6 rounded-lg bg-white p-4 shadow-lg dark:bg-gray-800">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Quick Prompts
-            </h3>
-            <div className="flex items-center gap-2">
-              <Link
-                href="/prompts-en"
-                className="text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
-              >
-                Browse More →
-              </Link>
-              <button
-                type="button"
-                onClick={() => setShowQuickPrompts(!showQuickPrompts)}
-                className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                {showQuickPrompts ? 'Hide' : 'Show'} Quick Prompts
-              </button>
-            </div>
-          </div>
-          {showQuickPrompts && (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {quickPrompts.map((item, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => handleQuickPrompt(item.prompt)}
-                  className="p-3 text-left rounded-md border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 dark:border-gray-700 dark:hover:border-indigo-500 dark:hover:bg-indigo-900/20 transition-colors"
-                >
-                  <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                    {item.title}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
-                    {item.prompt.substring(0, 80)}...
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
         {/* Generation Form */}
         <div className="mb-8 rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
@@ -307,17 +231,9 @@ export default function VideoPageClient() {
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Prompt <span className="text-red-500">*</span>
-                </label>
-                <Link
-                  href="/prompts-en"
-                  className="text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
-                >
-                  Browse Prompt Library →
-                </Link>
-              </div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Prompt <span className="text-red-500">*</span>
+              </label>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}

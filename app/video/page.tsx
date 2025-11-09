@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 import VideoPageClient from './VideoPageClient'
 
 export default async function VideoPage() {
@@ -14,6 +15,10 @@ export default async function VideoPage() {
     redirect('/login')
   }
 
-  // Render client component
-  return <VideoPageClient />
+  // Render client component with Suspense for useSearchParams
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <VideoPageClient />
+    </Suspense>
+  )
 }

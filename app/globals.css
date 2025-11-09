@@ -365,19 +365,19 @@ body {
   }
   
   .animate-slide-right {
-    animation: slide-right 20s linear infinite;
-    will-change: transform;
+    animation: slide-right 30s linear infinite;
   }
   
   .animate-slide-left {
-    animation: slide-left 20s linear infinite;
-    will-change: transform;
+    animation: slide-left 30s linear infinite;
   }
   
-  /* Ensure animations never stop - remove hover pause for continuous motion */
-  .animate-slide-right,
-  .animate-slide-left {
-    animation-play-state: running !important;
+  /* Hover to pause */
+  .animate-slide-right-to-left:hover,
+  .animate-slide-left-to-right:hover,
+  .animate-slide-right:hover,
+  .animate-slide-left:hover {
+    animation-play-state: paused;
   }
   
   /* 焦点样式增强 */

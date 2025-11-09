@@ -98,12 +98,6 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               >
                 Video Generation
               </Link>
-              <Link
-                href="/prompts"
-                className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
-              >
-                Prompt Library
-              </Link>
             </div>
             <div className="flex items-center gap-4">
               {userProfile.avatar_url && (
@@ -339,6 +333,155 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           </div>
         </div>
 
+        {/* Video Carousel - Below image carousel */}
+        <div className="mb-8">
+          <div className="overflow-hidden">
+            <div className="flex gap-6 animate-slide-right" style={{ width: '300%' }}>
+              {/* First set */}
+              <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <video
+                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/b8edbf0aa26b4afa85b7095b91414f3d.mp4"
+                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                    controls
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <video
+                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223443_366.mp4"
+                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                    controls
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <video
+                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223856_981.mp4"
+                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                    controls
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <video
+                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224357_417.mp4"
+                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                    controls
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  />
+                </div>
+              </div>
+              {/* Second set - duplicate for seamless loop */}
+              <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <video
+                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224947_118.mp4"
+                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                    controls
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <video
+                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223443_366.mp4"
+                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                    controls
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <video
+                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223856_981.mp4"
+                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                    controls
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <video
+                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224357_417.mp4"
+                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                    controls
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  />
+                </div>
+              </div>
+              {/* Third set - extra duplicate for seamless loop */}
+              <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <video
+                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/b8edbf0aa26b4afa85b7095b91414f3d.mp4"
+                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                    controls
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <video
+                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224947_118.mp4"
+                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                    controls
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <video
+                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223856_981.mp4"
+                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                    controls
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <video
+                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224357_417.mp4"
+                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                    controls
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Stats Cards */}
         {stats && (
           <div className="mb-8 space-y-6">
@@ -550,45 +693,57 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                 <CardTitle>Recent Tasks</CardTitle>
               </CardHeader>
               <CardContent>
-                {recentTasks.length > 0 ? (
+                {loading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="animate-pulse">
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : recentTasks.length > 0 ? (
                   <div className="space-y-4">
                     {recentTasks.map((task) => (
                       <div
                         key={task.id}
-                        className="flex items-start justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                        className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                       >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white mb-2 line-clamp-2">
-                            {task.prompt}
-                          </p>
-                          <div className="flex items-center gap-3 flex-wrap">
-                            {getStatusBadge(task.status)}
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {formatDate(task.created_at)}
-                            </span>
-                          </div>
-                          {task.video_url && task.status === 'succeeded' && (
-                            <div className="mt-3 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
-                              <video
-                                src={task.video_url}
-                                controls
-                                className="w-full max-h-48"
-                                preload="metadata"
-                              >
-                                Your browser does not support the video tag.
-                              </video>
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate mb-2">
+                              {task.prompt}
+                            </p>
+                            <div className="flex items-center gap-3 flex-wrap">
+                              {getStatusBadge(task.status)}
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {formatDate(task.created_at)}
+                              </span>
                             </div>
+                          </div>
+                          {task.video_url && (
+                            <Link
+                              href={task.video_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-4 text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 whitespace-nowrap"
+                            >
+                              Open
+                            </Link>
                           )}
                         </div>
-                        {task.video_url && (
-                          <Link
-                            href={task.video_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="ml-4 text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 whitespace-nowrap"
-                          >
-                            {task.status === 'succeeded' ? 'Open' : 'View'}
-                          </Link>
+                        {task.video_url && task.status === 'succeeded' && (
+                          <div className="mt-3 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
+                            <video
+                              src={task.video_url}
+                              controls
+                              className="w-full max-h-64 object-contain"
+                              preload="metadata"
+                              playsInline
+                            >
+                              Your browser does not support the video tag.
+                            </video>
+                          </div>
                         )}
                       </div>
                     ))}
