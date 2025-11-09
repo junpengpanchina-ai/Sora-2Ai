@@ -98,12 +98,6 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               >
                 Video Generation
               </Link>
-              <Link
-                href="/storage-test"
-                className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
-              >
-                R2 Test
-              </Link>
             </div>
             <div className="flex items-center gap-4">
               {userProfile.avatar_url && (
@@ -142,9 +136,9 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         <div className="mb-8 space-y-6">
           {/* Top row: slide from right to left */}
           <div className="overflow-hidden">
-            <div className="flex gap-6 animate-slide-right" style={{ width: '200%' }}>
+            <div className="flex gap-6 animate-slide-right" style={{ width: '300%' }}>
               {/* First set */}
-              <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
+              <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
                 <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
                   <R2Image
                     src="2b827a33e43a48b2b583ed428977712c.png"
@@ -174,8 +168,39 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                   />
                 </div>
               </div>
-              {/* Duplicate for seamless loop */}
-              <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
+              {/* Second set - duplicate for seamless loop */}
+              <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="2b827a33e43a48b2b583ed428977712c.png"
+                    alt="Image 1"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="460bef39f6e34f82912a27e357827963.png"
+                    alt="Image 2"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="5995d3bfdb674ecebaccc581ed8940b3.png"
+                    alt="Image 3"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="7b0be82bb2134fca87519cbecf30aca9.png"
+                    alt="Image 4"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+              </div>
+              {/* Third set - extra duplicate for seamless loop */}
+              <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
                 <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
                   <R2Image
                     src="2b827a33e43a48b2b583ed428977712c.png"
@@ -210,9 +235,9 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           
           {/* Bottom row: slide from left to right */}
           <div className="overflow-hidden">
-            <div className="flex gap-6 animate-slide-left" style={{ width: '200%' }}>
+            <div className="flex gap-6 animate-slide-left" style={{ width: '300%' }}>
               {/* First set */}
-              <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
+              <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
                 <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
                   <R2Image
                     src="80dc75a06d0b49c29bdb78eb45dc70a0.png"
@@ -242,8 +267,39 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                   />
                 </div>
               </div>
-              {/* Duplicate for seamless loop */}
-              <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
+              {/* Second set - duplicate for seamless loop */}
+              <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="80dc75a06d0b49c29bdb78eb45dc70a0.png"
+                    alt="Image 5"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="b451ac136a474a9f91398a403af2d2a6.png"
+                    alt="Image 6"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="e6e1ebc8cea34e83a106009a485b1cbb.png"
+                    alt="Image 7"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                  <R2Image
+                    src="f566981bc27549b7a2389a6887e9c840.png"
+                    alt="Image 8"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+              </div>
+              {/* Third set - extra duplicate for seamless loop */}
+              <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
                 <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
                   <R2Image
                     src="80dc75a06d0b49c29bdb78eb45dc70a0.png"
@@ -278,18 +334,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         </div>
 
         {/* Stats Cards */}
-        {loading ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-            {[1, 2, 3, 4].map((i) => (
-              <Card key={i} className="animate-pulse">
-                <CardContent className="p-6">
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-4"></div>
-                  <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : stats ? (
+        {stats && (
           <div className="mb-8 space-y-6">
             {/* Top row: slide from right to left */}
             <div className="overflow-hidden">
@@ -489,7 +534,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               </div>
             </div>
           </div>
-        ) : null}
+        )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Recent Tasks */}
@@ -499,16 +544,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                 <CardTitle>Recent Tasks</CardTitle>
               </CardHeader>
               <CardContent>
-                {loading ? (
-                  <div className="space-y-4">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="animate-pulse">
-                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
-                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-                      </div>
-                    ))}
-                  </div>
-                ) : recentTasks.length > 0 ? (
+                {recentTasks.length > 0 ? (
                   <div className="space-y-4">
                     {recentTasks.map((task) => (
                       <div
@@ -516,24 +552,36 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                         className="flex items-start justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                       >
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate mb-2">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white mb-2 line-clamp-2">
                             {task.prompt}
                           </p>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 flex-wrap">
                             {getStatusBadge(task.status)}
                             <span className="text-xs text-gray-500 dark:text-gray-400">
                               {formatDate(task.created_at)}
                             </span>
                           </div>
+                          {task.video_url && task.status === 'succeeded' && (
+                            <div className="mt-3 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
+                              <video
+                                src={task.video_url}
+                                controls
+                                className="w-full max-h-48"
+                                preload="metadata"
+                              >
+                                Your browser does not support the video tag.
+                              </video>
+                            </div>
+                          )}
                         </div>
                         {task.video_url && (
                           <Link
                             href={task.video_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="ml-4 text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+                            className="ml-4 text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 whitespace-nowrap"
                           >
-                            View
+                            {task.status === 'succeeded' ? 'Open' : 'View'}
                           </Link>
                         )}
                       </div>

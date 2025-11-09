@@ -345,22 +345,22 @@ body {
     animation: slide-left-to-right 30s linear infinite;
   }
   
-  /* Image carousel animations - move and reset */
+  /* Image carousel animations - seamless infinite loop */
   @keyframes slide-right {
     0% {
       transform: translateX(0);
     }
     100% {
-      transform: translateX(-100%);
+      transform: translateX(-33.333%);
     }
   }
   
   @keyframes slide-left {
     0% {
-      transform: translateX(-100%);
+      transform: translateX(-66.666%);
     }
     100% {
-      transform: translateX(0);
+      transform: translateX(-33.333%);
     }
   }
   
