@@ -44,6 +44,74 @@ export interface Database {
           status?: 'active' | 'inactive' | 'banned'
         }
       }
+      video_tasks: {
+        Row: {
+          id: string
+          user_id: string
+          grsai_task_id: string | null
+          model: string
+          prompt: string
+          reference_url: string | null
+          aspect_ratio: string
+          duration: number
+          size: string
+          status: 'pending' | 'processing' | 'succeeded' | 'failed'
+          progress: number
+          video_url: string | null
+          remove_watermark: boolean
+          pid: string | null
+          failure_reason: string | null
+          error_message: string | null
+          webhook_url: string | null
+          created_at: string
+          updated_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          grsai_task_id?: string | null
+          model?: string
+          prompt: string
+          reference_url?: string | null
+          aspect_ratio?: string
+          duration?: number
+          size?: string
+          status?: 'pending' | 'processing' | 'succeeded' | 'failed'
+          progress?: number
+          video_url?: string | null
+          remove_watermark?: boolean
+          pid?: string | null
+          failure_reason?: string | null
+          error_message?: string | null
+          webhook_url?: string | null
+          created_at?: string
+          updated_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          grsai_task_id?: string | null
+          model?: string
+          prompt?: string
+          reference_url?: string | null
+          aspect_ratio?: string
+          duration?: number
+          size?: string
+          status?: 'pending' | 'processing' | 'succeeded' | 'failed'
+          progress?: number
+          video_url?: string | null
+          remove_watermark?: boolean
+          pid?: string | null
+          failure_reason?: string | null
+          error_message?: string | null
+          webhook_url?: string | null
+          created_at?: string
+          updated_at?: string
+          completed_at?: string | null
+        }
+      }
     }
   }
 }

@@ -4,6 +4,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Sora-2Ai - AI Video Generation Platform",
   description: "Generate high-quality video content easily with AI technology",
+  icons: {
+    icon: '/icon.svg',
+  },
 };
 
 export default function RootLayout({
