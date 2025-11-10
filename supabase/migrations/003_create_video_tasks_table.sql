@@ -1,6 +1,8 @@
--- 创建视频生成任务表
+-- 创建所需扩展
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 CREATE TABLE IF NOT EXISTS video_tasks (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   grsai_task_id TEXT, -- grsai.com 返回的任务 ID
   model TEXT DEFAULT 'sora-2', -- 使用的模型

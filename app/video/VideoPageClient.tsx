@@ -180,11 +180,17 @@ export default function VideoPageClient() {
         setReferenceUrl('')
       } else {
         const errorMsg = data.error || 'Unknown error'
+        const errorDetails = data.details || ''
+        
         if (errorMsg.includes('Insufficient credits') || errorMsg.includes('积分')) {
           alert(`积分不足！生成视频需要10积分。当前积分：${credits || 0}。请先充值。`)
           router.push('/')
+        } else if (errorMsg.includes('User not found')) {
+          alert(`用户未找到：${errorDetails || '请尝试重新登录'}\n\n如果问题持续存在，请联系支持。`)
+          // 可选：自动跳转到登录页面
+          // router.push('/login')
         } else {
-          alert(`Generation failed: ${errorMsg}`)
+          alert(`生成失败：${errorMsg}${errorDetails ? '\n\n' + errorDetails : ''}`)
         }
         setCurrentResult(null)
       }

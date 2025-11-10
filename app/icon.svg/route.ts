@@ -3,6 +3,7 @@ import { readFile } from 'fs/promises'
 import path from 'path'
 
 export const dynamic = 'force-static'
+export const runtime = 'nodejs'
 
 // Handle icon.svg requests
 export async function GET() {

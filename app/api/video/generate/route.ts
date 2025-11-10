@@ -34,8 +34,16 @@ export async function POST(request: NextRequest) {
     const userProfile = await getOrCreateUser(supabase, user)
 
     if (!userProfile) {
+      console.error('[video/generate] Failed to get or create user:', {
+        userId: user.id,
+        email: user.email,
+        googleId: user.user_metadata?.provider_id || user.user_metadata?.sub || user.id,
+      })
       return NextResponse.json(
-        { error: 'User not found or failed to create user' },
+        { 
+          error: 'User not found or failed to create user',
+          details: 'Please try logging out and logging back in, or contact support if the issue persists.'
+        },
         { status: 404 }
       )
     }

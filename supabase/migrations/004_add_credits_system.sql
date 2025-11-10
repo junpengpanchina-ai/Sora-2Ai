@@ -1,9 +1,12 @@
+-- 确保可用的 UUID 生成函数
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 -- 在 users 表中添加积分字段
 ALTER TABLE users ADD COLUMN IF NOT EXISTS credits INTEGER DEFAULT 0 CHECK (credits >= 0);
 
 -- 创建充值记录表
 CREATE TABLE IF NOT EXISTS recharge_records (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   amount DECIMAL(10, 2) NOT NULL CHECK (amount > 0), -- 充值金额（元）
   credits INTEGER NOT NULL CHECK (credits > 0), -- 获得的积分
@@ -15,9 +18,8 @@ CREATE TABLE IF NOT EXISTS recharge_records (
   completed_at TIMESTAMP WITH TIME ZONE -- 完成时间
 );
 
--- 创建消费记录表
 CREATE TABLE IF NOT EXISTS consumption_records (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   video_task_id UUID REFERENCES video_tasks(id) ON DELETE SET NULL, -- 关联的视频任务ID
   credits INTEGER NOT NULL CHECK (credits > 0), -- 消费的积分
