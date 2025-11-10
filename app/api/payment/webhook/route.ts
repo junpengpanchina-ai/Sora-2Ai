@@ -44,21 +44,71 @@ export async function POST(request: NextRequest) {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session
 
-      // 从 metadata 中获取充值信息
-      const rechargeId = session.metadata?.recharge_id
-      const userId = session.metadata?.user_id
-      const amount = parseFloat(session.metadata?.amount || '0')
-      const credits = parseInt(session.metadata?.credits || '0')
+      // 从 metadata 中获取充值信息（Checkout Session）
+      let rechargeId = session.metadata?.recharge_id
+      let userId = session.metadata?.user_id
+      let amount = parseFloat(session.metadata?.amount || '0')
+      let credits = parseInt(session.metadata?.credits || '0')
+
+      const supabase = await createClient()
+
+      // 如果没有 metadata，可能是 Payment Link 支付，尝试通过 client_reference_id 查找
+      if (!rechargeId && session.client_reference_id) {
+        const { data: rechargeRecord } = await supabase
+          .from('recharge_records')
+          .select('*')
+          .eq('id', session.client_reference_id)
+          .single()
+
+        if (rechargeRecord) {
+          rechargeId = rechargeRecord.id
+          userId = rechargeRecord.user_id
+          amount = parseFloat(rechargeRecord.amount.toString())
+          credits = rechargeRecord.credits
+        }
+      }
+
+      // 如果还是没有找到，尝试通过 customer_email 查找最近的 pending 充值记录
+      if (!rechargeId && session.customer_email) {
+        const { data: userRecord } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', session.customer_email)
+          .single()
+
+        if (userRecord) {
+          // 查找最近的 pending 充值记录（Payment Link）
+          const { data: recentRecharge } = await supabase
+            .from('recharge_records')
+            .select('*')
+            .eq('user_id', userRecord.id)
+            .eq('status', 'pending')
+            .eq('payment_method', 'stripe_payment_link')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single()
+
+          if (recentRecharge) {
+            rechargeId = recentRecharge.id
+            userId = recentRecharge.user_id
+            amount = parseFloat(recentRecharge.amount.toString())
+            credits = recentRecharge.credits
+          }
+        }
+      }
 
       if (!rechargeId || !userId) {
-        console.error('Missing metadata in checkout session:', session.id)
+        console.error('Missing recharge information in checkout session:', {
+          session_id: session.id,
+          client_reference_id: session.client_reference_id,
+          customer_email: session.customer_email,
+          metadata: session.metadata,
+        })
         return NextResponse.json(
-          { error: 'Missing required metadata' },
+          { error: 'Missing required recharge information' },
           { status: 400 }
         )
       }
-
-      const supabase = await createClient()
 
       // 查找充值记录
       const { data: rechargeRecord, error: findError } = await supabase

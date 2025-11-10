@@ -24,11 +24,11 @@ export default function PaymentSuccessPage() {
   useEffect(() => {
     if (!sessionId) {
       setStatus('error')
-      setErrorMessage('缺少支付会话ID')
+      setErrorMessage('Missing payment session ID')
       return
     }
 
-    // 检查支付状态
+    // Check payment status
     async function checkPaymentStatus() {
       try {
         const response = await fetch(`/api/payment/check-session?session_id=${sessionId}`)
@@ -36,57 +36,57 @@ export default function PaymentSuccessPage() {
 
         if (!response.ok) {
           setStatus('error')
-          setErrorMessage(data.error || '检查支付状态失败')
+          setErrorMessage(data.error || 'Failed to check payment status')
           return
         }
 
         if (!data.success) {
           setStatus('failed')
-          setErrorMessage(data.message || '支付未完成')
+          setErrorMessage(data.message || 'Payment not completed')
           return
         }
 
-        // 更新充值信息
+        // Update recharge information
         setRechargeInfo({
           amount: data.recharge_record?.amount,
           credits: data.recharge_record?.credits,
           status: data.recharge_record?.status,
         })
 
-        // 更新积分
+        // Update credits
         setCredits(data.user_credits)
 
-        // 根据充值记录状态更新UI状态
+        // Update UI status based on recharge record status
         if (data.recharge_status === 'completed') {
           setStatus('completed')
         } else if (data.recharge_status === 'pending') {
           setStatus('processing')
-          // 如果还在处理中，继续轮询（最多30次，每次2秒，共60秒）
+          // If still processing, continue polling (max 30 times, 2 seconds each, 60 seconds total)
           if (pollCount < 30) {
             setTimeout(() => {
               setPollCount(prev => prev + 1)
               checkPaymentStatus()
             }, 2000)
           } else {
-            // 超时，但支付已成功，可能是Webhook延迟
+            // Timeout, but payment succeeded, webhook may be delayed
             setStatus('completed')
-            setErrorMessage('支付成功，但积分到账可能延迟，请稍后刷新页面查看')
+            setErrorMessage('Payment successful, but credits may be delayed. Please refresh the page later.')
           }
         } else {
           setStatus('error')
-          setErrorMessage('充值状态异常')
+          setErrorMessage('Recharge status abnormal')
         }
       } catch (error) {
         console.error('Failed to check payment status:', error)
         setStatus('error')
-        setErrorMessage('检查支付状态时发生错误')
+        setErrorMessage('Error occurred while checking payment status')
       }
     }
 
     checkPaymentStatus()
   }, [sessionId, pollCount])
 
-  // 手动刷新状态
+  // Manually refresh status
   const handleRefresh = () => {
     setPollCount(0)
     setStatus('checking')
@@ -114,28 +114,28 @@ export default function PaymentSuccessPage() {
               <span className="text-red-600 dark:text-red-400">⚠</span>
             )}
             {' '}
-            {status === 'completed' && '支付成功'}
-            {status === 'processing' && '处理中...'}
-            {status === 'checking' && '验证中...'}
-            {status === 'failed' && '支付失败'}
-            {status === 'error' && '发生错误'}
+            {status === 'completed' && 'Payment Successful'}
+            {status === 'processing' && 'Processing...'}
+            {status === 'checking' && 'Verifying...'}
+            {status === 'failed' && 'Payment Failed'}
+            {status === 'error' && 'Error Occurred'}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-center">
             {status === 'completed' && (
               <p className="text-gray-600 dark:text-gray-400 mb-4">
-                您的充值已成功处理，积分已添加到您的账户。
+                Your recharge has been successfully processed, credits have been added to your account.
               </p>
             )}
             {status === 'processing' && (
               <p className="text-gray-600 dark:text-gray-400 mb-4">
-                支付已确认，正在处理积分到账，请稍候...
+                Payment confirmed, processing credits, please wait...
               </p>
             )}
             {status === 'checking' && (
               <p className="text-gray-600 dark:text-gray-400 mb-4">
-                正在验证支付状态...
+                Verifying payment status...
               </p>
             )}
             {(status === 'failed' || status === 'error') && errorMessage && (
@@ -146,30 +146,30 @@ export default function PaymentSuccessPage() {
 
             {rechargeInfo && (
               <div className="mb-4 p-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">充值信息</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Recharge Information</p>
                 <p className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">
-                  ¥{rechargeInfo.amount} → {rechargeInfo.credits} 积分
+                  ${rechargeInfo.amount} → {rechargeInfo.credits} Credits
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                  状态: {rechargeInfo.status === 'completed' ? '已完成' : 
-                         rechargeInfo.status === 'pending' ? '处理中' : 
-                         rechargeInfo.status || '未知'}
+                  Status: {rechargeInfo.status === 'completed' ? 'Completed' : 
+                         rechargeInfo.status === 'pending' ? 'Processing' : 
+                         rechargeInfo.status || 'Unknown'}
                 </p>
               </div>
             )}
 
             {credits !== null && (
               <div className="mb-4 p-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">当前积分余额</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Current Credits Balance</p>
                 <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                  {credits} 积分
+                  {credits} Credits
                 </p>
               </div>
             )}
 
             {sessionId && (
               <p className="text-xs text-gray-500 dark:text-gray-500 mb-4">
-                订单号: {sessionId.substring(0, 20)}...
+                Order ID: {sessionId.substring(0, 20)}...
               </p>
             )}
 
@@ -177,7 +177,7 @@ export default function PaymentSuccessPage() {
               <div className="mb-4">
                 <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
-                  <span>等待积分到账中... ({pollCount}/30)</span>
+                  <span>Waiting for credits... ({pollCount}/30)</span>
                 </div>
               </div>
             )}
@@ -189,18 +189,18 @@ export default function PaymentSuccessPage() {
                 className="flex-1"
                 onClick={handleRefresh}
               >
-                刷新状态
+                Refresh Status
               </Button>
             )}
             <Link href="/" className="flex-1">
               <Button variant="primary" className="w-full">
-                返回首页
+                Back to Home
               </Button>
             </Link>
             {status === 'completed' && (
               <Link href="/video" className="flex-1">
-                <Button variant="default" className="w-full">
-                  生成视频
+                <Button variant="secondary" className="w-full">
+                  Generate Video
                 </Button>
               </Link>
             )}

@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
 import LogoutButton from '@/components/LogoutButton'
 import R2Image from '@/components/R2Image'
+import PricingModal from '@/components/PricingModal'
+import TasksDropdown from '@/components/TasksDropdown'
 
 interface Stats {
   total: number
@@ -37,12 +39,10 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([])
   const [loading, setLoading] = useState(true)
   const [credits, setCredits] = useState<number>(userProfile.credits || 0)
-  const [showRechargeModal, setShowRechargeModal] = useState(false)
-  const [rechargeAmount, setRechargeAmount] = useState('')
-  const [recharging, setRecharging] = useState(false)
+  const [showPricingModal, setShowPricingModal] = useState(false)
   const [addingTestCredits, setAddingTestCredits] = useState(false)
   
-  // 检查是否为开发环境
+  // Check if development environment
   const isDevelopment = process.env.NODE_ENV === 'development'
 
   useEffect(() => {
@@ -67,51 +67,16 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     }
 
     fetchStats()
-    // 每30秒刷新一次积分
+    // Refresh credits every 30 seconds
     const interval = setInterval(fetchStats, 30000)
     return () => clearInterval(interval)
   }, [])
 
-  // 处理充值
-  const handleRecharge = async () => {
-    const amount = parseFloat(rechargeAmount)
-    if (!amount || amount <= 0) {
-      alert('请输入有效的充值金额')
-      return
-    }
 
-    setRecharging(true)
-    try {
-      const response = await fetch('/api/recharge', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: amount,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (data.success && data.checkout_url) {
-        // 重定向到 Stripe Checkout
-        window.location.href = data.checkout_url
-      } else {
-        alert(`创建支付失败: ${data.error || 'Unknown error'}`)
-        setRecharging(false)
-      }
-    } catch (error) {
-      console.error('Failed to recharge:', error)
-      alert('充值失败，请稍后重试')
-      setRecharging(false)
-    }
-  }
-
-  // 添加测试积分（仅开发环境）
+  // Add test credits (development only)
   const handleAddTestCredits = async (testCredits: number = 100) => {
     if (!isDevelopment) {
-      alert('此功能仅在开发环境可用')
+      alert('This feature is only available in development environment')
       return
     }
 
@@ -130,8 +95,8 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       const data = await response.json()
 
       if (data.success) {
-        alert(`✅ ${data.message}\n积分: ${data.credits.before} → ${data.credits.after}`)
-        // 刷新积分
+        alert(`✅ ${data.message}\nCredits: ${data.credits.before} → ${data.credits.after}`)
+        // Refresh credits
         const statsResponse = await fetch('/api/stats')
         if (statsResponse.ok) {
           const statsData = await statsResponse.json()
@@ -140,45 +105,31 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           }
         }
       } else {
-        // 显示详细错误信息
+        // Display detailed error message
         const errorMsg = data.error || 'Unknown error'
         const details = data.details || ''
         const hint = data.hint || ''
-        
-        let fullErrorMsg = `添加积分失败: ${errorMsg}`
+
+        let fullErrorMsg = `Failed to add credits: ${errorMsg}`
         if (details) {
-          fullErrorMsg += `\n\n详情: ${details}`
+          fullErrorMsg += `\n\nDetails: ${details}`
         }
         if (hint) {
-          fullErrorMsg += `\n\n提示: ${hint}`
+          fullErrorMsg += `\n\nHint: ${hint}`
         }
-        
-        // 如果是credits字段不存在，提供修复建议
-        if (errorMsg.includes('Credits字段不存在') || errorMsg.includes('column') || errorMsg.includes('credits')) {
-          fullErrorMsg += `\n\n🔧 快速修复:\n1. 访问 Supabase Dashboard\n2. 进入 SQL Editor\n3. 执行以下SQL:\n\nALTER TABLE users ADD COLUMN IF NOT EXISTS credits INTEGER DEFAULT 0 CHECK (credits >= 0);`
+
+        // If credits field doesn't exist, provide fix suggestion
+        if (errorMsg.includes('Credits field does not exist') || errorMsg.includes('column') || errorMsg.includes('credits')) {
+          fullErrorMsg += `\n\n🔧 Quick Fix:\n1. Go to Supabase Dashboard\n2. Open SQL Editor\n3. Execute the following SQL:\n\nALTER TABLE users ADD COLUMN IF NOT EXISTS credits INTEGER DEFAULT 0 CHECK (credits >= 0);`
         }
-        
+
         alert(fullErrorMsg)
       }
     } catch (error) {
       console.error('Failed to add test credits:', error)
-      alert('添加积分失败，请稍后重试')
+      alert('Failed to add credits, please try again later')
     } finally {
       setAddingTestCredits(false)
-    }
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'succeeded':
-        return <Badge variant="success">Success</Badge>
-      case 'processing':
-      case 'pending':
-        return <Badge variant="info">Processing</Badge>
-      case 'failed':
-        return <Badge variant="error">Failed</Badge>
-      default:
-        return <Badge variant="default">{status}</Badge>
     }
   }
 
@@ -211,9 +162,31 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               </Link>
             </div>
             <div className="flex items-center gap-4">
+              {/* Stats Cards in Navbar */}
+              {stats && (
+                <div className="hidden lg:flex items-center gap-3">
+                  <div className="px-2 py-1 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Total</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">{stats.total}</p>
+                  </div>
+                  <div className="px-2 py-1 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Success</p>
+                    <p className="text-sm font-bold text-green-600 dark:text-green-400">{stats.succeeded}</p>
+                  </div>
+                  <div className="px-2 py-1 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Processing</p>
+                    <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{stats.processing}</p>
+                  </div>
+                  <div className="px-2 py-1 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Failed</p>
+                    <p className="text-sm font-bold text-red-600 dark:text-red-400">{stats.failed}</p>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900 rounded-lg">
                 <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
-                  积分: {credits}
+                  Credits: {credits}
                 </span>
               </div>
               {userProfile.avatar_url && (
@@ -229,9 +202,9 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => setShowRechargeModal(true)}
+                onClick={() => setShowPricingModal(true)}
               >
-                充值
+                Buy Plan
               </Button>
               {isDevelopment && (
                 <Button
@@ -241,7 +214,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                   disabled={addingTestCredits}
                   className="bg-green-600 hover:bg-green-700 text-white"
                 >
-                  {addingTestCredits ? '添加中...' : '+100测试积分'}
+                  {addingTestCredits ? 'Adding...' : '+100 Test Credits'}
                 </Button>
               )}
               <LogoutButton />
@@ -259,19 +232,13 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           <p className="text-lg text-gray-600 dark:text-gray-400 mb-6">
             Transform your creativity into amazing videos with OpenAI Sora 2.0
           </p>
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex items-center justify-center gap-[3cm]">
             <Link href="/video">
               <Button variant="primary" size="lg">
                 Start Generating Video
               </Button>
             </Link>
-            <Button
-              variant="default"
-              size="lg"
-              onClick={() => setShowRechargeModal(true)}
-            >
-              充值积分
-            </Button>
+            <TasksDropdown tasks={recentTasks} stats={stats} />
           </div>
         </div>
 
@@ -279,44 +246,18 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         <div className="mb-8">
           <Card>
             <CardHeader>
-              <CardTitle>价格说明</CardTitle>
+              <CardTitle>Pricing Information</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    <strong className="text-gray-900 dark:text-white">视频生成价格：</strong>
-                    <span className="text-indigo-600 dark:text-indigo-400 font-semibold"> 10积分/次</span>
+                    <strong className="text-gray-900 dark:text-white">Video Generation Price:</strong>
+                    <span className="text-indigo-600 dark:text-indigo-400 font-semibold"> 10 credits/video</span>
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-500">
-                    【无水印】OpenAI 最新发布的 Sora 模型 2.0，OpenAI官方内测，价格暂定，后续价格可能会有变动
+                    【Watermark-free】OpenAI's latest Sora 2.0 model, official beta testing, pricing is tentative and may change in the future
                   </p>
-                </div>
-                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                    <strong className="text-gray-900 dark:text-white">充值比例：</strong>
-                    <span className="text-indigo-600 dark:text-indigo-400 font-semibold"> 1元 = 100积分</span>
-                  </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {[10, 50, 100, 200].map((amount) => (
-                      <Button
-                        key={amount}
-                        variant="outline"
-                        onClick={() => {
-                          setRechargeAmount(amount.toString())
-                          setShowRechargeModal(true)
-                        }}
-                        className="flex flex-col items-center py-3"
-                      >
-                        <span className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
-                          ¥{amount}
-                        </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {amount * 100}积分
-                        </span>
-                      </Button>
-                    ))}
-                  </div>
                 </div>
               </div>
             </CardContent>
@@ -673,290 +614,10 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        {stats && (
-          <div className="mb-8 space-y-6">
-            {/* Top row: slide from right to left */}
-            <div className="overflow-hidden">
-              <div className="flex gap-6 animate-slide-right-to-left" style={{ width: '200%' }}>
-                {/* First set */}
-                <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
-                  <Card variant="elevated" className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <CardContent className="p-6">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                        Total Tasks
-                      </p>
-                      <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                        {stats.total}
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card variant="elevated" className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <CardContent className="p-6">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                        Succeeded
-                      </p>
-                      <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-                        {stats.succeeded}
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card variant="elevated" className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <CardContent className="p-6">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                        Processing
-                      </p>
-                      <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                        {stats.processing}
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card variant="elevated" className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <CardContent className="p-6">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                        Failed
-                      </p>
-                      <p className="text-3xl font-bold text-red-600 dark:text-red-400">
-                        {stats.failed}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
-                
-                {/* Duplicate for seamless loop */}
-                <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
-                  <Card variant="elevated" className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <CardContent className="p-6">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                        Total Tasks
-                      </p>
-                      <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                        {stats.total}
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card variant="elevated" className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <CardContent className="p-6">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                        Succeeded
-                      </p>
-                      <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-                        {stats.succeeded}
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card variant="elevated" className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <CardContent className="p-6">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                        Processing
-                      </p>
-                      <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                        {stats.processing}
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card variant="elevated" className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <CardContent className="p-6">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                        Failed
-                      </p>
-                      <p className="text-3xl font-bold text-red-600 dark:text-red-400">
-                        {stats.failed}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            </div>
-            
-            {/* Bottom row: slide from left to right */}
-            <div className="overflow-hidden">
-              <div className="flex gap-6 animate-slide-left-to-right" style={{ width: '200%' }}>
-                {/* First set (reversed order) */}
-                <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
-                  <Card variant="elevated" className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <CardContent className="p-6">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                        Failed
-                      </p>
-                      <p className="text-3xl font-bold text-red-600 dark:text-red-400">
-                        {stats.failed}
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card variant="elevated" className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <CardContent className="p-6">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                        Processing
-                      </p>
-                      <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                        {stats.processing}
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card variant="elevated" className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <CardContent className="p-6">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                        Succeeded
-                      </p>
-                      <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-                        {stats.succeeded}
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card variant="elevated" className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <CardContent className="p-6">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                        Total Tasks
-                      </p>
-                      <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                        {stats.total}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
-                
-                {/* Duplicate for seamless loop */}
-                <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
-                  <Card variant="elevated" className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <CardContent className="p-6">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                        Failed
-                      </p>
-                      <p className="text-3xl font-bold text-red-600 dark:text-red-400">
-                        {stats.failed}
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card variant="elevated" className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <CardContent className="p-6">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                        Processing
-                      </p>
-                      <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                        {stats.processing}
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card variant="elevated" className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <CardContent className="p-6">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                        Succeeded
-                      </p>
-                      <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-                        {stats.succeeded}
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card variant="elevated" className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <CardContent className="p-6">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                        Total Tasks
-                      </p>
-                      <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                        {stats.total}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Recent Tasks */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Tasks</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="space-y-4">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="animate-pulse">
-                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
-                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-                      </div>
-                    ))}
-                  </div>
-                ) : recentTasks.length > 0 ? (
-                  <div className="space-y-4">
-                    {recentTasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate mb-2">
-                              {task.prompt}
-                            </p>
-                            <div className="flex items-center gap-3 flex-wrap">
-                              {getStatusBadge(task.status)}
-                              <span className="text-xs text-gray-500 dark:text-gray-400">
-                                {formatDate(task.created_at)}
-                              </span>
-                            </div>
-                          </div>
-                          {task.video_url && (
-                            <Link
-                              href={task.video_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="ml-4 text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 whitespace-nowrap"
-                            >
-                              Open
-                            </Link>
-                          )}
-                        </div>
-                        {task.video_url && task.status === 'succeeded' && (
-                          <div className="mt-3 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
-                            <video
-                              src={task.video_url}
-                              controls
-                              className="w-full max-h-64 object-contain"
-                              preload="metadata"
-                              playsInline
-                            >
-                              Your browser does not support the video tag.
-                            </video>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500 dark:text-gray-400 mb-4">
-                      No tasks created yet
-                    </p>
-                    <Link href="/video">
-                      <Button variant="primary">Create First Task</Button>
-                    </Link>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Features and User Info */}
-          <div className="space-y-6">
-            {/* Features */}
-            <Card>
+        {/* Features and User Info */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          {/* Features */}
+          <Card>
               <CardHeader>
                 <CardTitle>Features</CardTitle>
               </CardHeader>
@@ -1038,64 +699,130 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                 )}
               </CardContent>
             </Card>
+        </div>
+
+        {/* Pricing Plans Section */}
+        <div className="mb-6">
+          <div className="text-center mb-6">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              Choose Your Plan
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400">
+              Each video generation consumes 10 credits
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            {/* Basic Plan - $39 */}
+            <Card className="relative">
+              <CardHeader>
+                <CardTitle className="text-xl text-center">Basic Plan</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-center">
+                  <div className="text-4xl font-bold text-indigo-600 dark:text-indigo-400">
+                    $39
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    USD
+                  </div>
+                </div>
+                
+                <div className="text-center py-4 border-t border-b border-gray-200 dark:border-gray-700">
+                  <div className="text-2xl font-semibold text-gray-900 dark:text-white">
+                    50 Videos
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    500 Credits
+                  </div>
+                </div>
+
+                <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                  Perfect for individual users and small projects
+                </p>
+
+                <div className="text-center text-xs text-gray-500 dark:text-gray-400">
+                  ~ $0.78 / video
+                </div>
+
+                <a
+                  href="https://buy.stripe.com/dRmcN55nY4k33WXfPa0kE03"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center rounded-lg font-semibold transition-colors focus-ring disabled:opacity-50 disabled:cursor-not-allowed bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-gray-700 dark:text-white dark:ring-gray-600 dark:hover:bg-gray-600 px-4 py-2 text-sm w-full"
+                >
+                  Buy Now
+                </a>
+              </CardContent>
+            </Card>
+
+            {/* Professional Plan - $299 */}
+            <Card className="relative border-2 border-indigo-500 dark:border-indigo-400 shadow-lg">
+              <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white">
+                Recommended
+              </Badge>
+              <CardHeader>
+                <CardTitle className="text-xl text-center">Professional Plan</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-center">
+                  <div className="text-4xl font-bold text-indigo-600 dark:text-indigo-400">
+                    $299
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    USD
+                  </div>
+                </div>
+                
+                <div className="text-center py-4 border-t border-b border-gray-200 dark:border-gray-700">
+                  <div className="text-2xl font-semibold text-gray-900 dark:text-white">
+                    200 Videos
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    2000 Credits
+                  </div>
+                </div>
+
+                <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                  Perfect for professional users and large projects
+                </p>
+
+                <div className="text-center text-xs text-gray-500 dark:text-gray-400">
+                  ~ $1.50 / video
+                </div>
+
+                <a
+                  href="https://buy.stripe.com/4gMcN5eYy5o70KLauQ0kE01"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center rounded-lg font-semibold transition-colors focus-ring disabled:opacity-50 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 px-4 py-2 text-sm w-full"
+                >
+                  Buy Now
+                </a>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg max-w-4xl mx-auto">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+              Purchase Information
+            </h3>
+            <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+              <li>• Credits will be automatically added to your account after payment is completed</li>
+              <li>• Each video generation consumes 10 credits</li>
+              <li>• Credits are permanent with no expiration date</li>
+              <li>• Supports credit cards, debit cards, and other payment methods</li>
+            </ul>
           </div>
         </div>
       </main>
 
-      {/* Recharge Modal */}
-      {showRechargeModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>充值积分</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  充值金额（元）
-                </label>
-                <input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={rechargeAmount}
-                  onChange={(e) => setRechargeAmount(e.target.value)}
-                  placeholder="请输入充值金额"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                {rechargeAmount && (
-                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    将获得 <span className="font-semibold text-indigo-600 dark:text-indigo-400">
-                      {Math.floor(parseFloat(rechargeAmount) * 100) || 0}
-                    </span> 积分
-                  </p>
-                )}
-              </div>
-              <div className="flex gap-3">
-                <Button
-                  variant="default"
-                  onClick={() => {
-                    setShowRechargeModal(false)
-                    setRechargeAmount('')
-                  }}
-                  className="flex-1"
-                  disabled={recharging}
-                >
-                  取消
-                </Button>
-                <Button
-                  variant="primary"
-                  onClick={handleRecharge}
-                  className="flex-1"
-                  disabled={recharging || !rechargeAmount}
-                >
-                  {recharging ? '充值中...' : '确认充值'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* Pricing Modal */}
+      <PricingModal
+        isOpen={showPricingModal}
+        onClose={() => setShowPricingModal(false)}
+      />
+
     </div>
   )
 }

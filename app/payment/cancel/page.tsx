@@ -9,27 +9,27 @@ export default function PaymentCancelPage() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-center text-2xl">
-            <span className="text-gray-600 dark:text-gray-400">支付已取消</span>
+            <span className="text-gray-600 dark:text-gray-400">Payment Cancelled</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-center">
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              您已取消支付，未产生任何费用。
+              You have cancelled the payment. No charges were made.
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-500">
-              如需充值，请返回首页重新操作。
+              If you need to recharge, please return to the homepage and try again.
             </p>
           </div>
           <div className="flex gap-3">
             <Link href="/" className="flex-1">
               <Button variant="primary" className="w-full">
-                返回首页
+                Back to Home
               </Button>
             </Link>
             <Link href="/video" className="flex-1">
-              <Button variant="default" className="w-full">
-                生成视频
+              <Button variant="secondary" className="w-full">
+                Generate Video
               </Button>
             </Link>
           </div>

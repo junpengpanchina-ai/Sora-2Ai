@@ -85,10 +85,10 @@ export default function VideoPageClient() {
             video_url: data.video_url,
             remove_watermark: data.remove_watermark,
             pid: data.pid,
-            prompt: prev?.prompt || currentPrompt, // 保持原有的 prompt
+            prompt: prev?.prompt || currentPrompt, // Keep original prompt
           }))
 
-          // 如果任务完成，停止轮询
+          // If task completed, stop polling
           if (data.status === 'succeeded' || data.status === 'failed') {
             setPollingTaskId(null)
           }
@@ -182,15 +182,15 @@ export default function VideoPageClient() {
         const errorMsg = data.error || 'Unknown error'
         const errorDetails = data.details || ''
         
-        if (errorMsg.includes('Insufficient credits') || errorMsg.includes('积分')) {
-          alert(`积分不足！生成视频需要10积分。当前积分：${credits || 0}。请先充值。`)
+        if (errorMsg.includes('Insufficient credits') || errorMsg.includes('credits')) {
+          alert(`Insufficient credits! Video generation requires 10 credits. Current credits: ${credits || 0}. Please recharge first.`)
           router.push('/')
         } else if (errorMsg.includes('User not found')) {
-          alert(`用户未找到：${errorDetails || '请尝试重新登录'}\n\n如果问题持续存在，请联系支持。`)
-          // 可选：自动跳转到登录页面
+          alert(`User not found: ${errorDetails || 'Please try logging in again'}\n\nIf the problem persists, please contact support.`)
+          // Optional: auto redirect to login page
           // router.push('/login')
         } else {
-          alert(`生成失败：${errorMsg}${errorDetails ? '\n\n' + errorDetails : ''}`)
+          alert(`Generation failed: ${errorMsg}${errorDetails ? '\n\n' + errorDetails : ''}`)
         }
         setCurrentResult(null)
       }
@@ -253,7 +253,7 @@ export default function VideoPageClient() {
               {credits !== null && (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900 rounded-lg">
                   <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
-                    积分: {credits}
+                    Credits: {credits}
                   </span>
                 </div>
               )}
@@ -261,7 +261,7 @@ export default function VideoPageClient() {
                 href="/"
                 className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
               >
-                首页
+                Home
               </Link>
               <LogoutButton />
             </div>
@@ -287,7 +287,7 @@ export default function VideoPageClient() {
             </h2>
             {credits !== null && (
               <div className="text-sm text-gray-600 dark:text-gray-400">
-                消耗积分: <span className="font-semibold text-indigo-600 dark:text-indigo-400">10积分/次</span>
+                Credits Cost: <span className="font-semibold text-indigo-600 dark:text-indigo-400">10 credits/video</span>
               </div>
             )}
           </div>
