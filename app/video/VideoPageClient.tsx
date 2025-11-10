@@ -263,6 +263,12 @@ export default function VideoPageClient() {
               >
                 Home
               </Link>
+              <Link
+                href="/prompts"
+                className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
+              >
+                Prompts
+              </Link>
               <LogoutButton />
             </div>
           </div>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
 import LogoutButton from '@/components/LogoutButton'
+import LoginButton from '@/components/LoginButton'
 import R2Image from '@/components/R2Image'
 import PricingModal from '@/components/PricingModal'
 import TasksDropdown from '@/components/TasksDropdown'
@@ -31,14 +32,14 @@ interface HomePageClientProps {
     created_at: string
     last_login_at?: string | null
     credits?: number
-  }
+  } | null
 }
 
 export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const [stats, setStats] = useState<Stats | null>(null)
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([])
   const [loading, setLoading] = useState(true)
-  const [credits, setCredits] = useState<number>(userProfile.credits || 0)
+  const [credits, setCredits] = useState<number>(userProfile?.credits || 0)
   const [showPricingModal, setShowPricingModal] = useState(false)
   const [addingTestCredits, setAddingTestCredits] = useState(false)
   
@@ -46,6 +47,12 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const isDevelopment = process.env.NODE_ENV === 'development'
 
   useEffect(() => {
+    // Only fetch stats if user is logged in
+    if (!userProfile) {
+      setLoading(false)
+      return
+    }
+
     async function fetchStats() {
       try {
         const response = await fetch('/api/stats')
@@ -70,7 +77,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     // Refresh credits every 30 seconds
     const interval = setInterval(fetchStats, 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [userProfile])
 
 
   // Add test credits (development only)
@@ -155,6 +162,12 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                 Sora-2Ai
               </h1>
               <Link
+                href="/prompts"
+                className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
+              >
+                Prompts
+              </Link>
+              <Link
                 href="/video"
                 className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
               >
@@ -162,8 +175,8 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               </Link>
             </div>
             <div className="flex items-center gap-4">
-              {/* Stats Cards in Navbar */}
-              {stats && (
+              {/* Stats Cards in Navbar - Only show if logged in */}
+              {userProfile && stats && (
                 <div className="hidden lg:flex items-center gap-3">
                   <div className="px-2 py-1 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                     <p className="text-xs text-gray-600 dark:text-gray-400">Total</p>
@@ -184,40 +197,46 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                 </div>
               )}
               
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900 rounded-lg">
-                <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
-                  Credits: {credits}
-                </span>
-              </div>
-              {userProfile.avatar_url && (
-                <img
-                  src={userProfile.avatar_url}
-                  alt={userProfile.name || 'User avatar'}
-                  className="h-8 w-8 rounded-full"
-                />
+              {userProfile ? (
+                <>
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900 rounded-lg">
+                    <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
+                      Credits: {credits}
+                    </span>
+                  </div>
+                  {userProfile.avatar_url && (
+                    <img
+                      src={userProfile.avatar_url}
+                      alt={userProfile.name || 'User avatar'}
+                      className="h-8 w-8 rounded-full"
+                    />
+                  )}
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:inline">
+                    {userProfile.name || userProfile.email}
+                  </span>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setShowPricingModal(true)}
+                  >
+                    Buy Plan
+                  </Button>
+                  {isDevelopment && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => handleAddTestCredits(100)}
+                      disabled={addingTestCredits}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      {addingTestCredits ? 'Adding...' : '+100 Test Credits'}
+                    </Button>
+                  )}
+                  <LogoutButton />
+                </>
+              ) : (
+                <LoginButton />
               )}
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:inline">
-                {userProfile.name || userProfile.email}
-              </span>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setShowPricingModal(true)}
-              >
-                Buy Plan
-              </Button>
-              {isDevelopment && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => handleAddTestCredits(100)}
-                  disabled={addingTestCredits}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  {addingTestCredits ? 'Adding...' : '+100 Test Credits'}
-                </Button>
-              )}
-              <LogoutButton />
             </div>
           </div>
         </div>
@@ -227,18 +246,28 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         {/* Hero Section */}
         <div className="mb-8 text-center animate-fade-in">
           <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-3">
-            Welcome back, {userProfile.name || 'User'}!
+            {userProfile ? `Welcome back, ${userProfile.name || 'User'}!` : 'Welcome to Sora-2Ai'}
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-400 mb-6">
             Transform your creativity into amazing videos with OpenAI Sora 2.0
           </p>
           <div className="flex items-center justify-center gap-[3cm]">
-            <Link href="/video">
-              <Button variant="primary" size="lg">
-                Start Generating Video
-              </Button>
-            </Link>
-            <TasksDropdown tasks={recentTasks} stats={stats} />
+            {userProfile ? (
+              <>
+                <Link href="/video">
+                  <Button variant="primary" size="lg">
+                    Start Generating Video
+                  </Button>
+                </Link>
+                <TasksDropdown tasks={recentTasks} stats={stats} />
+              </>
+            ) : (
+              <Link href="/login">
+                <Button variant="primary" size="lg">
+                  Login to Generate Video
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
 
@@ -657,48 +686,50 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               </CardContent>
             </Card>
 
-            {/* User Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                    Email
-                  </p>
-                  <p className="text-sm text-gray-900 dark:text-white">
-                    {userProfile.email}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                    Username
-                  </p>
-                  <p className="text-sm text-gray-900 dark:text-white">
-                    {userProfile.name || 'Not set'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                    Created At
-                  </p>
-                  <p className="text-sm text-gray-900 dark:text-white">
-                    {formatDate(userProfile.created_at)}
-                  </p>
-                </div>
-                {userProfile.last_login_at && (
+            {/* User Info - Only show if logged in */}
+            {userProfile && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Account Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
                   <div>
                     <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                      Last Login
+                      Email
                     </p>
                     <p className="text-sm text-gray-900 dark:text-white">
-                      {formatDate(userProfile.last_login_at)}
+                      {userProfile.email}
                     </p>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      Username
+                    </p>
+                    <p className="text-sm text-gray-900 dark:text-white">
+                      {userProfile.name || 'Not set'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      Created At
+                    </p>
+                    <p className="text-sm text-gray-900 dark:text-white">
+                      {formatDate(userProfile.created_at)}
+                    </p>
+                  </div>
+                  {userProfile.last_login_at && (
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        Last Login
+                      </p>
+                      <p className="text-sm text-gray-900 dark:text-white">
+                        {formatDate(userProfile.last_login_at)}
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
         </div>
 
         {/* Pricing Plans Section */}
