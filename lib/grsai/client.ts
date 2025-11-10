@@ -135,8 +135,10 @@ async function handleStreamResponse(response: Response): Promise<SoraVideoRespon
 
 /**
  * 获取任务结果（轮询方式）
+ * 根据官网日志，视频生成任务查询应该使用 /v1/draw/result 端点
  */
 export async function getTaskResult(taskId: string): Promise<GrsaiResultResponse> {
+  // 使用 /v1/draw/result 端点（视频和图片共用）
   const response = await fetch(`${GRSAI_HOST}/v1/draw/result`, {
     method: 'POST',
     headers: {

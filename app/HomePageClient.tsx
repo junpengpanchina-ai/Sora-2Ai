@@ -40,6 +40,10 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const [showRechargeModal, setShowRechargeModal] = useState(false)
   const [rechargeAmount, setRechargeAmount] = useState('')
   const [recharging, setRecharging] = useState(false)
+  const [addingTestCredits, setAddingTestCredits] = useState(false)
+  
+  // 检查是否为开发环境
+  const isDevelopment = process.env.NODE_ENV === 'development'
 
   useEffect(() => {
     async function fetchStats() {
@@ -101,6 +105,66 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       console.error('Failed to recharge:', error)
       alert('充值失败，请稍后重试')
       setRecharging(false)
+    }
+  }
+
+  // 添加测试积分（仅开发环境）
+  const handleAddTestCredits = async (testCredits: number = 100) => {
+    if (!isDevelopment) {
+      alert('此功能仅在开发环境可用')
+      return
+    }
+
+    setAddingTestCredits(true)
+    try {
+      const response = await fetch('/api/debug/add-credits', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          credits: testCredits,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        alert(`✅ ${data.message}\n积分: ${data.credits.before} → ${data.credits.after}`)
+        // 刷新积分
+        const statsResponse = await fetch('/api/stats')
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json()
+          if (statsData.success && statsData.credits !== undefined) {
+            setCredits(statsData.credits)
+          }
+        }
+      } else {
+        // 显示详细错误信息
+        const errorMsg = data.error || 'Unknown error'
+        const details = data.details || ''
+        const hint = data.hint || ''
+        
+        let fullErrorMsg = `添加积分失败: ${errorMsg}`
+        if (details) {
+          fullErrorMsg += `\n\n详情: ${details}`
+        }
+        if (hint) {
+          fullErrorMsg += `\n\n提示: ${hint}`
+        }
+        
+        // 如果是credits字段不存在，提供修复建议
+        if (errorMsg.includes('Credits字段不存在') || errorMsg.includes('column') || errorMsg.includes('credits')) {
+          fullErrorMsg += `\n\n🔧 快速修复:\n1. 访问 Supabase Dashboard\n2. 进入 SQL Editor\n3. 执行以下SQL:\n\nALTER TABLE users ADD COLUMN IF NOT EXISTS credits INTEGER DEFAULT 0 CHECK (credits >= 0);`
+        }
+        
+        alert(fullErrorMsg)
+      }
+    } catch (error) {
+      console.error('Failed to add test credits:', error)
+      alert('添加积分失败，请稍后重试')
+    } finally {
+      setAddingTestCredits(false)
     }
   }
 
@@ -169,6 +233,17 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               >
                 充值
               </Button>
+              {isDevelopment && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => handleAddTestCredits(100)}
+                  disabled={addingTestCredits}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {addingTestCredits ? '添加中...' : '+100测试积分'}
+                </Button>
+              )}
               <LogoutButton />
             </div>
           </div>
