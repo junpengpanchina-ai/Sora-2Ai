@@ -12,8 +12,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-12-18.acacia',
 })
 
-// Webhook 签名密钥（从 Stripe Dashboard 获取）
+// Webhook signature secret (obtained from Stripe Dashboard)
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
+
+// Credits exchange rate
+const CREDITS_PER_USD = 100 // 1 USD = 100 credits
 
 export async function POST(request: NextRequest) {
   try {
@@ -97,17 +100,65 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // If still no recharge record found, try to create one from session data
+      // This handles direct Payment Link payments without pre-created records
       if (!rechargeId || !userId) {
-        console.error('Missing recharge information in checkout session:', {
+        console.log('No recharge record found, attempting to create from session data:', {
           session_id: session.id,
           client_reference_id: session.client_reference_id,
           customer_email: session.customer_email,
-          metadata: session.metadata,
+          amount_total: session.amount_total,
+          currency: session.currency,
         })
-        return NextResponse.json(
-          { error: 'Missing required recharge information' },
-          { status: 400 }
-        )
+
+        // Try to find user by email
+        if (session.customer_email) {
+          const { data: userRecord } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', session.customer_email)
+            .single()
+
+          if (userRecord) {
+            userId = userRecord.id
+            // Calculate amount and credits from session
+            amount = session.amount_total ? session.amount_total / 100 : 0 // Convert from cents
+            credits = Math.round(amount * CREDITS_PER_USD) // 1 USD = 100 credits
+
+            // Create recharge record retroactively
+            const { data: newRechargeRecord, error: createError } = await supabase
+              .from('recharge_records')
+              .insert({
+                user_id: userId,
+                amount: amount,
+                credits: credits,
+                payment_method: 'stripe_payment_link',
+                payment_id: session.id,
+                status: 'pending', // Will be updated to completed below
+              })
+              .select()
+              .single()
+
+            if (newRechargeRecord && !createError) {
+              rechargeId = newRechargeRecord.id
+              console.log('Created recharge record retroactively:', rechargeId)
+            } else {
+              console.error('Failed to create recharge record:', createError)
+            }
+          }
+        }
+
+        // If still no recharge record, log error but don't fail
+        if (!rechargeId || !userId) {
+          console.error('Cannot process payment: missing recharge information', {
+            session_id: session.id,
+            customer_email: session.customer_email,
+          })
+          return NextResponse.json(
+            { error: 'Missing required recharge information and cannot create record' },
+            { status: 400 }
+          )
+        }
       }
 
       // 查找充值记录

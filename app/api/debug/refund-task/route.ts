@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   // 检查是否为开发环境
   if (!isDevelopment) {
     return NextResponse.json(
-      { error: '此功能仅在开发环境可用' },
+      { error: 'This feature is only available in development environment' },
       { status: 403 }
     )
   }
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     if (videoTask.status === 'succeeded') {
       return NextResponse.json(
         { 
-          error: '任务已成功完成，不能返还积分',
+          error: 'Task already completed successfully, cannot refund credits',
           task_status: videoTask.status
         },
         { status: 400 }
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
       .from('video_tasks')
       .update({ 
         status: 'failed',
-        error_message: '积分已手动返还（任务卡住）'
+        error_message: 'Credits manually refunded (task stuck)'
       })
       .eq('id', validatedData.task_id)
 
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `成功返还任务 ${validatedData.task_id} 的积分`,
+      message: `Successfully refunded credits for task ${validatedData.task_id}`,
       task: {
         id: videoTask.id,
         prompt: videoTask.prompt,
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: '参数验证失败', details: error.errors },
+        { error: 'Parameter validation failed', details: error.errors },
         { status: 400 }
       )
     }

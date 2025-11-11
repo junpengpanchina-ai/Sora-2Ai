@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@/components/ui'
+import { Card, CardHeader, CardTitle, CardContent, Badge } from '@/components/ui'
 
 interface PaymentLink {
   id: string
@@ -22,7 +22,6 @@ interface PricingModalProps {
 export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
   const [paymentLinks, setPaymentLinks] = useState<PaymentLink[]>([])
   const [loading, setLoading] = useState(true)
-  const [processing, setProcessing] = useState<string | null>(null)
 
   useEffect(() => {
     if (isOpen) {
@@ -48,43 +47,6 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
     }
   }
 
-  async function handlePurchase(paymentLinkId: string) {
-    setProcessing(paymentLinkId)
-    try {
-      const response = await fetch('/api/payment/payment-link', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          payment_link_id: paymentLinkId,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (data.success && data.payment_link_url) {
-        // Save recharge_id to localStorage for later retrieval
-        if (data.recharge_id) {
-          localStorage.setItem('pending_recharge_id', data.recharge_id)
-        }
-        // Redirect to Stripe Payment Link
-        window.location.href = data.payment_link_url
-      } else {
-        if (data.error?.includes('Unauthorized') || data.error?.includes('login')) {
-          alert('Please login first to purchase')
-          window.location.href = '/login'
-        } else {
-          alert(`Purchase failed: ${data.error || 'Unknown error'}`)
-        }
-        setProcessing(null)
-      }
-    } catch (error) {
-      console.error('Failed to purchase:', error)
-      alert('Purchase failed, please try again later')
-      setProcessing(null)
-    }
-  }
 
   if (!isOpen) return null
 
@@ -164,22 +126,19 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
                       ~ ${(link.amount / link.videos).toFixed(2)} / video
                     </div>
 
-                    {/* Purchase Button */}
-                    <Button
-                      variant={link.amount === 299 ? 'primary' : 'secondary'}
-                      className="w-full"
-                      onClick={() => handlePurchase(link.id)}
-                      disabled={processing === link.id}
-                    >
-                      {processing === link.id ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Processing...
-                        </>
-                      ) : (
-                        'Buy Now'
-                      )}
-                    </Button>
+                    {/* Stripe Buy Button */}
+                    <div className="flex justify-center">
+                      <stripe-buy-button
+                        buy-button-id={
+                          link.amount === 39
+                            ? 'buy_btn_1SSKRyDqGbi6No9vhYgi4niS'
+                            : link.amount === 299
+                            ? 'buy_btn_1SSKYdDqGbi6No9vbFWdJAOt'
+                            : ''
+                        }
+                        publishable-key="pk_live_51SKht2DqGbi6No9v57glxTk8MK8r0Ro9lcsHigkf3RNMzI3MLbQry0xPY4wAi5UjUkHGrQpKCBe98cwt0G7Fj1B700YGD58zbP"
+                      />
+                    </div>
                   </CardContent>
                 </Card>
               ))}

@@ -92,8 +92,8 @@ export async function POST(request: NextRequest) {
           price_data: {
             currency: 'cny', // 人民币
             product_data: {
-              name: '积分充值',
-              description: `充值 ${validatedData.amount} 元，获得 ${creditsToAdd} 积分`,
+              name: 'Credits Recharge',
+              description: `Recharge ${validatedData.amount} CNY, get ${creditsToAdd} credits`,
             },
             unit_amount: Math.round(validatedData.amount * 100), // Stripe 使用分为单位
           },

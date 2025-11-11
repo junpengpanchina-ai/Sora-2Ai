@@ -4,39 +4,39 @@ import Stripe from 'stripe'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
-// 初始化 Stripe
+// Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-12-18.acacia',
 })
 
-// Payment Link 配置
+// Payment Link configuration
 const PAYMENT_LINKS: Record<string, { amount: number; currency: string; credits: number; name: string; videos: number; description: string }> = {
-  // 39 美元套餐：50条视频 = 500积分（10积分/视频）
+  // $39 plan: 50 videos = 500 credits (10 credits/video)
   'dRmcN55nY4k33WXfPa0kE03': {
     amount: 39,
     currency: 'usd',
-    credits: 500, // 50条视频 * 10积分/视频
-    name: '基础套餐',
+    credits: 500, // 50 videos * 10 credits/video
+    name: 'Basic Plan',
     videos: 50,
-    description: '适合个人用户和小型项目',
+    description: 'Perfect for individual users and small projects',
   },
-  // 299 美元套餐：200条视频 = 2000积分（10积分/视频）
+  // $299 plan: 200 videos = 2000 credits (10 credits/video)
   '4gMcN5eYy5o70KLauQ0kE01': {
     amount: 299,
     currency: 'usd',
-    credits: 2000, // 200条视频 * 10积分/视频
-    name: '专业套餐',
+    credits: 2000, // 200 videos * 10 credits/video
+    name: 'Professional Plan',
     videos: 200,
-    description: '适合专业用户和大型项目',
+    description: 'Perfect for professional users and large projects',
   },
 }
 
-// 积分兑换比例
-const CREDITS_PER_USD = 100 // 1 USD = 100 积分
+// Credits exchange rate
+const CREDITS_PER_USD = 100 // 1 USD = 100 credits
 
 /**
- * 注册 Payment Link 支付
- * 在用户点击 Payment Link 之前，创建充值记录
+ * Register Payment Link payment
+ * Create recharge record before user clicks Payment Link
  */
 export async function POST(request: NextRequest) {
   try {

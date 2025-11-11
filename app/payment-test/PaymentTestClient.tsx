@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@/components/ui'
 import Link from 'next/link'
 import LoginButton from '@/components/LoginButton'
@@ -33,6 +33,39 @@ export default function PaymentTestClient({ userProfile }: PaymentTestClientProp
   const [rechargeRecords, setRechargeRecords] = useState<RechargeRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [autoRefresh, setAutoRefresh] = useState(true)
+  const [syncing, setSyncing] = useState(false)
+
+  const fetchData = useCallback(async () => {
+    if (!userProfile) return
+
+    try {
+      // Fetch current credits
+      const statsResponse = await fetch('/api/stats')
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json()
+        if (statsData.success && statsData.credits !== undefined) {
+          setCredits(statsData.credits)
+        }
+      }
+
+      // Fetch recharge records
+      const rechargeResponse = await fetch('/api/payment/recharge-records')
+      if (rechargeResponse.ok) {
+        const rechargeData = await rechargeResponse.json()
+        if (rechargeData.success) {
+          setRechargeRecords(rechargeData.records || rechargeData.recharge_records || [])
+          // Update credits from recharge data if available
+          if (rechargeData.user_credits !== undefined) {
+            setCredits(rechargeData.user_credits)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [userProfile])
 
   useEffect(() => {
     if (!userProfile) {
@@ -51,41 +84,13 @@ export default function PaymentTestClient({ userProfile }: PaymentTestClientProp
     return () => {
       if (interval) clearInterval(interval)
     }
-  }, [userProfile, autoRefresh])
-
-  async function fetchData() {
-    if (!userProfile) return
-
-    try {
-      // Fetch current credits
-      const statsResponse = await fetch('/api/stats')
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json()
-        if (statsData.success && statsData.credits !== undefined) {
-          setCredits(statsData.credits)
-        }
-      }
-
-      // Fetch recharge records
-      const rechargeResponse = await fetch('/api/payment/recharge-records')
-      if (rechargeResponse.ok) {
-        const rechargeData = await rechargeResponse.json()
-        if (rechargeData.success && rechargeData.records) {
-          setRechargeRecords(rechargeData.records)
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch data:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [userProfile, autoRefresh, fetchData])
 
   function formatDate(dateString: string) {
-    return new Date(dateString).toLocaleString('zh-CN', {
+    return new Date(dateString).toLocaleString('en-US', {
       year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
+      month: 'short',
+      day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
@@ -224,8 +229,18 @@ export default function PaymentTestClient({ userProfile }: PaymentTestClientProp
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Link href="/" className="block">
+              <a
+                href="https://buy.stripe.com/dRm4gzaIiaIrgJJ6eA0kE04"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+              >
                 <Button variant="primary" className="w-full">
+                  Test Payment Link
+                </Button>
+              </a>
+              <Link href="/" className="block">
+                <Button variant="secondary" className="w-full">
                   Buy Plan
                 </Button>
               </Link>
@@ -239,6 +254,33 @@ export default function PaymentTestClient({ userProfile }: PaymentTestClientProp
                   View All Records
                 </Button>
               </Link>
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={async () => {
+                  setSyncing(true)
+                  try {
+                    const response = await fetch('/api/payment/sync-payments', {
+                      method: 'POST',
+                    })
+                    const data = await response.json()
+                    if (data.success) {
+                      alert(`Synced ${data.synced_payments?.length || 0} payment(s)`)
+                      fetchData() // Refresh data
+                    } else {
+                      alert(`Sync failed: ${data.error}`)
+                    }
+                  } catch (error) {
+                    console.error('Failed to sync payments:', error)
+                    alert('Failed to sync payments')
+                  } finally {
+                    setSyncing(false)
+                  }
+                }}
+                disabled={syncing}
+              >
+                {syncing ? 'Syncing...' : 'Sync Payments'}
+              </Button>
             </CardContent>
           </Card>
         </div>

@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   // 检查是否为开发环境
   if (!isDevelopment) {
     return NextResponse.json(
-      { error: '此功能仅在开发环境可用' },
+      { error: 'This feature is only available in development environment' },
       { status: 403 }
     )
   }
@@ -65,9 +65,9 @@ export async function POST(request: NextRequest) {
       if (userError.message?.includes('column') && userError.message?.includes('credits')) {
         return NextResponse.json(
           { 
-            error: 'Credits字段不存在', 
-            details: '请先执行数据库迁移: supabase/migrations/004_add_credits_system.sql',
-            hint: '在Supabase Dashboard的SQL Editor中执行迁移文件'
+            error: 'Credits field does not exist', 
+            details: 'Please run database migration: supabase/migrations/004_add_credits_system.sql',
+            hint: 'Execute the migration file in Supabase Dashboard SQL Editor'
           },
           { status: 500 }
         )
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `成功添加 ${validatedData.credits} 积分`,
+      message: `Successfully added ${validatedData.credits} credits`,
       credits: {
         before: currentCredits,
         added: validatedData.credits,
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: '参数验证失败', details: error.errors },
+        { error: 'Parameter validation failed', details: error.errors },
         { status: 400 }
       )
     }

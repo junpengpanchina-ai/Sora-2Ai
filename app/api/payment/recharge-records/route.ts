@@ -43,10 +43,18 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Get current user credits
+    const { data: userCreditsData } = await supabase
+      .from('users')
+      .select('credits')
+      .eq('id', userProfile.id)
+      .single()
+
     return NextResponse.json({
       success: true,
       records: rechargeRecords || [],
       count: rechargeRecords?.length || 0,
+      user_credits: userCreditsData?.credits ?? 0,
     })
   } catch (error) {
     console.error('Failed to get recharge records:', error)
