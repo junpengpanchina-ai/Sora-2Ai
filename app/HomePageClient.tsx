@@ -222,29 +222,29 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               
               {userProfile ? (
                 <>
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900 rounded-lg">
-                    <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900 rounded-lg">
+                <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
                       Credits: {credits}
-                    </span>
-                  </div>
-                  {userProfile.avatar_url && (
-                    <img
-                      src={userProfile.avatar_url}
-                      alt={userProfile.name || 'User avatar'}
-                      className="h-8 w-8 rounded-full"
-                    />
-                  )}
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:inline">
-                    {userProfile.name || userProfile.email}
-                  </span>
+                </span>
+              </div>
+              {userProfile.avatar_url && (
+                <img
+                  src={userProfile.avatar_url}
+                  alt={userProfile.name || 'User avatar'}
+                  className="h-8 w-8 rounded-full"
+                />
+              )}
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:inline">
+                {userProfile.name || userProfile.email}
+              </span>
                   {userProfile ? (
-                    <Button
-                      variant="primary"
-                      size="sm"
+              <Button
+                variant="primary"
+                size="sm"
                       onClick={() => setShowPricingModal(true)}
-                    >
+              >
                       Buy Plan
-                    </Button>
+              </Button>
                   ) : (
                     <Link href="/login">
                       <Button variant="primary" size="sm">
@@ -263,7 +263,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                       {addingTestCredits ? 'Adding...' : '+100 Test Credits'}
                     </Button>
                   )}
-                  <LogoutButton />
+              <LogoutButton />
                 </>
               ) : (
                 <LoginButton />
@@ -285,18 +285,18 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           <div className="flex items-center justify-center gap-[3cm]">
             {userProfile ? (
               <>
-                <Link href="/video">
-                  <Button variant="primary" size="lg">
-                    Start Generating Video
-                  </Button>
-                </Link>
+            <Link href="/video">
+              <Button variant="primary" size="lg">
+                Start Generating Video
+              </Button>
+            </Link>
                 <TasksDropdown tasks={recentTasks} stats={stats} />
               </>
             ) : (
               <Link href="/login">
                 <Button variant="primary" size="lg">
                   Login to Generate Video
-                </Button>
+            </Button>
               </Link>
             )}
           </div>
@@ -672,12 +672,12 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               </div>
             </div>
           </div>
-        </div>
+          </div>
 
-        {/* Features and User Info */}
+          {/* Features and User Info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-          {/* Features */}
-          <Card>
+            {/* Features */}
+            <Card>
               <CardHeader>
                 <CardTitle>Features</CardTitle>
               </CardHeader>
@@ -719,49 +719,49 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
 
             {/* User Info - Only show if logged in */}
             {userProfile && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Account Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+            <Card>
+              <CardHeader>
+                <CardTitle>Account Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                    Email
+                  </p>
+                  <p className="text-sm text-gray-900 dark:text-white">
+                    {userProfile.email}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                    Username
+                  </p>
+                  <p className="text-sm text-gray-900 dark:text-white">
+                    {userProfile.name || 'Not set'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                    Created At
+                  </p>
+                  <p className="text-sm text-gray-900 dark:text-white">
+                    {formatDate(userProfile.created_at)}
+                  </p>
+                </div>
+                {userProfile.last_login_at && (
                   <div>
                     <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                      Email
+                      Last Login
                     </p>
                     <p className="text-sm text-gray-900 dark:text-white">
-                      {userProfile.email}
+                      {formatDate(userProfile.last_login_at)}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                      Username
-                    </p>
-                    <p className="text-sm text-gray-900 dark:text-white">
-                      {userProfile.name || 'Not set'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                      Created At
-                    </p>
-                    <p className="text-sm text-gray-900 dark:text-white">
-                      {formatDate(userProfile.created_at)}
-                    </p>
-                  </div>
-                  {userProfile.last_login_at && (
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                        Last Login
-                      </p>
-                      <p className="text-sm text-gray-900 dark:text-white">
-                        {formatDate(userProfile.last_login_at)}
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                )}
+              </CardContent>
+            </Card>
             )}
-        </div>
+          </div>
 
         {/* Pricing Plans Section */}
         <div className="mb-6">
@@ -772,15 +772,15 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
             <p className="text-gray-600 dark:text-gray-400">
               Each video generation consumes 10 credits
             </p>
-          </div>
+        </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {/* Basic Plan - $39 */}
             <Card className="relative">
-              <CardHeader>
+            <CardHeader>
                 <CardTitle className="text-xl text-center">Basic Plan</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            </CardHeader>
+            <CardContent className="space-y-4">
                 <div className="text-center">
                   <div className="text-4xl font-bold text-indigo-600 dark:text-indigo-400">
                     $39
@@ -805,16 +805,14 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
 
                 <div className="text-center text-xs text-gray-500 dark:text-gray-400">
                   ~ $0.78 / video
-                </div>
+              </div>
 
-                <a
-                  href="https://buy.stripe.com/dRmcN55nY4k33WXfPa0kE03"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center rounded-lg font-semibold transition-colors focus-ring disabled:opacity-50 disabled:cursor-not-allowed bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-gray-700 dark:text-white dark:ring-gray-600 dark:hover:bg-gray-600 px-4 py-2 text-sm w-full"
-                >
-                  Buy Now
-                </a>
+                <div className="flex justify-center">
+                  <stripe-buy-button
+                    buy-button-id="buy_btn_1SSKRyDqGbi6No9vhYgi4niS"
+                    publishable-key="pk_live_51SKht2DqGbi6No9v57glxTk8MK8r0Ro9lcsHigkf3RNMzI3MLbQry0xPY4wAi5UjUkHGrQpKCBe98cwt0G7Fj1B700YGD58zbP"
+                  />
+                </div>
               </CardContent>
             </Card>
 
@@ -830,7 +828,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                 <div className="text-center">
                   <div className="text-4xl font-bold text-indigo-600 dark:text-indigo-400">
                     $299
-                  </div>
+              </div>
                   <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     USD
                   </div>
@@ -853,17 +851,15 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                   ~ $1.50 / video
                 </div>
 
-                <a
-                  href="https://buy.stripe.com/4gMcN5eYy5o70KLauQ0kE01"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center rounded-lg font-semibold transition-colors focus-ring disabled:opacity-50 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 px-4 py-2 text-sm w-full"
-                >
-                  Buy Now
-                </a>
-              </CardContent>
-            </Card>
-          </div>
+                <div className="flex justify-center">
+                  <stripe-buy-button
+                    buy-button-id="buy_btn_1SSKYdDqGbi6No9vbFWdJAOt"
+                    publishable-key="pk_live_51SKht2DqGbi6No9v57glxTk8MK8r0Ro9lcsHigkf3RNMzI3MLbQry0xPY4wAi5UjUkHGrQpKCBe98cwt0G7Fj1B700YGD58zbP"
+                  />
+                </div>
+            </CardContent>
+          </Card>
+        </div>
 
           <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg max-w-4xl mx-auto">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">

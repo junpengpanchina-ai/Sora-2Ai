@@ -433,23 +433,18 @@ export default function VideoPageClient() {
               )}
 
               {currentResult.status === 'succeeded' && currentResult.video_url && (
-                <div className="mt-4">
-                  <video
-                    src={currentResult.video_url}
-                    controls
-                    className="w-full rounded-lg"
-                  >
-                    Your browser does not support video playback
-                  </video>
+                <>
+                  <div className="mt-4 flex justify-center">
+                    <video
+                      src={currentResult.video_url}
+                      controls
+                      className="max-w-md w-full rounded-lg"
+                    >
+                      Your browser does not support video playback
+                    </video>
+                  </div>
                   <div className="mt-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <a
-                        href={currentResult.video_url}
-                        download
-                        className="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                      >
-                        Download Video
-                      </a>
                       {currentResult.remove_watermark && (
                         <span className="text-xs text-green-600 dark:text-green-400">
                           ✓ No Watermark
@@ -463,10 +458,7 @@ export default function VideoPageClient() {
                       Clear
                     </button>
                   </div>
-                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    ⚠️ Video link is valid for 2 hours, please download in time
-                  </p>
-                </div>
+                </>
               )}
 
               {currentResult.status === 'failed' && (
@@ -474,9 +466,33 @@ export default function VideoPageClient() {
                   <p className="text-sm font-medium text-red-800 dark:text-red-200">
                     Generation Failed
                   </p>
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-300">
-                    {currentResult.error || 'Unknown error'}
-                  </p>
+                  <div className="mt-2 space-y-2">
+                    <p className="text-sm text-red-600 dark:text-red-300">
+                      {currentResult.error || 'Unknown error'}
+                    </p>
+                    {currentResult.error && (
+                      currentResult.error.toLowerCase().includes('violation') || 
+                      currentResult.error.toLowerCase().includes('guardrail') ||
+                      currentResult.error.toLowerCase().includes('third-party')
+                    ) && (
+                      <div className="mt-3 rounded-md bg-yellow-50 p-3 dark:bg-yellow-900/20">
+                        <p className="text-xs font-medium text-yellow-800 dark:text-yellow-200 mb-1">
+                          ⚠️ Content Policy Violation
+                        </p>
+                        <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                          Your prompt may contain content that violates our content policy. Please try:
+                        </p>
+                        <ul className="mt-1 ml-4 list-disc text-xs text-yellow-700 dark:text-yellow-300 space-y-1">
+                          <li>Use original, creative prompts</li>
+                          <li>Avoid referencing copyrighted content or brands</li>
+                          <li>Modify your prompt to be more unique</li>
+                        </ul>
+                        <p className="mt-2 text-xs text-yellow-600 dark:text-yellow-400">
+                          💡 Your credits have been refunded automatically.
+                        </p>
+                      </div>
+                    )}
+                  </div>
                   <button
                     onClick={() => setCurrentResult(null)}
                     className="mt-3 text-sm text-red-600 hover:text-red-700 dark:text-red-400"

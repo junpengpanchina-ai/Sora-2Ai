@@ -149,17 +149,6 @@ export default function TasksDropdown({ tasks, stats }: TasksDropdownProps) {
                             </span>
                           </div>
                         </div>
-                        {task.video_url && (
-                          <Link
-                            href={task.video_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="ml-2 text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 whitespace-nowrap"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Open
-                          </Link>
-                        )}
                       </div>
                       {task.video_url && task.status === 'succeeded' && (
                         <div className="mt-2 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
