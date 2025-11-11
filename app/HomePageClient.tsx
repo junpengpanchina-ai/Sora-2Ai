@@ -188,6 +188,14 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               >
                 Video Generation
               </Link>
+              {userProfile && (
+                <Link
+                  href="/payment-test"
+                  className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
+                >
+                  Payment Test
+                </Link>
+              )}
             </div>
             <div className="flex items-center gap-4">
               {/* Stats Cards in Navbar - Only show if logged in */}
