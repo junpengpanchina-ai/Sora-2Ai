@@ -64,10 +64,19 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
       const data = await response.json()
 
       if (data.success && data.payment_link_url) {
+        // Save recharge_id to localStorage for later retrieval
+        if (data.recharge_id) {
+          localStorage.setItem('pending_recharge_id', data.recharge_id)
+        }
         // Redirect to Stripe Payment Link
         window.location.href = data.payment_link_url
       } else {
-        alert(`Purchase failed: ${data.error || 'Unknown error'}`)
+        if (data.error?.includes('Unauthorized') || data.error?.includes('login')) {
+          alert('Please login first to purchase')
+          window.location.href = '/login'
+        } else {
+          alert(`Purchase failed: ${data.error || 'Unknown error'}`)
+        }
         setProcessing(null)
       }
     } catch (error) {

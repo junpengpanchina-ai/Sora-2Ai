@@ -108,9 +108,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Build Payment Link URL (add customer email and metadata)
-    // Note: Stripe Payment Link doesn't support direct metadata, but can use customer_email parameter
-    const paymentLinkUrl = `https://buy.stripe.com/${payment_link_id}?client_reference_id=${rechargeRecord.id}&prefilled_email=${encodeURIComponent(userEmail)}`
+    // Build Payment Link URL (add customer email, client_reference_id, and success page)
+    // Note: Stripe Payment Link doesn't support direct metadata, but can use client_reference_id and prefilled_email
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const successUrl = `${appUrl}/payment/success?recharge_id=${rechargeRecord.id}`
+    const paymentLinkUrl = `https://buy.stripe.com/${payment_link_id}?client_reference_id=${rechargeRecord.id}&prefilled_email=${encodeURIComponent(userEmail)}&redirect_on_completion=any_hosted_page`
 
     return NextResponse.json({
       success: true,

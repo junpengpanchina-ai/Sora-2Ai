@@ -76,7 +76,22 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     fetchStats()
     // Refresh credits every 30 seconds
     const interval = setInterval(fetchStats, 30000)
-    return () => clearInterval(interval)
+    
+    // Listen for credits update events (from payment success page)
+    const handleCreditsUpdate = (event: CustomEvent) => {
+      if (event.detail?.credits !== undefined) {
+        setCredits(event.detail.credits)
+        // Also refresh stats to get latest data
+        fetchStats()
+      }
+    }
+    
+    window.addEventListener('creditsUpdated', handleCreditsUpdate as EventListener)
+    
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('creditsUpdated', handleCreditsUpdate as EventListener)
+    }
   }, [userProfile])
 
 
@@ -214,13 +229,21 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:inline">
                     {userProfile.name || userProfile.email}
                   </span>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => setShowPricingModal(true)}
-                  >
-                    Buy Plan
-                  </Button>
+                  {userProfile ? (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => setShowPricingModal(true)}
+                    >
+                      Buy Plan
+                    </Button>
+                  ) : (
+                    <Link href="/login">
+                      <Button variant="primary" size="sm">
+                        Buy Plan
+                      </Button>
+                    </Link>
+                  )}
                   {isDevelopment && (
                     <Button
                       variant="default"

@@ -11,6 +11,7 @@ export default function PaymentSuccessPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const sessionId = searchParams.get('session_id')
+  const rechargeId = searchParams.get('recharge_id')
   const [status, setStatus] = useState<PaymentStatus>('checking')
   const [credits, setCredits] = useState<number | null>(null)
   const [rechargeInfo, setRechargeInfo] = useState<{
@@ -22,9 +23,16 @@ export default function PaymentSuccessPage() {
   const [pollCount, setPollCount] = useState(0)
 
   useEffect(() => {
-    if (!sessionId) {
+    // Support both session_id (Checkout Session) and recharge_id (Payment Link)
+    if (!sessionId && !rechargeId) {
       setStatus('error')
-      setErrorMessage('Missing payment session ID')
+      setErrorMessage('Missing payment information')
+      return
+    }
+
+    // If we have recharge_id (Payment Link), check recharge status directly
+    if (rechargeId && !sessionId) {
+      checkRechargeStatus()
       return
     }
 
@@ -83,15 +91,78 @@ export default function PaymentSuccessPage() {
       }
     }
 
-    checkPaymentStatus()
-  }, [sessionId, pollCount])
+    if (sessionId) {
+      checkPaymentStatus()
+    }
+  }, [sessionId, rechargeId, pollCount])
+
+  // Check recharge status directly (for Payment Link)
+  async function checkRechargeStatus() {
+    try {
+      const response = await fetch(`/api/payment/check-recharge?recharge_id=${rechargeId}`)
+      const data = await response.json()
+
+      if (!response.ok) {
+        setStatus('error')
+        setErrorMessage(data.error || 'Failed to check recharge status')
+        return
+      }
+
+      if (data.success) {
+        setRechargeInfo({
+          amount: data.recharge_record?.amount,
+          credits: data.recharge_record?.credits,
+          status: data.recharge_record?.status,
+        })
+        setCredits(data.user_credits)
+
+        if (data.recharge_status === 'completed') {
+          setStatus('completed')
+        } else if (data.recharge_status === 'pending') {
+          setStatus('processing')
+          // Poll for status update (max 30 times, 2 seconds each)
+          if (pollCount < 30) {
+            setTimeout(() => {
+              setPollCount(prev => prev + 1)
+              checkRechargeStatus()
+            }, 2000)
+          } else {
+            setStatus('completed')
+            setErrorMessage('Payment successful, but credits may be delayed. Please refresh the page later.')
+          }
+        } else {
+          setStatus('error')
+          setErrorMessage('Recharge status abnormal')
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check recharge status:', error)
+      setStatus('error')
+      setErrorMessage('Error occurred while checking recharge status')
+    }
+  }
 
   // Manually refresh status
   const handleRefresh = () => {
     setPollCount(0)
     setStatus('checking')
     setErrorMessage(null)
+    // Re-check based on available parameters
+    if (rechargeId && !sessionId) {
+      checkRechargeStatus()
+    } else if (sessionId) {
+      checkPaymentStatus()
+    }
   }
+
+  // Auto-refresh credits when status changes to completed
+  useEffect(() => {
+    if (status === 'completed' && credits !== null) {
+      // Trigger a page refresh to update credits in navbar
+      // Or dispatch a custom event that the homepage can listen to
+      window.dispatchEvent(new CustomEvent('creditsUpdated', { detail: { credits } }))
+    }
+  }, [status, credits])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
