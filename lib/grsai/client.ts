@@ -5,14 +5,20 @@
  * 安全提示：API Key 必须通过环境变量配置，不能硬编码在代码中
  */
 
-// 从环境变量读取配置，如果没有配置则抛出错误
-const GRSAI_API_KEY = process.env.GRSAI_API_KEY
-const GRSAI_HOST = process.env.GRSAI_HOST || 'https://grsai.dakka.com.cn' // 国内直连
+// 获取 Grsai API Key（延迟检查，避免构建时错误）
+function getGrsaiApiKey(): string {
+  const apiKey = process.env.GRSAI_API_KEY
+  if (!apiKey) {
+    throw new Error(
+      'GRSAI_API_KEY 环境变量未配置。请在 .env.local 文件中设置 GRSAI_API_KEY。'
+    )
+  }
+  return apiKey
+}
 
-if (!GRSAI_API_KEY) {
-  throw new Error(
-    'GRSAI_API_KEY 环境变量未配置。请在 .env.local 文件中设置 GRSAI_API_KEY。'
-  )
+// 获取 Grsai API 主机地址
+function getGrsaiHost(): string {
+  return process.env.GRSAI_HOST || 'https://grsai.dakka.com.cn' // 国内直连
 }
 
 export interface SoraVideoRequest {
@@ -59,11 +65,13 @@ export interface GrsaiResultResponse {
 export async function createSoraVideoTask(
   params: SoraVideoRequest
 ): Promise<SoraVideoResponse | GrsaiTaskIdResponse> {
-  const response = await fetch(`${GRSAI_HOST}/v1/video/sora-video`, {
+  const apiKey = getGrsaiApiKey()
+  const host = getGrsaiHost()
+  const response = await fetch(`${host}/v1/video/sora-video`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${GRSAI_API_KEY}`,
+      'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify(params),
   })
@@ -139,11 +147,13 @@ async function handleStreamResponse(response: Response): Promise<SoraVideoRespon
  */
 export async function getTaskResult(taskId: string): Promise<GrsaiResultResponse> {
   // 使用 /v1/draw/result 端点（视频和图片共用）
-  const response = await fetch(`${GRSAI_HOST}/v1/draw/result`, {
+  const apiKey = getGrsaiApiKey()
+  const host = getGrsaiHost()
+  const response = await fetch(`${host}/v1/draw/result`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${GRSAI_API_KEY}`,
+      'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify({ id: taskId }),
   })
