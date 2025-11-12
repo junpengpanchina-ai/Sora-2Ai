@@ -1,12 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getOrCreateUser } from '@/lib/user'
-import Stripe from 'stripe'
+import { getStripe } from '@/lib/stripe'
 import { NextRequest, NextResponse } from 'next/server'
-
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-10-29.clover',
-})
 
 // Credits exchange rate
 const CREDITS_PER_USD = 100 // 1 USD = 100 credits
@@ -56,6 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Query recent checkout sessions from Stripe (last 7 days)
+    const stripe = getStripe()
     const sevenDaysAgo = Math.floor(Date.now() / 1000) - 604800
     const sessions = await stripe.checkout.sessions.list({
       limit: 50,

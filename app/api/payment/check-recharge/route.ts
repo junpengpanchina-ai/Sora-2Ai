@@ -1,12 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getOrCreateUser } from '@/lib/user'
-import Stripe from 'stripe'
+import { getStripe } from '@/lib/stripe'
 import { NextRequest, NextResponse } from 'next/server'
-
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-10-29.clover',
-})
 
 /**
  * Check recharge record status
@@ -72,6 +67,7 @@ export async function GET(request: NextRequest) {
     // If recharge is still pending, actively check Stripe payment status
     if (rechargeRecord.status === 'pending' && rechargeRecord.payment_id) {
       try {
+        const stripe = getStripe()
         // For Payment Link, payment_id might be the Payment Link ID or Session ID
         // Try to retrieve as Checkout Session first
         try {
@@ -143,6 +139,7 @@ export async function GET(request: NextRequest) {
 
         if (userEmail?.email) {
           // Search for payment intents with matching amount and customer
+          const stripe = getStripe()
           const paymentIntents = await stripe.paymentIntents.list({
             limit: 10,
           })

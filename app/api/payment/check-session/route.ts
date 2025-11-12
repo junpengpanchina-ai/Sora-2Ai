@@ -1,12 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getOrCreateUser } from '@/lib/user'
-import Stripe from 'stripe'
+import { getStripe } from '@/lib/stripe'
 import { NextRequest, NextResponse } from 'next/server'
-
-// 初始化 Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-10-29.clover',
-})
 
 /**
  * 检查 Stripe Checkout Session 状态
@@ -38,6 +33,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 从 Stripe 获取 Session 信息
+    const stripe = getStripe()
     const session = await stripe.checkout.sessions.retrieve(sessionId)
 
     // 检查 Session 状态

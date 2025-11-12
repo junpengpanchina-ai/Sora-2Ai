@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getStripe } from '@/lib/stripe'
 import Stripe from 'stripe'
 import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
@@ -6,11 +7,6 @@ import { headers } from 'next/headers'
 // 禁用 Next.js 的 body 解析，因为我们需要原始 body 来验证签名
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-
-// 初始化 Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-10-29.clover',
-})
 
 // Webhook signature secret (obtained from Stripe Dashboard)
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
@@ -32,6 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 验证 Webhook 签名
+    const stripe = getStripe()
     let event: Stripe.Event
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret)

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getOrCreateUser } from '@/lib/user'
-import Stripe from 'stripe'
+import { getStripe } from '@/lib/stripe'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -11,11 +11,6 @@ const createCheckoutSchema = z.object({
 
 // 积分兑换比例：1元 = 100积分
 const CREDITS_PER_YUAN = 100
-
-// 初始化 Stripe（使用环境变量中的密钥）
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-10-29.clover',
-})
 
 export async function POST(request: NextRequest) {
   try {
@@ -85,6 +80,7 @@ export async function POST(request: NextRequest) {
                     'http://localhost:3000'
 
     // 创建 Stripe Checkout Session
+    const stripe = getStripe()
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [

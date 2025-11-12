@@ -1,11 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
-import Stripe from 'stripe'
+import { getStripe } from '@/lib/stripe'
 import { NextRequest, NextResponse } from 'next/server'
-
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-10-29.clover',
-})
 
 /**
  * Verify payment status by actively querying Stripe API
@@ -66,6 +61,7 @@ export async function POST(request: NextRequest) {
 
     if (rechargeRecord.payment_id) {
       try {
+        const stripe = getStripe()
         // Try as Checkout Session
         const session = await stripe.checkout.sessions.retrieve(rechargeRecord.payment_id)
         paymentStatus = session.payment_status
