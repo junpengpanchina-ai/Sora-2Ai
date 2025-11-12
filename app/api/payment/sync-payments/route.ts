@@ -77,7 +77,28 @@ export async function POST(request: NextRequest) {
       if (session.payment_status !== 'paid') continue
 
       // Check if customer email matches
-      if (session.customer_email !== userEmail && session.customer?.email !== userEmail) {
+      let customerEmailMatches = false
+      if (session.customer_email === userEmail) {
+        customerEmailMatches = true
+      } else if (session.customer) {
+        // session.customer can be string (ID), Customer object, or DeletedCustomer
+        if (typeof session.customer === 'string') {
+          // If it's a string (customer ID), retrieve the customer object
+          try {
+            const customer = await stripe.customers.retrieve(session.customer)
+            if (typeof customer !== 'deleted' && customer.email === userEmail) {
+              customerEmailMatches = true
+            }
+          } catch (e) {
+            // If retrieval fails, skip this session
+            continue
+          }
+        } else if (typeof session.customer === 'object' && 'email' in session.customer && session.customer.email === userEmail) {
+          customerEmailMatches = true
+        }
+      }
+      
+      if (!customerEmailMatches) {
         continue
       }
 
