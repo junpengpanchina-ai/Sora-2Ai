@@ -86,7 +86,8 @@ export async function POST(request: NextRequest) {
           // If it's a string (customer ID), retrieve the customer object
           try {
             const customer = await stripe.customers.retrieve(session.customer)
-            if (typeof customer !== 'deleted' && customer.email === userEmail) {
+            // Check if customer is deleted (DeletedCustomer has deleted: true)
+            if (customer.deleted !== true && 'email' in customer && customer.email === userEmail) {
               customerEmailMatches = true
             }
           } catch (e) {
@@ -330,7 +331,8 @@ export async function POST(request: NextRequest) {
         if (intent.customer) {
           try {
             const customer = await stripe.customers.retrieve(intent.customer as string)
-            if (typeof customer !== 'deleted' && customer.email !== userEmail) {
+            // Check if customer is deleted (DeletedCustomer has deleted: true)
+            if (customer.deleted === true || !('email' in customer) || customer.email !== userEmail) {
               continue
             }
           } catch (e) {

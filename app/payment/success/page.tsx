@@ -22,22 +22,8 @@ export default function PaymentSuccessPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [pollCount, setPollCount] = useState(0)
 
-  useEffect(() => {
-    // Support both session_id (Checkout Session) and recharge_id (Payment Link)
-    if (!sessionId && !rechargeId) {
-      setStatus('error')
-      setErrorMessage('Missing payment information')
-      return
-    }
-
-    // If we have recharge_id (Payment Link), check recharge status directly
-    if (rechargeId && !sessionId) {
-      checkRechargeStatus()
-      return
-    }
-
-    // Check payment status
-    async function checkPaymentStatus() {
+  // Check payment status
+  async function checkPaymentStatus() {
       try {
         const response = await fetch(`/api/payment/check-session?session_id=${sessionId}`)
         const data = await response.json()
@@ -89,6 +75,20 @@ export default function PaymentSuccessPage() {
         setStatus('error')
         setErrorMessage('Error occurred while checking payment status')
       }
+  }
+
+  useEffect(() => {
+    // Support both session_id (Checkout Session) and recharge_id (Payment Link)
+    if (!sessionId && !rechargeId) {
+      setStatus('error')
+      setErrorMessage('Missing payment information')
+      return
+    }
+
+    // If we have recharge_id (Payment Link), check recharge status directly
+    if (rechargeId && !sessionId) {
+      checkRechargeStatus()
+      return
     }
 
     if (sessionId) {
@@ -256,7 +256,7 @@ export default function PaymentSuccessPage() {
           <div className="flex gap-3">
             {(status === 'error' || status === 'processing') && (
               <Button 
-                variant="default" 
+                variant="primary" 
                 className="flex-1"
                 onClick={handleRefresh}
               >

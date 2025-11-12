@@ -19,6 +19,17 @@ export default async function ProfilePage() {
     redirect('/login')
   }
 
-  return <ProfileClient userProfile={userProfile} />
+  // Get full user profile with email from database
+  const { data: fullUserProfile } = await supabase
+    .from('users')
+    .select('id, email, name, credits, avatar_url, google_id, created_at, last_login_at')
+    .eq('id', userProfile.id)
+    .single()
+
+  if (!fullUserProfile) {
+    redirect('/login')
+  }
+
+  return <ProfileClient userProfile={fullUserProfile} />
 }
 

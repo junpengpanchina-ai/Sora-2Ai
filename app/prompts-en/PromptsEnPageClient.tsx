@@ -350,7 +350,7 @@ export default function PromptsEnPageClient() {
                             Use This Prompt
                           </Button>
                           <Button
-                            variant="default"
+                            variant="secondary"
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation()
@@ -411,7 +411,7 @@ export default function PromptsEnPageClient() {
                       Use This Prompt
                     </Button>
                     <Button
-                      variant="default"
+                      variant="secondary"
                       size="sm"
                       onClick={() => handleCopyPrompt(selectedPrompt.prompt)}
                     >
