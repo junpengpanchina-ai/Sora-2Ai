@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 验证用户ID匹配
-    const { data: userProfile } = await getOrCreateUser(supabase, user)
+    const userProfile = await getOrCreateUser(supabase, user)
     if (!userProfile || userProfile.id !== userId) {
       return NextResponse.json(
         { error: 'User mismatch' },
