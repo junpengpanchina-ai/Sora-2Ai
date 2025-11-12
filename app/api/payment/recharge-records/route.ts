@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 /**
  * Get user's recharge records
- * Used for payment test dashboard
+ * Used for user profile page
  */
 export async function GET(request: NextRequest) {
   try {

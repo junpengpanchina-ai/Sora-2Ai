@@ -41,10 +41,6 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const [loading, setLoading] = useState(true)
   const [credits, setCredits] = useState<number>(userProfile?.credits || 0)
   const [showPricingModal, setShowPricingModal] = useState(false)
-  const [addingTestCredits, setAddingTestCredits] = useState(false)
-  
-  // Check if development environment
-  const isDevelopment = process.env.NODE_ENV === 'development'
 
   useEffect(() => {
     // Only fetch stats if user is logged in
@@ -94,67 +90,6 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     }
   }, [userProfile])
 
-
-  // Add test credits (development only)
-  const handleAddTestCredits = async (testCredits: number = 100) => {
-    if (!isDevelopment) {
-      alert('This feature is only available in development environment')
-      return
-    }
-
-    setAddingTestCredits(true)
-    try {
-      const response = await fetch('/api/debug/add-credits', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          credits: testCredits,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        alert(`✅ ${data.message}\nCredits: ${data.credits.before} → ${data.credits.after}`)
-        // Refresh credits
-        const statsResponse = await fetch('/api/stats')
-        if (statsResponse.ok) {
-          const statsData = await statsResponse.json()
-          if (statsData.success && statsData.credits !== undefined) {
-            setCredits(statsData.credits)
-          }
-        }
-      } else {
-        // Display detailed error message
-        const errorMsg = data.error || 'Unknown error'
-        const details = data.details || ''
-        const hint = data.hint || ''
-
-        let fullErrorMsg = `Failed to add credits: ${errorMsg}`
-        if (details) {
-          fullErrorMsg += `\n\nDetails: ${details}`
-        }
-        if (hint) {
-          fullErrorMsg += `\n\nHint: ${hint}`
-        }
-
-        // If credits field doesn't exist, provide fix suggestion
-        if (errorMsg.includes('Credits field does not exist') || errorMsg.includes('column') || errorMsg.includes('credits')) {
-          fullErrorMsg += `\n\n🔧 Quick Fix:\n1. Go to Supabase Dashboard\n2. Open SQL Editor\n3. Execute the following SQL:\n\nALTER TABLE users ADD COLUMN IF NOT EXISTS credits INTEGER DEFAULT 0 CHECK (credits >= 0);`
-        }
-
-        alert(fullErrorMsg)
-      }
-    } catch (error) {
-      console.error('Failed to add test credits:', error)
-      alert('Failed to add credits, please try again later')
-    } finally {
-      setAddingTestCredits(false)
-    }
-  }
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleString('en-US', {
@@ -190,10 +125,10 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               </Link>
               {userProfile && (
                 <Link
-                  href="/payment-test"
+                  href="/profile"
                   className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
                 >
-                  Payment Test
+                  Profile
                 </Link>
               )}
             </div>
@@ -251,17 +186,6 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                         Buy Plan
                       </Button>
                     </Link>
-                  )}
-                  {isDevelopment && (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => handleAddTestCredits(100)}
-                      disabled={addingTestCredits}
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      {addingTestCredits ? 'Adding...' : '+100 Test Credits'}
-                    </Button>
                   )}
               <LogoutButton />
                 </>

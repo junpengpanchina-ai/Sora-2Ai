@@ -11,6 +11,15 @@ export function createClient() {
 
   // createBrowserClient automatically handles PKCE code_verifier
   // It stores it in browser's localStorage
-  return createBrowserClient(supabaseUrl, supabaseAnonKey)
+  // Note: Supabase automatically persists sessions in localStorage
+  // This means users stay logged in across page refreshes
+  return createBrowserClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true, // Keep session in localStorage
+      autoRefreshToken: true, // Automatically refresh expired tokens
+      detectSessionInUrl: true, // Detect session from URL (for OAuth callbacks)
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    },
+  })
 }
 

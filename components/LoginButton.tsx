@@ -23,6 +23,10 @@ export default function LoginButton() {
         options: {
           redirectTo: redirectTo,
           skipBrowserRedirect: false, // Ensure browser redirect to save PKCE
+          queryParams: {
+            prompt: 'consent', // Force Google to show consent screen every time
+            access_type: 'offline', // Request refresh token
+          },
         },
       })
 

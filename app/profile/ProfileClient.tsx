@@ -3,13 +3,16 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@/components/ui'
 import Link from 'next/link'
-import LoginButton from '@/components/LoginButton'
 
 interface UserProfile {
   id: string
   email: string
   name?: string | null
   credits?: number
+  avatar_url?: string | null
+  google_id?: string
+  created_at?: string
+  last_login_at?: string
 }
 
 interface RechargeRecord {
@@ -24,16 +27,14 @@ interface RechargeRecord {
   completed_at: string | null
 }
 
-interface PaymentTestClientProps {
+interface ProfileClientProps {
   userProfile: UserProfile | null
 }
 
-export default function PaymentTestClient({ userProfile }: PaymentTestClientProps) {
+export default function ProfileClient({ userProfile }: ProfileClientProps) {
   const [credits, setCredits] = useState<number>(userProfile?.credits || 0)
   const [rechargeRecords, setRechargeRecords] = useState<RechargeRecord[]>([])
   const [loading, setLoading] = useState(true)
-  const [autoRefresh, setAutoRefresh] = useState(true)
-  const [syncing, setSyncing] = useState(false)
 
   const fetchData = useCallback(async () => {
     if (!userProfile) return
@@ -74,17 +75,7 @@ export default function PaymentTestClient({ userProfile }: PaymentTestClientProp
     }
 
     fetchData()
-    
-    // Auto refresh every 5 seconds if enabled
-    let interval: NodeJS.Timeout | null = null
-    if (autoRefresh) {
-      interval = setInterval(fetchData, 5000)
-    }
-
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [userProfile, autoRefresh, fetchData])
+  }, [userProfile, fetchData])
 
   function formatDate(dateString: string) {
     return new Date(dateString).toLocaleString('en-US', {
@@ -117,13 +108,17 @@ export default function PaymentTestClient({ userProfile }: PaymentTestClientProp
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-center">Payment Test</CardTitle>
+            <CardTitle className="text-center">Profile</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-center text-gray-600 dark:text-gray-400 mb-4">
-              Please login to view payment and credit information
+              Please login to view your profile
             </p>
-            <LoginButton />
+            <Link href="/login" className="block">
+              <Button variant="primary" className="w-full">
+                Login
+              </Button>
+            </Link>
             <div className="mt-4 text-center">
               <Link href="/">
                 <Button variant="secondary" className="w-full">
@@ -144,7 +139,7 @@ export default function PaymentTestClient({ userProfile }: PaymentTestClientProp
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Payment Test Dashboard
+              My Profile
             </h1>
             <Link href="/">
               <Button variant="secondary" size="sm">
@@ -153,11 +148,55 @@ export default function PaymentTestClient({ userProfile }: PaymentTestClientProp
             </Link>
           </div>
           <p className="text-gray-600 dark:text-gray-400">
-            Monitor payment status and credit balance in real-time
+            View your account information and payment history
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* User Information Card */}
+          <Card className="lg:col-span-1">
+            <CardHeader>
+              <CardTitle>Account Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {userProfile.avatar_url && (
+                <div className="flex justify-center">
+                  <img
+                    src={userProfile.avatar_url}
+                    alt={userProfile.name || 'User avatar'}
+                    className="h-24 w-24 rounded-full"
+                  />
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Name</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {userProfile.name || 'Not set'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Email</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {userProfile.email}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">User ID</p>
+                <p className="text-xs font-mono text-gray-600 dark:text-gray-400 break-all">
+                  {userProfile.id}
+                </p>
+              </div>
+              {userProfile.created_at && (
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Member Since</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {formatDate(userProfile.created_at)}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Current Credits Card */}
           <Card className="lg:col-span-1">
             <CardHeader>
@@ -171,116 +210,55 @@ export default function PaymentTestClient({ userProfile }: PaymentTestClientProp
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Available Credits
                 </p>
-                <div className="mt-4 flex items-center justify-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="autoRefresh"
-                    checked={autoRefresh}
-                    onChange={(e) => setAutoRefresh(e.target.checked)}
-                    className="rounded"
-                  />
-                  <label htmlFor="autoRefresh" className="text-sm text-gray-600 dark:text-gray-400">
-                    Auto Refresh (5s)
-                  </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  Each video generation consumes 10 credits
+                </p>
+                <div className="mt-4 space-y-2">
+                  <Link href="/" className="block">
+                    <Button variant="primary" className="w-full">
+                      Buy Credits
+                    </Button>
+                  </Link>
+                  <Link href="/video" className="block">
+                    <Button variant="secondary" className="w-full">
+                      Generate Video
+                    </Button>
+                  </Link>
                 </div>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={fetchData}
-                  className="mt-2 w-full"
-                  disabled={loading}
-                >
-                  {loading ? 'Refreshing...' : 'Refresh Now'}
-                </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* User Info Card */}
+          {/* Quick Stats Card */}
           <Card className="lg:col-span-1">
             <CardHeader>
-              <CardTitle>User Information</CardTitle>
+              <CardTitle>Statistics</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Email</p>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  {userProfile.email}
-                </p>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Total Recharges</span>
+                <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {rechargeRecords.length}
+                </span>
               </div>
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Name</p>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  {userProfile.name || 'Not set'}
-                </p>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Total Amount</span>
+                <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                  ${rechargeRecords.reduce((sum, r) => sum + r.amount, 0).toFixed(2)}
+                </span>
               </div>
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">User ID</p>
-                <p className="text-xs font-mono text-gray-600 dark:text-gray-400 break-all">
-                  {userProfile.id}
-                </p>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Total Credits</span>
+                <span className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">
+                  {rechargeRecords.reduce((sum, r) => sum + r.credits, 0)}
+                </span>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions Card */}
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <a
-                href="https://buy.stripe.com/dRm4gzaIiaIrgJJ6eA0kE04"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
-              >
-                <Button variant="primary" className="w-full">
-                  Test Payment Link
-                </Button>
-              </a>
-              <Link href="/" className="block">
-                <Button variant="secondary" className="w-full">
-                  Buy Plan
-                </Button>
-              </Link>
-              <Link href="/video" className="block">
-                <Button variant="secondary" className="w-full">
-                  Generate Video
-                </Button>
-              </Link>
-              <Link href="/api/debug/video-records" className="block" target="_blank">
-                <Button variant="ghost" className="w-full">
-                  View All Records
-                </Button>
-              </Link>
-              <Button
-                variant="ghost"
-                className="w-full"
-                onClick={async () => {
-                  setSyncing(true)
-                  try {
-                    const response = await fetch('/api/payment/sync-payments', {
-                      method: 'POST',
-                    })
-                    const data = await response.json()
-                    if (data.success) {
-                      alert(`Synced ${data.synced_payments?.length || 0} payment(s)`)
-                      fetchData() // Refresh data
-                    } else {
-                      alert(`Sync failed: ${data.error}`)
-                    }
-                  } catch (error) {
-                    console.error('Failed to sync payments:', error)
-                    alert('Failed to sync payments')
-                  } finally {
-                    setSyncing(false)
-                  }
-                }}
-                disabled={syncing}
-              >
-                {syncing ? 'Syncing...' : 'Sync Payments'}
-              </Button>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Completed</span>
+                <span className="text-lg font-semibold text-green-600 dark:text-green-400">
+                  {rechargeRecords.filter(r => r.status === 'completed').length}
+                </span>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -289,7 +267,7 @@ export default function PaymentTestClient({ userProfile }: PaymentTestClientProp
         <Card className="mt-6">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Recharge Records</CardTitle>
+              <CardTitle>Payment History</CardTitle>
               <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
                 {rechargeRecords.length} Total
               </Badge>
@@ -303,7 +281,7 @@ export default function PaymentTestClient({ userProfile }: PaymentTestClientProp
               </div>
             ) : rechargeRecords.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-500 dark:text-gray-400">No recharge records found</p>
+                <p className="text-gray-500 dark:text-gray-400">No payment records found</p>
                 <Link href="/" className="mt-4 inline-block">
                   <Button variant="primary" size="sm">
                     Make First Purchase
@@ -353,52 +331,6 @@ export default function PaymentTestClient({ userProfile }: PaymentTestClientProp
             )}
           </CardContent>
         </Card>
-
-        {/* Statistics Summary */}
-        {rechargeRecords.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Recharges</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {rechargeRecords.length}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Amount</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    ${rechargeRecords.reduce((sum, r) => sum + r.amount, 0).toFixed(2)}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Credits</p>
-                  <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                    {rechargeRecords.reduce((sum, r) => sum + r.credits, 0)}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Completed</p>
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {rechargeRecords.filter(r => r.status === 'completed').length}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
       </div>
     </div>
   )

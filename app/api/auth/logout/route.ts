@@ -2,11 +2,25 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
-  const requestUrl = new URL(request.url)
-  const supabase = await createClient()
+  try {
+    const requestUrl = new URL(request.url)
+    const supabase = await createClient()
 
-  await supabase.auth.signOut()
+    // Sign out from Supabase
+    const { error } = await supabase.auth.signOut()
 
-  return NextResponse.redirect(new URL('/login', requestUrl.origin))
+    if (error) {
+      console.error('Logout error:', error)
+    }
+
+    // Return success response (client will handle redirect)
+    return NextResponse.json({ success: true, message: 'Logged out successfully' })
+  } catch (error) {
+    console.error('Logout error:', error)
+    return NextResponse.json(
+      { success: false, error: 'Failed to logout' },
+      { status: 500 }
+    )
+  }
 }
 
