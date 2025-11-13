@@ -130,3 +130,5 @@ CREATE TRIGGER update_video_tasks_updated_at BEFORE UPDATE ON video_tasks
 - `supabase/migrations/002_handle_new_user_trigger.sql` - 用户触发器
 
 
+
+

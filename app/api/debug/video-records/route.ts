@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrCreateUser } from '@/lib/user'
 import { NextRequest, NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * 查询视频生成相关的数据库记录
  * 用于验证：视频任务记录、消费记录、积分扣除情况
