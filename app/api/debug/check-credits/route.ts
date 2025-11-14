@@ -6,6 +6,9 @@ import { NextResponse } from 'next/server'
  * 诊断端点：检查积分系统配置
  * 检查 credits 字段是否存在，以及用户积分状态
  */
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET() {
   try {
     const supabase = await createClient()

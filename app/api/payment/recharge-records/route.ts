@@ -6,6 +6,9 @@ import { NextRequest, NextResponse } from 'next/server'
  * Get user's recharge records
  * Used for user profile page
  */
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET(request: NextRequest) {
   try {
     // Verify user identity

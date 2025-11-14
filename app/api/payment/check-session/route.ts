@@ -7,6 +7,9 @@ import { NextRequest, NextResponse } from 'next/server'
  * 检查 Stripe Checkout Session 状态
  * 用于支付成功页面验证支付是否真的成功
  */
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)

@@ -5,6 +5,9 @@ import { NextRequest, NextResponse } from 'next/server'
  * 管理员后台 - 获取统计数据
  * 显示所有用户的汇总数据
  */
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET(request: NextRequest) {
   try {
     // 验证用户身份（简单验证，生产环境可以添加更严格的权限控制）

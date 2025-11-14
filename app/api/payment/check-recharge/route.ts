@@ -11,6 +11,9 @@ import { NextRequest, NextResponse } from 'next/server'
  * 2. If pending, actively query Stripe API to verify payment status
  * 3. Update database if payment is confirmed
  */
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
