@@ -191,7 +191,20 @@ body {
   }
   
   a {
-    @apply text-energy-water transition-colors hover:text-energy-water-deep dark:text-energy-water dark:hover:text-energy-water-deep;
+    color: var(--energy-water-blue);
+    @apply transition-colors;
+  }
+  
+  a:hover {
+    color: var(--energy-water-blue-hover);
+  }
+  
+  .dark a {
+    color: var(--energy-water-blue);
+  }
+  
+  .dark a:hover {
+    color: var(--energy-water-blue-deep);
   }
   
   code {
