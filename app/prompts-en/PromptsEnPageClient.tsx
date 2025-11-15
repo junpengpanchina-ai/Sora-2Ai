@@ -206,7 +206,7 @@ export default function PromptsEnPageClient() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-energy-hero dark:bg-energy-hero-dark">
       <nav className="border-b border-gray-200 bg-white/80 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/80">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
@@ -219,13 +219,13 @@ export default function PromptsEnPageClient() {
               </Link>
               <Link
                 href="/video"
-                className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
+                className="text-sm font-medium text-gray-700 transition-colors hover:text-energy-water dark:text-gray-300 dark:hover:text-energy-water-deep"
               >
                 Video Generation
               </Link>
               <Link
                 href="/prompts-en"
-                className="text-sm font-medium text-indigo-600 dark:text-indigo-400"
+                className="text-sm font-medium text-energy-water dark:text-energy-soft"
               >
                 Prompt Library
               </Link>
@@ -259,7 +259,7 @@ export default function PromptsEnPageClient() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by title, description, tags, or prompt content..."
-              className="w-full rounded-md border border-gray-300 px-4 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              className="w-full rounded-md border border-gray-300 px-4 py-2 text-gray-900 shadow-sm focus:border-energy-water focus:outline-none focus:ring-energy-water dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             />
           </div>
 
@@ -286,8 +286,8 @@ export default function PromptsEnPageClient() {
                     }}
                     className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                       isSelected
-                        ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                        ? 'bg-energy-water text-white hover:bg-energy-water-deep'
+                        : 'bg-energy-water-surface text-gray-700 hover:bg-energy-water-muted/60 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                     }`}
                   >
                     {category.icon} {category.label}

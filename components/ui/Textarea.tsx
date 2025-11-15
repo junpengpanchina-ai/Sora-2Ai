@@ -29,7 +29,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           id={textareaId}
           className={cn(
             'w-full rounded-md border px-3 py-2 text-gray-900 shadow-sm transition-colors',
-            'focus:border-indigo-500 focus:outline-none focus:ring-indigo-500',
+            'focus:border-energy-water focus:outline-none focus:ring-energy-water',
             'dark:border-gray-600 dark:bg-gray-700 dark:text-white',
             'disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed',
             'dark:disabled:bg-gray-800 dark:disabled:text-gray-400',

@@ -159,7 +159,7 @@ export default function AdminClient() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-energy-hero dark:bg-energy-hero-dark">
       {/* 导航栏 */}
       <nav className="border-b border-gray-200 bg-white/80 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/80 sticky top-0 z-50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -173,8 +173,8 @@ export default function AdminClient() {
                   onClick={() => setActiveTab('overview')}
                   className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                     activeTab === 'overview'
-                      ? 'bg-indigo-600 text-white'
-                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                      ? 'bg-energy-water text-white'
+                      : 'text-gray-700 hover:bg-energy-water-surface dark:text-gray-300 dark:hover:bg-gray-700'
                   }`}
                 >
                   总览
@@ -183,8 +183,8 @@ export default function AdminClient() {
                   onClick={() => setActiveTab('recharges')}
                   className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                     activeTab === 'recharges'
-                      ? 'bg-indigo-600 text-white'
-                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                      ? 'bg-energy-water text-white'
+                      : 'text-gray-700 hover:bg-energy-water-surface dark:text-gray-300 dark:hover:bg-gray-700'
                   }`}
                 >
                   充值记录
@@ -193,8 +193,8 @@ export default function AdminClient() {
                   onClick={() => setActiveTab('consumption')}
                   className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                     activeTab === 'consumption'
-                      ? 'bg-indigo-600 text-white'
-                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                      ? 'bg-energy-water text-white'
+                      : 'text-gray-700 hover:bg-energy-water-surface dark:text-gray-300 dark:hover:bg-gray-700'
                   }`}
                 >
                   消耗记录
@@ -203,8 +203,8 @@ export default function AdminClient() {
                   onClick={() => setActiveTab('videos')}
                   className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                     activeTab === 'videos'
-                      ? 'bg-indigo-600 text-white'
-                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                      ? 'bg-energy-water text-white'
+                      : 'text-gray-700 hover:bg-energy-water-surface dark:text-gray-300 dark:hover:bg-gray-700'
                   }`}
                 >
                   视频任务
@@ -242,7 +242,7 @@ export default function AdminClient() {
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {loading && !stats ? (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-energy-water"></div>
             <span className="ml-3 text-gray-600 dark:text-gray-400">加载中...</span>
           </div>
         ) : (
@@ -271,7 +271,7 @@ export default function AdminClient() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
+                      <div className="text-3xl font-bold text-energy-water dark:text-energy-soft">
                         {stats.total_credits.toLocaleString()}
                       </div>
                     </CardContent>
@@ -328,7 +328,7 @@ export default function AdminClient() {
                                 <td className="py-2 px-3">{formatDate(record.created_at)}</td>
                                 <td className="py-2 px-3">{record.user_email || record.user_id.substring(0, 8)}</td>
                                 <td className="py-2 px-3 font-medium">{formatCurrency(record.amount)}</td>
-                                <td className="py-2 px-3 text-indigo-600 dark:text-indigo-400">+{record.credits}</td>
+                                <td className="py-2 px-3 text-energy-water dark:text-energy-soft">+{record.credits}</td>
                                 <td className="py-2 px-3">{getStatusBadge(record.status)}</td>
                               </tr>
                             ))}
@@ -346,7 +346,7 @@ export default function AdminClient() {
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white">充值记录</h2>
-                  <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
+                  <Badge className="bg-energy-water-surface text-energy-water dark:bg-energy-water-muted dark:text-energy-soft">
                     共 {rechargeRecords.length} 条
                   </Badge>
                 </div>
@@ -377,7 +377,7 @@ export default function AdminClient() {
                                 <td className="py-3 px-4">{formatDate(record.created_at)}</td>
                                 <td className="py-3 px-4">{record.user_email || 'N/A'}</td>
                                 <td className="py-3 px-4 font-medium">{formatCurrency(record.amount)}</td>
-                                <td className="py-3 px-4 text-indigo-600 dark:text-indigo-400">+{record.credits}</td>
+                                <td className="py-3 px-4 text-energy-water dark:text-energy-soft">+{record.credits}</td>
                                 <td className="py-3 px-4">{record.payment_method}</td>
                                 <td className="py-3 px-4">{getStatusBadge(record.status)}</td>
                                 <td className="py-3 px-4">
@@ -401,7 +401,7 @@ export default function AdminClient() {
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white">消耗记录</h2>
-                  <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
+                  <Badge className="bg-energy-water-surface text-energy-water dark:bg-energy-water-muted dark:text-energy-soft">
                     共 {consumptionRecords.length} 条
                   </Badge>
                 </div>
@@ -456,7 +456,7 @@ export default function AdminClient() {
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white">视频任务</h2>
-                  <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
+                  <Badge className="bg-energy-water-surface text-energy-water dark:bg-energy-water-muted dark:text-energy-soft">
                     共 {videoTasks.length} 条
                   </Badge>
                 </div>

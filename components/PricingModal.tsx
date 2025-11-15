@@ -72,7 +72,7 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
           {/* Plans List */}
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-energy-water"></div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -81,12 +81,12 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
                   key={link.id}
                   className={`relative ${
                     link.amount === 299
-                      ? 'border-2 border-indigo-500 dark:border-indigo-400 shadow-lg'
+                      ? 'border-2 border-energy-gold-mid dark:border-energy-gold-soft shadow-lg'
                       : ''
                   }`}
                 >
                   {link.amount === 299 && (
-                    <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white">
+                    <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-energy-water text-white shadow-custom-md">
                       Recommended
                     </Badge>
                   )}
@@ -98,7 +98,7 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
                   <CardContent className="space-y-4">
                     {/* Price */}
                     <div className="text-center">
-                      <div className="text-4xl font-bold text-indigo-600 dark:text-indigo-400">
+                      <div className="text-4xl font-bold text-energy-water dark:text-energy-soft">
                         ${link.amount}
                       </div>
                       <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">

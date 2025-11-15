@@ -37,7 +37,7 @@ export default function PaymentReturnPage() {
   }, [router])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-energy-hero dark:bg-energy-hero-dark flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-center text-2xl">
@@ -51,7 +51,7 @@ export default function PaymentReturnPage() {
               Please wait while we verify your payment...
             </p>
             <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+              <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-energy-water"></div>
               <span>Redirecting...</span>
             </div>
           </div>

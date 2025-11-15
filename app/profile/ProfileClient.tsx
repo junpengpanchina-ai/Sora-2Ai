@@ -105,7 +105,7 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
 
   if (!userProfile) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-energy-hero dark:bg-energy-hero-dark flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle className="text-center">Profile</CardTitle>
@@ -133,7 +133,7 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
+    <div className="min-h-screen bg-energy-hero dark:bg-energy-hero-dark p-4">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-6">
@@ -204,7 +204,7 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
             </CardHeader>
             <CardContent>
               <div className="text-center">
-                <div className="text-5xl font-bold text-indigo-600 dark:text-indigo-400 mb-2">
+                <div className="mb-2 text-5xl font-bold text-energy-water dark:text-energy-soft">
                   {loading ? '...' : credits}
                 </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -249,7 +249,7 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600 dark:text-gray-400">Total Credits</span>
-                <span className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">
+                <span className="text-lg font-semibold text-energy-water dark:text-energy-soft">
                   {rechargeRecords.reduce((sum, r) => sum + r.credits, 0)}
                 </span>
               </div>
@@ -268,7 +268,7 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Payment History</CardTitle>
-              <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
+              <Badge className="bg-energy-water-surface text-energy-water dark:bg-energy-water-muted dark:text-energy-soft">
                 {rechargeRecords.length} Total
               </Badge>
             </div>
@@ -276,7 +276,7 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
           <CardContent>
             {loading ? (
               <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-energy-water"></div>
                 <p className="mt-2 text-sm text-gray-500">Loading...</p>
               </div>
             ) : rechargeRecords.length === 0 ? (
@@ -312,7 +312,7 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
                         <td className="py-3 px-4 text-sm font-medium text-gray-900 dark:text-white">
                           ${record.amount}
                         </td>
-                        <td className="py-3 px-4 text-sm font-medium text-indigo-600 dark:text-indigo-400">
+                        <td className="py-3 px-4 text-sm font-medium text-energy-water dark:text-energy-soft">
                           +{record.credits}
                         </td>
                         <td className="py-3 px-4">

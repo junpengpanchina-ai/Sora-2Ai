@@ -4,8 +4,8 @@
 
 :root {
   /* 基础颜色 */
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: var(--energy-base-white);
+  --foreground: var(--energy-deep-black);
   
   /* 主色调 - Indigo */
   --color-indigo-50: #eef2ff;
@@ -101,11 +101,47 @@
   --font-size-2xl: 1.5rem;    /* 24px */
   --font-size-3xl: 1.875rem;  /* 30px */
   --font-size-4xl: 2.25rem;   /* 36px */
+
+  /* 金生水主题色彩 */
+  --energy-base-white: #ffffff;
+  --energy-base-soft: #f8f9fa;
+  --energy-deep-black: #0a0a0a;
+  --energy-water-blue: #0066cc;
+  --energy-water-blue-deep: #003366;
+  --energy-water-blue-hover: #1c7fe6;
+  --energy-water-surface: rgba(0, 102, 204, 0.08);
+  --energy-water-muted: rgba(0, 102, 204, 0.2);
+  --energy-gold-light: #f5d97d;
+  --energy-gold-mid: #d7b14c;
+  --energy-gold-soft: #f5e5b5;
+  --energy-gold-outline: rgba(245, 217, 125, 0.65);
+  --energy-gold-gradient: linear-gradient(
+    135deg,
+    var(--energy-gold-light) 0%,
+    var(--energy-gold-mid) 50%,
+    var(--energy-gold-soft) 100%
+  );
+  --energy-hero-gradient: linear-gradient(
+    140deg,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(248, 249, 250, 1) 35%,
+    rgba(0, 102, 204, 0.12) 100%
+  );
+  --energy-hero-gradient-dark: linear-gradient(
+    140deg,
+    rgba(5, 5, 5, 1) 0%,
+    rgba(10, 10, 10, 1) 45%,
+    rgba(0, 51, 102, 0.6) 100%
+  );
 }
 
 .dark {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: var(--energy-deep-black);
+    --foreground: var(--energy-base-soft);
+    --energy-water-surface: rgba(0, 102, 204, 0.18);
+    --energy-water-muted: rgba(0, 102, 204, 0.35);
+    --energy-hero-gradient: var(--energy-hero-gradient-dark);
+    --energy-hero-gradient-dark: var(--energy-hero-gradient-dark);
   
   /* 深色模式下的中性色映射 */
   --color-gray-50: #111827;
@@ -155,19 +191,25 @@ body {
   }
   
   a {
-    @apply text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors;
+    @apply text-energy-water transition-colors hover:text-energy-water-deep dark:text-energy-water dark:hover:text-energy-water-deep;
   }
   
   code {
-    @apply bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-1.5 py-0.5 rounded text-sm font-mono;
+    @apply rounded bg-energy-water-surface px-1.5 py-0.5 font-mono text-energy-deep dark:bg-gray-800 dark:text-energy-soft;
   }
   
   pre {
-    @apply bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-4 rounded-lg overflow-x-auto;
+    @apply overflow-x-auto rounded-lg bg-energy-water-surface p-4 text-energy-deep dark:bg-gray-800 dark:text-gray-100;
   }
   
   blockquote {
-    @apply border-l-4 border-indigo-500 pl-4 italic text-gray-700 dark:text-gray-300;
+    @apply border-l-4 border-energy-gold-mid pl-4 italic;
+    color: rgba(10, 10, 10, 0.7);
+  }
+  
+  .dark blockquote {
+    color: rgba(255, 255, 255, 0.75);
+    border-color: var(--energy-gold-soft);
   }
 }
 
@@ -179,11 +221,11 @@ body {
   }
   
   .btn-primary {
-    @apply bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700;
+    @apply bg-energy-water text-white hover:bg-energy-water-deep dark:bg-energy-water dark:hover:bg-energy-water-deep;
   }
   
   .btn-secondary {
-    @apply bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-gray-700 dark:text-white dark:ring-gray-600 dark:hover:bg-gray-600;
+    @apply bg-white text-energy-deep shadow-sm ring-1 ring-inset ring-energy-gold-outline hover:bg-energy-water-surface dark:bg-gray-800 dark:text-white dark:ring-gray-600 dark:hover:bg-gray-700;
   }
   
   .btn-danger {
@@ -191,13 +233,13 @@ body {
   }
   
   .btn-ghost {
-    @apply text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800;
+    @apply text-energy-deep hover:bg-energy-water-surface dark:text-gray-300 dark:hover:bg-gray-800;
   }
   
   /* 输入框基础样式 */
   .input {
     @apply w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm transition-colors;
-    @apply focus:border-indigo-500 focus:outline-none focus:ring-indigo-500;
+    @apply focus:border-energy-water focus:outline-none focus:ring-energy-water;
     @apply dark:border-gray-600 dark:bg-gray-700 dark:text-white;
     @apply disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed;
     @apply dark:disabled:bg-gray-800 dark:disabled:text-gray-400;
@@ -278,7 +320,7 @@ body {
   
   /* 渐变背景 */
   .gradient-bg {
-    @apply bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800;
+    @apply bg-energy-hero dark:bg-energy-hero-dark;
   }
 }
 
@@ -382,7 +424,7 @@ body {
   
   /* 焦点样式增强 */
   .focus-ring {
-    @apply focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600;
+    @apply focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-energy-water;
   }
   
   /* 滚动条样式 */
@@ -471,7 +513,7 @@ body {
   
   /* 渐变文本 */
   .gradient-text {
-    @apply bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-energy-gold-light via-energy-gold-mid to-energy-water bg-clip-text text-transparent;
   }
   
   /* 悬浮效果 */

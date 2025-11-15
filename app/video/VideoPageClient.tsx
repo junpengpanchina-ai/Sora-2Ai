@@ -231,7 +231,7 @@ export default function VideoPageClient() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-energy-hero dark:bg-energy-hero-dark">
       <nav className="border-b border-gray-200 bg-white/80 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/80">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
@@ -244,28 +244,28 @@ export default function VideoPageClient() {
               </Link>
               <Link
                 href="/video"
-                className="text-sm font-medium text-indigo-600 dark:text-indigo-400"
+                className="text-sm font-medium text-energy-water dark:text-energy-soft"
               >
                 Video Generation
               </Link>
             </div>
             <div className="flex items-center gap-4">
               {credits !== null && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900 rounded-lg">
-                  <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-energy-water-surface dark:bg-energy-water-muted">
+                  <span className="text-sm font-medium text-energy-water dark:text-energy-soft">
                     Credits: {credits}
                   </span>
                 </div>
               )}
               <Link
                 href="/"
-                className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
+                className="text-sm font-medium text-gray-700 transition-colors hover:text-energy-water dark:text-gray-300 dark:hover:text-energy-water-deep"
               >
                 Home
               </Link>
               <Link
                 href="/prompts"
-                className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
+                className="text-sm font-medium text-gray-700 transition-colors hover:text-energy-water dark:text-gray-300 dark:hover:text-energy-water-deep"
               >
                 Prompts
               </Link>
@@ -293,7 +293,7 @@ export default function VideoPageClient() {
             </h2>
             {credits !== null && (
               <div className="text-sm text-gray-600 dark:text-gray-400">
-                Credits Cost: <span className="font-semibold text-indigo-600 dark:text-indigo-400">10 credits/video</span>
+                Credits Cost: <span className="font-semibold text-energy-water dark:text-energy-soft">10 credits/video</span>
               </div>
             )}
           </div>
@@ -307,7 +307,7 @@ export default function VideoPageClient() {
                 onChange={(e) => setPrompt(e.target.value)}
                 required
                 rows={4}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-energy-water focus:outline-none focus:ring-energy-water dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                 placeholder="e.g., A cute cat playing on the grass"
               />
             </div>
@@ -320,7 +320,7 @@ export default function VideoPageClient() {
                 type="url"
                 value={referenceUrl}
                 onChange={(e) => setReferenceUrl(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-energy-water focus:outline-none focus:ring-energy-water dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                 placeholder="https://example.com/image.png"
               />
             </div>
@@ -333,7 +333,7 @@ export default function VideoPageClient() {
                 <select
                   value={aspectRatio}
                   onChange={(e) => setAspectRatio(e.target.value as '9:16' | '16:9')}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-energy-water focus:outline-none focus:ring-energy-water dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                 >
                   <option value="9:16">9:16 (Portrait)</option>
                   <option value="16:9">16:9 (Landscape)</option>
@@ -347,7 +347,7 @@ export default function VideoPageClient() {
                 <select
                   value={duration}
                   onChange={(e) => setDuration(e.target.value as '10' | '15')}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-energy-water focus:outline-none focus:ring-energy-water dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                 >
                   <option value="10">10 seconds</option>
                   <option value="15">15 seconds</option>
@@ -361,7 +361,7 @@ export default function VideoPageClient() {
                 <select
                   value={size}
                   onChange={(e) => setSize(e.target.value as 'small' | 'large')}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-energy-water focus:outline-none focus:ring-energy-water dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                 >
                   <option value="small">Small</option>
                   <option value="large">Large</option>
@@ -375,7 +375,7 @@ export default function VideoPageClient() {
                 id="useWebhook"
                 checked={useWebhook}
                 onChange={(e) => setUseWebhook(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                className="h-4 w-4 rounded border-gray-300 text-energy-water focus:ring-energy-water"
               />
               <label htmlFor="useWebhook" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
                 Use Webhook callback (Recommended, real-time updates)
@@ -385,7 +385,7 @@ export default function VideoPageClient() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full rounded-md bg-energy-water px-4 py-2 text-white hover:bg-energy-water-deep focus:outline-none focus:ring-2 focus:ring-energy-water focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Generating...' : 'Generate Video'}
             </button>
@@ -422,7 +422,7 @@ export default function VideoPageClient() {
                   </div>
                   <div className="h-3 w-full rounded-full bg-gray-200 dark:bg-gray-700">
                     <div
-                      className="h-3 rounded-full bg-indigo-600 transition-all duration-300"
+                      className="h-3 rounded-full bg-energy-water transition-all duration-300"
                       style={{ width: `${currentResult.progress || 0}%` }}
                     />
                   </div>

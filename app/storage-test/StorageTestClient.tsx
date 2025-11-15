@@ -119,7 +119,7 @@ export default function StorageTestClient() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-energy-hero dark:bg-energy-hero-dark">
       <nav className="border-b border-gray-200 bg-white/80 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/80">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
@@ -187,7 +187,7 @@ export default function StorageTestClient() {
                     value={testKey}
                     onChange={(e) => setTestKey(e.target.value)}
                     placeholder="e.g., images/test.jpg"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-energy-water focus:outline-none focus:ring-energy-water dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                   />
                   <div className="flex gap-2">
                     <Button
@@ -263,7 +263,7 @@ export default function StorageTestClient() {
                       href={imageUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 mt-2 inline-block"
+                      className="mt-2 inline-block text-xs text-energy-water hover:text-energy-water-deep dark:text-energy-soft"
                     >
                       Open in new tab →
                     </a>
@@ -320,7 +320,7 @@ export default function StorageTestClient() {
                           href={file.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+                          className="text-xs text-energy-water hover:text-energy-water-deep dark:text-energy-soft"
                         >
                           Open
                         </a>

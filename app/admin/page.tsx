@@ -41,7 +41,7 @@ export default async function AdminPage({
     } else {
       // 密码错误，显示错误信息
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+        <div className="min-h-screen flex items-center justify-center bg-energy-hero dark:bg-energy-hero-dark">
           <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-xl dark:bg-gray-800">
             <div className="text-center">
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">管理员登录</h1>
@@ -76,7 +76,7 @@ export default async function AdminPage({
               </div>
               <button
                 type="submit"
-                className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-white font-semibold hover:bg-indigo-700 transition-colors"
+                className="w-full rounded-lg bg-energy-water px-4 py-2 text-white font-semibold hover:bg-energy-water-deep transition-colors"
               >
                 登录
               </button>
@@ -96,7 +96,7 @@ export default async function AdminPage({
   // 如果没有管理员会话，显示登录表单
   if (!adminSession || adminSession.value !== 'authenticated') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="min-h-screen flex items-center justify-center bg-energy-hero dark:bg-energy-hero-dark">
         <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-xl dark:bg-gray-800">
           <div className="text-center">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">管理员登录</h1>
@@ -131,7 +131,8 @@ export default async function AdminPage({
             </div>
             <button
               type="submit"
-              className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-white font-semibold hover:bg-indigo-700 transition-colors"
+              className="w-full rounded-lg bg-energy-water px-4 py-2 text-white font-semibold hover:bg-energy-water-deep transition-colors"
+              className="w-full rounded-lg bg-energy-water px-4 py-2 text-white font-semibold hover:bg-energy-water-deep transition-colors"
             >
               登录
             </button>

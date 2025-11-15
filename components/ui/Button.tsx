@@ -15,10 +15,10 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const baseStyles = 'inline-flex items-center justify-center rounded-lg font-semibold transition-colors focus-ring disabled:opacity-50 disabled:cursor-not-allowed'
     
     const variants = {
-      primary: 'bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700',
-      secondary: 'bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-gray-700 dark:text-white dark:ring-gray-600 dark:hover:bg-gray-600',
+      primary: 'bg-energy-water text-white hover:bg-energy-water-deep dark:bg-energy-water dark:hover:bg-energy-water-deep',
+      secondary: 'bg-white text-energy-deep shadow-sm ring-1 ring-inset ring-energy-gold-outline hover:bg-energy-water-surface dark:bg-gray-800 dark:text-white dark:ring-gray-600 dark:hover:bg-gray-700',
       danger: 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700',
-      ghost: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800',
+      ghost: 'text-energy-deep hover:bg-energy-water-surface dark:text-gray-300 dark:hover:bg-gray-800',
     }
     
     const sizes = {

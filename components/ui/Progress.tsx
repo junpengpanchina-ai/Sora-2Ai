@@ -22,7 +22,7 @@ const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
     }
     
     const variants = {
-      default: 'bg-indigo-600',
+      default: 'bg-energy-water',
       success: 'bg-green-600',
       warning: 'bg-yellow-600',
       error: 'bg-red-600',

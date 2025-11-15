@@ -102,7 +102,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-energy-hero dark:bg-energy-hero-dark">
       {/* Navigation */}
       <nav className="border-b border-gray-200 bg-white/80 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/80 sticky top-0 z-50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -113,20 +113,20 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               </h1>
               <Link
                 href="/prompts"
-                className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
+                className="text-sm font-medium text-gray-700 transition-colors hover:text-energy-water dark:text-gray-300 dark:hover:text-energy-water-deep"
               >
                 Prompts
               </Link>
               <Link
                 href="/video"
-                className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
+                className="text-sm font-medium text-gray-700 transition-colors hover:text-energy-water dark:text-gray-300 dark:hover:text-energy-water-deep"
               >
                 Video Generation
               </Link>
               {userProfile && (
                 <Link
                   href="/profile"
-                  className="text-sm font-medium text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors"
+                  className="text-sm font-medium text-gray-700 transition-colors hover:text-energy-water dark:text-gray-300 dark:hover:text-energy-water-deep"
                 >
                   Profile
                 </Link>
@@ -157,8 +157,8 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               
               {userProfile ? (
                 <>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900 rounded-lg">
-                <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-energy-water-surface dark:bg-energy-water-muted">
+                <span className="text-sm font-medium text-energy-water dark:text-energy-soft">
                       Credits: {credits}
                 </span>
               </div>
@@ -237,7 +237,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                     <strong className="text-gray-900 dark:text-white">Video Generation Price:</strong>
-                    <span className="text-indigo-600 dark:text-indigo-400 font-semibold"> 10 credits/video</span>
+                    <span className="font-semibold text-energy-water dark:text-energy-soft"> 10 credits/video</span>
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-500">
                     【Watermark-free】OpenAI's latest Sora 2.0 model, official beta testing, pricing is tentative and may change in the future
@@ -706,7 +706,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="text-center">
-                  <div className="text-4xl font-bold text-indigo-600 dark:text-indigo-400">
+                  <div className="text-4xl font-bold text-energy-water dark:text-energy-soft">
                     $39
                   </div>
                   <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -741,8 +741,8 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
             </Card>
 
             {/* Professional Plan - $299 */}
-            <Card className="relative border-2 border-indigo-500 dark:border-indigo-400 shadow-lg">
-              <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white">
+            <Card className="relative border-2 border-energy-gold-mid dark:border-energy-gold-soft shadow-lg">
+              <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-energy-water text-white shadow-custom-md">
                 Recommended
               </Badge>
               <CardHeader>
@@ -750,7 +750,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="text-center">
-                  <div className="text-4xl font-bold text-indigo-600 dark:text-indigo-400">
+                  <div className="text-4xl font-bold text-energy-water dark:text-energy-soft">
                     $299
               </div>
                   <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
