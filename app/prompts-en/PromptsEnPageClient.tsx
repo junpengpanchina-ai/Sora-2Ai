@@ -445,7 +445,7 @@ export default function PromptsEnPageClient() {
                     <h4 className="font-semibold text-gray-900 dark:text-white mb-1">
                       Use Keywords
                     </h4>
-                    <p>Add terms like "cinematic", "4K", "slow motion" for better results</p>
+                    <p>Add terms like &quot;cinematic&quot;, &quot;4K&quot;, &quot;slow motion&quot; for better results</p>
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-900 dark:text-white mb-1">

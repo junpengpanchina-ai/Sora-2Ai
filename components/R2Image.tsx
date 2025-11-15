@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable @next/next/no-img-element */
 
 import { getPublicUrl } from '@/lib/r2/client'
 import Image from 'next/image'

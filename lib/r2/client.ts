@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 // R2 配置
@@ -50,7 +50,20 @@ export function getPublicUrl(key: string): string {
 /**
  * 获取文件列表（需要认证）
  */
-export async function listR2Files(prefix?: string, maxKeys: number = 100) {
+interface R2FileInfo {
+  key: string | undefined
+  size: number | undefined
+  lastModified: Date | undefined
+  url: string | null
+}
+
+interface R2FileListResult {
+  files: R2FileInfo[]
+  isTruncated?: boolean
+  nextContinuationToken?: string
+}
+
+export async function listR2Files(prefix?: string, maxKeys: number = 100): Promise<R2FileListResult> {
   if (!r2Client) {
     throw new Error('R2 client not configured. Please set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY')
   }
@@ -128,11 +141,12 @@ export async function checkFileExists(key: string): Promise<boolean> {
 
     await r2Client.send(command)
     return true
-  } catch (error: any) {
-    if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+  } catch (error: unknown) {
+    const awsError = error as { name?: string; $metadata?: { httpStatusCode?: number } }
+    if (awsError?.name === 'NotFound' || awsError?.$metadata?.httpStatusCode === 404) {
       return false
     }
-    throw error
+    throw error instanceof Error ? error : new Error('Unknown error while checking file existence')
   }
 }
 

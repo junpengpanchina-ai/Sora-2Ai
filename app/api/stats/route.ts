@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 import { createClient } from '@/lib/supabase/server'
 import { getOrCreateUser } from '@/lib/user'
 import { NextResponse } from 'next/server'

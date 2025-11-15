@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@/components/ui'
 import Link from 'next/link'
+import Image from 'next/image'
 
 interface UserProfile {
   id: string
@@ -161,10 +162,13 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
             <CardContent className="space-y-4">
               {userProfile.avatar_url && (
                 <div className="flex justify-center">
-                  <img
+                  <Image
                     src={userProfile.avatar_url}
                     alt={userProfile.name || 'User avatar'}
-                    className="h-24 w-24 rounded-full"
+                    width={96}
+                    height={96}
+                    className="h-24 w-24 rounded-full object-cover"
+                    unoptimized
                   />
                 </div>
               )}

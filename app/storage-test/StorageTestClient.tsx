@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Button, Alert, Badge } from '@/components/ui'
+import { Card, CardHeader, CardTitle, CardContent, Button, Alert } from '@/components/ui'
 import { getPublicUrl } from '@/lib/r2/client'
 import Link from 'next/link'
+import Image from 'next/image'
 
 interface FileInfo {
   key: string | null
@@ -17,7 +18,7 @@ export default function StorageTestClient() {
   const [files, setFiles] = useState<FileInfo[]>([])
   const [error, setError] = useState<string | null>(null)
   const [testKey, setTestKey] = useState('')
-  const [testResult, setTestResult] = useState<any>(null)
+  const [testResult, setTestResult] = useState<Record<string, unknown> | null>(null)
   const [imageUrl, setImageUrl] = useState('')
 
   // List files
@@ -242,14 +243,17 @@ export default function StorageTestClient() {
             <CardContent>
               {imageUrl ? (
                 <div className="space-y-4">
-                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <img
+                  <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                    <Image
                       src={imageUrl}
                       alt="R2 Image"
-                      className="w-full h-auto"
-                      onError={(e) => {
+                      width={800}
+                      height={450}
+                      className="h-auto w-full"
+                      onError={() => {
                         setError('Failed to load image. File may not exist or URL is incorrect.')
                       }}
+                      unoptimized
                     />
                   </div>
                   <div>
@@ -272,7 +276,7 @@ export default function StorageTestClient() {
               ) : (
                 <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                   <p>No image URL yet</p>
-                  <p className="text-xs mt-2">Enter a file key and click "Get Image URL"</p>
+                  <p className="text-xs mt-2">Enter a file key and click &quot;Get Image URL&quot;</p>
                 </div>
               )}
             </CardContent>

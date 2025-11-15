@@ -28,16 +28,22 @@ export async function GET(request: NextRequest) {
 
     // Get query parameters
     const searchParams = request.nextUrl.searchParams
-    const key = searchParams.get('key')
-    const presigned = searchParams.get('presigned') === 'true'
-    const expiresIn = parseInt(searchParams.get('expiresIn') || '3600')
+    const parsedParams = getUrlSchema.safeParse({
+      key: searchParams.get('key') ?? '',
+      presigned: searchParams.get('presigned') === 'true',
+      expiresIn: searchParams.get('expiresIn')
+        ? Number(searchParams.get('expiresIn'))
+        : undefined,
+    })
 
-    if (!key) {
+    if (!parsedParams.success) {
       return NextResponse.json(
-        { error: 'File key is required' },
+        { error: 'Invalid parameters', details: parsedParams.error.flatten() },
         { status: 400 }
       )
     }
+
+    const { key, presigned, expiresIn } = parsedParams.data
 
     // Get public URL or presigned URL
     if (presigned) {

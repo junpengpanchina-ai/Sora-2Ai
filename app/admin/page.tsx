@@ -132,7 +132,6 @@ export default async function AdminPage({
             <button
               type="submit"
               className="w-full rounded-lg bg-energy-water px-4 py-2 text-white font-semibold hover:bg-energy-water-deep transition-colors"
-              className="w-full rounded-lg bg-energy-water px-4 py-2 text-white font-semibold hover:bg-energy-water-deep transition-colors"
             >
               登录
             </button>

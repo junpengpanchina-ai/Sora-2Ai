@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
 import LogoutButton from '@/components/LogoutButton'
 import LoginButton from '@/components/LoginButton'
@@ -38,34 +39,34 @@ interface HomePageClientProps {
 export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const [stats, setStats] = useState<Stats | null>(null)
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([])
-  const [loading, setLoading] = useState(true)
   const [credits, setCredits] = useState<number>(userProfile?.credits || 0)
   const [showPricingModal, setShowPricingModal] = useState(false)
 
   useEffect(() => {
     // Only fetch stats if user is logged in
     if (!userProfile) {
-      setLoading(false)
       return
     }
 
-    async function fetchStats() {
+    let isMounted = true
+
+    const fetchStats = async () => {
       try {
         const response = await fetch('/api/stats')
-        if (response.ok) {
-          const data = await response.json()
-          if (data.success) {
-            setStats(data.stats)
-            setRecentTasks(data.recentTasks || [])
-            if (data.credits !== undefined) {
-              setCredits(data.credits)
-            }
-          }
+        if (!response.ok) {
+          return
+        }
+        const data = await response.json()
+        if (!isMounted || !data?.success) {
+          return
+        }
+        setStats(data.stats)
+        setRecentTasks(data.recentTasks || [])
+        if (data.credits !== undefined) {
+          setCredits(data.credits)
         }
       } catch (error) {
         console.error('Failed to fetch stats:', error)
-      } finally {
-        setLoading(false)
       }
     }
 
@@ -74,19 +75,21 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     const interval = setInterval(fetchStats, 30000)
     
     // Listen for credits update events (from payment success page)
-    const handleCreditsUpdate = (event: CustomEvent) => {
-      if (event.detail?.credits !== undefined) {
-        setCredits(event.detail.credits)
+    const handleCreditsUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<{ credits?: number }>).detail
+      if (detail?.credits !== undefined) {
+        setCredits(detail.credits)
         // Also refresh stats to get latest data
         fetchStats()
       }
     }
     
-    window.addEventListener('creditsUpdated', handleCreditsUpdate as EventListener)
+    window.addEventListener('creditsUpdated', handleCreditsUpdate)
     
     return () => {
+      isMounted = false
       clearInterval(interval)
-      window.removeEventListener('creditsUpdated', handleCreditsUpdate as EventListener)
+      window.removeEventListener('creditsUpdated', handleCreditsUpdate)
     }
   }, [userProfile])
 
@@ -157,40 +160,38 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               
               {userProfile ? (
                 <>
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-energy-water-surface dark:bg-energy-water-muted">
-                <span className="text-sm font-medium text-energy-water dark:text-energy-soft">
-                      Credits: {credits}
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-energy-water-surface dark:bg-energy-water-muted">
+                  <span className="text-sm font-medium text-energy-water dark:text-energy-soft">
+                    Credits: {credits}
+                  </span>
+                </div>
+                {userProfile.avatar_url && (
+                  <Image
+                    src={userProfile.avatar_url}
+                    alt={userProfile.name ?? 'User avatar'}
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 rounded-full object-cover"
+                    unoptimized
+                  />
+                )}
+                <span className="hidden text-sm font-medium text-gray-700 dark:text-gray-300 sm:inline">
+                  {userProfile.name ?? userProfile.email}
                 </span>
-              </div>
-              {userProfile.avatar_url && (
-                <img
-                  src={userProfile.avatar_url}
-                  alt={userProfile.name || 'User avatar'}
-                  className="h-8 w-8 rounded-full"
-                />
-              )}
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:inline">
-                {userProfile.name || userProfile.email}
-              </span>
-                  {userProfile ? (
-              <Button
-                variant="primary"
-                size="sm"
-                      onClick={() => setShowPricingModal(true)}
-              >
-                      Buy Plan
-              </Button>
-                  ) : (
-                    <Link href="/login">
-                      <Button variant="primary" size="sm">
-                        Buy Plan
-                      </Button>
-                    </Link>
-                  )}
-              <LogoutButton />
+                <Button variant="primary" size="sm" onClick={() => setShowPricingModal(true)}>
+                  Buy Plan
+                </Button>
+                <LogoutButton />
                 </>
               ) : (
-                <LoginButton />
+                <>
+                  <Link href="/login">
+                    <Button variant="primary" size="sm">
+                      Buy Plan
+                    </Button>
+                  </Link>
+                  <LoginButton />
+                </>
               )}
             </div>
           </div>
@@ -200,8 +201,8 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Hero Section */}
         <div className="mb-8 text-center animate-fade-in">
-          <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-3">
-            {userProfile ? `Welcome back, ${userProfile.name || 'User'}!` : 'Welcome to Sora-2Ai'}
+          <h2 className="mb-3 text-4xl font-bold text-gray-900 dark:text-white">
+            {userProfile ? `Welcome back, ${userProfile.name || "User"}!` : 'Welcome to Sora-2Ai'}
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-400 mb-6">
             Transform your creativity into amazing videos with OpenAI Sora 2.0
@@ -240,7 +241,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                     <span className="font-semibold text-energy-water dark:text-energy-soft"> 10 credits/video</span>
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-500">
-                    【Watermark-free】OpenAI's latest Sora 2.0 model, official beta testing, pricing is tentative and may change in the future
+                    【Watermark-free】OpenAI&apos;s latest Sora 2.0 model, official beta testing, pricing is tentative and may change in the future
                   </p>
                 </div>
               </div>
