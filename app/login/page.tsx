@@ -59,6 +59,10 @@ export default async function LoginPage({
 
         <LoginButton />
 
+        <p className="text-center text-xs text-gray-400 dark:text-gray-500">
+          Authentication provided by <span className="font-medium text-energy-deep dark:text-energy-soft">https://sora2aivideos.com/</span>
+        </p>
+
         <p className="text-center text-xs text-gray-500 dark:text-gray-400">
           By signing in, you acknowledge and agree to our{' '}
           <a href="/terms" className="text-energy-water hover:text-energy-water-deep">
