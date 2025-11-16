@@ -28,8 +28,8 @@ cat CONFIG.md
 ```
 
 **Google OAuth 凭据**（已提供）：
-- 客户端 ID: `222103705593-0v1ntpdj5lvlmgj7tokoaq101rm5kq5o.apps.googleusercontent.com`
-- 客户端密钥: `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`
+- 客户端 ID: `*********.apps.googleusercontent.com`
+- 客户端密钥: `************`
 
 ⚠️ **重要**: 需要在 Google Cloud Console 中配置重定向 URI（见 `CONFIG.md`）
 
