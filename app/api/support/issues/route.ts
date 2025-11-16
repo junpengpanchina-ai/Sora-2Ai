@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import type { Database } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -11,6 +12,8 @@ type IssuePayload = {
   issueCategory?: string
   issueDescription?: string
 }
+
+type AfterSalesIssueInsert = Database['public']['Tables']['after_sales_issues']['Insert']
 
 export async function POST(request: Request) {
   try {
@@ -29,17 +32,25 @@ export async function POST(request: Request) {
 
     const supabase = await createClient()
 
-    const { data, error } = await supabase
+    const newIssue: AfterSalesIssueInsert = {
+      user_name: userName.trim(),
+      contact_phone: contactPhone.trim(),
+      contact_email: contactEmail?.trim() || null,
+      issue_category: issueCategory?.trim() || null,
+      issue_description: issueDescription.trim(),
+    }
+
+    const insertResult = await supabase
       .from('after_sales_issues')
-      .insert({
-        user_name: userName.trim(),
-        contact_phone: contactPhone.trim(),
-        contact_email: contactEmail?.trim() || null,
-        issue_category: issueCategory?.trim() || null,
-        issue_description: issueDescription.trim(),
-      })
+      // @ts-expect-error Supabase generated types not yet updated for after_sales_issues table
+      .insert(newIssue)
       .select('id')
       .single()
+
+    const { data, error } = insertResult as {
+      data: { id: string } | null
+      error: { message?: string } | null
+    }
 
     if (error || !data) {
       console.error('Failed to store customer feedback:', error)
