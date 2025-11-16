@@ -15,9 +15,9 @@ export default function SupportPage() {
           <div className="flex items-center justify-start">
             <Link
               href="/"
-              className="inline-flex items-center text-sm font-semibold text-energy-water hover:text-energy-water-deep dark:text-energy-soft"
+              className="inline-flex items-center gap-2 rounded-full border border-transparent bg-energy-water px-4 py-2 text-sm font-semibold text-white shadow-lg transition-transform hover:-translate-x-0.5 hover:bg-energy-water-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-energy-water dark:bg-energy-soft dark:text-gray-900 dark:hover:bg-energy-water light:shadow-energy"
             >
-              <span aria-hidden="true" className="mr-2 text-lg">
+              <span aria-hidden="true" className="text-lg">
                 ←
               </span>
               Back to Dashboard
