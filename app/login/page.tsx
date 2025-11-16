@@ -60,7 +60,14 @@ export default async function LoginPage({
         <LoginButton />
 
         <p className="text-center text-xs text-gray-500 dark:text-gray-400">
-          By logging in, you agree to our Terms of Service and Privacy Policy
+          登录即表示您已阅读并同意我们的{' '}
+          <a href="/terms" className="text-energy-water hover:text-energy-water-deep">
+            服务条款
+          </a>{' '}
+          与{' '}
+          <a href="/privacy" className="text-energy-water hover:text-energy-water-deep">
+            隐私权政策
+          </a>
         </p>
       </div>
     </div>
