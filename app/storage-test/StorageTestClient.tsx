@@ -126,7 +126,7 @@ export default function StorageTestClient() {
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-4">
               <Link href="/" className="text-xl font-bold text-gray-900 dark:text-white">
-                Sora-2Ai
+                Sora2Ai Videos
               </Link>
               <span className="text-sm text-gray-600 dark:text-gray-400">R2 Storage Test</span>
             </div>

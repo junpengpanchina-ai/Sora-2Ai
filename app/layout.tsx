@@ -5,8 +5,8 @@ import { SpeedInsights } from '@vercel/speed-insights/next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Sora-2Ai - AI Video Generation Platform',
-  description: 'Generate high-quality video content easily with AI technology',
+  title: 'Sora2Ai Videos - AI Video Generation Platform',
+  description: 'Generate high-quality video content easily with Sora2Ai Videos and the latest OpenAI Sora 2.0 model',
   icons: {
     icon: '/icon.svg',
   },
@@ -18,7 +18,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="zh-CN">
+    <html lang="en">
       <head>
         <script async src="https://js.stripe.com/v3/buy-button.js" />
       </head>

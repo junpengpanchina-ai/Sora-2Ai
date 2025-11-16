@@ -1,22 +1,22 @@
 export const metadata = {
-  title: 'Terms of Service | Sora-2Ai',
-  description: 'Sora-2Ai enterprise-facing Terms of Service aligned with U.S. regulations.',
+  title: 'Terms of Service | Sora2Ai Videos',
+  description: 'Sora2Ai Videos enterprise-facing Terms of Service aligned with U.S. regulations.',
 }
 
 export default function TermsPage() {
   return (
     <div className="mx-auto max-w-4xl px-6 py-16 text-sm leading-relaxed text-gray-700 dark:text-gray-300">
-      <h1 className="mb-6 text-3xl font-semibold text-energy-deep dark:text-energy-soft">Sora-2Ai Terms of Service</h1>
+      <h1 className="mb-6 text-3xl font-semibold text-energy-deep dark:text-energy-soft">Sora2Ai Videos Terms of Service</h1>
       <p className="mb-4">
         These Terms of Service (“Terms”) reference applicable federal and state regulations in the United States, including but not
         limited to the Federal Trade Commission Act, the Electronic Communications Privacy Act, the Computer Fraud and Abuse Act, and
-        state privacy statutes such as the California Consumer Privacy Act (CCPA). They govern the relationship between Sora-2Ai
+        state privacy statutes such as the California Consumer Privacy Act (CCPA). They govern the relationship between Sora2Ai Videos
         (“we,” “us,” or “the Service Provider”) and enterprise customers and their authorized users (“you”).
       </p>
 
       <h2 className="mt-8 mb-3 text-xl font-semibold">1. Service Description</h2>
       <p className="mb-4">
-        Sora-2Ai provides AI-powered video and media generation tools, account administration, and data processing capabilities. You
+        Sora2Ai Videos provides AI-powered video and media generation tools, account administration, and data processing capabilities. You
         must ensure that your use is lawful, compliant, and aligned with your contractual and regulatory obligations, including
         downstream communications to your end clients.
       </p>

@@ -22,7 +22,7 @@ export default async function LoginPage({
       <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-xl dark:bg-gray-800">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Sora-2Ai
+            Sora2Ai Videos
           </h1>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             AI Video Generation Platform
@@ -60,13 +60,13 @@ export default async function LoginPage({
         <LoginButton />
 
         <p className="text-center text-xs text-gray-500 dark:text-gray-400">
-          登录即表示您已阅读并同意我们的{' '}
+          By signing in, you acknowledge and agree to our{' '}
           <a href="/terms" className="text-energy-water hover:text-energy-water-deep">
-            服务条款
+            Terms of Service
           </a>{' '}
-          与{' '}
+          and{' '}
           <a href="/privacy" className="text-energy-water hover:text-energy-water-deep">
-            隐私权政策
+            Privacy Policy
           </a>
         </p>
       </div>
