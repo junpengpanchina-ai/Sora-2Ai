@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 export const metadata = {
   title: 'Terms of Service | Sora2Ai Videos',
   description: 'Sora2Ai Videos enterprise-facing Terms of Service aligned with U.S. regulations.',
@@ -93,6 +95,14 @@ export default function TermsPage() {
         For questions about these Terms or to request a signed master services agreement, please contact us through your account
         representative or official support channels.
       </p>
+      <div className="mt-8 flex justify-center">
+        <Link
+          href="/"
+          className="inline-flex items-center rounded-full border border-energy-gold-outline px-5 py-2.5 text-sm font-medium text-energy-deep transition-colors hover:bg-energy-water-surface dark:border-gray-600 dark:text-energy-soft dark:hover:bg-gray-800"
+        >
+          Back to Home
+        </Link>
+      </div>
     </div>
   )
 }

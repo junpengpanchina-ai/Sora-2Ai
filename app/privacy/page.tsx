@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 export const metadata = {
   title: 'Privacy Policy | Sora2Ai Videos',
   description: 'Sora2Ai Videos privacy practices aligned with U.S. regulations.',
@@ -78,6 +80,14 @@ export default function PrivacyPage() {
         For privacy inquiries or to exercise your rights, please reach out via official support channels or contact your Sora2Ai Videos
         account manager.
       </p>
+      <div className="mt-8 flex justify-center">
+        <Link
+          href="/"
+          className="inline-flex items-center rounded-full border border-energy-gold-outline px-5 py-2.5 text-sm font-medium text-energy-deep transition-colors hover:bg-energy-water-surface dark:border-gray-600 dark:text-energy-soft dark:hover:bg-gray-800"
+        >
+          Back to Home
+        </Link>
+      </div>
     </div>
   )
 }
