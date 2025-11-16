@@ -185,6 +185,41 @@ export interface Database {
           refunded_at?: string | null
         }
       }
+      after_sales_issues: {
+        Row: {
+          id: string
+          user_name: string
+          contact_phone: string
+          contact_email: string | null
+          issue_category: string | null
+          issue_description: string
+          status: 'open' | 'in_progress' | 'resolved' | 'closed'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_name: string
+          contact_phone: string
+          contact_email?: string | null
+          issue_category?: string | null
+          issue_description: string
+          status?: 'open' | 'in_progress' | 'resolved' | 'closed'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_name?: string
+          contact_phone?: string
+          contact_email?: string | null
+          issue_category?: string | null
+          issue_description?: string
+          status?: 'open' | 'in_progress' | 'resolved' | 'closed'
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
   }
 }
