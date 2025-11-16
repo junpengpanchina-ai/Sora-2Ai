@@ -806,6 +806,13 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         onClose={() => setShowPricingModal(false)}
       />
 
+      <Link
+        href="/support"
+        className="fixed right-6 bottom-6 z-50 inline-flex items-center gap-2 rounded-full bg-energy-water px-5 py-3 text-sm font-semibold text-white shadow-xl transition-transform hover:translate-y-[-2px] hover:bg-energy-water-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-energy-water"
+      >
+        Feedback
+        <span aria-hidden="true">→</span>
+      </Link>
     </div>
   )
 }
