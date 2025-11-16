@@ -240,7 +240,7 @@ export default function VideoPageClient() {
                 href="/"
                 className="text-xl font-bold text-gray-900 dark:text-white"
               >
-                Sora-2Ai
+                Sora2Ai Videos
               </Link>
               <Link
                 href="/video"

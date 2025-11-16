@@ -112,7 +112,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-4">
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                Sora-2Ai
+                Sora2Ai Videos
               </h1>
               <Link
                 href="/prompts"
@@ -202,7 +202,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         {/* Hero Section */}
         <div className="mb-8 text-center animate-fade-in">
           <h2 className="mb-3 text-4xl font-bold text-gray-900 dark:text-white">
-            {userProfile ? `Welcome back, ${userProfile.name || "User"}!` : 'Welcome to Sora-2Ai'}
+            {userProfile ? `Welcome back, ${userProfile.name || "User"}!` : 'Welcome to Sora2Ai Videos'}
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-400 mb-6">
             Transform your creativity into amazing videos with OpenAI Sora 2.0

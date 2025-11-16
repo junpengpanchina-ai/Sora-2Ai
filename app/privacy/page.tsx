@@ -1,17 +1,17 @@
 export const metadata = {
-  title: 'Privacy Policy | Sora-2Ai',
-  description: 'Sora-2Ai privacy practices aligned with U.S. regulations.',
+  title: 'Privacy Policy | Sora2Ai Videos',
+  description: 'Sora2Ai Videos privacy practices aligned with U.S. regulations.',
 }
 
 export default function PrivacyPage() {
   return (
     <div className="mx-auto max-w-4xl px-6 py-16 text-sm leading-relaxed text-gray-700 dark:text-gray-300">
-      <h1 className="mb-6 text-3xl font-semibold text-energy-deep dark:text-energy-soft">Sora-2Ai Privacy Policy</h1>
+      <h1 className="mb-6 text-3xl font-semibold text-energy-deep dark:text-energy-soft">Sora2Ai Videos Privacy Policy</h1>
       <p className="mb-4">
         We recognize the importance of safeguarding personal information and sensitive data. This Privacy Policy references U.S. data
         protection laws, including the California Consumer Privacy Act (CCPA), sector-specific regulations such as the Health Insurance
         Portability and Accountability Act (HIPAA, when applicable), and the Federal Trade Commission Act. It explains how we collect,
-        use, store, and protect data when you engage Sora-2Ai services.
+        use, store, and protect data when you engage Sora2Ai Videos services.
       </p>
 
       <h2 className="mt-8 mb-3 text-xl font-semibold">1. Information We Collect</h2>
@@ -75,7 +75,7 @@ export default function PrivacyPage() {
       </p>
 
       <p className="mt-10 text-xs text-gray-500 dark:text-gray-400">
-        For privacy inquiries or to exercise your rights, please reach out via official support channels or contact your Sora-2Ai
+        For privacy inquiries or to exercise your rights, please reach out via official support channels or contact your Sora2Ai Videos
         account manager.
       </p>
     </div>
