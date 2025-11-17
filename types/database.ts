@@ -340,6 +340,53 @@ export interface Database {
           created_at?: string
         }
       }
+      prompt_library: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          prompt: string
+          category: 'nature' | 'character' | 'action' | 'scenery' | 'abstract' | 'cinematic'
+          tags: string[]
+          difficulty: 'beginner' | 'intermediate' | 'advanced'
+          example: string | null
+          locale: 'zh' | 'en'
+          is_published: boolean
+          created_by_admin_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          prompt: string
+          category: 'nature' | 'character' | 'action' | 'scenery' | 'abstract' | 'cinematic'
+          tags?: string[]
+          difficulty: 'beginner' | 'intermediate' | 'advanced'
+          example?: string | null
+          locale?: 'zh' | 'en'
+          is_published?: boolean
+          created_by_admin_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          prompt?: string
+          category?: 'nature' | 'character' | 'action' | 'scenery' | 'abstract' | 'cinematic'
+          tags?: string[]
+          difficulty?: 'beginner' | 'intermediate' | 'advanced'
+          example?: string | null
+          locale?: 'zh' | 'en'
+          is_published?: boolean
+          created_by_admin_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Functions: {
       admin_adjust_user_credits: {

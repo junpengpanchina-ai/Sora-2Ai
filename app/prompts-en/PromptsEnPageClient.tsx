@@ -1,157 +1,127 @@
+type PromptCategoryFilter = 'all' | PromptCategory
+
+interface Prompt {
+  id: string
+  title: string
+  description: string | null
+  prompt: string
+  category: PromptCategory
+  tags: string[]
+  difficulty: PromptDifficulty
+  example: string | null
+  locale: string
+  is_published: boolean
+  created_at: string
+  updated_at: string
+  created_by_admin_id?: string | null
+}
+
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import LogoutButton from '@/components/LogoutButton'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
+import type { PromptCategory, PromptDifficulty } from '@/lib/prompts/schema'
 
-// Prompt categories
-type PromptCategory = 'all' | 'nature' | 'character' | 'action' | 'scenery' | 'abstract' | 'cinematic'
-
-// Prompt data structure
-interface Prompt {
-  id: string
-  title: string
-  description: string
-  prompt: string
-  category: PromptCategory
-  tags: string[]
-  difficulty: 'beginner' | 'intermediate' | 'advanced'
-  example?: string
-}
-
-// Sample prompt data
-const promptsData: Prompt[] = [
-  {
-    id: '1',
-    title: 'Serene Forest Dawn',
-    description: 'A peaceful forest scene with morning light filtering through trees',
-    prompt: 'A serene forest scene at dawn, with soft golden sunlight filtering through the dense canopy of ancient trees. Gentle morning mist floats between the tree trunks, and dewdrops glisten on leaves. Birds can be heard chirping in the distance. Cinematic, 4K, natural lighting, peaceful atmosphere.',
-    category: 'nature',
-    tags: ['forest', 'morning', 'peaceful', 'nature'],
-    difficulty: 'beginner',
-  },
-  {
-    id: '2',
-    title: 'Futuristic City Flight',
-    description: 'Flying through a futuristic cityscape at night',
-    prompt: 'A futuristic cityscape at night, flying through neon-lit skyscrapers. Holographic advertisements flicker on building facades. Flying vehicles zoom past in the background. Cyberpunk aesthetic, cinematic camera movement, 4K, vibrant colors.',
-    category: 'scenery',
-    tags: ['futuristic', 'city', 'flying', 'cyberpunk'],
-    difficulty: 'intermediate',
-  },
-  {
-    id: '3',
-    title: 'Kitten Playing',
-    description: 'A cute kitten playing on the grass',
-    prompt: 'A cute orange tabby kitten playing on a lush green lawn. The kitten chases a butterfly, pouncing and rolling around. Soft natural lighting, shallow depth of field, 4K, adorable and heartwarming atmosphere.',
-    category: 'character',
-    tags: ['cat', 'cute', 'playing', 'animals'],
-    difficulty: 'beginner',
-  },
-  {
-    id: '4',
-    title: 'Ocean Waves Crashing',
-    description: 'Powerful ocean waves crashing against coastal rocks',
-    prompt: 'Powerful ocean waves crashing against rugged coastal rocks. White foam sprays into the air. Dramatic storm clouds gather overhead. Slow motion, cinematic, 4K, dramatic lighting, epic and powerful atmosphere.',
-    category: 'nature',
-    tags: ['ocean', 'waves', 'dramatic', 'nature'],
-    difficulty: 'intermediate',
-  },
-  {
-    id: '5',
-    title: 'Abstract Particle Flow',
-    description: 'Abstract flowing particles with futuristic feel',
-    prompt: 'Abstract flowing particles in vibrant colors, creating mesmerizing patterns. Smooth, fluid motion with glowing trails. Dark background with neon accents. Futuristic, hypnotic, 4K, smooth animation.',
-    category: 'abstract',
-    tags: ['abstract', 'particles', 'futuristic', 'visual'],
-    difficulty: 'advanced',
-  },
-  {
-    id: '6',
-    title: 'Martial Arts Duel',
-    description: 'Ancient Chinese swordsmen dueling in a bamboo forest',
-    prompt: 'Two ancient Chinese swordsmen in a dramatic duel among bamboo forest. Their movements are graceful yet powerful. Bamboo leaves fall slowly around them. Cinematic, slow motion, traditional Chinese aesthetic, 4K, epic atmosphere.',
-    category: 'action',
-    tags: ['martial arts', 'ancient', 'dramatic', 'action'],
-    difficulty: 'advanced',
-  },
-  {
-    id: '7',
-    title: 'Desert Under Stars',
-    description: 'A desert landscape at night under a starry sky',
-    prompt: 'A vast desert landscape at night under a starry sky. The Milky Way stretches across the horizon. Sand dunes create soft curves in the moonlight. Time-lapse, cinematic, 4K, peaceful and majestic.',
-    category: 'scenery',
-    tags: ['desert', 'stars', 'night', 'landscape'],
-    difficulty: 'intermediate',
-  },
-  {
-    id: '8',
-    title: 'Robot Exploration',
-    description: 'A robot exploring an abandoned city',
-    prompt: 'A humanoid robot exploring an abandoned, overgrown city. Vines cover crumbling buildings. The robot moves cautiously, scanning the environment. Post-apocalyptic, cinematic, 4K, melancholic atmosphere.',
-    category: 'character',
-    tags: ['robot', 'post-apocalyptic', 'exploration', 'sci-fi'],
-    difficulty: 'advanced',
-  },
-  {
-    id: '9',
-    title: 'Space Station Interior',
-    description: 'A detailed view inside a space station',
-    prompt: 'A detailed interior view of a modern space station. Astronauts float weightlessly through corridors. Earth visible through large windows. High-tech equipment and holographic displays. Cinematic, 4K, realistic lighting, futuristic atmosphere.',
-    category: 'scenery',
-    tags: ['space', 'station', 'futuristic', 'sci-fi'],
-    difficulty: 'intermediate',
-  },
-  {
-    id: '10',
-    title: 'Dragon Flying',
-    description: 'A majestic dragon soaring through clouds',
-    prompt: 'A majestic dragon with iridescent scales soaring through dramatic clouds. Lightning flashes in the background. The dragon\'s wings create powerful gusts. Epic fantasy, cinematic, 4K, dramatic lighting, mythical atmosphere.',
-    category: 'character',
-    tags: ['dragon', 'fantasy', 'flying', 'epic'],
-    difficulty: 'advanced',
-  },
-  {
-    id: '11',
-    title: 'Time-Lapse City',
-    description: 'A time-lapse of a bustling city from day to night',
-    prompt: 'Time-lapse of a bustling modern city transitioning from day to night. Traffic flows like rivers of light. Skyscrapers light up one by one. Stars appear in the sky. Cinematic, 4K, smooth transition, urban atmosphere.',
-    category: 'scenery',
-    tags: ['city', 'time-lapse', 'urban', 'night'],
-    difficulty: 'intermediate',
-  },
-  {
-    id: '12',
-    title: 'Underwater Coral Reef',
-    description: 'Vibrant coral reef teeming with marine life',
-    prompt: 'A vibrant coral reef teeming with colorful marine life. Tropical fish swim in schools. Sunlight filters through crystal-clear water. Soft coral swaying gently. Cinematic, 4K, underwater lighting, peaceful and colorful atmosphere.',
-    category: 'nature',
-    tags: ['ocean', 'coral', 'marine life', 'underwater'],
-    difficulty: 'beginner',
-  },
-]
 
 export default function PromptsEnPageClient() {
   const router = useRouter()
-  const [selectedCategory, setSelectedCategory] = useState<PromptCategory>('all')
+  const [prompts, setPrompts] = useState<Prompt[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<PromptCategoryFilter>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchPrompts = useCallback(
+    async (options?: { signal?: AbortSignal; silent?: boolean }) => {
+      const { signal, silent } = options ?? {}
+      if (!silent) {
+        setLoading(true)
+      }
+      setError(null)
+      try {
+        const response = await fetch('/api/prompts?locale=en', { signal })
+        const payload = await response.json().catch(() => ({}))
+
+        if (!response.ok) {
+          const message =
+            typeof payload.error === 'string' ? payload.error : 'Failed to load prompts'
+          throw new Error(message)
+        }
+
+        const items = Array.isArray(payload.prompts) ? payload.prompts : []
+        const normalized: Prompt[] = items.map((item) => ({
+          id: item.id,
+          title: item.title ?? '',
+          description: item.description ?? null,
+          prompt: item.prompt ?? '',
+          category: item.category,
+          tags: Array.isArray(item.tags) ? item.tags : [],
+          difficulty: item.difficulty,
+          example: item.example ?? null,
+          locale: item.locale ?? 'en',
+          is_published: item.is_published ?? true,
+          created_at: item.created_at ?? new Date().toISOString(),
+          updated_at: item.updated_at ?? new Date().toISOString(),
+          created_by_admin_id: item.created_by_admin_id ?? null,
+        }))
+
+        setPrompts(normalized)
+        setSelectedPrompt((prev) => {
+          if (!normalized.length) {
+            return null
+          }
+          if (!prev) {
+            return normalized[0]
+          }
+          return normalized.find((item) => item.id === prev.id) ?? normalized[0]
+        })
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          return
+        }
+        console.error('Failed to load prompts:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load prompts')
+        setPrompts([])
+        setSelectedPrompt(null)
+      } finally {
+        if (!silent) {
+          setLoading(false)
+        }
+      }
+    },
+    []
+  )
+
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchPrompts({ signal: controller.signal })
+    return () => controller.abort()
+  }, [fetchPrompts])
+
+  useEffect(() => {
+    if (selectedPrompt && !prompts.some((prompt) => prompt.id === selectedPrompt.id)) {
+      setSelectedPrompt(prompts[0] ?? null)
+    }
+  }, [prompts, selectedPrompt])
 
   // Filter prompts
   const filteredPrompts = useMemo(() => {
-    return promptsData.filter((prompt) => {
+    const trimmedQuery = searchQuery.trim().toLowerCase()
+    return prompts.filter((prompt) => {
       const matchesCategory = selectedCategory === 'all' || prompt.category === selectedCategory
       const matchesSearch =
-        searchQuery === '' ||
-        prompt.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        prompt.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        prompt.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        prompt.prompt.toLowerCase().includes(searchQuery.toLowerCase())
+        trimmedQuery === '' ||
+        prompt.title.toLowerCase().includes(trimmedQuery) ||
+        (prompt.description ?? '').toLowerCase().includes(trimmedQuery) ||
+        prompt.tags.some((tag) => tag.toLowerCase().includes(trimmedQuery)) ||
+        prompt.prompt.toLowerCase().includes(trimmedQuery)
       return matchesCategory && matchesSearch
     })
-  }, [selectedCategory, searchQuery])
+  }, [prompts, selectedCategory, searchQuery])
 
   // Use prompt to generate video
   const handleUsePrompt = (prompt: Prompt) => {
@@ -169,7 +139,7 @@ export default function PromptsEnPageClient() {
     }
   }
 
-  const categories: { value: PromptCategory; label: string; icon: string }[] = [
+  const categories: { value: PromptCategoryFilter; label: string; icon: string }[] = [
     { value: 'all', label: 'All', icon: '📚' },
     { value: 'nature', label: 'Nature', icon: '🌲' },
     { value: 'character', label: 'Character', icon: '👤' },
@@ -274,10 +244,7 @@ export default function PromptsEnPageClient() {
                   <button
                     key={category.value}
                     type="button"
-                    onClick={() => {
-                      console.log('Category clicked:', category.value)
-                      setSelectedCategory(category.value)
-                    }}
+                    onClick={() => setSelectedCategory(category.value)}
                     style={{ 
                       position: 'relative',
                       zIndex: 10,
@@ -308,7 +275,19 @@ export default function PromptsEnPageClient() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {filteredPrompts.length > 0 ? (
+                {loading ? (
+                  <div className="flex items-center justify-center py-12 text-gray-500 dark:text-gray-400">
+                    <div className="mr-3 h-6 w-6 animate-spin rounded-full border-b-2 border-energy-water"></div>
+                    Loading prompts...
+                  </div>
+                ) : error ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+                    <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
+                    <Button variant="secondary" size="sm" onClick={() => fetchPrompts()}>
+                      Retry
+                    </Button>
+                  </div>
+                ) : filteredPrompts.length > 0 ? (
                   <div className="space-y-4">
                     {filteredPrompts.map((prompt) => (
                       <div
