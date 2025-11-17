@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@/components/ui'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -28,6 +28,24 @@ interface RechargeRecord {
   completed_at: string | null
 }
 
+interface CreditAdjustmentRecord {
+  id: string
+  delta: number
+  adjustment_type:
+    | 'manual_increase'
+    | 'manual_decrease'
+    | 'recharge_correction'
+    | 'recharge_refund'
+    | 'consumption_refund'
+    | 'other'
+  reason: string | null
+  created_at: string
+  before_credits: number | null
+  after_credits: number | null
+  related_recharge_id: string | null
+  related_consumption_id: string | null
+}
+
 interface ProfileClientProps {
   userProfile: UserProfile | null
 }
@@ -35,6 +53,7 @@ interface ProfileClientProps {
 export default function ProfileClient({ userProfile }: ProfileClientProps) {
   const [credits, setCredits] = useState<number>(userProfile?.credits || 0)
   const [rechargeRecords, setRechargeRecords] = useState<RechargeRecord[]>([])
+  const [creditAdjustments, setCreditAdjustments] = useState<CreditAdjustmentRecord[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchData = useCallback(async () => {
@@ -60,6 +79,15 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
           if (rechargeData.user_credits !== undefined) {
             setCredits(rechargeData.user_credits)
           }
+        }
+      }
+
+      // Fetch manual credit adjustments
+      const adjustmentsResponse = await fetch('/api/payment/credit-adjustments')
+      if (adjustmentsResponse.ok) {
+        const adjustmentsData = await adjustmentsResponse.json()
+        if (adjustmentsData.success) {
+          setCreditAdjustments(adjustmentsData.adjustments || [])
         }
       }
     } catch (error) {
@@ -103,6 +131,71 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
       </Badge>
     )
   }
+
+  function getAdjustmentBadge(type: CreditAdjustmentRecord['adjustment_type']) {
+    const variants: Record<CreditAdjustmentRecord['adjustment_type'], { label: string; className: string }> = {
+      manual_increase: {
+        label: 'Manual Increase',
+        className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      },
+      manual_decrease: {
+        label: 'Manual Decrease',
+        className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+      },
+      recharge_correction: {
+        label: 'Recharge Correction',
+        className: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+      },
+      recharge_refund: {
+        label: 'Recharge Refund',
+        className: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+      },
+      consumption_refund: {
+        label: 'Consumption Refund',
+        className: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+      },
+      other: {
+        label: 'Adjustment',
+        className: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
+      },
+    }
+    const variant = variants[type] || variants.other
+    return (
+      <Badge className={variant.className}>
+        {variant.label}
+      </Badge>
+    )
+  }
+
+  const paymentHistory = useMemo(() => {
+    const rechargeEntries = rechargeRecords.map((record) => ({
+      type: 'recharge' as const,
+      id: record.id,
+      created_at: record.created_at,
+      amount: record.amount,
+      credits: record.credits,
+      status: record.status,
+      payment_id: record.payment_id,
+      before_credits: null as number | null,
+      after_credits: null as number | null,
+    }))
+
+    const adjustmentEntries = creditAdjustments.map((adjustment) => ({
+      type: 'adjustment' as const,
+      id: adjustment.id,
+      created_at: adjustment.created_at,
+      amount: null,
+      credits: adjustment.delta,
+      status: adjustment.adjustment_type,
+      payment_id: adjustment.reason || 'Admin adjustment',
+      before_credits: adjustment.before_credits,
+      after_credits: adjustment.after_credits,
+    }))
+
+    return [...rechargeEntries, ...adjustmentEntries].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
+  }, [rechargeRecords, creditAdjustments])
 
   if (!userProfile) {
     return (
@@ -273,7 +366,7 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
             <div className="flex items-center justify-between">
               <CardTitle>Payment History</CardTitle>
               <Badge className="bg-energy-water-surface text-energy-water dark:bg-energy-water-muted dark:text-energy-soft">
-                {rechargeRecords.length} Total
+                {paymentHistory.length} Total
               </Badge>
             </div>
           </CardHeader>
@@ -283,7 +376,7 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
                 <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-energy-water"></div>
                 <p className="mt-2 text-sm text-gray-500">Loading...</p>
               </div>
-            ) : rechargeRecords.length === 0 ? (
+            ) : paymentHistory.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-500 dark:text-gray-400">No payment records found</p>
                 <Link href="/" className="mt-4 inline-block">
@@ -298,34 +391,57 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700">
                       <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400">Date</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400">Type</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400">Amount</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400">Credits</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400">Status</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400">Payment ID</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400">Details</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rechargeRecords.map((record) => (
+                    {paymentHistory.map((entry) => (
                       <tr
-                        key={record.id}
+                        key={entry.id}
                         className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                       >
                         <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">
-                          {formatDate(record.created_at)}
+                          {formatDate(entry.created_at)}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">
+                          {entry.type === 'recharge' ? 'Recharge' : 'Adjustment'}
                         </td>
                         <td className="py-3 px-4 text-sm font-medium text-gray-900 dark:text-white">
-                          ${record.amount}
+                          {entry.type === 'recharge' ? `$${entry.amount}` : '—'}
                         </td>
                         <td className="py-3 px-4 text-sm font-medium text-energy-water dark:text-energy-soft">
-                          +{record.credits}
+                          <span
+                            className={
+                              entry.credits >= 0
+                                ? 'text-energy-water dark:text-energy-soft'
+                                : 'text-red-600 dark:text-red-400'
+                            }
+                          >
+                            {entry.credits > 0 ? `+${entry.credits}` : entry.credits}
+                          </span>
                         </td>
                         <td className="py-3 px-4">
-                          {getStatusBadge(record.status)}
+                          {entry.type === 'recharge'
+                            ? getStatusBadge(entry.status)
+                            : getAdjustmentBadge(entry.status)}
                         </td>
                         <td className="py-3 px-4">
                           <p className="text-xs font-mono text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
-                            {record.payment_id || 'N/A'}
+                            {entry.type === 'recharge'
+                              ? entry.payment_id || 'N/A'
+                              : entry.payment_id || 'Admin adjustment'}
                           </p>
+                          {entry.type === 'adjustment' &&
+                            entry.before_credits !== null &&
+                            entry.after_credits !== null && (
+                              <p className="mt-1 text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                                {entry.before_credits} → {entry.after_credits}
+                              </p>
+                            )}
                         </td>
                       </tr>
                     ))}

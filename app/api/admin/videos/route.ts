@@ -1,8 +1,9 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
-import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/types/database'
+import { createClient } from '@/lib/supabase/server'
+import { validateAdminSession } from '@/lib/admin-auth'
 
 /**
  * 管理员后台 - 获取所有视频任务
@@ -16,19 +17,15 @@ type UserSummary = Pick<Database['public']['Tables']['users']['Row'], 'id' | 'em
 
 export async function GET() {
   try {
-    // 验证用户身份
-    const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
+    const adminUser = await validateAdminSession()
+    if (!adminUser) {
       return NextResponse.json(
         { error: '未授权，请先登录' },
         { status: 401 }
       )
     }
 
+    const supabase = await createClient()
     // 获取所有视频任务
     const { data: videoTasks, error: tasksError } = await supabase
       .from('video_tasks')

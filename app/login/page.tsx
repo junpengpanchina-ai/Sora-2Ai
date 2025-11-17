@@ -1,80 +1,12 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import LoginButton from '@/components/LoginButton'
+import AdminLoginForm from '@/app/admin/AdminLoginForm'
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: { error?: string; message?: string }
-}) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  // Redirect to home if already logged in
-  if (user) {
-    redirect('/')
-  }
-
+export default function LoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-energy-hero dark:bg-energy-hero-dark">
-      <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-xl dark:bg-gray-800">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Sora2Ai Videos
-          </h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            AI Video Generation Platform
-          </p>
-        </div>
-
-        {searchParams.error && (
-          <div className="rounded-lg bg-red-50 p-4 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-400">
-            <p className="font-semibold">Login Failed</p>
-            <p className="mt-1">
-              {searchParams.error === 'auth_failed'
-                ? 'Authentication failed, please check your configuration'
-                : searchParams.error === 'no_code'
-                ? 'Authorization code not received, please try again'
-                : searchParams.error === 'no_session'
-                ? 'Session creation failed'
-                : searchParams.error === 'oauth_error'
-                ? 'OAuth configuration error, please check Google Provider settings in Supabase'
-                : decodeURIComponent(searchParams.error)}
-            </p>
-            <p className="mt-2 text-xs opacity-75">
-              If the problem persists, please check:
-              <br />1. Whether Google Provider is enabled in Supabase
-              <br />2. Whether redirect URIs are correct in Google Cloud Console
-            </p>
-          </div>
-        )}
-
-        {searchParams.message && (
-          <div className="rounded-lg bg-green-50 p-4 text-sm text-green-800 dark:bg-green-900/20 dark:text-green-400">
-            {searchParams.message}
-          </div>
-        )}
-
-        <LoginButton />
-
-        <p className="text-center text-xs text-gray-400 dark:text-gray-500">
-          Authentication provided by <span className="font-medium text-energy-deep dark:text-energy-soft">https://sora2aivideos.com/</span>
-        </p>
-
-        <p className="text-center text-xs text-gray-500 dark:text-gray-400">
-          By signing in, you acknowledge and agree to our{' '}
-          <a href="/terms" className="text-energy-water hover:text-energy-water-deep">
-            Terms of Service
-          </a>{' '}
-          and{' '}
-          <a href="/privacy" className="text-energy-water hover:text-energy-water-deep">
-            Privacy Policy
-          </a>
-        </p>
-      </div>
-    </div>
+    <AdminLoginForm
+      redirectPath="/admin"
+      title="后台登录"
+      description="请输入管理员账号和密码以进入后台管理系统"
+    />
   )
 }
 
