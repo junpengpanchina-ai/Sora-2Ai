@@ -24,7 +24,8 @@ export async function POST(request: Request) {
     const expiresAt = new Date(Date.now() + SESSION_DURATION_MS).toISOString()
 
     const supabase = await createClient()
-    const { data, error } = await supabase.rpc('admin_create_session', {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any).rpc('admin_create_session', {
       p_username: username.trim(),
       p_password: password,
       p_token_hash: tokenHash,
