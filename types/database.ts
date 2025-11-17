@@ -123,10 +123,11 @@ export interface Database {
           credits: number
           payment_method: string | null
           payment_id: string | null
-          status: 'pending' | 'completed' | 'failed' | 'cancelled'
+          status: 'pending' | 'completed' | 'failed' | 'cancelled' | 'refunded'
           created_at: string
           updated_at: string
           completed_at: string | null
+          admin_notes: string | null
         }
         Insert: {
           id?: string
@@ -135,10 +136,11 @@ export interface Database {
           credits: number
           payment_method?: string | null
           payment_id?: string | null
-          status?: 'pending' | 'completed' | 'failed' | 'cancelled'
+          status?: 'pending' | 'completed' | 'failed' | 'cancelled' | 'refunded'
           created_at?: string
           updated_at?: string
           completed_at?: string | null
+          admin_notes?: string | null
         }
         Update: {
           id?: string
@@ -147,10 +149,11 @@ export interface Database {
           credits?: number
           payment_method?: string | null
           payment_id?: string | null
-          status?: 'pending' | 'completed' | 'failed' | 'cancelled'
+          status?: 'pending' | 'completed' | 'failed' | 'cancelled' | 'refunded'
           created_at?: string
           updated_at?: string
           completed_at?: string | null
+          admin_notes?: string | null
         }
       }
       consumption_records: {
@@ -196,6 +199,9 @@ export interface Database {
           status: 'open' | 'in_progress' | 'resolved' | 'closed'
           created_at: string
           updated_at: string
+          admin_notes: string | null
+          handled_by: string | null
+          resolved_at: string | null
         }
         Insert: {
           id?: string
@@ -207,6 +213,9 @@ export interface Database {
           status?: 'open' | 'in_progress' | 'resolved' | 'closed'
           created_at?: string
           updated_at?: string
+          admin_notes?: string | null
+          handled_by?: string | null
+          resolved_at?: string | null
         }
         Update: {
           id?: string
@@ -218,7 +227,159 @@ export interface Database {
           status?: 'open' | 'in_progress' | 'resolved' | 'closed'
           created_at?: string
           updated_at?: string
+          admin_notes?: string | null
+          handled_by?: string | null
+          resolved_at?: string | null
         }
+      }
+      credit_adjustments: {
+        Row: {
+          id: string
+          user_id: string
+          admin_user_id: string | null
+          delta: number
+          adjustment_type:
+            | 'manual_increase'
+            | 'manual_decrease'
+            | 'recharge_correction'
+            | 'recharge_refund'
+            | 'consumption_refund'
+            | 'other'
+          reason: string | null
+          related_recharge_id: string | null
+          related_consumption_id: string | null
+          before_credits: number | null
+          after_credits: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          admin_user_id?: string | null
+          delta: number
+          adjustment_type?:
+            | 'manual_increase'
+            | 'manual_decrease'
+            | 'recharge_correction'
+            | 'recharge_refund'
+            | 'consumption_refund'
+            | 'other'
+          reason?: string | null
+          related_recharge_id?: string | null
+          related_consumption_id?: string | null
+          before_credits?: number | null
+          after_credits?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          admin_user_id?: string | null
+          delta?: number
+          adjustment_type?:
+            | 'manual_increase'
+            | 'manual_decrease'
+            | 'recharge_correction'
+            | 'recharge_refund'
+            | 'consumption_refund'
+            | 'other'
+          reason?: string | null
+          related_recharge_id?: string | null
+          related_consumption_id?: string | null
+          before_credits?: number | null
+          after_credits?: number | null
+          created_at?: string
+        }
+      }
+      admin_users: {
+        Row: {
+          id: string
+          username: string
+          password_hash: string
+          is_super_admin: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          username: string
+          password_hash: string
+          is_super_admin?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          username?: string
+          password_hash?: string
+          is_super_admin?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      admin_sessions: {
+        Row: {
+          id: string
+          admin_user_id: string
+          token_hash: string
+          expires_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          admin_user_id: string
+          token_hash: string
+          expires_at: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          admin_user_id?: string
+          token_hash?: string
+          expires_at?: string
+          created_at?: string
+        }
+      }
+    }
+    Functions: {
+      admin_adjust_user_credits: {
+        Args: {
+          p_admin_user_id: string | null
+          p_user_id: string
+          p_delta: number
+          p_reason: string | null
+          p_adjustment_type:
+            | 'manual_increase'
+            | 'manual_decrease'
+            | 'recharge_correction'
+            | 'recharge_refund'
+            | 'consumption_refund'
+            | 'other'
+          p_related_recharge_id?: string | null
+          p_related_consumption_id?: string | null
+        }
+        Returns: Database['public']['Tables']['credit_adjustments']['Row']
+      }
+      admin_create_session: {
+        Args: {
+          p_username: string
+          p_password: string
+          p_token_hash: string
+          p_expires_at: string
+        }
+        Returns: Database['public']['Tables']['admin_sessions']['Row']
+      }
+      admin_delete_session: {
+        Args: {
+          p_token_hash: string
+        }
+        Returns: boolean
+      }
+      admin_validate_session: {
+        Args: {
+          p_token_hash: string
+        }
+        Returns: Database['public']['Tables']['admin_users']['Row'] | null
       }
     }
   }

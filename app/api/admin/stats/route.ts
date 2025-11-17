@@ -1,8 +1,9 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
-import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/types/database'
+import { createClient } from '@/lib/supabase/server'
+import { validateAdminSession } from '@/lib/admin-auth'
 
 type UserCreditsRow = Pick<Database['public']['Tables']['users']['Row'], 'credits'>
 type RechargeSummaryRow = Pick<Database['public']['Tables']['recharge_records']['Row'], 'amount' | 'status'>
@@ -17,18 +18,15 @@ export const revalidate = 0
 
 export async function GET() {
   try {
-    // 验证用户身份（简单验证，生产环境可以添加更严格的权限控制）
-    const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
+    const adminUser = await validateAdminSession()
+    if (!adminUser) {
       return NextResponse.json(
         { error: '未授权，请先登录' },
         { status: 401 }
       )
     }
+
+    const supabase = await createClient()
 
     // 获取总用户数
     const { count: totalUsers, error: usersError } = await supabase
