@@ -14,6 +14,7 @@ import {
 import Link from 'next/link'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import AdminPromptsManager from './AdminPromptsManager'
 
 interface UserStats {
   total_users: number
@@ -228,7 +229,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
   const [issueStatusCounts, setIssueStatusCounts] = useState<Record<string, number>>({})
   const [creditAdjustments, setCreditAdjustments] = useState<CreditAdjustment[]>([])
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'recharges' | 'consumption' | 'videos' | 'issues' | 'adjustments'
+    'overview' | 'recharges' | 'consumption' | 'videos' | 'issues' | 'adjustments' | 'prompts'
   >('overview')
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [issuesLoading, setIssuesLoading] = useState(true)
@@ -693,6 +694,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                   { value: 'videos', label: '视频任务' },
                   { value: 'issues', label: '售后反馈' },
                   { value: 'adjustments', label: '积分调整' },
+                  { value: 'prompts', label: '提示词库' },
                 ].map((tab) => (
                   <button
                     key={tab.value}
@@ -1514,6 +1516,10 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                   </CardContent>
                 </Card>
               </div>
+            )}
+
+            {activeTab === 'prompts' && (
+              <AdminPromptsManager onShowBanner={showBanner} />
             )}
           </>
         )}
