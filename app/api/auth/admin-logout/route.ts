@@ -13,7 +13,8 @@ export async function POST() {
 
   if (token) {
     const supabase = await createClient()
-    await supabase.rpc('admin_delete_session', { p_token_hash: hashToken(token) })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).rpc('admin_delete_session', { p_token_hash: hashToken(token) })
   }
 
   const response = NextResponse.json({ success: true })

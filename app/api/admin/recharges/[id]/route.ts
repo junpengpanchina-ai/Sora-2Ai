@@ -43,7 +43,7 @@ export async function PATCH(
       .from('recharge_records')
       .select('*')
       .eq('id', rechargeId)
-      .single()
+    .single<RechargeRow>()
 
     if (fetchError || !rechargeRecord) {
       return NextResponse.json({ error: '充值记录不存在' }, { status: 404 })
@@ -81,7 +81,8 @@ export async function PATCH(
 
     let adjustment = null
     if (adjustmentDelta !== 0 && adjustmentType) {
-      const { data: adjustmentResult, error: adjustmentError } = await supabase.rpc(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: adjustmentResult, error: adjustmentError } = await (supabase as any).rpc(
         'admin_adjust_user_credits',
         {
           p_admin_user_id: adminUser.id,
@@ -115,9 +116,10 @@ export async function PATCH(
       })
     }
 
-    const { data: updated, error: updateError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: updated, error: updateError } = await (supabase as any)
       .from('recharge_records')
-      .update(updates)
+      .update(updates as RechargeUpdate)
       .eq('id', rechargeId)
       .select('*')
       .single()

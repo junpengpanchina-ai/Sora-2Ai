@@ -65,9 +65,10 @@ export async function PATCH(
       return NextResponse.json({ error: '未提供有效的更新内容' }, { status: 400 })
     }
 
-    const { data: updated, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: updated, error } = await (supabase as any)
       .from('after_sales_issues')
-      .update(updates)
+      .update(updates as IssueUpdate)
       .eq('id', issueId)
       .select('*')
       .single()

@@ -4,6 +4,9 @@ import { createClient } from '@/lib/supabase/server'
 import { validateAdminSession } from '@/lib/admin-auth'
 
 type ConsumptionRow = Database['public']['Tables']['consumption_records']['Row']
+type ConsumptionUpdate = Database['public']['Tables']['consumption_records']['Update']
+type AdminAdjustArgs = Database['public']['Functions']['admin_adjust_user_credits']['Args']
+type AdminAdjustReturn = Database['public']['Functions']['admin_adjust_user_credits']['Returns']
 
 export async function POST(
   request: Request,
@@ -25,7 +28,7 @@ export async function POST(
       .from('consumption_records')
       .select('*')
       .eq('id', consumptionId)
-      .single()
+    .single<ConsumptionRow>()
 
     if (fetchError || !record) {
       return NextResponse.json({ error: '消费记录不存在' }, { status: 404 })
@@ -35,7 +38,8 @@ export async function POST(
       return NextResponse.json({ error: '该消费记录已退款' }, { status: 400 })
     }
 
-    const { data: adjustment, error: adjustmentError } = await supabase.rpc(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: rawAdjustment, error: adjustmentError } = await (supabase as any).rpc(
       'admin_adjust_user_credits',
       {
         p_admin_user_id: adminUser.id,
@@ -45,7 +49,7 @@ export async function POST(
         p_adjustment_type: 'consumption_refund',
         p_related_recharge_id: null,
         p_related_consumption_id: record.id,
-      }
+      } as AdminAdjustArgs
     )
 
     if (adjustmentError) {
@@ -56,15 +60,18 @@ export async function POST(
       )
     }
 
-    const { data: updated, error: updateError } = await supabase
+    const adjustment = rawAdjustment as AdminAdjustReturn | null
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: updated, error: updateError } = await (supabase as any)
       .from('consumption_records')
       .update({
         status: 'refunded',
         refunded_at: new Date().toISOString(),
-      })
+      } as ConsumptionUpdate)
       .eq('id', consumptionId)
       .select('*')
-      .single<ConsumptionRow>()
+      .single()
 
     if (updateError) {
       console.error('更新消费记录状态失败:', updateError)
@@ -76,7 +83,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      consumption: updated,
+      consumption: updated as ConsumptionRow,
       adjustment,
     })
   } catch (error) {

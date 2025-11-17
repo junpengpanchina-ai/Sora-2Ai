@@ -135,7 +135,7 @@ export async function POST(request: Request) {
         .from('users')
         .select('id')
         .eq('email', payload.userEmail.trim())
-        .single()
+        .single<{ id: string }>()
 
       if (findUserError || !targetUser) {
         return NextResponse.json(
@@ -176,7 +176,8 @@ export async function POST(request: Request) {
     }
 
     // 调用存储过程，原子性地调整积分并记录
-    const { data: adjustment, error } = await supabase.rpc('admin_adjust_user_credits', {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: adjustment, error } = await (supabase as any).rpc('admin_adjust_user_credits', {
       p_admin_user_id: adminUser.id,
       p_user_id: targetUserId,
       p_delta: delta,
