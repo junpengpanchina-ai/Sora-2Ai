@@ -56,7 +56,11 @@ export async function GET(request: Request) {
       throw error
     }
 
-    let prompts = (data ?? []).map((prompt) => ({
+    const promptRows = Array.isArray(data)
+      ? (data as Database['public']['Tables']['prompt_library']['Row'][])
+      : ([] as Database['public']['Tables']['prompt_library']['Row'][])
+
+    let prompts = promptRows.map((prompt) => ({
       ...prompt,
       tags: normalizeTags(prompt.tags),
     }))
