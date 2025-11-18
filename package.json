@@ -15,6 +15,7 @@
     "test:supabase": "node scripts/test-supabase.js",
     "test:rls": "node scripts/test-rls.js",
     "test:admin-prompts": "node scripts/test-admin-prompt-access.js",
+    "test:google-oauth": "node scripts/test-google-oauth.js",
     "setup-env": "node scripts/setup-env.js"
   },
   "dependencies": {
