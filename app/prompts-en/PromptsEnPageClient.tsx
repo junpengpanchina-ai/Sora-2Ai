@@ -25,7 +25,6 @@ interface Prompt {
   created_by_admin_id?: string | null
 }
 
-
 export default function PromptsEnPageClient() {
   const router = useRouter()
   const [prompts, setPrompts] = useState<Prompt[]>([])
