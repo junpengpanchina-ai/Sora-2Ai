@@ -105,41 +105,34 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     const supabase = await createServiceClient()
-    const { data, error } = await (supabase as unknown as {
-      from: (table: string) => {
-        update: (values: PromptUpdate) => {
-          eq: (column: string, value: string) => {
-            select: (columns: string) => {
-              single: () => Promise<{
-                data: Database['public']['Tables']['prompt_library']['Row'] | null
-                error: unknown
-              }>
-            }
+    const promptTable = supabase.from('prompt_library') as unknown as {
+      update: (values: PromptUpdate) => {
+        eq: (column: string, value: string) => {
+          select: (columns: string) => {
+            single: () => Promise<{
+              data: Database['public']['Tables']['prompt_library']['Row'] | null
+              error: unknown
+            }>
           }
         }
       }
-    })
-      .from('prompt_library')
+    }
+
+    const { data, error } = await promptTable
       .update(updates)
       .eq('id', promptId)
       .select('*')
       .single()
 
-    if (error) {
-      throw error as Error
+    if (error || !data) {
+      throw error ?? new Error('更新提示词失败')
     }
-
-    if (!data) {
-      return NextResponse.json({ error: '提示词未找到' }, { status: 404 })
-    }
-
-    const record = data as Database['public']['Tables']['prompt_library']['Row']
 
     return NextResponse.json({
       success: true,
       prompt: {
-        ...record,
-        tags: normalizeTags(record.tags),
+        ...data,
+        tags: normalizeTags(data.tags),
       },
     })
   } catch (error) {
