@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -53,21 +53,24 @@ export default function PromptsEnPageClient() {
         }
 
         const items = Array.isArray(payload.prompts) ? payload.prompts : []
-        const normalized: Prompt[] = items.map((item) => ({
-          id: item.id,
-          title: item.title ?? '',
-          description: item.description ?? null,
-          prompt: item.prompt ?? '',
-          category: item.category,
-          tags: Array.isArray(item.tags) ? item.tags : [],
-          difficulty: item.difficulty,
-          example: item.example ?? null,
-          locale: item.locale ?? 'en',
-          is_published: item.is_published ?? true,
-          created_at: item.created_at ?? new Date().toISOString(),
-          updated_at: item.updated_at ?? new Date().toISOString(),
-          created_by_admin_id: item.created_by_admin_id ?? null,
-        }))
+        const normalized: Prompt[] = items.map((item: unknown) => {
+          const promptItem = item as Record<string, unknown>
+          return {
+            id: String(promptItem.id ?? ''),
+            title: String(promptItem.title ?? ''),
+            description: promptItem.description ? String(promptItem.description) : null,
+            prompt: String(promptItem.prompt ?? ''),
+            category: promptItem.category as Prompt['category'],
+            tags: Array.isArray(promptItem.tags) ? (promptItem.tags as string[]) : [],
+            difficulty: promptItem.difficulty as Prompt['difficulty'],
+            example: promptItem.example ? String(promptItem.example) : null,
+            locale: String(promptItem.locale ?? 'en') as Prompt['locale'],
+            is_published: Boolean(promptItem.is_published ?? true),
+            created_at: String(promptItem.created_at ?? new Date().toISOString()),
+            updated_at: String(promptItem.updated_at ?? new Date().toISOString()),
+            created_by_admin_id: promptItem.created_by_admin_id ? String(promptItem.created_by_admin_id) : null,
+          }
+        })
 
         setPrompts(normalized)
         setSelectedPrompt((prev) => {

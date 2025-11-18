@@ -162,7 +162,8 @@ export async function POST(request: Request) {
 
     const { data, error } = await supabase
       .from('prompt_library')
-      .insert(insertPayload as Database['public']['Tables']['prompt_library']['Insert'])
+      // @ts-expect-error Supabase type inference issue with prompt_library table
+      .insert(insertPayload)
       .select('*')
       .single()
 
@@ -170,11 +171,17 @@ export async function POST(request: Request) {
       throw error
     }
 
+    if (!data) {
+      throw new Error('创建提示词失败：未返回数据')
+    }
+
+    const promptData = data as Database['public']['Tables']['prompt_library']['Row']
+
     return NextResponse.json({
       success: true,
       prompt: {
-        ...data,
-        tags: normalizeTags(data?.tags),
+        ...promptData,
+        tags: normalizeTags(promptData.tags),
       },
     })
   } catch (error) {
