@@ -34,7 +34,7 @@
 
 在 `lib/supabase/client.ts` 中：
 - 将 `detectSessionInUrl` 设置为 `true`
-- 显式启用 PKCE 流程：`flowType: 'pkce'`
+- `createBrowserClient` 默认使用 PKCE 流程，无需显式设置
 
 ### 2. 改进回调处理
 
@@ -47,8 +47,8 @@
 ### 3. 确保重定向 URL 匹配
 
 在 `components/LoginButton.tsx` 中：
-- 显式设置 `flowType: 'pkce'`
 - 确保 `redirectTo` URL 完全匹配回调 URL
+- PKCE 流程由 Supabase 客户端自动处理
 
 ## 🔧 用户解决方案
 
