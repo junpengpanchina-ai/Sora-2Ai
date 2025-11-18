@@ -1,10 +1,12 @@
-'use client';
+'use client'
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import LogoutButton from '@/components/LogoutButton'
-import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
+import Badge from '@/components/ui/Badge'
+import Button from '@/components/ui/Button'
 import type { PromptCategory, PromptDifficulty } from '@/lib/prompts/schema'
 
 type PromptCategoryFilter = 'all' | PromptCategory
