@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { validateAdminSession } from '@/lib/admin-auth'
 import { createServiceClient } from '@/lib/supabase/service'
+import type { Database } from '@/types/database'
 import {
   isPromptCategory,
   isPromptDifficulty,
@@ -141,20 +142,23 @@ export async function POST(request: Request) {
     const resolvedLocale = isPromptLocale(locale) ? locale : 'zh'
 
     const supabase = await createServiceClient()
+
+    const insertPayload: Database['public']['Tables']['prompt_library']['Insert'] = {
+      title,
+      description,
+      prompt,
+      category,
+      difficulty,
+      tags,
+      example,
+      locale: resolvedLocale,
+      is_published: isPublished,
+      created_by_admin_id: adminUser.id,
+    }
+
     const { data, error } = await supabase
       .from('prompt_library')
-      .insert({
-        title,
-        description,
-        prompt,
-        category,
-        difficulty,
-        tags,
-        example,
-        locale: resolvedLocale,
-        is_published: isPublished,
-        created_by_admin_id: adminUser.id,
-      })
+      .insert(insertPayload as Database['public']['Tables']['prompt_library']['Insert'])
       .select('*')
       .single()
 
