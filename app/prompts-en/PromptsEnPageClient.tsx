@@ -1,3 +1,12 @@
+'use client'
+
+import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import LogoutButton from '@/components/LogoutButton'
+import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
+import type { PromptCategory, PromptDifficulty } from '@/lib/prompts/schema'
+
 type PromptCategoryFilter = 'all' | PromptCategory
 
 interface Prompt {
@@ -15,15 +24,6 @@ interface Prompt {
   updated_at: string
   created_by_admin_id?: string | null
 }
-
-'use client'
-
-import { useState, useMemo, useCallback, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import LogoutButton from '@/components/LogoutButton'
-import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
-import type { PromptCategory, PromptDifficulty } from '@/lib/prompts/schema'
 
 
 export default function PromptsEnPageClient() {
