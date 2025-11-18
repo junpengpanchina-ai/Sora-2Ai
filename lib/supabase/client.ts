@@ -21,7 +21,7 @@ export function createClient(): SupabaseClient<Database> {
       autoRefreshToken: true, // Automatically refresh expired tokens
       detectSessionInUrl: true, // Enable automatic session detection from URL
       storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-      flowType: 'pkce', // Explicitly use PKCE flow
+      // Note: createBrowserClient automatically uses PKCE flow by default
     },
   })
 }
