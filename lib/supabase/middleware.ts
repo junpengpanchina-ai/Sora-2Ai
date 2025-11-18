@@ -38,15 +38,38 @@ export async function updateSession(request: NextRequest) {
     // Refresh user session
     const { error: getUserError } = await supabase.auth.getUser()
     
-    // 如果刷新令牌无效，清除相关的认证 cookie
+    // 如果刷新令牌无效或会话丢失，清除相关的认证 cookie
     if (getUserError) {
-      // 检查是否是刷新令牌相关的错误
-      const isRefreshTokenError = 
-        getUserError.message?.includes('refresh_token_not_found') ||
-        getUserError.message?.includes('Invalid Refresh Token') ||
-        getUserError.code === 'refresh_token_not_found'
+      // 检查是否是会话相关的正常错误（用户未登录或会话过期）
+      const errorMessage = getUserError.message || ''
+      const errorName = getUserError.name || getUserError.constructor?.name || ''
+      const errorCode = getUserError.code
+      const errorString = String(getUserError)
       
-      if (isRefreshTokenError) {
+      // 检查是否是认证错误（通过 __isAuthError 属性或错误类型）
+      const isAuthError = 
+        (getUserError as unknown as { __isAuthError?: boolean }).__isAuthError === true || 
+        errorName.includes('Auth') ||
+        errorString.includes('Auth')
+      
+      // 检查是否是会话相关的正常错误（这些是预期的，不应该记录为错误）
+      const isSessionError = isAuthError && (
+        // 刷新令牌错误
+        errorMessage.includes('refresh_token_not_found') ||
+        errorMessage.includes('Invalid Refresh Token') ||
+        errorCode === 'refresh_token_not_found' ||
+        // 会话丢失错误
+        errorMessage.includes('Auth 会话丢失') ||
+        errorMessage.includes('Auth session missing') ||
+        errorMessage.includes('session missing') ||
+        errorName.includes('AuthSessionMissingError') ||
+        errorName.includes('SessionMissing') ||
+        // 检查错误类型名称（可能在不同语言环境下）
+        errorString.includes('AuthSessionMissingError') ||
+        errorString.includes('SessionMissing')
+      )
+      
+      if (isSessionError) {
         // 清除所有 Supabase 认证相关的 cookie
         // Supabase SSR 库使用的 cookie 格式：sb-<project-ref>-auth-token
         const allCookies = request.cookies.getAll()
@@ -65,7 +88,7 @@ export async function updateSession(request: NextRequest) {
           supabaseResponse.cookies.delete(cookieName)
         })
         
-        // 不记录为错误，因为这是正常情况（用户可能已登出或令牌过期）
+        // 不记录为错误，因为这是正常情况（用户可能未登录、已登出或会话过期）
         // 静默处理，让用户继续访问公开页面
       } else {
         // 其他类型的错误才记录日志
