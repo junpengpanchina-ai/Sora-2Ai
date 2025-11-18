@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 'use client'
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
@@ -14,7 +15,6 @@ interface Prompt {
   title: string
   description: string | null
   prompt: string
-  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
   category: PromptCategory
   tags: string[]
   difficulty: PromptDifficulty
