@@ -57,45 +57,80 @@ export default function AuthCallbackPage() {
         }
         
         // Exchange code for session
-        // With detectSessionInUrl: true, Supabase should automatically handle this
-        // But we'll also try manual exchange as fallback
-        console.log('Exchanging code for session...')
+        // With detectSessionInUrl: true, Supabase automatically handles code exchange
+        // We need to wait for it to complete, then check the session
+        console.log('Waiting for Supabase automatic session detection...')
         
-        // Wait a bit for Supabase to potentially auto-detect the session
-        await new Promise(resolve => setTimeout(resolve, 100))
-        
-        // First, try to get the session (Supabase may have already handled it)
+        // Wait for Supabase to process the code (it happens automatically with detectSessionInUrl: true)
+        // Try multiple times with increasing delays to ensure automatic detection completes
         let sessionData = null
         let exchangeError = null
+        let attempts = 0
+        const maxAttempts = 3
         
-        const { data: { session: existingSession }, error: sessionError } = await supabase.auth.getSession()
-        if (existingSession) {
-          console.log('Session already exists from automatic detection')
-          sessionData = { session: existingSession, user: existingSession.user }
-        } else if (sessionError) {
-          console.log('Session check error (will try manual exchange):', sessionError.message)
+        while (attempts < maxAttempts && !sessionData?.session) {
+          // Wait progressively longer on each attempt
+          await new Promise(resolve => setTimeout(resolve, 300 * (attempts + 1)))
+          
+          const { data: { session: existingSession }, error: sessionError } = await supabase.auth.getSession()
+          
+          if (existingSession && existingSession.user) {
+            console.log(`✅ Session created by automatic detection (attempt ${attempts + 1})`)
+            sessionData = { session: existingSession, user: existingSession.user }
+            break
+          }
+          
+          attempts++
+          if (attempts < maxAttempts) {
+            console.log(`⏳ Waiting for session... (attempt ${attempts}/${maxAttempts})`)
+          }
         }
         
-        // If no session found, try manual exchange
+        // If automatic detection didn't work after multiple attempts, try manual exchange
         if (!sessionData?.session) {
-          console.log('Attempting manual code exchange...')
+          // Check if code_verifier exists before attempting manual exchange
+          const hasCodeVerifier = supabaseKeys.some(key => 
+            key.includes('code-verifier') || key.includes('verifier')
+          )
+          
+          if (!hasCodeVerifier) {
+            console.error('❌ No code_verifier found in localStorage')
+            const errorMsg = '登录失败：PKCE 验证码丢失。请清除浏览器缓存后重试，或确保未使用隐私模式。'
+            router.push(`/login?error=${encodeURIComponent(errorMsg)}`)
+            return
+          }
+          
+          console.log('⚠️ Automatic detection failed after multiple attempts, trying manual exchange...')
           const exchangeResult = await supabase.auth.exchangeCodeForSession(code)
           sessionData = exchangeResult.data
           exchangeError = exchangeResult.error
           
           if (exchangeError) {
-            console.error('Manual exchange error:', {
+            console.error('❌ Manual exchange error:', {
               message: exchangeError.message,
               status: exchangeError.status,
               name: exchangeError.name,
             })
             
-            // If error is about missing code_verifier, provide helpful message
-            if (exchangeError.message?.includes('code verifier') || exchangeError.message?.includes('code_verifier')) {
-              const errorMsg = '登录失败：PKCE 验证码丢失。请清除浏览器缓存后重试，或确保未使用隐私模式。'
-              router.push(`/login?error=${encodeURIComponent(errorMsg)}`)
-              return
+            // Provide helpful error messages based on error type
+            let errorMsg = '登录失败：请重试。'
+            
+            if (exchangeError.status === 400) {
+              if (exchangeError.message?.includes('code verifier') || 
+                  exchangeError.message?.includes('code_verifier')) {
+                errorMsg = '登录失败：PKCE 验证码丢失。请清除浏览器缓存后重试。'
+              } else if (exchangeError.message?.includes('expired') || 
+                         exchangeError.message?.includes('invalid')) {
+                errorMsg = '登录失败：验证码已过期或无效。请重新登录。'
+              } else {
+                errorMsg = '登录失败：验证码交换失败。请清除浏览器缓存后重新登录。'
+              }
+            } else {
+              errorMsg = exchangeError.message || '登录失败：未知错误。'
             }
+            
+            router.push(`/login?error=${encodeURIComponent(errorMsg)}`)
+            return
           }
         }
         
