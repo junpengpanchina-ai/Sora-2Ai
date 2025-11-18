@@ -12,6 +12,14 @@ const nextConfig = {
         ignored: /node_modules/,
       }
     }
+    
+    // 忽略 Supabase 在 Edge Runtime 中的警告
+    // 这些警告不影响功能，因为 Supabase SSR 库会优雅地处理这些情况
+    config.ignoreWarnings = [
+      { module: /node_modules\/@supabase\/realtime-js/ },
+      { module: /node_modules\/@supabase\/supabase-js/ },
+    ]
+    
     return config
   },
   
