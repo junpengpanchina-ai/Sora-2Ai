@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { validateAdminSession } from '@/lib/admin-auth'
 import { createServiceClient } from '@/lib/supabase/service'
+import type { Database } from '@/types/database'
 import {
   isPromptCategory,
   isPromptDifficulty,
@@ -34,7 +35,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: '请求体格式不正确' }, { status: 400 })
     }
 
-    const updates: Record<string, unknown> = {}
+    type PromptUpdate = Database['public']['Tables']['prompt_library']['Update']
+    const updates: PromptUpdate = {}
 
     if (typeof payload.title === 'string') {
       const title = payload.title.trim()
@@ -105,7 +107,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const supabase = await createServiceClient()
     const { data, error } = await supabase
       .from('prompt_library')
-      .update(updates)
+      .update(updates as PromptUpdate)
       .eq('id', promptId)
       .select('*')
       .single()

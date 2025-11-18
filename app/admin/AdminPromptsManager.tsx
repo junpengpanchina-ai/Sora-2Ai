@@ -177,8 +177,8 @@ export default function AdminPromptsManager({ onShowBanner }: AdminPromptsManage
 
       const items = Array.isArray(payload.prompts) ? payload.prompts : []
       const normalized = items
-        .map((item) => normalizePromptRecord(item))
-        .filter((item): item is PromptRecord => Boolean(item))
+        .map((item: unknown) => normalizePromptRecord(item))
+        .filter((item: PromptRecord | null): item is PromptRecord => Boolean(item))
 
       setPrompts(normalized)
     } catch (err) {
@@ -642,7 +642,7 @@ export default function AdminPromptsManager({ onShowBanner }: AdminPromptsManage
                       <td className="py-3 px-4">
                         <div className="flex flex-wrap gap-1">
                           {prompt.tags.map((tag) => (
-                            <Badge key={tag} variant="secondary" className="text-xs">
+                            <Badge key={tag} variant="info" className="text-xs">
                               {tag}
                             </Badge>
                           ))}
@@ -684,7 +684,7 @@ export default function AdminPromptsManager({ onShowBanner }: AdminPromptsManage
                           </Button>
                           <Button
                             size="sm"
-                            variant="destructive"
+                            variant="danger"
                             disabled={deletingId === prompt.id}
                             onClick={() => handleDelete(prompt)}
                           >
