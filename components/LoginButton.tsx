@@ -14,6 +14,7 @@ export default function LoginButton() {
       const supabase = createClient()
 
       // Use full URL to ensure Supabase can properly handle PKCE
+      // Must match exactly with the callback URL
       const redirectTo = `${window.location.origin}/auth/callback`
 
       console.log('Initiating OAuth login...', { redirectTo })
@@ -23,6 +24,7 @@ export default function LoginButton() {
         options: {
           redirectTo: redirectTo,
           skipBrowserRedirect: false, // Ensure browser redirect to save PKCE
+          flowType: 'pkce', // Explicitly use PKCE flow
           queryParams: {
             prompt: 'consent', // Force Google to show consent screen every time
             access_type: 'offline', // Request refresh token

@@ -19,8 +19,9 @@ export function createClient(): SupabaseClient<Database> {
     auth: {
       persistSession: true, // Keep session in localStorage
       autoRefreshToken: true, // Automatically refresh expired tokens
-      detectSessionInUrl: false, // We handle code exchange manually in the callback page
+      detectSessionInUrl: true, // Enable automatic session detection from URL
       storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      flowType: 'pkce', // Explicitly use PKCE flow
     },
   })
 }

@@ -43,17 +43,67 @@ export default function AuthCallbackPage() {
         const supabaseKeys = allStorageKeys.filter(key => key.includes('supabase'))
         console.log('Supabase storage keys:', supabaseKeys)
         
+        // Check for code_verifier in localStorage
+        const codeVerifierKey = supabaseKeys.find(key => key.includes('code-verifier') || key.includes('verifier'))
+        if (codeVerifierKey) {
+          console.log('Found code_verifier key:', codeVerifierKey)
+        } else {
+          console.warn('No code_verifier found in localStorage. This may cause the exchange to fail.')
+          console.warn('Possible causes:')
+          console.warn('1. Browser cleared localStorage')
+          console.warn('2. Using incognito/private mode')
+          console.warn('3. Redirect URL mismatch')
+          console.warn('4. Cross-origin redirect issue')
+        }
+        
         // Exchange code for session
-        // createBrowserClient automatically reads code_verifier from localStorage
+        // With detectSessionInUrl: true, Supabase should automatically handle this
+        // But we'll also try manual exchange as fallback
         console.log('Exchanging code for session...')
-        const { data: sessionData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+        
+        // Wait a bit for Supabase to potentially auto-detect the session
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+        // First, try to get the session (Supabase may have already handled it)
+        let sessionData = null
+        let exchangeError = null
+        
+        const { data: { session: existingSession }, error: sessionError } = await supabase.auth.getSession()
+        if (existingSession) {
+          console.log('Session already exists from automatic detection')
+          sessionData = { session: existingSession, user: existingSession.user }
+        } else if (sessionError) {
+          console.log('Session check error (will try manual exchange):', sessionError.message)
+        }
+        
+        // If no session found, try manual exchange
+        if (!sessionData?.session) {
+          console.log('Attempting manual code exchange...')
+          const exchangeResult = await supabase.auth.exchangeCodeForSession(code)
+          sessionData = exchangeResult.data
+          exchangeError = exchangeResult.error
+          
+          if (exchangeError) {
+            console.error('Manual exchange error:', {
+              message: exchangeError.message,
+              status: exchangeError.status,
+              name: exchangeError.name,
+            })
+            
+            // If error is about missing code_verifier, provide helpful message
+            if (exchangeError.message?.includes('code verifier') || exchangeError.message?.includes('code_verifier')) {
+              const errorMsg = '登录失败：PKCE 验证码丢失。请清除浏览器缓存后重试，或确保未使用隐私模式。'
+              router.push(`/login?error=${encodeURIComponent(errorMsg)}`)
+              return
+            }
+          }
+        }
         
         console.log('Exchange result:', { 
           hasSession: !!sessionData?.session,
           hasUser: !!sessionData?.user,
           error: exchangeError?.message,
           errorCode: exchangeError?.status,
-          errorDetails: exchangeError
         })
         
         if (exchangeError) {
@@ -62,7 +112,7 @@ export default function AuthCallbackPage() {
           return
         }
 
-        if (!sessionData.session) {
+        if (!sessionData?.session) {
           console.error('No session after code exchange')
           router.push('/login?error=no_session')
           return

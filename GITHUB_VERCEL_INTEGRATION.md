@@ -71,7 +71,24 @@ git commit -m "Add GitHub Actions workflows for Vercel integration"
 git push origin main
 ```
 
-### 4.2 验证工作流运行
+### 4.2 如果遇到权限错误
+
+如果推送时遇到以下错误：
+
+```
+! [remote rejected] main -> main (refusing to allow a Personal Access Token to create or update workflow `.github/workflows/ci.yml` without `workflow` scope)
+```
+
+**解决方案**：你的 Personal Access Token 需要 `workflow` 权限。
+
+1. 访问 [GitHub Settings > Personal access tokens](https://github.com/settings/tokens)
+2. 创建新的 token 或更新现有 token
+3. 确保勾选了 `workflow` 权限范围
+4. 使用新 token 重新推送
+
+详细步骤请参考：`GITHUB_WORKFLOW_PERMISSION_FIX.md`
+
+### 4.3 验证工作流运行
 
 1. 访问你的 GitHub 仓库
 2. 进入 **Actions** 标签页
