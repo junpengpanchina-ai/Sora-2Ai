@@ -4,9 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import LogoutButton from '@/components/LogoutButton'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
-import Badge from '@/components/ui/Badge'
-import Button from '@/components/ui/Button'
+import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
 import type { PromptCategory, PromptDifficulty } from '@/lib/prompts/schema'
 
 type PromptCategoryFilter = 'all' | PromptCategory
@@ -16,6 +14,7 @@ interface Prompt {
   title: string
   description: string | null
   prompt: string
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
   category: PromptCategory
   tags: string[]
   difficulty: PromptDifficulty
