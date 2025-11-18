@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import type { Database } from '@/types/database'
 import {
   isPromptCategory,
   isPromptLocale,
@@ -40,7 +41,11 @@ export async function GET(request: Request) {
       throw error
     }
 
-    let prompts = (data ?? []).map((prompt) => ({
+    const promptRows = Array.isArray(data)
+      ? (data as Database['public']['Tables']['prompt_library']['Row'][])
+      : ([] as Database['public']['Tables']['prompt_library']['Row'][])
+
+    let prompts = promptRows.map((prompt) => ({
       ...prompt,
       tags: normalizeTags(prompt.tags),
     }))
@@ -55,7 +60,7 @@ export async function GET(request: Request) {
         const matchesTitle = prompt.title?.toLowerCase().includes(lowered)
         const matchesDescription = prompt.description?.toLowerCase().includes(lowered)
         const matchesPrompt = prompt.prompt?.toLowerCase().includes(lowered)
-        const matchesTags = prompt.tags.some((tag) => tag.toLowerCase().includes(lowered))
+        const matchesTags = prompt.tags.some((tag: string) => tag.toLowerCase().includes(lowered))
         return matchesTitle || matchesDescription || matchesPrompt || matchesTags
       })
     }
