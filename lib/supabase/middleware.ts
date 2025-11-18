@@ -36,9 +36,45 @@ export async function updateSession(request: NextRequest) {
     })
 
     // Refresh user session
-    await supabase.auth.getUser()
+    const { error: getUserError } = await supabase.auth.getUser()
+    
+    // 如果刷新令牌无效，清除相关的认证 cookie
+    if (getUserError) {
+      // 检查是否是刷新令牌相关的错误
+      const isRefreshTokenError = 
+        getUserError.message?.includes('refresh_token_not_found') ||
+        getUserError.message?.includes('Invalid Refresh Token') ||
+        getUserError.code === 'refresh_token_not_found'
+      
+      if (isRefreshTokenError) {
+        // 清除所有 Supabase 认证相关的 cookie
+        // Supabase SSR 库使用的 cookie 格式：sb-<project-ref>-auth-token
+        const allCookies = request.cookies.getAll()
+        const authCookieNames = new Set<string>()
+        
+        // 查找所有 Supabase 相关的 cookie
+        allCookies.forEach(({ name }) => {
+          // 匹配格式：sb-<project-ref>-auth-token 或 sb-<project-ref>-auth-token-code-verifier
+          if (name.startsWith('sb-') && name.includes('auth-token')) {
+            authCookieNames.add(name)
+          }
+        })
+        
+        // 清除这些 cookie
+        authCookieNames.forEach((cookieName) => {
+          supabaseResponse.cookies.delete(cookieName)
+        })
+        
+        // 不记录为错误，因为这是正常情况（用户可能已登出或令牌过期）
+        // 静默处理，让用户继续访问公开页面
+      } else {
+        // 其他类型的错误才记录日志
+        console.error('Supabase 中间件更新会话失败', getUserError)
+      }
+    }
   } catch (error) {
-    console.error('Supabase 中间件更新会话失败', error)
+    // 捕获意外的错误
+    console.error('Supabase 中间件异常', error)
   }
 
   return supabaseResponse
