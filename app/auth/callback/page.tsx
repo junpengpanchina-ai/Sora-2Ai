@@ -95,7 +95,13 @@ export default function AuthCallbackPage() {
           
           if (!hasCodeVerifier) {
             console.error('❌ No code_verifier found in localStorage')
-            const errorMsg = '登录失败：PKCE 验证码丢失。请清除浏览器缓存后重试，或确保未使用隐私模式。'
+            console.error('调试信息：', {
+              allKeys: Object.keys(localStorage).length,
+              supabaseKeys: supabaseKeys,
+              currentUrl: window.location.href,
+              origin: window.location.origin,
+            })
+            const errorMsg = '登录失败：验证码丢失。请尝试：1) 清除浏览器缓存和 Cookie 后重试；2) 确保未使用无痕/隐私浏览模式；3) 检查浏览器是否允许 Cookie 和本地存储。'
             router.push(`/login?error=${encodeURIComponent(errorMsg)}`)
             return
           }

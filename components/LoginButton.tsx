@@ -18,6 +18,19 @@ export default function LoginButton() {
       const redirectTo = `${window.location.origin}/auth/callback`
 
       console.log('Initiating OAuth login...', { redirectTo })
+      
+      // Check localStorage availability before starting OAuth
+      try {
+        const testKey = '__oauth_test__'
+        localStorage.setItem(testKey, 'test')
+        localStorage.removeItem(testKey)
+        console.log('✅ localStorage is available')
+      } catch (e) {
+        console.error('❌ localStorage is not available:', e)
+        router.push('/login?error=' + encodeURIComponent('浏览器不支持本地存储，请检查浏览器设置或使用正常浏览模式（非无痕模式）'))
+        setLoading(false)
+        return
+      }
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -30,6 +43,24 @@ export default function LoginButton() {
           },
         },
       })
+      
+      // After OAuth URL is generated, check if code_verifier was saved
+      if (data?.url) {
+        // Give Supabase a moment to save the code_verifier
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+        const allKeys = Object.keys(localStorage)
+        const hasVerifier = allKeys.some(key => 
+          key.includes('supabase') && (key.includes('code-verifier') || key.includes('verifier'))
+        )
+        
+        if (hasVerifier) {
+          console.log('✅ code_verifier saved successfully')
+        } else {
+          console.warn('⚠️ code_verifier not found after OAuth initiation')
+          console.warn('Available localStorage keys:', allKeys.filter(k => k.includes('supabase')))
+        }
+      }
 
       if (error) {
         console.error('OAuth error:', error)
