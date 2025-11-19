@@ -40,12 +40,6 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
             。
           </p>
         </div>
-
-        <div className="text-center">
-          <Link href="/admin/login" className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-            管理员登录入口
-          </Link>
-        </div>
       </div>
     </div>
   )
