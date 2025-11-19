@@ -36,7 +36,7 @@ export default function LoginButton() {
         provider: 'google',
         options: {
           redirectTo: redirectTo,
-          skipBrowserRedirect: false, // Ensure browser redirect to save PKCE
+          skipBrowserRedirect: true, // We'll handle redirect manually to ensure code_verifier is saved
           queryParams: {
             prompt: 'consent', // Force Google to show consent screen every time
             access_type: 'offline', // Request refresh token
@@ -44,24 +44,6 @@ export default function LoginButton() {
         },
       })
       
-      // After OAuth URL is generated, check if code_verifier was saved
-      if (data?.url) {
-        // Give Supabase a moment to save the code_verifier
-        await new Promise(resolve => setTimeout(resolve, 100))
-        
-        const allKeys = Object.keys(localStorage)
-        const hasVerifier = allKeys.some(key => 
-          key.includes('supabase') && (key.includes('code-verifier') || key.includes('verifier'))
-        )
-        
-        if (hasVerifier) {
-          console.log('✅ code_verifier saved successfully')
-        } else {
-          console.warn('⚠️ code_verifier not found after OAuth initiation')
-          console.warn('Available localStorage keys:', allKeys.filter(k => k.includes('supabase')))
-        }
-      }
-
       if (error) {
         console.error('OAuth error:', error)
         router.push(`/login?error=${encodeURIComponent(error.message)}`)
@@ -71,16 +53,56 @@ export default function LoginButton() {
 
       console.log('OAuth URL generated:', data?.url ? 'Yes' : 'No')
 
-      // Supabase handles redirect automatically, but we also handle it manually if URL is returned
-      if (data?.url) {
-        // Use window.location.href instead of router.push to ensure full page redirect
-        // This keeps PKCE code_verifier in the same browser context
-        window.location.href = data.url
-      } else {
+      if (!data?.url) {
         console.error('No OAuth URL returned')
         router.push('/login?error=no_oauth_url')
         setLoading(false)
+        return
       }
+
+      // Wait for Supabase to save the code_verifier
+      // Check multiple times with increasing delays
+      let hasVerifier = false
+      let attempts = 0
+      const maxAttempts = 5
+      
+      while (attempts < maxAttempts && !hasVerifier) {
+        await new Promise(resolve => setTimeout(resolve, 200 * (attempts + 1)))
+        
+        const allKeys = Object.keys(localStorage)
+        const supabaseKeys = allKeys.filter(key => key.includes('supabase'))
+        hasVerifier = supabaseKeys.some(key => 
+          key.includes('code-verifier') || key.includes('verifier')
+        )
+        
+        if (hasVerifier) {
+          console.log(`✅ code_verifier saved successfully (attempt ${attempts + 1})`)
+          const verifierKey = supabaseKeys.find(key => 
+            key.includes('code-verifier') || key.includes('verifier')
+          )
+          console.log('code_verifier key:', verifierKey)
+        } else {
+          attempts++
+          if (attempts < maxAttempts) {
+            console.log(`⏳ Waiting for code_verifier... (attempt ${attempts}/${maxAttempts})`)
+            console.log('Current Supabase keys:', supabaseKeys)
+          }
+        }
+      }
+      
+      if (!hasVerifier) {
+        console.error('❌ code_verifier not found after multiple attempts')
+        console.error('All localStorage keys:', Object.keys(localStorage))
+        console.error('Supabase keys:', Object.keys(localStorage).filter(k => k.includes('supabase')))
+        
+        // Still try to redirect, but warn the user
+        console.warn('⚠️ Proceeding with redirect, but login may fail without code_verifier')
+      }
+
+      // Use window.location.href instead of router.push to ensure full page redirect
+      // This keeps PKCE code_verifier in the same browser context
+      console.log('Redirecting to Google OAuth...')
+      window.location.href = data.url
     } catch (err) {
       console.error('Login error:', err)
       router.push(`/login?error=${encodeURIComponent(err instanceof Error ? err.message : 'unknown_error')}`)
