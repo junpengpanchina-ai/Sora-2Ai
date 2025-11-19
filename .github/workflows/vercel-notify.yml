@@ -35,6 +35,6 @@ jobs:
       - name: 'notify vercel'
         uses: 'vercel/repository-dispatch/actions/status@v1'
         with:
-          name: Vercel - sora-2-ai: notify vercel
+          name: 'Vercel - sora-2-ai: notify vercel'
         if: always()
 
