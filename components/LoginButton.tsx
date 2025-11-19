@@ -1,6 +1,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { logError, logWarning } from '@/lib/logger'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
@@ -32,11 +33,13 @@ export default function LoginButton() {
         return
       }
 
+      // Use skipBrowserRedirect: true to manually control redirect
+      // This allows us to verify code_verifier is saved before redirecting
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectTo,
-          skipBrowserRedirect: false, // Let Supabase handle redirect to ensure code_verifier is saved
+          skipBrowserRedirect: true, // Manual redirect to ensure code_verifier is saved
           queryParams: {
             prompt: 'consent', // Force Google to show consent screen every time
             access_type: 'offline', // Request refresh token
@@ -60,35 +63,74 @@ export default function LoginButton() {
         return
       }
 
-      // Give Supabase a moment to save the code_verifier before redirect
-      // When skipBrowserRedirect is false, Supabase should save it automatically
-      // But we'll wait a bit and verify it's saved
-      await new Promise(resolve => setTimeout(resolve, 300))
+      // Wait for Supabase to save code_verifier to localStorage
+      // With skipBrowserRedirect: true, Supabase saves it immediately
+      // We'll wait and verify it's saved before redirecting
+      let attempts = 0
+      const maxAttempts = 10
+      let hasVerifier = false
       
-      const allKeys = Object.keys(localStorage)
-      const supabaseKeys = allKeys.filter(key => key.includes('supabase'))
-      const hasVerifier = supabaseKeys.some(key => 
-        key.includes('code-verifier') || key.includes('verifier')
-      )
-      
-      if (hasVerifier) {
-        const verifierKey = supabaseKeys.find(key => 
+      while (attempts < maxAttempts && !hasVerifier) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+        const allKeys = Object.keys(localStorage)
+        const supabaseKeys = allKeys.filter(key => key.includes('supabase'))
+        hasVerifier = supabaseKeys.some(key => 
           key.includes('code-verifier') || key.includes('verifier')
         )
-        console.log('✅ code_verifier saved successfully')
-        console.log('code_verifier key:', verifierKey)
-      } else {
-        console.warn('⚠️ code_verifier not found before redirect')
-        console.warn('Current Supabase keys:', supabaseKeys)
-        console.warn('This may cause login to fail. Supabase should save it during redirect.')
+        
+        if (hasVerifier) {
+          const verifierKey = supabaseKeys.find(key =>
+            key.includes('code-verifier') || key.includes('verifier')
+          )
+          console.log('✅ code_verifier saved successfully')
+          console.log('code_verifier key:', verifierKey)
+          break
+        }
+        
+        attempts++
+        if (attempts < maxAttempts) {
+          console.log(`⏳ Waiting for code_verifier... (attempt ${attempts}/${maxAttempts})`)
+        }
+      }
+      
+      if (!hasVerifier) {
+        const supabaseKeys = Object.keys(localStorage).filter(key => key.includes('supabase'))
+        console.error('❌ code_verifier not found after multiple attempts')
+        console.error('Current Supabase keys:', supabaseKeys)
+        
+        // Log to server (visible in Vercel Dashboard)
+        await logError(
+          new Error('code_verifier not found after multiple attempts'),
+          {
+            redirectTo,
+            supabaseKeys,
+            localStorageKeys: Object.keys(localStorage).length,
+            attemptCount: maxAttempts,
+          }
+        )
+        
+        router.push('/login?error=' + encodeURIComponent('无法保存验证码，请清除浏览器缓存后重试'))
+        setLoading(false)
+        return
       }
 
       // Use window.location.href for full page redirect
       // This ensures code_verifier stays in the same browser context
-      console.log('Redirecting to Google OAuth...')
+      console.log('✅ Redirecting to Google OAuth with verified code_verifier...')
       window.location.href = data.url
     } catch (err) {
       console.error('Login error:', err)
+      
+      // Log to server (visible in Vercel Dashboard)
+      await logError(
+        err instanceof Error ? err : new Error(String(err)),
+        {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          step: 'login_initiation',
+        }
+      )
+      
       router.push(`/login?error=${encodeURIComponent(err instanceof Error ? err.message : 'unknown_error')}`)
       setLoading(false)
     }
