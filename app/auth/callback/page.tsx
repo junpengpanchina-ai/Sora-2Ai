@@ -3,7 +3,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
-import { logError, logWarning } from '@/lib/logger'
+import { logError } from '@/lib/logger'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
