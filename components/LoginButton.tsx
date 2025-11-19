@@ -36,7 +36,7 @@ export default function LoginButton() {
         provider: 'google',
         options: {
           redirectTo: redirectTo,
-          skipBrowserRedirect: true, // We'll handle redirect manually to ensure code_verifier is saved
+          skipBrowserRedirect: false, // Let Supabase handle redirect to ensure code_verifier is saved
           queryParams: {
             prompt: 'consent', // Force Google to show consent screen every time
             access_type: 'offline', // Request refresh token
@@ -60,47 +60,31 @@ export default function LoginButton() {
         return
       }
 
-      // Wait for Supabase to save the code_verifier
-      // Check multiple times with increasing delays
-      let hasVerifier = false
-      let attempts = 0
-      const maxAttempts = 5
+      // Give Supabase a moment to save the code_verifier before redirect
+      // When skipBrowserRedirect is false, Supabase should save it automatically
+      // But we'll wait a bit and verify it's saved
+      await new Promise(resolve => setTimeout(resolve, 300))
       
-      while (attempts < maxAttempts && !hasVerifier) {
-        await new Promise(resolve => setTimeout(resolve, 200 * (attempts + 1)))
-        
-        const allKeys = Object.keys(localStorage)
-        const supabaseKeys = allKeys.filter(key => key.includes('supabase'))
-        hasVerifier = supabaseKeys.some(key => 
+      const allKeys = Object.keys(localStorage)
+      const supabaseKeys = allKeys.filter(key => key.includes('supabase'))
+      const hasVerifier = supabaseKeys.some(key => 
+        key.includes('code-verifier') || key.includes('verifier')
+      )
+      
+      if (hasVerifier) {
+        const verifierKey = supabaseKeys.find(key => 
           key.includes('code-verifier') || key.includes('verifier')
         )
-        
-        if (hasVerifier) {
-          console.log(`✅ code_verifier saved successfully (attempt ${attempts + 1})`)
-          const verifierKey = supabaseKeys.find(key => 
-            key.includes('code-verifier') || key.includes('verifier')
-          )
-          console.log('code_verifier key:', verifierKey)
-        } else {
-          attempts++
-          if (attempts < maxAttempts) {
-            console.log(`⏳ Waiting for code_verifier... (attempt ${attempts}/${maxAttempts})`)
-            console.log('Current Supabase keys:', supabaseKeys)
-          }
-        }
-      }
-      
-      if (!hasVerifier) {
-        console.error('❌ code_verifier not found after multiple attempts')
-        console.error('All localStorage keys:', Object.keys(localStorage))
-        console.error('Supabase keys:', Object.keys(localStorage).filter(k => k.includes('supabase')))
-        
-        // Still try to redirect, but warn the user
-        console.warn('⚠️ Proceeding with redirect, but login may fail without code_verifier')
+        console.log('✅ code_verifier saved successfully')
+        console.log('code_verifier key:', verifierKey)
+      } else {
+        console.warn('⚠️ code_verifier not found before redirect')
+        console.warn('Current Supabase keys:', supabaseKeys)
+        console.warn('This may cause login to fail. Supabase should save it during redirect.')
       }
 
-      // Use window.location.href instead of router.push to ensure full page redirect
-      // This keeps PKCE code_verifier in the same browser context
+      // Use window.location.href for full page redirect
+      // This ensures code_verifier stays in the same browser context
       console.log('Redirecting to Google OAuth...')
       window.location.href = data.url
     } catch (err) {
