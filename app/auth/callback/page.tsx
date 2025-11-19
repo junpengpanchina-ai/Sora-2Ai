@@ -3,6 +3,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { logError, logWarning } from '@/lib/logger'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
@@ -94,13 +95,25 @@ export default function AuthCallbackPage() {
           )
           
           if (!hasCodeVerifier) {
-            console.error('❌ No code_verifier found in localStorage')
-            console.error('调试信息：', {
+            const debugInfo = {
               allKeys: Object.keys(localStorage).length,
               supabaseKeys: supabaseKeys,
               currentUrl: window.location.href,
               origin: window.location.origin,
-            })
+            }
+            console.error('❌ No code_verifier found in localStorage')
+            console.error('调试信息：', debugInfo)
+            
+            // Log to server (visible in Vercel Dashboard)
+            await logError(
+              new Error('No code_verifier found in localStorage during callback'),
+              {
+                code: code ? code.substring(0, 20) + '...' : 'none',
+                codeLength: code?.length || 0,
+                ...debugInfo,
+              }
+            )
+            
             const errorMsg = '登录失败：验证码丢失。请尝试：1) 清除浏览器缓存和 Cookie 后重试；2) 确保未使用无痕/隐私浏览模式；3) 检查浏览器是否允许 Cookie 和本地存储。'
             router.push(`/login?error=${encodeURIComponent(errorMsg)}`)
             return
@@ -112,11 +125,23 @@ export default function AuthCallbackPage() {
           exchangeError = exchangeResult.error
           
           if (exchangeError) {
-            console.error('❌ Manual exchange error:', {
+            const errorDetails = {
               message: exchangeError.message,
               status: exchangeError.status,
               name: exchangeError.name,
-            })
+            }
+            console.error('❌ Manual exchange error:', errorDetails)
+            
+            // Log to server (visible in Vercel Dashboard)
+            await logError(
+              new Error(`PKCE token exchange failed: ${exchangeError.message}`),
+              {
+                code: code ? code.substring(0, 20) + '...' : 'none',
+                codeLength: code?.length || 0,
+                ...errorDetails,
+                hasCodeVerifier: true, // We checked this before
+              }
+            )
             
             // Provide helpful error messages based on error type
             let errorMsg = '登录失败：请重试。'

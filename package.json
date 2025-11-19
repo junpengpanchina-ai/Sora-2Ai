@@ -16,6 +16,7 @@
     "test:rls": "node scripts/test-rls.js",
     "test:admin-prompts": "node scripts/test-admin-prompt-access.js",
     "test:google-oauth": "node scripts/test-google-oauth.js",
+    "diagnose:login": "node scripts/diagnose-google-login.js",
     "setup-env": "node scripts/setup-env.js"
   },
   "dependencies": {
