@@ -72,7 +72,7 @@ export default function AuthCallbackPage() {
           // Wait progressively longer on each attempt
           await new Promise(resolve => setTimeout(resolve, 300 * (attempts + 1)))
           
-          const { data: { session: existingSession }, error: sessionError } = await supabase.auth.getSession()
+          const { data: { session: existingSession } } = await supabase.auth.getSession()
           
           if (existingSession && existingSession.user) {
             console.log(`✅ Session created by automatic detection (attempt ${attempts + 1})`)
