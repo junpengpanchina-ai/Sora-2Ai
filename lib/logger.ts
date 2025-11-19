@@ -6,7 +6,7 @@
 interface LogContext {
   url?: string
   userAgent?: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 /**
@@ -75,7 +75,7 @@ export async function logWarning(
     }).catch(() => {
       // Silently fail
     })
-  } catch (err) {
+  } catch {
     // Silently fail
   }
 }
@@ -104,7 +104,7 @@ export async function logInfo(
     }).catch(() => {
       // Silently fail
     })
-  } catch (err) {
+  } catch {
     // Silently fail
   }
 }
