@@ -34,15 +34,15 @@ export default function LoginButton() {
       }
 
       // Use skipBrowserRedirect: false to let Supabase handle the redirect
-      // This ensures code_verifier is properly saved by Supabase's internal logic
+      // Supabase will save the code_verifier internally before redirecting
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectTo,
-          skipBrowserRedirect: false, // Let Supabase handle redirect to ensure proper PKCE flow
+          redirectTo,
+          skipBrowserRedirect: false,
           queryParams: {
-            prompt: 'consent', // Force Google to show consent screen every time
-            access_type: 'offline', // Request refresh token
+            prompt: 'consent',
+            access_type: 'offline',
           },
         },
       })
@@ -55,32 +55,18 @@ export default function LoginButton() {
       }
 
       console.log('OAuth URL generated:', data?.url ? 'Yes' : 'No')
+      console.log('localStorage keys after signInWithOAuth:', Object.keys(localStorage))
+      console.log('sessionStorage keys after signInWithOAuth:', Object.keys(sessionStorage))
 
-      if (!data?.url) {
-        console.error('No OAuth URL returned')
-        router.push('/login?error=no_oauth_url')
-        setLoading(false)
+      if (data?.url) {
+        console.log('Supabase provided OAuth URL, ensuring redirect now...', {
+          url: data.url,
+        })
+        window.location.assign(data.url)
         return
       }
 
-      // When skipBrowserRedirect is false, Supabase automatically redirects
-      // and handles code_verifier saving internally
-      // We just need to let it do its job
-      console.log('✅ Supabase will handle redirect and code_verifier saving automatically')
-      console.log('Redirecting to Google OAuth...')
-      
-      // Supabase should handle the redirect automatically, but if it doesn't,
-      // we'll do it manually after a brief delay to ensure code_verifier is saved
-      await new Promise(resolve => setTimeout(resolve, 200))
-      
-      // Check if Supabase already redirected (it should have)
-      // If not, redirect manually
-      if (window.location.href === data.url || window.location.href.includes('accounts.google.com')) {
-        console.log('✅ Already redirected by Supabase')
-      } else {
-        console.log('⚠️ Supabase did not redirect automatically, redirecting manually...')
-        window.location.href = data.url
-      }
+      console.log('Supabase handled the redirect automatically.')
     } catch (err) {
       console.error('Login error:', err)
       
