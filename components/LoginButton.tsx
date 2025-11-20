@@ -19,7 +19,7 @@ export default function LoginButton() {
       const redirectTo = `${window.location.origin}/auth/callback`
 
       console.log('Initiating OAuth login...', { redirectTo })
-      
+
       // Check localStorage availability before starting OAuth
       try {
         const testKey = '__oauth_test__'
@@ -46,7 +46,7 @@ export default function LoginButton() {
           },
         },
       })
-      
+
       if (error) {
         console.error('OAuth error:', error)
         router.push(`/login?error=${encodeURIComponent(error.message)}`)
