@@ -41,22 +41,136 @@ export default function AuthCallbackPage() {
         
         // Check localStorage for PKCE data
         const allStorageKeys = Object.keys(localStorage)
-        const supabaseKeys = allStorageKeys.filter(key => key.includes('supabase'))
-        console.log('Supabase storage keys:', supabaseKeys)
-        
-        // Check for code_verifier in localStorage
-        const codeVerifierKey = supabaseKeys.find(key => key.includes('code-verifier') || key.includes('verifier'))
-        if (codeVerifierKey) {
-          console.log('Found code_verifier key:', codeVerifierKey)
+        console.log('All localStorage keys:', allStorageKeys)
+        const supabaseKeys = allStorageKeys.filter(
+          key => key.includes('supabase') || key.startsWith('sb-')
+        )
+        console.log('Supabase-related localStorage keys:', supabaseKeys)
+
+        const sessionStorageKeys = Object.keys(sessionStorage)
+        console.log('All sessionStorage keys:', sessionStorageKeys)
+
+        let codeVerifierFound = false
+        let codeVerifierSource: { type: string; key: string } | null = null
+
+        const normalizedKeys = allStorageKeys.map(key => ({
+          key,
+          normalized: key.toLowerCase(),
+        }))
+
+        const directCodeKey = normalizedKeys.find(item =>
+          item.normalized.includes('code_verifier') ||
+          item.normalized.includes('code-verifier') ||
+          item.normalized.includes('oauth-code-verifier')
+        )
+
+        if (directCodeKey) {
+          codeVerifierFound = true
+          codeVerifierSource = { type: 'key', key: directCodeKey.key }
         } else {
-          console.warn('No code_verifier found in localStorage. This may cause the exchange to fail.')
-          console.warn('Possible causes:')
+          for (const key of supabaseKeys) {
+            const rawValue = localStorage.getItem(key)
+            if (!rawValue) continue
+
+            if (
+              rawValue.includes('code_verifier') ||
+              rawValue.includes('codeVerifier') ||
+              rawValue.includes('oauthCodeVerifier') ||
+              rawValue.includes('pkce')
+            ) {
+              codeVerifierFound = true
+              codeVerifierSource = { type: 'value', key }
+              break
+            }
+
+            try {
+              const parsedValue = JSON.parse(rawValue)
+              if (
+                parsedValue &&
+                (
+                  parsedValue.code_verifier ||
+                  parsedValue.codeVerifier ||
+                  parsedValue.oauthCodeVerifier ||
+                  parsedValue?.session?.codeVerifier ||
+                  parsedValue?.pkce ||
+                  parsedValue?.authSession?.codeVerifier
+                )
+              ) {
+                codeVerifierFound = true
+                codeVerifierSource = { type: 'parsed', key }
+                break
+              }
+            } catch (parseErr) {
+              console.warn('Failed to parse storage value for key', key, parseErr)
+            }
+          }
+        }
+
+        if (codeVerifierFound && codeVerifierSource) {
+          console.log('Detected code_verifier information in storage:', codeVerifierSource)
+        } else {
+          console.warn('No code_verifier detected in localStorage yet. Supabase may still complete the exchange automatically.')
+          console.warn('If the exchange fails, possible causes include:')
           console.warn('1. Browser cleared localStorage')
           console.warn('2. Using incognito/private mode')
           console.warn('3. Redirect URL mismatch')
           console.warn('4. Cross-origin redirect issue')
         }
         
+        if (!codeVerifierFound) {
+          for (const key of sessionStorageKeys) {
+            const normalized = key.toLowerCase()
+            if (
+              normalized.includes('code_verifier') ||
+              normalized.includes('code-verifier') ||
+              normalized.includes('oauth-code-verifier') ||
+              normalized.includes('pkce')
+            ) {
+              const value = sessionStorage.getItem(key)
+              if (value) {
+                try {
+                  localStorage.setItem(key, value)
+                  console.log('Copied code_verifier from sessionStorage to localStorage', { key })
+                  codeVerifierFound = true
+                  codeVerifierSource = { type: 'session-key', key }
+                  break
+                } catch (copyErr) {
+                  console.error('Failed to copy code_verifier from sessionStorage to localStorage', {
+                    key,
+                    error: copyErr,
+                  })
+                }
+              }
+            } else {
+              const rawValue = sessionStorage.getItem(key)
+              if (!rawValue) continue
+              if (
+                rawValue.includes('code_verifier') ||
+                rawValue.includes('codeVerifier') ||
+                rawValue.includes('oauthCodeVerifier') ||
+                rawValue.includes('pkce')
+              ) {
+                try {
+                  localStorage.setItem(key, rawValue)
+                  console.log('Copied code_verifier value from sessionStorage to localStorage', { key })
+                  codeVerifierFound = true
+                  codeVerifierSource = { type: 'session-value', key }
+                  break
+                } catch (copyErr) {
+                  console.error('Failed to copy code_verifier value from sessionStorage to localStorage', {
+                    key,
+                    error: copyErr,
+                  })
+                }
+              }
+            }
+          }
+
+          if (codeVerifierFound && codeVerifierSource) {
+            console.log('Detected code_verifier from sessionStorage:', codeVerifierSource)
+          }
+        }
+
         // Exchange code for session
         // With detectSessionInUrl: true, Supabase automatically handles code exchange
         // We need to wait for it to complete, then check the session
@@ -89,37 +203,10 @@ export default function AuthCallbackPage() {
         
         // If automatic detection didn't work after multiple attempts, try manual exchange
         if (!sessionData?.session) {
-          // Check if code_verifier exists before attempting manual exchange
-          const hasCodeVerifier = supabaseKeys.some(key => 
-            key.includes('code-verifier') || key.includes('verifier')
-          )
-          
-          if (!hasCodeVerifier) {
-            const debugInfo = {
-              allKeys: Object.keys(localStorage).length,
-              supabaseKeys: supabaseKeys,
-              currentUrl: window.location.href,
-              origin: window.location.origin,
-            }
-            console.error('❌ No code_verifier found in localStorage')
-            console.error('调试信息：', debugInfo)
-            
-            // Log to server (visible in Vercel Dashboard)
-            await logError(
-              new Error('No code_verifier found in localStorage during callback'),
-              {
-                code: code ? code.substring(0, 20) + '...' : 'none',
-                codeLength: code?.length || 0,
-                ...debugInfo,
-              }
-            )
-            
-            const errorMsg = '登录失败：验证码丢失。请尝试：1) 清除浏览器缓存和 Cookie 后重试；2) 确保未使用无痕/隐私浏览模式；3) 检查浏览器是否允许 Cookie 和本地存储。'
-            router.push(`/login?error=${encodeURIComponent(errorMsg)}`)
-            return
-          }
-          
-          console.log('⚠️ Automatic detection failed after multiple attempts, trying manual exchange...')
+          console.log('⚠️ Automatic detection failed after multiple attempts, trying manual exchange...', {
+            codeVerifierDetected: codeVerifierFound,
+            supabaseKeys,
+          })
           const exchangeResult = await supabase.auth.exchangeCodeForSession(code)
           sessionData = exchangeResult.data
           exchangeError = exchangeResult.error
@@ -139,7 +226,8 @@ export default function AuthCallbackPage() {
                 code: code ? code.substring(0, 20) + '...' : 'none',
                 codeLength: code?.length || 0,
                 ...errorDetails,
-                hasCodeVerifier: true, // We checked this before
+                hasCodeVerifier: codeVerifierFound,
+                supabaseKeys,
               }
             )
             
@@ -147,8 +235,11 @@ export default function AuthCallbackPage() {
             let errorMsg = '登录失败：请重试。'
             
             if (exchangeError.status === 400) {
-              if (exchangeError.message?.includes('code verifier') || 
-                  exchangeError.message?.includes('code_verifier')) {
+              if (
+                exchangeError.message?.includes('code verifier') ||
+                exchangeError.message?.includes('code_verifier') ||
+                (!codeVerifierFound && exchangeError.message)
+              ) {
                 errorMsg = '登录失败：PKCE 验证码丢失。请清除浏览器缓存后重试。'
               } else if (exchangeError.message?.includes('expired') || 
                          exchangeError.message?.includes('invalid')) {
