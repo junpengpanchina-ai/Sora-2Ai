@@ -59,9 +59,64 @@ export default function LoginButton() {
       console.log('sessionStorage keys after signInWithOAuth:', Object.keys(sessionStorage))
 
       if (data?.url) {
-        console.log('Supabase provided OAuth URL, ensuring redirect now...', {
+        console.log('Supabase provided OAuth URL, waiting for PKCE data before redirect...', {
           url: data.url,
         })
+
+        let attempts = 0
+        const maxAttempts = 15 // 1.5s total
+        let verifierDetected = false
+
+        while (attempts < maxAttempts && !verifierDetected) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+          const allKeys = Object.keys(localStorage)
+          const supabaseKeys = allKeys.filter(
+            key => key.includes('supabase') || key.startsWith('sb-')
+          )
+          verifierDetected = supabaseKeys.some(key => {
+            try {
+              const value = localStorage.getItem(key)
+              if (!value) return false
+              if (
+                key.toLowerCase().includes('code_verifier') ||
+                value.includes('code_verifier') ||
+                value.includes('codeVerifier') ||
+                value.includes('oauthCodeVerifier') ||
+                value.includes('pkce')
+              ) {
+                return true
+              }
+              const parsed = JSON.parse(value)
+              return Boolean(
+                parsed?.code_verifier ||
+                parsed?.codeVerifier ||
+                parsed?.oauthCodeVerifier ||
+                parsed?.session?.codeVerifier ||
+                parsed?.pkce
+              )
+            } catch {
+              return false
+            }
+          })
+
+          if (verifierDetected) {
+            console.log('Detected PKCE data in localStorage before redirect.', {
+              attempts,
+              keys: Object.keys(localStorage),
+            })
+            break
+          }
+
+          attempts++
+          if (attempts < maxAttempts) {
+            console.log(`⏳ Waiting for PKCE data before redirect... (${attempts}/${maxAttempts})`)
+          }
+        }
+
+        if (!verifierDetected) {
+          console.warn('⚠️ PKCE data not detected before redirect. Continuing with redirect anyway.')
+        }
+
         window.location.assign(data.url)
         return
       }
