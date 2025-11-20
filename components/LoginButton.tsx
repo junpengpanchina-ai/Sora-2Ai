@@ -33,13 +33,13 @@ export default function LoginButton() {
         return
       }
 
-      // Use skipBrowserRedirect: true to manually control redirect
-      // This allows us to verify code_verifier is saved before redirecting
+      // Use skipBrowserRedirect: false to let Supabase handle the redirect
+      // This ensures code_verifier is properly saved by Supabase's internal logic
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectTo,
-          skipBrowserRedirect: true, // Manual redirect to ensure code_verifier is saved
+          skipBrowserRedirect: false, // Let Supabase handle redirect to ensure proper PKCE flow
           queryParams: {
             prompt: 'consent', // Force Google to show consent screen every time
             access_type: 'offline', // Request refresh token
@@ -63,62 +63,24 @@ export default function LoginButton() {
         return
       }
 
-      // Wait for Supabase to save code_verifier to localStorage
-      // With skipBrowserRedirect: true, Supabase saves it immediately
-      // We'll wait and verify it's saved before redirecting
-      let attempts = 0
-      const maxAttempts = 10
-      let hasVerifier = false
+      // When skipBrowserRedirect is false, Supabase automatically redirects
+      // and handles code_verifier saving internally
+      // We just need to let it do its job
+      console.log('✅ Supabase will handle redirect and code_verifier saving automatically')
+      console.log('Redirecting to Google OAuth...')
       
-      while (attempts < maxAttempts && !hasVerifier) {
-        await new Promise(resolve => setTimeout(resolve, 100))
-        
-        const allKeys = Object.keys(localStorage)
-        const supabaseKeys = allKeys.filter(key => key.includes('supabase'))
-        hasVerifier = supabaseKeys.some(key => 
-          key.includes('code-verifier') || key.includes('verifier')
-        )
-        
-        if (hasVerifier) {
-          const verifierKey = supabaseKeys.find(key =>
-            key.includes('code-verifier') || key.includes('verifier')
-          )
-          console.log('✅ code_verifier saved successfully')
-          console.log('code_verifier key:', verifierKey)
-          break
-        }
-        
-        attempts++
-        if (attempts < maxAttempts) {
-          console.log(`⏳ Waiting for code_verifier... (attempt ${attempts}/${maxAttempts})`)
-        }
-      }
+      // Supabase should handle the redirect automatically, but if it doesn't,
+      // we'll do it manually after a brief delay to ensure code_verifier is saved
+      await new Promise(resolve => setTimeout(resolve, 200))
       
-      if (!hasVerifier) {
-        const supabaseKeys = Object.keys(localStorage).filter(key => key.includes('supabase'))
-        console.error('❌ code_verifier not found after multiple attempts')
-        console.error('Current Supabase keys:', supabaseKeys)
-        
-        // Log to server (visible in Vercel Dashboard)
-        await logError(
-          new Error('code_verifier not found after multiple attempts'),
-          {
-            redirectTo,
-            supabaseKeys,
-            localStorageKeys: Object.keys(localStorage).length,
-            attemptCount: maxAttempts,
-          }
-        )
-        
-        router.push('/login?error=' + encodeURIComponent('无法保存验证码，请清除浏览器缓存后重试'))
-        setLoading(false)
-        return
+      // Check if Supabase already redirected (it should have)
+      // If not, redirect manually
+      if (window.location.href === data.url || window.location.href.includes('accounts.google.com')) {
+        console.log('✅ Already redirected by Supabase')
+      } else {
+        console.log('⚠️ Supabase did not redirect automatically, redirecting manually...')
+        window.location.href = data.url
       }
-
-      // Use window.location.href for full page redirect
-      // This ensures code_verifier stays in the same browser context
-      console.log('✅ Redirecting to Google OAuth with verified code_verifier...')
-      window.location.href = data.url
     } catch (err) {
       console.error('Login error:', err)
       
