@@ -315,6 +315,7 @@ export default function AuthCallbackPage() {
           const { error: insertError } = await supabase
             .from('users')
             .insert({
+              id: user.id,
               google_id: googleId,
               email: email,
               name: name || null,
