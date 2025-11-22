@@ -58,63 +58,135 @@ export default function LoginButton() {
       console.log('localStorage keys after signInWithOAuth:', Object.keys(localStorage))
       console.log('sessionStorage keys after signInWithOAuth:', Object.keys(sessionStorage))
 
+      const containsPkceIndicators = (value: string) => {
+        return (
+          value.includes('code_verifier') ||
+          value.includes('codeVerifier') ||
+          value.includes('oauthCodeVerifier') ||
+          value.includes('pkce')
+        )
+      }
+
+      const detectPkceInStorage = (storage: Storage) => {
+        const keys = Object.keys(storage)
+        const supabaseKeys = keys.filter(key => key.includes('supabase') || key.startsWith('sb-'))
+
+        for (const key of supabaseKeys) {
+          const normalizedKey = key.toLowerCase()
+          if (
+            normalizedKey.includes('code_verifier') ||
+            normalizedKey.includes('code-verifier') ||
+            normalizedKey.includes('oauth-code-verifier')
+          ) {
+            return { detected: true, key, source: 'key', supabaseKeys, keys }
+          }
+
+          try {
+            const rawValue = storage.getItem(key)
+            if (!rawValue) {
+              continue
+            }
+
+            if (containsPkceIndicators(rawValue)) {
+              return { detected: true, key, source: 'value', supabaseKeys, keys }
+            }
+
+            const parsed = JSON.parse(rawValue)
+            if (
+              parsed?.code_verifier ||
+              parsed?.codeVerifier ||
+              parsed?.oauthCodeVerifier ||
+              parsed?.session?.codeVerifier ||
+              parsed?.pkce
+            ) {
+              return { detected: true, key, source: 'parsed', supabaseKeys, keys }
+            }
+          } catch {
+            // Ignore JSON parse errors and keep scanning other keys
+          }
+        }
+
+        return { detected: false, key: null, source: null, supabaseKeys, keys }
+      }
+
+      const detectPkceData = () => {
+        const localResult = detectPkceInStorage(localStorage)
+        if (localResult.detected) {
+          return { ...localResult, storage: 'localStorage' as const }
+        }
+
+        if (typeof sessionStorage !== 'undefined') {
+          const sessionResult = detectPkceInStorage(sessionStorage)
+          if (sessionResult.detected) {
+            // Attempt to persist the detected PKCE data into localStorage for Supabase compatibility
+            try {
+              const value = sessionStorage.getItem(sessionResult.key || '')
+              if (value) {
+                localStorage.setItem(sessionResult.key || '', value)
+              }
+            } catch (err) {
+              console.warn('Failed to copy PKCE data from sessionStorage to localStorage', {
+                key: sessionResult.key,
+                error: err,
+              })
+            }
+
+            return { ...sessionResult, storage: 'sessionStorage' as const }
+          }
+
+          return {
+            detected: false,
+            key: null,
+            source: null,
+            storage: 'sessionStorage' as const,
+            supabaseKeys: sessionResult.supabaseKeys,
+            keys: sessionResult.keys,
+            localKeys: localResult.keys,
+            localSupabaseKeys: localResult.supabaseKeys,
+          }
+        }
+
+        return { ...localResult, storage: 'localStorage' as const }
+      }
+
       if (data?.url) {
         console.log('Supabase provided OAuth URL, waiting for PKCE data before redirect...', {
           url: data.url,
         })
 
         let attempts = 0
-        const maxAttempts = 15 // 1.5s total
+        const maxAttempts = 30 // 3s total
         let verifierDetected = false
 
         while (attempts < maxAttempts && !verifierDetected) {
           await new Promise(resolve => setTimeout(resolve, 100))
-          const allKeys = Object.keys(localStorage)
-          const supabaseKeys = allKeys.filter(
-            key => key.includes('supabase') || key.startsWith('sb-')
-          )
-          verifierDetected = supabaseKeys.some(key => {
-            try {
-              const value = localStorage.getItem(key)
-              if (!value) return false
-              if (
-                key.toLowerCase().includes('code_verifier') ||
-                value.includes('code_verifier') ||
-                value.includes('codeVerifier') ||
-                value.includes('oauthCodeVerifier') ||
-                value.includes('pkce')
-              ) {
-                return true
-              }
-              const parsed = JSON.parse(value)
-              return Boolean(
-                parsed?.code_verifier ||
-                parsed?.codeVerifier ||
-                parsed?.oauthCodeVerifier ||
-                parsed?.session?.codeVerifier ||
-                parsed?.pkce
-              )
-            } catch {
-              return false
-            }
-          })
+          const detection = detectPkceData()
+          verifierDetected = detection.detected
 
           if (verifierDetected) {
-            console.log('Detected PKCE data in localStorage before redirect.', {
+            console.log('Detected PKCE data before redirect.', {
               attempts,
-              keys: Object.keys(localStorage),
+              storage: detection.storage,
+              key: detection.key,
+              source: detection.source,
             })
             break
           }
 
           attempts++
           if (attempts < maxAttempts) {
-            console.log(`⏳ Waiting for PKCE data before redirect... (${attempts}/${maxAttempts})`)
+            console.log(`⏳ Waiting for PKCE data before redirect... (${attempts}/${maxAttempts})`, {
+              localStorageKeys: Object.keys(localStorage),
+              sessionStorageKeys: typeof sessionStorage !== 'undefined' ? Object.keys(sessionStorage) : [],
+            })
           }
         }
 
         if (!verifierDetected) {
-          console.warn('⚠️ PKCE data not detected before redirect. Continuing with redirect anyway.')
+          console.warn('⚠️ PKCE data not detected before redirect. Continuing with redirect anyway.', {
+            localStorageKeys: Object.keys(localStorage),
+            sessionStorageKeys: typeof sessionStorage !== 'undefined' ? Object.keys(sessionStorage) : [],
+          })
         }
 
         window.location.assign(data.url)
