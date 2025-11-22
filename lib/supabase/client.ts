@@ -1,9 +1,10 @@
-import { createBrowserClient } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
 
+let browserClient: SupabaseClient<Database> | undefined
+
 export function createClient(): SupabaseClient<Database> {
-  // Ensure environment variables exist
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -11,18 +12,22 @@ export function createClient(): SupabaseClient<Database> {
     throw new Error('Missing Supabase environment variables')
   }
 
-  // createBrowserClient automatically handles PKCE code_verifier
-  // It stores it in browser's localStorage
-  // Note: Supabase automatically persists sessions in localStorage
-  // This means users stay logged in across page refreshes
-  return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: true, // Keep session in localStorage
-      autoRefreshToken: true, // Automatically refresh expired tokens
-      detectSessionInUrl: true, // Enable automatic session detection from URL
-      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-      // Note: createBrowserClient automatically uses PKCE flow by default
-    },
-  })
+  if (typeof window === 'undefined') {
+    throw new Error('createClient must be called in a browser environment')
+  }
+
+  if (!browserClient) {
+    browserClient = createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        flowType: 'pkce',
+        storage: window.localStorage,
+      },
+    })
+  }
+
+  return browserClient
 }
 
