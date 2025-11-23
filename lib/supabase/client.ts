@@ -193,7 +193,7 @@ export function createClient(): SupabaseClient<Database> {
 
   if (!browserClient) {
     browserClient = createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
-      auth: {
+    auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
