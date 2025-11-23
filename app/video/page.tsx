@@ -1,24 +1,56 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { Suspense } from 'react'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import VideoPageClient from './VideoPageClient'
+import { createClient } from '@/lib/supabase/client'
 
-export default async function VideoPage() {
-  // Server-side authentication check
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+export default function VideoPage() {
+  const router = useRouter()
+  const [authorized, setAuthorized] = useState<boolean | null>(null)
 
-  // Redirect to login if not authenticated
-  if (!user) {
-    redirect('/login')
+  useEffect(() => {
+    const supabase = createClient()
+
+    const checkSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session) {
+        setAuthorized(false)
+        router.replace('/login')
+        return
+      }
+
+      setAuthorized(true)
+    }
+
+    checkSession()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        setAuthorized(false)
+        router.replace('/login')
+      } else {
+        setAuthorized(true)
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [router])
+
+  if (authorized === null) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
   }
 
-  // Render client component with Suspense for useSearchParams
-  return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-      <VideoPageClient />
-    </Suspense>
-  )
+  if (!authorized) {
+    return null
+  }
+
+  return <VideoPageClient />
 }
