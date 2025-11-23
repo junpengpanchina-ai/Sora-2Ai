@@ -193,7 +193,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                 Prompts
               </Link>
               <Link
-                href="/video"
+                href={hydratedProfile ? '/video' : '/login'}
                 className="text-sm font-medium text-gray-700 transition-colors hover:text-energy-water dark:text-gray-300 dark:hover:text-energy-water-deep"
               >
                 Video Generation
@@ -274,13 +274,13 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         {/* Hero Section */}
         <div className="mb-8 text-center animate-fade-in">
           <h2 className="mb-3 text-4xl font-bold text-gray-900 dark:text-white">
-            {userProfile ? `Welcome back, ${userProfile.name || "User"}!` : 'Welcome to Sora2Ai Videos'}
+            {hydratedProfile ? `Welcome back, ${hydratedProfile.name || 'User'}!` : 'Welcome to Sora2Ai Videos'}
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-400 mb-6">
             Transform your creativity into amazing videos with OpenAI Sora 2.0
           </p>
           <div className="flex items-center justify-center gap-[3cm]">
-            {userProfile ? (
+            {hydratedProfile ? (
               <>
             <Link href="/video">
               <Button variant="primary" size="lg">
