@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import LogoutButton from '@/components/LogoutButton'
+import { createClient } from '@/lib/supabase/client'
 
 interface VideoResult {
   task_id: string
@@ -17,6 +18,7 @@ interface VideoResult {
 }
 
 export default function VideoPageClient() {
+  const supabase = useMemo(() => createClient(), [])
   const router = useRouter()
   const searchParams = useSearchParams()
   const [prompt, setPrompt] = useState('')
@@ -36,7 +38,9 @@ export default function VideoPageClient() {
   useEffect(() => {
     async function fetchCredits() {
       try {
-        const response = await fetch('/api/stats')
+        const response = await fetch('/api/stats', {
+          headers: await getAuthHeaders(),
+        })
         if (response.ok) {
           const data = await response.json()
           if (data.success && data.credits !== undefined) {
@@ -50,7 +54,7 @@ export default function VideoPageClient() {
     fetchCredits()
     const interval = setInterval(fetchCredits, 30000) // Refresh every 30 seconds
     return () => clearInterval(interval)
-  }, [])
+  }, [getAuthHeaders])
 
   // Read prompt from URL query parameter (only once)
   useEffect(() => {
@@ -73,7 +77,9 @@ export default function VideoPageClient() {
 
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`/api/video/result/${pollingTaskId}`)
+        const response = await fetch(`/api/video/result/${pollingTaskId}`, {
+          headers: await getAuthHeaders(),
+        })
         const data = await response.json()
         
         if (data.success) {
@@ -108,18 +114,32 @@ export default function VideoPageClient() {
     }, 3000) // Poll every 3 seconds
 
     return () => clearInterval(interval)
-  }, [pollingTaskId, currentPrompt])
+  }, [pollingTaskId, currentPrompt, getAuthHeaders])
 
   // Submit generation request
+  const getAuthHeaders = useCallback(async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      return {
+        Authorization: `Bearer ${session.access_token}`,
+      }
+    }
+    return {}
+  }, [supabase])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     try {
+      const authHeaders = await getAuthHeaders()
       const response = await fetch('/api/video/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders,
         },
         body: JSON.stringify({
           prompt,
@@ -140,7 +160,12 @@ export default function VideoPageClient() {
 
       if (data.success) {
         // Refresh credits after successful generation
-        const statsResponse = await fetch('/api/stats')
+        const statsResponse = await fetch('/api/stats', {
+          headers: await getAuthHeaders(),
+        })
+        const statsResponse = await fetch('/api/stats', {
+          headers: await getAuthHeaders(),
+        })
         if (statsResponse.ok) {
           const statsData = await statsResponse.json()
           if (statsData.success && statsData.credits !== undefined) {
