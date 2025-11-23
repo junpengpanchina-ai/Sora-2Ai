@@ -163,9 +163,6 @@ export default function VideoPageClient() {
         const statsResponse = await fetch('/api/stats', {
           headers: await getAuthHeaders(),
         })
-        const statsResponse = await fetch('/api/stats', {
-          headers: await getAuthHeaders(),
-        })
         if (statsResponse.ok) {
           const statsData = await statsResponse.json()
           if (statsData.success && statsData.credits !== undefined) {
