@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import HomePageClient from './HomePageClient'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function HomePage() {
   const supabase = await createClient()
   const {
@@ -18,13 +21,15 @@ export default async function HomePage() {
                      user.app_metadata?.provider_id ||
                      user.id
     
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('users')
       .select('*')
       .eq('google_id', googleId)
-      .single()
+      .maybeSingle()
 
-    userProfile = profile || null
+    if (!profileError || profileError.code !== 'PGRST116') {
+      userProfile = profile || null
+    }
   }
 
   return <HomePageClient userProfile={userProfile} />
