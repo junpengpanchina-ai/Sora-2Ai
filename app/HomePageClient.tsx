@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
@@ -9,6 +9,7 @@ import LoginButton from '@/components/LoginButton'
 import R2Image from '@/components/R2Image'
 import PricingModal from '@/components/PricingModal'
 import TasksDropdown from '@/components/TasksDropdown'
+import { createClient } from '@/lib/supabase/client'
 
 interface Stats {
   total: number
@@ -25,26 +26,97 @@ interface RecentTask {
   video_url: string | null
 }
 
+type UserProfile = {
+  id?: string
+  name?: string | null
+  email: string
+  avatar_url?: string | null
+  created_at?: string
+  last_login_at?: string | null
+  credits?: number | null
+}
+
 interface HomePageClientProps {
-  userProfile: {
-    name?: string | null
-    email: string
-    avatar_url?: string | null
-    created_at: string
-    last_login_at?: string | null
-    credits?: number
-  } | null
+  userProfile: UserProfile | null
 }
 
 export default function HomePageClient({ userProfile }: HomePageClientProps) {
+  const [hydratedProfile, setHydratedProfile] = useState<UserProfile | null>(userProfile)
   const [stats, setStats] = useState<Stats | null>(null)
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([])
   const [credits, setCredits] = useState<number>(userProfile?.credits || 0)
   const [showPricingModal, setShowPricingModal] = useState(false)
 
   useEffect(() => {
+    setHydratedProfile(userProfile)
+    if (userProfile?.credits !== undefined && userProfile?.credits !== null) {
+      setCredits(userProfile.credits)
+    }
+  }, [userProfile])
+
+  useEffect(() => {
+    let isMounted = true
+    const supabase = createClient()
+
+    const loadProfile = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (!user) {
+          if (isMounted) {
+            setHydratedProfile(null)
+            setCredits(0)
+          }
+          return
+        }
+
+        const googleId =
+          user.user_metadata?.provider_id ||
+          user.user_metadata?.sub ||
+          user.app_metadata?.provider_id ||
+          user.id
+
+        const { data: profile, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('google_id', googleId)
+          .maybeSingle()
+
+        if (isMounted && (!error || error.code !== 'PGRST116')) {
+          setHydratedProfile(profile ?? null)
+          if (profile?.credits !== undefined && profile?.credits !== null) {
+            setCredits(profile.credits)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load profile:', err)
+      }
+    }
+
+    loadProfile()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
+        setHydratedProfile(null)
+        setCredits(0)
+        return
+      }
+      loadProfile()
+    })
+
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
     // Only fetch stats if user is logged in
-    if (!userProfile) {
+    if (!hydratedProfile) {
       return
     }
 
@@ -91,7 +163,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       clearInterval(interval)
       window.removeEventListener('creditsUpdated', handleCreditsUpdate)
     }
-  }, [userProfile])
+  }, [hydratedProfile])
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -126,7 +198,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               >
                 Video Generation
               </Link>
-              {userProfile && (
+              {hydratedProfile && (
                 <Link
                   href="/profile"
                   className="text-sm font-medium text-gray-700 transition-colors hover:text-energy-water dark:text-gray-300 dark:hover:text-energy-water-deep"
@@ -137,7 +209,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
             </div>
             <div className="flex items-center gap-4">
               {/* Stats Cards in Navbar - Only show if logged in */}
-              {userProfile && stats && (
+              {hydratedProfile && stats && (
                 <div className="hidden lg:flex items-center gap-3">
                   <div className="px-2 py-1 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                     <p className="text-xs text-gray-600 dark:text-gray-400">Total</p>
@@ -158,17 +230,17 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                 </div>
               )}
               
-              {userProfile ? (
+              {hydratedProfile ? (
                 <>
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-energy-water-surface dark:bg-energy-water-muted">
                   <span className="text-sm font-medium text-energy-water dark:text-energy-soft">
                     Credits: {credits}
                   </span>
                 </div>
-                {userProfile.avatar_url && (
+                {hydratedProfile.avatar_url && (
                   <Image
-                    src={userProfile.avatar_url}
-                    alt={userProfile.name ?? 'User avatar'}
+                    src={hydratedProfile.avatar_url}
+                    alt={hydratedProfile.name ?? 'User avatar'}
                     width={32}
                     height={32}
                     className="h-8 w-8 rounded-full object-cover"
@@ -176,7 +248,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                   />
                 )}
                 <span className="hidden text-sm font-medium text-gray-700 dark:text-gray-300 sm:inline">
-                  {userProfile.name ?? userProfile.email}
+                  {hydratedProfile.name ?? hydratedProfile.email}
                 </span>
                 <Button variant="primary" size="sm" onClick={() => setShowPricingModal(true)}>
                   Buy Plan
