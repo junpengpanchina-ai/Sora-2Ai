@@ -336,22 +336,27 @@ export default function AuthCallbackPage() {
         }
 
         if (!existingUser) {
-          // Create new user record
-          const { error: insertError } = await supabase
+          // Create new user record (use upsert to avoid duplicate-key issues)
+          const { error: upsertError } = await supabase
             .from('users')
-            .insert({
-              id: user.id,
-              google_id: googleId,
-              email: email,
-              name: name || null,
-              avatar_url: avatarUrl || null,
-              last_login_at: new Date().toISOString(),
-            })
+            .upsert(
+              {
+                id: user.id,
+                google_id: googleId,
+                email: email,
+                name: name || null,
+                avatar_url: avatarUrl || null,
+                last_login_at: new Date().toISOString(),
+              },
+              {
+                onConflict: 'google_id',
+              }
+            )
 
-          if (insertError) {
-            console.error('Error creating user:', insertError)
+          if (upsertError) {
+            console.error('Error creating user via upsert:', upsertError)
           } else {
-            console.log('User created successfully:', email)
+            console.log('User created/updated successfully via upsert:', email)
           }
         } else {
           // Update last login time
