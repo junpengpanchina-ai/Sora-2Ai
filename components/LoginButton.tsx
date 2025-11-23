@@ -157,18 +157,37 @@ export default function LoginButton() {
         let attempts = 0
         const maxAttempts = 30 // 3s total
         let verifierDetected = false
+        let detectionDetails:
+          | ReturnType<typeof detectPkceData>
+          | {
+              detected: boolean
+              key: string | null
+              source: string | null
+              storage: string
+              supabaseKeys?: string[]
+              keys?: string[]
+              localKeys?: string[]
+              localSupabaseKeys?: string[]
+            } = {
+          detected: false,
+          key: null,
+          source: null,
+          storage: 'localStorage',
+          supabaseKeys: [],
+          keys: [],
+        }
 
         while (attempts < maxAttempts && !verifierDetected) {
           await new Promise(resolve => setTimeout(resolve, 100))
-          const detection = detectPkceData()
-          verifierDetected = detection.detected
+          detectionDetails = detectPkceData()
+          verifierDetected = detectionDetails.detected
 
           if (verifierDetected) {
             console.log('Detected PKCE data before redirect.', {
               attempts,
-              storage: detection.storage,
-              key: detection.key,
-              source: detection.source,
+              storage: detectionDetails.storage,
+              key: detectionDetails.key,
+              source: detectionDetails.source,
             })
             break
           }
@@ -183,10 +202,34 @@ export default function LoginButton() {
         }
 
         if (!verifierDetected) {
-          console.warn('⚠️ PKCE data not detected before redirect. Continuing with redirect anyway.', {
+          console.warn('⚠️ PKCE data not detected before redirect. Forcing redirect with diagnostic info.', {
             localStorageKeys: Object.keys(localStorage),
             sessionStorageKeys: typeof sessionStorage !== 'undefined' ? Object.keys(sessionStorage) : [],
+            detectionDetails,
           })
+
+          const pkceKey = detectionDetails?.key || detectionDetails?.supabaseKeys?.find(key => key.includes('code'))
+
+          if (typeof document !== 'undefined' && pkceKey) {
+            try {
+              const cookieName = `${pkceKey}`
+              const cookieValue =
+                detectionDetails?.storage === 'sessionStorage'
+                  ? sessionStorage.getItem(pkceKey) ?? ''
+                  : localStorage.getItem(pkceKey) ?? ''
+
+              if (cookieValue) {
+                console.log('Attempting to copy PKCE value to cookie manually before redirect', {
+                  cookieName,
+                })
+                document.cookie = `${cookieName}=${encodeURIComponent(cookieValue)}; Path=/; SameSite=Lax; Max-Age=600${
+                  window.location.protocol === 'https:' ? '; Secure' : ''
+                }`
+              }
+            } catch (cookieErr) {
+              console.error('Failed to set PKCE cookie manually', cookieErr)
+            }
+          }
         }
 
         window.location.assign(data.url)

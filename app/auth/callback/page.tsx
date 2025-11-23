@@ -207,6 +207,27 @@ export default function AuthCallbackPage() {
             codeVerifierDetected: codeVerifierFound,
             supabaseKeys,
           })
+          const storageCheck = {
+            localStorageKeys: Object.keys(localStorage),
+            sessionStorageKeys: Object.keys(sessionStorage),
+            cookies: typeof document !== 'undefined' ? document.cookie : '',
+          }
+          console.log('Storage state before manual exchange:', storageCheck)
+          console.log(
+            'Storage lookups for PKCE:',
+            ['localStorage', 'sessionStorage'].map(source => ({
+              source,
+              matches: Object.keys(source === 'localStorage' ? localStorage : sessionStorage).filter(key =>
+                key.includes('code') || key.includes('verifier')
+              ),
+            }))
+          )
+
+          const cookieVerifier = storageCheck.cookies
+            .split('; ')
+            .find(pair => pair.startsWith(`sb-`))?.split('=')[1]
+          console.log('Cookie PKCE verifier presence:', !!cookieVerifier)
+
           const exchangeResult = await supabase.auth.exchangeCodeForSession(code)
           sessionData = exchangeResult.data
           exchangeError = exchangeResult.error
@@ -218,6 +239,10 @@ export default function AuthCallbackPage() {
               name: exchangeError.name,
             }
             console.error('❌ Manual exchange error:', errorDetails)
+            console.error('Storage state at error time:', storageCheck)
+            console.error('Supabase storage key dump:', {
+              pkceKeys: Object.keys(localStorage).filter(key => key.includes('code') || key.includes('verifier')),
+            })
             
             // Log to server (visible in Vercel Dashboard)
             await logError(
