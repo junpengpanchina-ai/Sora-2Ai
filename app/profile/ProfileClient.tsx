@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@/components/ui'
 import Link from 'next/link'
 import Image from 'next/image'
+import { createClient } from '@/lib/supabase/client'
 
 interface UserProfile {
   id: string
@@ -51,17 +52,31 @@ interface ProfileClientProps {
 }
 
 export default function ProfileClient({ userProfile }: ProfileClientProps) {
+  const supabase = useMemo(() => createClient(), [])
   const [credits, setCredits] = useState<number>(userProfile?.credits || 0)
   const [rechargeRecords, setRechargeRecords] = useState<RechargeRecord[]>([])
   const [creditAdjustments, setCreditAdjustments] = useState<CreditAdjustmentRecord[]>([])
   const [loading, setLoading] = useState(true)
+
+  const getAuthHeaders = useCallback(async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      return {
+        Authorization: `Bearer ${session.access_token}`,
+      }
+    }
+    return {}
+  }, [supabase])
 
   const fetchData = useCallback(async () => {
     if (!userProfile) return
 
     try {
       // Fetch current credits
-      const statsResponse = await fetch('/api/stats')
+      const headers = await getAuthHeaders()
+      const statsResponse = await fetch('/api/stats', { headers })
       if (statsResponse.ok) {
         const statsData = await statsResponse.json()
         if (statsData.success && statsData.credits !== undefined) {
@@ -70,7 +85,7 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
       }
 
       // Fetch recharge records
-      const rechargeResponse = await fetch('/api/payment/recharge-records')
+      const rechargeResponse = await fetch('/api/payment/recharge-records', { headers })
       if (rechargeResponse.ok) {
         const rechargeData = await rechargeResponse.json()
         if (rechargeData.success) {
@@ -83,7 +98,7 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
       }
 
       // Fetch manual credit adjustments
-      const adjustmentsResponse = await fetch('/api/payment/credit-adjustments')
+      const adjustmentsResponse = await fetch('/api/payment/credit-adjustments', { headers })
       if (adjustmentsResponse.ok) {
         const adjustmentsData = await adjustmentsResponse.json()
         if (adjustmentsData.success) {
@@ -95,7 +110,7 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
     } finally {
       setLoading(false)
     }
-  }, [userProfile])
+  }, [userProfile, getAuthHeaders])
 
   useEffect(() => {
     if (!userProfile) {

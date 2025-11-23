@@ -2,7 +2,7 @@
 // @ts-nocheck
 import { createClient } from '@/lib/supabase/server'
 import { getOrCreateUser } from '@/lib/user'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 /**
  * Get user's recharge records
@@ -11,10 +11,10 @@ import { NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     // Verify user identity
-    const supabase = await createClient()
+    const supabase = await createClient(request.headers)
     const {
       data: { user },
     } = await supabase.auth.getUser()

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
@@ -41,6 +41,7 @@ interface HomePageClientProps {
 }
 
 export default function HomePageClient({ userProfile }: HomePageClientProps) {
+  const supabase = useMemo(() => createClient(), [])
   const [hydratedProfile, setHydratedProfile] = useState<UserProfile | null>(userProfile)
   const [stats, setStats] = useState<Stats | null>(null)
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([])
@@ -54,9 +55,20 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     }
   }, [userProfile])
 
+  const getAuthHeaders = useCallback(async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      return {
+        Authorization: `Bearer ${session.access_token}`,
+      }
+    }
+    return {}
+  }, [supabase])
+
   useEffect(() => {
     let isMounted = true
-    const supabase = createClient()
 
     const loadProfile = async () => {
       try {
@@ -112,7 +124,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       isMounted = false
       subscription.unsubscribe()
     }
-  }, [])
+  }, [supabase])
 
   useEffect(() => {
     // Only fetch stats if user is logged in
@@ -124,7 +136,10 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
 
     const fetchStats = async () => {
       try {
-        const response = await fetch('/api/stats')
+        const headers = await getAuthHeaders()
+        const response = await fetch('/api/stats', {
+          headers,
+        })
         if (!response.ok) {
           return
         }
@@ -163,7 +178,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       clearInterval(interval)
       window.removeEventListener('creditsUpdated', handleCreditsUpdate)
     }
-  }, [hydratedProfile])
+  }, [hydratedProfile, getAuthHeaders])
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)

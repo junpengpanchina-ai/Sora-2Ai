@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     // Verify user authentication (only verify login)
-    const supabase = await createClient()
+    const supabase = await createClient(request.headers)
     const {
       data: { user },
     } = await supabase.auth.getUser()

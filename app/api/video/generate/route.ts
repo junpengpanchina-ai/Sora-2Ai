@@ -20,7 +20,7 @@ const generateVideoSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     // Verify user authentication (only verify login, no database needed)
-    const supabase = await createClient()
+    const supabase = await createClient(request.headers)
     const {
       data: { user },
     } = await supabase.auth.getUser()
