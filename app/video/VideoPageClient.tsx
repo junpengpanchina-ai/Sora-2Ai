@@ -34,6 +34,18 @@ export default function VideoPageClient() {
   const [credits, setCredits] = useState<number | null>(null)
   const hasReadPromptFromUrl = useRef(false)
 
+  const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      return {
+        Authorization: `Bearer ${session.access_token}`,
+      }
+    }
+    return {} as Record<string, string>
+  }, [supabase])
+
   // Fetch credits
   useEffect(() => {
     async function fetchCredits() {
@@ -117,7 +129,7 @@ export default function VideoPageClient() {
   }, [pollingTaskId, currentPrompt, getAuthHeaders])
 
   // Submit generation request
-  const getAuthHeaders = useCallback(async () => {
+  const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -126,7 +138,7 @@ export default function VideoPageClient() {
         Authorization: `Bearer ${session.access_token}`,
       }
     }
-    return {}
+    return {} as Record<string, string>
   }, [supabase])
 
   const handleSubmit = async (e: React.FormEvent) => {

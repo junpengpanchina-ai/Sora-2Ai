@@ -10,3 +10,4 @@ CREATE POLICY users_insert_own
   TO authenticated
   WITH CHECK (auth.uid() = id);
 
+

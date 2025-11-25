@@ -45,3 +45,4 @@ SET id = m.new_id
 FROM mapping m
 WHERE u.id = m.old_id;
 
+
