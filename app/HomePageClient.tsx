@@ -55,7 +55,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     }
   }, [userProfile])
 
-  const getAuthHeaders = useCallback(async () => {
+  const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -64,7 +64,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         Authorization: `Bearer ${session.access_token}`,
       }
     }
-    return {}
+    return {} as Record<string, string>
   }, [supabase])
 
   useEffect(() => {
@@ -761,7 +761,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                     Created At
                   </p>
                   <p className="text-sm text-gray-900 dark:text-white">
-                    {formatDate(userProfile.created_at)}
+                    {userProfile?.created_at ? formatDate(userProfile.created_at) : '-'}
                   </p>
                 </div>
                 {userProfile.last_login_at && (

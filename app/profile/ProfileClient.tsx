@@ -58,7 +58,7 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
   const [creditAdjustments, setCreditAdjustments] = useState<CreditAdjustmentRecord[]>([])
   const [loading, setLoading] = useState(true)
 
-  const getAuthHeaders = useCallback(async () => {
+  const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -67,7 +67,7 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
         Authorization: `Bearer ${session.access_token}`,
       }
     }
-    return {}
+    return {} as Record<string, string>
   }, [supabase])
 
   const fetchData = useCallback(async () => {
