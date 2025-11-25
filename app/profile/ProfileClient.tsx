@@ -1,9 +1,9 @@
+/* eslint-disable @next/next/no-img-element */
 'use client'
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@/components/ui'
 import Link from 'next/link'
-import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 
 interface UserProfile {
@@ -268,18 +268,23 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
               <CardTitle>Account Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {userProfile.avatar_url && (
-                <div className="flex justify-center">
-                  <Image
+              <div className="flex justify-center">
+                {userProfile.avatar_url ? (
+                  <img
                     src={userProfile.avatar_url}
                     alt={userProfile.name || 'User avatar'}
                     width={96}
                     height={96}
                     className="h-24 w-24 rounded-full object-cover"
-                    unoptimized
+                    referrerPolicy="no-referrer"
+                    loading="lazy"
                   />
-                </div>
-              )}
+                ) : (
+                  <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gray-200 text-2xl font-semibold text-gray-600">
+                    {(userProfile.name || userProfile.email || '?').charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Name</p>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">

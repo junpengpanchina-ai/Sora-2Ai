@@ -128,19 +128,6 @@ export default function VideoPageClient() {
     return () => clearInterval(interval)
   }, [pollingTaskId, currentPrompt, getAuthHeaders])
 
-  // Submit generation request
-  const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    if (session?.access_token) {
-      return {
-        Authorization: `Bearer ${session.access_token}`,
-      }
-    }
-    return {} as Record<string, string>
-  }, [supabase])
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)

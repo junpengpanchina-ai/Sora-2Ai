@@ -17,8 +17,19 @@ export async function createClient(customHeaders?: Headers | HeadersInit): Promi
         })()
       : undefined)
 
-  const authorizationHeader =
-    typeof headerList?.get === 'function' ? headerList.get('authorization') ?? undefined : undefined
+  let authorizationHeader: string | undefined
+
+  if (headerList) {
+    if (typeof (headerList as Headers).get === 'function') {
+      authorizationHeader = (headerList as Headers).get('authorization') ?? undefined
+    } else if (Array.isArray(headerList)) {
+      authorizationHeader = headerList.find(([key]) => key.toLowerCase() === 'authorization')?.[1]
+    } else {
+      const record = headerList as Record<string, string>
+      authorizationHeader =
+        Object.entries(record).find(([key]) => key.toLowerCase() === 'authorization')?.[1] ?? undefined
+    }
+  }
 
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
