@@ -11,12 +11,12 @@ const path = require('path');
 const requiredEnvVars = [
   'NEXT_PUBLIC_SUPABASE_URL',
   'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+  'SUPABASE_SERVICE_ROLE_KEY',
   'GOOGLE_CLIENT_ID',
   'GOOGLE_CLIENT_SECRET',
 ];
 
 const optionalEnvVars = [
-  'SUPABASE_SERVICE_ROLE_KEY',
   'GRSAI_API_KEY',
   'GRSAI_API_URL',
   'STRIPE_SECRET_KEY',
@@ -98,6 +98,15 @@ function checkEnvFile() {
       console.log(`   - ${varName}`);
     });
     console.log('');
+  }
+
+  const serviceKey = envVars.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = envVars.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (serviceKey && anonKey && serviceKey === anonKey) {
+    console.log('❌ SUPABASE_SERVICE_ROLE_KEY 不能与 NEXT_PUBLIC_SUPABASE_ANON_KEY 相同');
+    console.log('   请从 Supabase 项目设置中复制真正的 Service Role Key（位于 Settings → API）');
+    console.log('');
+    allValid = false;
   }
 
   if (allValid) {
