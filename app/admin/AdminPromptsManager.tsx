@@ -170,8 +170,14 @@ export default function AdminPromptsManager({ onShowBanner }: AdminPromptsManage
       const payload = await response.json().catch(() => ({}))
 
       if (!response.ok) {
-        const message =
-          typeof payload.error === 'string' ? payload.error : '获取提示词列表失败'
+        const messageParts: string[] = []
+        if (typeof payload.error === 'string' && payload.error.trim().length > 0) {
+          messageParts.push(payload.error.trim())
+        }
+        if (typeof payload.details === 'string' && payload.details.trim().length > 0) {
+          messageParts.push(payload.details.trim())
+        }
+        const message = messageParts.join('：') || '获取提示词列表失败'
         throw new Error(message)
       }
 
