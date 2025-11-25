@@ -98,8 +98,12 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
 
         if (isMounted && (!error || error.code !== 'PGRST116')) {
           setHydratedProfile(profile ?? null)
-          if (profile?.credits !== undefined && profile?.credits !== null) {
-            setCredits(profile.credits)
+          const creditValue =
+            profile && typeof profile === 'object' && 'credits' in profile
+              ? (profile as UserProfile).credits ?? null
+              : null
+          if (creditValue !== null && creditValue !== undefined) {
+            setCredits(creditValue)
           }
         }
       } catch (err) {
