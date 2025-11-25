@@ -1,8 +1,8 @@
+/* eslint-disable @next/next/no-img-element */
 'use client'
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
 import LogoutButton from '@/components/LogoutButton'
 import LoginButton from '@/components/LoginButton'
@@ -90,14 +90,38 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           user.app_metadata?.provider_id ||
           user.id
 
-        const { data: profile, error } = await supabase
+        const { data: profileData, error } = await supabase
           .from('users')
           .select('*')
           .eq('google_id', googleId)
           .maybeSingle()
 
+        const profile = (profileData ?? null) as UserProfile | null
+
+        const fallbackAvatar =
+          profile?.avatar_url ??
+          user.user_metadata?.avatar_url ??
+          user.user_metadata?.picture ??
+          user.user_metadata?.avatar ??
+          null
+        const fallbackName =
+          profile?.name ??
+          user.user_metadata?.full_name ??
+          user.user_metadata?.name ??
+          user.user_metadata?.display_name ??
+          user.email ??
+          null
+
+        const enhancedProfile = profile
+          ? {
+              ...profile,
+              avatar_url: profile.avatar_url ?? fallbackAvatar ?? null,
+              name: profile.name ?? fallbackName ?? undefined,
+            }
+          : null
+
         if (isMounted && (!error || error.code !== 'PGRST116')) {
-          setHydratedProfile(profile ?? null)
+          setHydratedProfile(enhancedProfile)
           const creditValue =
             profile && typeof profile === 'object' && 'credits' in profile
               ? (profile as UserProfile).credits ?? null
@@ -256,15 +280,20 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                     Credits: {credits}
                   </span>
                 </div>
-                {hydratedProfile.avatar_url && (
-                  <Image
+                {hydratedProfile.avatar_url ? (
+                  <img
                     src={hydratedProfile.avatar_url}
                     alt={hydratedProfile.name ?? 'User avatar'}
                     width={32}
                     height={32}
                     className="h-8 w-8 rounded-full object-cover"
-                    unoptimized
+                    referrerPolicy="no-referrer"
+                    loading="lazy"
                   />
+                ) : (
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-semibold text-gray-600">
+                    {(hydratedProfile.name ?? hydratedProfile.email ?? '?').charAt(0).toUpperCase()}
+                  </div>
                 )}
                 <span className="hidden text-sm font-medium text-gray-700 dark:text-gray-300 sm:inline">
                   {hydratedProfile.name ?? hydratedProfile.email}
