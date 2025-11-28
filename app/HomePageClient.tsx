@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client'
 
-import { useEffect, useState, useMemo, useCallback, useRef, type RefObject } from 'react'
+import { useEffect, useState, useCallback, useRef, type RefObject } from 'react'
 import Link from 'next/link'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
 import LogoutButton from '@/components/LogoutButton'
@@ -41,7 +41,7 @@ interface HomePageClientProps {
 }
 
 export default function HomePageClient({ userProfile }: HomePageClientProps) {
-  const supabase = useMemo(() => createClient(), [])
+  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null)
   const [hydratedProfile, setHydratedProfile] = useState<UserProfile | null>(userProfile)
   const [stats, setStats] = useState<Stats | null>(null)
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([])
@@ -53,6 +53,13 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const videoSectionRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+    setSupabase(createClient())
+  }, [])
+
+  useEffect(() => {
     setHydratedProfile(userProfile)
     if (userProfile?.credits !== undefined && userProfile?.credits !== null) {
       setCredits(userProfile.credits)
@@ -60,6 +67,9 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   }, [userProfile])
 
   const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    if (!supabase) {
+      return {} as Record<string, string>
+    }
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -72,13 +82,17 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   }, [supabase])
 
   useEffect(() => {
+    if (!supabase) {
+      return
+    }
+    const client = supabase
     let isMounted = true
 
     const loadProfile = async () => {
       try {
         const {
           data: { user },
-        } = await supabase.auth.getUser()
+        } = await client.auth.getUser()
 
         if (!user) {
           if (isMounted) {
@@ -94,7 +108,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           user.app_metadata?.provider_id ||
           user.id
 
-        const { data: profileData, error } = await supabase
+        const { data: profileData, error } = await client
           .from('users')
           .select('*')
           .eq('google_id', googleId)
@@ -143,7 +157,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = client.auth.onAuthStateChange((_event, session) => {
       if (!session?.user) {
         setHydratedProfile(null)
         setCredits(0)
@@ -160,7 +174,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
 
   useEffect(() => {
     // Only fetch stats if user is logged in
-    if (!hydratedProfile) {
+    if (!hydratedProfile || !supabase) {
       return
     }
 
@@ -210,7 +224,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       clearInterval(interval)
       window.removeEventListener('creditsUpdated', handleCreditsUpdate)
     }
-  }, [hydratedProfile, getAuthHeaders])
+  }, [hydratedProfile, getAuthHeaders, supabase])
 
   useEffect(() => {
     if (typeof window === 'undefined') {
