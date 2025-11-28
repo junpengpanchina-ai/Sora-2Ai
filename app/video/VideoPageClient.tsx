@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import LogoutButton from '@/components/LogoutButton'
@@ -18,7 +18,7 @@ interface VideoResult {
 }
 
 export default function VideoPageClient() {
-  const supabase = useMemo(() => createClient(), [])
+  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
   const [prompt, setPrompt] = useState('')
@@ -34,7 +34,17 @@ export default function VideoPageClient() {
   const [credits, setCredits] = useState<number | null>(null)
   const hasReadPromptFromUrl = useRef(false)
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+    setSupabase(createClient())
+  }, [])
+
   const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    if (!supabase) {
+      return {} as Record<string, string>
+    }
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -48,6 +58,10 @@ export default function VideoPageClient() {
 
   // Fetch credits
   useEffect(() => {
+    if (!supabase) {
+      return
+    }
+
     async function fetchCredits() {
       try {
         const response = await fetch('/api/stats', {
@@ -66,7 +80,7 @@ export default function VideoPageClient() {
     fetchCredits()
     const interval = setInterval(fetchCredits, 30000) // Refresh every 30 seconds
     return () => clearInterval(interval)
-  }, [getAuthHeaders])
+  }, [getAuthHeaders, supabase])
 
   // Read prompt from URL query parameter (only once)
   useEffect(() => {
@@ -130,6 +144,10 @@ export default function VideoPageClient() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!supabase) {
+      console.error('Supabase client not initialized')
+      return
+    }
     setLoading(true)
 
     try {
