@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client'
 
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef, type RefObject } from 'react'
 import Link from 'next/link'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
 import LogoutButton from '@/components/LogoutButton'
@@ -47,6 +47,10 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([])
   const [credits, setCredits] = useState<number>(userProfile?.credits || 0)
   const [showPricingModal, setShowPricingModal] = useState(false)
+  const [imagesReady, setImagesReady] = useState(false)
+  const [videosReady, setVideosReady] = useState(false)
+  const imageSectionRef = useRef<HTMLDivElement | null>(null)
+  const videoSectionRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     setHydratedProfile(userProfile)
@@ -207,6 +211,49 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       window.removeEventListener('creditsUpdated', handleCreditsUpdate)
     }
   }, [hydratedProfile, getAuthHeaders])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    if (!('IntersectionObserver' in window)) {
+      setImagesReady(true)
+      setVideosReady(true)
+      return
+    }
+
+    const cleanupFunctions: Array<() => void> = []
+
+    const createObserver = (ref: RefObject<HTMLDivElement>, setVisible: (value: boolean) => void) => {
+      const node = ref.current
+      if (!node) {
+        return
+      }
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              setVisible(true)
+              observer.unobserve(entry.target)
+            }
+          })
+        },
+        { rootMargin: '200px' }
+      )
+
+      observer.observe(node)
+      cleanupFunctions.push(() => observer.disconnect())
+    }
+
+    createObserver(imageSectionRef, setImagesReady)
+    createObserver(videoSectionRef, setVideosReady)
+
+    return () => {
+      cleanupFunctions.forEach((cleanup) => cleanup())
+    }
+  }, [])
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -369,355 +416,383 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           </Card>
         </div>
 
-        {/* Image Carousel - Always visible */}
-        <div className="mb-8 space-y-6">
-          {/* Top row: slide from right to left */}
-          <div className="overflow-hidden">
-            <div className="flex gap-6 animate-slide-right" style={{ width: '300%' }}>
-              {/* First set */}
-              <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="2b827a33e43a48b2b583ed428977712c.png"
-                    alt="Image 1"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="460bef39f6e34f82912a27e357827963.png"
-                    alt="Image 2"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="5995d3bfdb674ecebaccc581ed8940b3.png"
-                    alt="Image 3"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="7b0be82bb2134fca87519cbecf30aca9.png"
-                    alt="Image 4"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-              </div>
-              {/* Second set - duplicate for seamless loop */}
-              <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="2b827a33e43a48b2b583ed428977712c.png"
-                    alt="Image 1"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="460bef39f6e34f82912a27e357827963.png"
-                    alt="Image 2"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="5995d3bfdb674ecebaccc581ed8940b3.png"
-                    alt="Image 3"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="7b0be82bb2134fca87519cbecf30aca9.png"
-                    alt="Image 4"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-              </div>
-              {/* Third set - extra duplicate for seamless loop */}
-              <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="2b827a33e43a48b2b583ed428977712c.png"
-                    alt="Image 1"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="460bef39f6e34f82912a27e357827963.png"
-                    alt="Image 2"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="5995d3bfdb674ecebaccc581ed8940b3.png"
-                    alt="Image 3"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="7b0be82bb2134fca87519cbecf30aca9.png"
-                    alt="Image 4"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Bottom row: slide from left to right */}
-          <div className="overflow-hidden">
-            <div className="flex gap-6 animate-slide-left" style={{ width: '300%' }}>
-              {/* First set */}
-              <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="80dc75a06d0b49c29bdb78eb45dc70a0.png"
-                    alt="Image 5"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="b451ac136a474a9f91398a403af2d2a6.png"
-                    alt="Image 6"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="e6e1ebc8cea34e83a106009a485b1cbb.png"
-                    alt="Image 7"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="f566981bc27549b7a2389a6887e9c840.png"
-                    alt="Image 8"
-                    className="w-full h-auto rounded-lg"
-                  />
+        {/* Image Carousel - Lazy render to protect LCP */}
+        <div className="mb-8 space-y-6" ref={imageSectionRef}>
+          {imagesReady ? (
+            <>
+              {/* Top row: slide from right to left */}
+              <div className="overflow-hidden">
+                <div className="flex gap-6 animate-slide-right" style={{ width: '300%' }}>
+                  {/* First set */}
+                  <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="2b827a33e43a48b2b583ed428977712c.png"
+                        alt="Image 1"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="460bef39f6e34f82912a27e357827963.png"
+                        alt="Image 2"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="5995d3bfdb674ecebaccc581ed8940b3.png"
+                        alt="Image 3"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="7b0be82bb2134fca87519cbecf30aca9.png"
+                        alt="Image 4"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                  </div>
+                  {/* Second set - duplicate for seamless loop */}
+                  <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="2b827a33e43a48b2b583ed428977712c.png"
+                        alt="Image 1"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="460bef39f6e34f82912a27e357827963.png"
+                        alt="Image 2"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="5995d3bfdb674ecebaccc581ed8940b3.png"
+                        alt="Image 3"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="7b0be82bb2134fca87519cbecf30aca9.png"
+                        alt="Image 4"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                  </div>
+                  {/* Third set - extra duplicate for seamless loop */}
+                  <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="2b827a33e43a48b2b583ed428977712c.png"
+                        alt="Image 1"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="460bef39f6e34f82912a27e357827963.png"
+                        alt="Image 2"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="5995d3bfdb674ecebaccc581ed8940b3.png"
+                        alt="Image 3"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="7b0be82bb2134fca87519cbecf30aca9.png"
+                        alt="Image 4"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-              {/* Second set - duplicate for seamless loop */}
-              <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="80dc75a06d0b49c29bdb78eb45dc70a0.png"
-                    alt="Image 5"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="b451ac136a474a9f91398a403af2d2a6.png"
-                    alt="Image 6"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="e6e1ebc8cea34e83a106009a485b1cbb.png"
-                    alt="Image 7"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="f566981bc27549b7a2389a6887e9c840.png"
-                    alt="Image 8"
-                    className="w-full h-auto rounded-lg"
-                  />
+              
+              {/* Bottom row: slide from left to right */}
+              <div className="overflow-hidden">
+                <div className="flex gap-6 animate-slide-left" style={{ width: '300%' }}>
+                  {/* First set */}
+                  <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="80dc75a06d0b49c29bdb78eb45dc70a0.png"
+                        alt="Image 5"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="b451ac136a474a9f91398a403af2d2a6.png"
+                        alt="Image 6"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="e6e1ebc8cea34e83a106009a485b1cbb.png"
+                        alt="Image 7"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="f566981bc27549b7a2389a6887e9c840.png"
+                        alt="Image 8"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                  </div>
+                  {/* Second set - duplicate for seamless loop */}
+                  <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="80dc75a06d0b49c29bdb78eb45dc70a0.png"
+                        alt="Image 5"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="b451ac136a474a9f91398a403af2d2a6.png"
+                        alt="Image 6"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="e6e1ebc8cea34e83a106009a485b1cbb.png"
+                        alt="Image 7"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="f566981bc27549b7a2389a6887e9c840.png"
+                        alt="Image 8"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                  </div>
+                  {/* Third set - extra duplicate for seamless loop */}
+                  <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="80dc75a06d0b49c29bdb78eb45dc70a0.png"
+                        alt="Image 5"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="b451ac136a474a9f91398a403af2d2a6.png"
+                        alt="Image 6"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="e6e1ebc8cea34e83a106009a485b1cbb.png"
+                        alt="Image 7"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <R2Image
+                        src="f566981bc27549b7a2389a6887e9c840.png"
+                        alt="Image 8"
+                        className="w-full h-auto rounded-lg"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-              {/* Third set - extra duplicate for seamless loop */}
-              <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="80dc75a06d0b49c29bdb78eb45dc70a0.png"
-                    alt="Image 5"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="b451ac136a474a9f91398a403af2d2a6.png"
-                    alt="Image 6"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="e6e1ebc8cea34e83a106009a485b1cbb.png"
-                    alt="Image 7"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <R2Image
-                    src="f566981bc27549b7a2389a6887e9c840.png"
-                    alt="Image 8"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+            </>
+          ) : (
+            <div
+              className="h-[320px] w-full rounded-3xl bg-white/40 dark:bg-gray-900/40 animate-pulse"
+              aria-hidden="true"
+            />
+          )}
         </div>
 
         {/* Video Carousel - Below image carousel */}
-        <div className="mb-8">
-          <div className="overflow-hidden">
-            <div className="flex gap-6 animate-slide-right" style={{ width: '300%' }}>
-              {/* First set */}
-              <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <video
-                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/b8edbf0aa26b4afa85b7095b91414f3d.mp4"
-                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                    controls
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                  />
+        <div className="mb-8" ref={videoSectionRef}>
+          {videosReady ? (
+            <div className="overflow-hidden">
+              <div className="flex gap-6 animate-slide-right" style={{ width: '300%' }}>
+                {/* First set */}
+                <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                    <video
+                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/b8edbf0aa26b4afa85b7095b91414f3d.mp4"
+                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  </div>
+                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                    <video
+                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223443_366.mp4"
+                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  </div>
+                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                    <video
+                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223856_981.mp4"
+                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  </div>
+                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                    <video
+                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224357_417.mp4"
+                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  </div>
                 </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <video
-                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223443_366.mp4"
-                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                    controls
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                  />
+                {/* Second set - duplicate for seamless loop */}
+                <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                    <video
+                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224947_118.mp4"
+                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  </div>
+                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                    <video
+                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223443_366.mp4"
+                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  </div>
+                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                    <video
+                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223856_981.mp4"
+                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  </div>
+                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                    <video
+                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224357_417.mp4"
+                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  </div>
                 </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <video
-                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223856_981.mp4"
-                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                    controls
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <video
-                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224357_417.mp4"
-                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                    controls
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                  />
-                </div>
-              </div>
-              {/* Second set - duplicate for seamless loop */}
-              <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <video
-                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224947_118.mp4"
-                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                    controls
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <video
-                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223443_366.mp4"
-                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                    controls
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <video
-                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223856_981.mp4"
-                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                    controls
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <video
-                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224357_417.mp4"
-                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                    controls
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                  />
-                </div>
-              </div>
-              {/* Third set - extra duplicate for seamless loop */}
-              <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <video
-                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/b8edbf0aa26b4afa85b7095b91414f3d.mp4"
-                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                    controls
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <video
-                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224947_118.mp4"
-                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                    controls
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <video
-                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223856_981.mp4"
-                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                    controls
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                  />
-                </div>
-                <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                  <video
-                    src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224357_417.mp4"
-                    className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                    controls
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                  />
+                {/* Third set - extra duplicate for seamless loop */}
+                <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                    <video
+                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/b8edbf0aa26b4afa85b7095b91414f3d.mp4"
+                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  </div>
+                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                    <video
+                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224947_118.mp4"
+                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  </div>
+                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                    <video
+                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223856_981.mp4"
+                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  </div>
+                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                    <video
+                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224357_417.mp4"
+                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          </div>
+          ) : (
+            <div
+              className="h-[420px] w-full rounded-3xl bg-white/40 dark:bg-gray-900/40 animate-pulse"
+              aria-hidden="true"
+            />
+          )}
+        </div>
 
           {/* Features and User Info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import Script from 'next/script'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import './globals.css'
@@ -20,7 +21,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <script async src="https://js.stripe.com/v3/buy-button.js" />
+        <Script src="https://js.stripe.com/v3/buy-button.js" strategy="lazyOnload" />
       </head>
       <body>
         <div className="flex min-h-screen flex-col">

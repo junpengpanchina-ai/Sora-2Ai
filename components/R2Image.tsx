@@ -93,6 +93,8 @@ export default function R2Image({
         className={className}
         onError={handleError}
         onLoad={handleLoad}
+        loading="lazy"
+        decoding="async"
       />
     )
   }
@@ -104,6 +106,8 @@ export default function R2Image({
       className={className}
       onError={handleError}
       onLoad={handleLoad}
+      loading="lazy"
+      decoding="async"
     />
   )
 }
