@@ -94,6 +94,29 @@ fetch('/api/debug/refund-task', {
 - [ ] 网络连接是否正常
 - [ ] 服务器日志是否有错误信息
 
+## 🧰 CLI 脚本：批量检查卡住的任务
+
+我们增加了 `scripts/check-grsai-tasks.js`，可以直接从命令行批量查询 `video_tasks` 中仍在 `processing` 状态的任务，并调用 Grsai `/v1/draw/result` 查看真实状态。
+
+**使用方式**
+
+```bash
+# 默认最多检查 20 条
+node scripts/check-grsai-tasks.js
+
+# 指定数量
+node scripts/check-grsai-tasks.js 50
+```
+
+**依赖的环境变量**
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`（或 `SUPABASE_SERVICE_KEY`）
+- `GRSAI_API_KEY`
+- 可选：`GRSAI_HOST`，默认为 `https://grsai.dakka.com.cn`
+
+脚本输出每条任务的 `id / progress / grsai_task_id`，并打印 Grsai 返回的 `code / status / progress / video_url` 或错误信息，方便快速定位是 Grsai 队列阻塞还是接口错误。
+
 ## 🔗 相关文件
 
 - `app/api/video/result/[id]/route.ts` - 任务结果API
