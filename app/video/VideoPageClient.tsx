@@ -6,6 +6,8 @@ import Link from 'next/link'
 import LogoutButton from '@/components/LogoutButton'
 import { createClient } from '@/lib/supabase/client'
 
+type ViolationType = 'input_moderation' | 'output_moderation' | 'third_party'
+
 interface VideoResult {
   task_id: string
   status: 'processing' | 'succeeded' | 'failed'
@@ -15,6 +17,50 @@ interface VideoResult {
   pid?: string
   error?: string
   prompt?: string
+  violationType?: ViolationType
+}
+
+const VIOLATION_GUIDANCE: Record<ViolationType, { headline: string; description: string; suggestions: string[] }> = {
+  input_moderation: {
+    headline: 'Prompt rejected by safety filters',
+    description:
+      'The text prompt contains violent, adult, hateful, or illegal content. Please rewrite your idea using neutral, policy-compliant language.',
+    suggestions: [
+      'Remove explicit, graphic, or hateful details',
+      'Avoid requests related to weapons, drugs, or unlawful behavior',
+      'Describe original characters or scenes instead of real people',
+    ],
+  },
+  output_moderation: {
+    headline: 'Generated output triggered guardrails',
+    description:
+      'The model stopped because the resulting video contained unsafe visuals (graphic violence, nudity, or other disallowed scenes). Try a simpler and safer description.',
+    suggestions: [
+      'Tone down graphic or shocking details',
+      'Avoid referencing gore, injuries, or adult situations',
+      'Focus on the creative mood or setting instead of intense actions',
+    ],
+  },
+  third_party: {
+    headline: 'Blocked by intellectual-property guardrails',
+    description:
+      'The request referenced real brands, celebrities, or copyrighted characters. Please use original names and fictional concepts.',
+    suggestions: [
+      'Invent fictional brands or characters',
+      'Describe visual styles instead of specific franchises',
+      'Avoid logos, trademarks, and protected artworks',
+    ],
+  },
+}
+
+const parseViolationType = (value?: string | null): ViolationType | undefined => {
+  if (!value) {
+    return undefined
+  }
+  if (value === 'input_moderation' || value === 'output_moderation' || value === 'third_party') {
+    return value
+  }
+  return undefined
 }
 
 export default function VideoPageClient() {
@@ -110,7 +156,7 @@ export default function VideoPageClient() {
         
         if (data.success) {
           setCurrentResult(prev => ({
-            ...prev,
+            ...(prev ?? { task_id: pollingTaskId, prompt: currentPrompt }),
             task_id: pollingTaskId,
             status: data.status,
             progress: data.progress,
@@ -118,6 +164,8 @@ export default function VideoPageClient() {
             remove_watermark: data.remove_watermark,
             pid: data.pid,
             prompt: prev?.prompt || currentPrompt, // Keep original prompt
+            error: undefined,
+            violationType: undefined,
           }))
 
           // If task completed, stop polling
@@ -126,11 +174,13 @@ export default function VideoPageClient() {
           }
         } else if (data.status === 'failed') {
           setCurrentResult(prev => ({
-            ...prev,
+            ...(prev ?? { task_id: pollingTaskId, prompt: currentPrompt }),
             task_id: pollingTaskId,
             status: 'failed',
             error: data.error,
+            progress: data.progress ?? prev?.progress,
             prompt: prev?.prompt || currentPrompt,
+            violationType: parseViolationType(data.violation_type),
           }))
           setPollingTaskId(null)
         }
@@ -174,6 +224,7 @@ export default function VideoPageClient() {
       }
 
       const data = await response.json()
+      const violationTypeFromResponse = parseViolationType(data.violation_type)
 
       if (data.success) {
         // Refresh credits after successful generation
@@ -199,6 +250,7 @@ export default function VideoPageClient() {
             remove_watermark: data.remove_watermark,
             pid: data.pid,
             prompt: submittedPrompt,
+            violationType: undefined,
           })
         } else if (data.status === 'processing' && data.task_id) {
           // If processing, start polling
@@ -206,8 +258,9 @@ export default function VideoPageClient() {
           setCurrentResult({
             task_id: data.task_id,
             status: 'processing',
-            progress: 0,
+            progress: data.progress ?? 0,
             prompt: submittedPrompt,
+            violationType: undefined,
           })
           if (!useWebhook) {
             setPollingTaskId(data.task_id)
@@ -221,6 +274,8 @@ export default function VideoPageClient() {
         const errorMsg = data.error || 'Unknown error'
         const errorDetails = data.details || ''
         
+        let shouldClearResult = true
+
         if (errorMsg.includes('Insufficient credits') || errorMsg.includes('credits')) {
           alert(`Insufficient credits! Video generation requires 10 credits. Current credits: ${credits || 0}. Please recharge first.`)
           router.push('/')
@@ -228,10 +283,23 @@ export default function VideoPageClient() {
           alert(`User not found: ${errorDetails || 'Please try logging in again'}\n\nIf the problem persists, please contact support.`)
           // Optional: auto redirect to login page
           // router.push('/login')
+        } else if (violationTypeFromResponse) {
+          setCurrentResult({
+            task_id: data.task_id || '',
+            status: 'failed',
+            error: errorMsg,
+            prompt,
+            progress: data.progress ?? 0,
+            violationType: violationTypeFromResponse,
+          })
+          shouldClearResult = false
         } else {
           alert(`Generation failed: ${errorMsg}${errorDetails ? '\n\n' + errorDetails : ''}`)
         }
-        setCurrentResult(null)
+
+        if (shouldClearResult) {
+          setCurrentResult(null)
+        }
       }
     } catch (error) {
       console.error('Failed to generate video:', error)
@@ -268,6 +336,9 @@ export default function VideoPageClient() {
         return status
     }
   }
+
+  const violationInfo =
+    currentResult?.violationType ? VIOLATION_GUIDANCE[currentResult.violationType] : null
 
   return (
     <div className="min-h-screen bg-energy-hero dark:bg-energy-hero-dark">
@@ -423,11 +494,16 @@ export default function VideoPageClient() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !supabase}
               className="w-full rounded-md bg-energy-water px-4 py-2 text-white hover:bg-energy-water-deep focus:outline-none focus:ring-2 focus:ring-energy-water focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Generating...' : 'Generate Video'}
+              {!supabase ? 'Initializing...' : loading ? 'Generating...' : 'Generate Video'}
             </button>
+            {!supabase && (
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
+                Setting up secure connection… Please wait a moment.
+              </p>
+            )}
           </form>
         </div>
 
@@ -509,22 +585,18 @@ export default function VideoPageClient() {
                     <p className="text-sm text-red-600 dark:text-red-300">
                       {currentResult.error || 'Unknown error'}
                     </p>
-                    {currentResult.error && (
-                      currentResult.error.toLowerCase().includes('violation') || 
-                      currentResult.error.toLowerCase().includes('guardrail') ||
-                      currentResult.error.toLowerCase().includes('third-party')
-                    ) && (
+                    {violationInfo && (
                       <div className="mt-3 rounded-md bg-yellow-50 p-3 dark:bg-yellow-900/20">
                         <p className="text-xs font-medium text-yellow-800 dark:text-yellow-200 mb-1">
-                          ⚠️ Content Policy Violation
+                          ⚠️ {violationInfo.headline}
                         </p>
                         <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                          Your prompt may contain content that violates our content policy. Please try:
+                          {violationInfo.description}
                         </p>
                         <ul className="mt-1 ml-4 list-disc text-xs text-yellow-700 dark:text-yellow-300 space-y-1">
-                          <li>Use original, creative prompts</li>
-                          <li>Avoid referencing copyrighted content or brands</li>
-                          <li>Modify your prompt to be more unique</li>
+                          {violationInfo.suggestions.map((tip) => (
+                            <li key={tip}>{tip}</li>
+                          ))}
                         </ul>
                         <p className="mt-2 text-xs text-yellow-600 dark:text-yellow-400">
                           💡 Your credits have been refunded automatically.
