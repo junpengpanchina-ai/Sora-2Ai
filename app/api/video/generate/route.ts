@@ -2,6 +2,7 @@
 // @ts-nocheck
 import { createClient } from '@/lib/supabase/server'
 import { createSoraVideoTask } from '@/lib/grsai/client'
+import { formatGrsaiFriendlyError } from '@/lib/grsai/error-utils'
 import { deductCredits, refundCredits } from '@/lib/credits'
 import { getOrCreateUser } from '@/lib/user'
 import { NextRequest, NextResponse } from 'next/server'
@@ -185,6 +186,11 @@ export async function POST(request: NextRequest) {
           task_id: videoTask.id,
         })
       } else if (grsaiResponse.status === 'failed') {
+        const friendlyError = formatGrsaiFriendlyError({
+          failureReason: grsaiResponse.failure_reason,
+          error: grsaiResponse.error,
+          fallback: 'Video generation failed because the request was rejected by the upstream service.',
+        })
         // Refund credits on failure
         if (consumptionId) {
           await refundCredits(supabase, userProfile.id, consumptionId)
@@ -196,7 +202,7 @@ export async function POST(request: NextRequest) {
           .update({
             status: 'failed',
             failure_reason: grsaiResponse.failure_reason || null,
-            error_message: grsaiResponse.error || 'Generation failed',
+            error_message: friendlyError.message,
             completed_at: new Date().toISOString(),
           })
           .eq('id', videoTask.id)
@@ -204,9 +210,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: false,
           status: 'failed',
-          error: grsaiResponse.error || grsaiResponse.failure_reason || 'Generation failed',
+          error: friendlyError.message,
+          violation_type: friendlyError.violationType,
           task_id: videoTask.id,
-        }, { status: 500 })
+        }, { status: friendlyError.violationType ? 400 : 500 })
       }
     }
 

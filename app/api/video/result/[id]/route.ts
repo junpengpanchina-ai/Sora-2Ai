@@ -2,6 +2,7 @@
 // @ts-nocheck
 import { createClient } from '@/lib/supabase/server'
 import { getTaskResult } from '@/lib/grsai/client'
+import { formatGrsaiFriendlyError } from '@/lib/grsai/error-utils'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(
@@ -144,6 +145,11 @@ export async function GET(
             task_id: internalTaskId || grsaiTaskId,
           })
         } else if (data.status === 'failed') {
+          const friendlyError = formatGrsaiFriendlyError({
+            failureReason: data.failure_reason,
+            error: data.error,
+            fallback: 'Video generation failed because the upstream service rejected the request.',
+          })
           // Update database and refund credits if we have internal task ID
           if (internalTaskId) {
             const { refundCreditsByVideoTaskId } = await import('@/lib/credits')
@@ -158,7 +164,8 @@ export async function GET(
               .update({
                 status: 'failed',
                 progress: data.progress,
-                error_message: data.error || data.failure_reason || 'Generation failed',
+                error_message: friendlyError.message,
+                failure_reason: data.failure_reason || null,
                 completed_at: new Date().toISOString(),
               })
               .eq('id', internalTaskId)
@@ -168,7 +175,8 @@ export async function GET(
             success: false,
             status: 'failed',
             progress: data.progress,
-            error: data.error || data.failure_reason || 'Generation failed',
+            error: friendlyError.message,
+            violation_type: friendlyError.violationType,
             task_id: internalTaskId || grsaiTaskId,
           })
         } else {
@@ -192,6 +200,10 @@ export async function GET(
           })
         }
       } else if (grsaiResult.code === -22) {
+        const friendlyError = formatGrsaiFriendlyError({
+          grsaiCode: -22,
+          fallback: 'Task not found in upstream service.',
+        })
         // Task not found in Grsai - mark as failed and refund credits
         if (internalTaskId) {
           const { refundCreditsByVideoTaskId } = await import('@/lib/credits')
@@ -205,7 +217,7 @@ export async function GET(
             .from('video_tasks')
             .update({
               status: 'failed',
-              error_message: 'Task not found in Grsai API',
+              error_message: friendlyError.message,
               completed_at: new Date().toISOString(),
             })
             .eq('id', internalTaskId)
@@ -215,13 +227,19 @@ export async function GET(
         return NextResponse.json({
           success: false,
           status: 'failed',
-          error: 'Task not found',
+          error: friendlyError.message,
+          violation_type: friendlyError.violationType,
           task_id: internalTaskId || grsaiTaskId,
         }, { status: 404 })
       } else {
+        const friendlyError = formatGrsaiFriendlyError({
+          msg: grsaiResult.msg,
+          fallback: 'Failed to fetch task result from upstream service.',
+        })
         return NextResponse.json({
           success: false,
-          error: grsaiResult.msg || 'Failed to fetch task result',
+          error: friendlyError.message,
+          violation_type: friendlyError.violationType,
           task_id: internalTaskId || grsaiTaskId,
         }, { status: 500 })
       }
