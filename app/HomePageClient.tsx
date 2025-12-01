@@ -861,8 +861,8 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           )}
         </div>
 
-        {/* Prompt Templates and User Info */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 items-start">
+        {/* Prompt Templates and Feature Highlights */}
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-8 mt-10 items-start">
             <div className="space-y-6">
               {/* Prompt Templates */}
               <Card>
@@ -912,10 +912,9 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               </Card>
 
             </div>
-
-            <div className="space-y-6">
+            <div className="space-y-6 w-full">
               {/* Features */}
-              <Card>
+              <Card className="w-full">
                 <CardHeader>
                   <CardTitle>Features</CardTitle>
                 </CardHeader>
@@ -954,52 +953,52 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                   </div>
                 </CardContent>
               </Card>
-            </div>
 
-            {/* User Info - Only show if logged in */}
-            {userProfile && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                    Email
-                  </p>
-                  <p className="text-sm text-gray-900 dark:text-white">
-                    {userProfile.email}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                    Username
-                  </p>
-                  <p className="text-sm text-gray-900 dark:text-white">
-                    {userProfile.name || 'Not set'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                    Created At
-                  </p>
-                  <p className="text-sm text-gray-900 dark:text-white">
-                    {userProfile?.created_at ? formatDate(userProfile.created_at) : '-'}
-                  </p>
-                </div>
-                {userProfile.last_login_at && (
+              {/* User Info - Only show if logged in */}
+              {userProfile && (
+              <Card className="w-full">
+                <CardHeader>
+                  <CardTitle>Account Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
                   <div>
                     <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                      Last Login
+                      Email
                     </p>
                     <p className="text-sm text-gray-900 dark:text-white">
-                      {formatDate(userProfile.last_login_at)}
+                      {userProfile.email}
                     </p>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-            )}
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      Username
+                    </p>
+                    <p className="text-sm text-gray-900 dark:text-white">
+                      {userProfile.name || 'Not set'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      Created At
+                    </p>
+                    <p className="text-sm text-gray-900 dark:text-white">
+                      {userProfile?.created_at ? formatDate(userProfile.created_at) : '-'}
+                    </p>
+                  </div>
+                  {userProfile.last_login_at && (
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        Last Login
+                      </p>
+                      <p className="text-sm text-gray-900 dark:text-white">
+                        {formatDate(userProfile.last_login_at)}
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              )}
+            </div>
           </div>
 
         {/* Pricing Plans Section */}
