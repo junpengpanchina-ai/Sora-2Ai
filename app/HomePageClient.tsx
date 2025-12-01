@@ -862,7 +862,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         </div>
 
         {/* Prompt Templates and User Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 items-start">
             <div className="space-y-6">
               {/* Prompt Templates */}
               <Card>
@@ -911,6 +911,9 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                 </CardContent>
               </Card>
 
+            </div>
+
+            <div className="space-y-6">
               {/* Features */}
               <Card>
                 <CardHeader>
