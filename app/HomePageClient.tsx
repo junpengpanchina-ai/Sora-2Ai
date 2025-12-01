@@ -863,52 +863,95 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
 
         {/* Prompt Templates and User Info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-            {/* Prompt Templates */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Prompt Templates</CardTitle>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Click “Use Template” to open the video generator with the prompt pre-filled, or copy it to tweak your own version.
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4">
-                  {promptTemplates.map((template) => (
-                    <div
-                      key={template.id}
-                      className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex flex-col gap-3 bg-gray-50/40 dark:bg-gray-900/30"
-                    >
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                          {template.title}
-                        </h4>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          {template.description}
-                        </p>
-                      </div>
-                      <pre className="text-xs text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800 rounded-md p-3 whitespace-pre-wrap">
-                        {template.prompt}
-                      </pre>
-                      <div className="flex flex-wrap gap-3">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleCopyTemplate(template.id, template.prompt)}
-                        >
-                          {copiedTemplateId === template.id ? 'Copied!' : 'Copy Prompt'}
-                        </Button>
-                        <Link href={`/video?prompt=${encodeURIComponent(template.prompt)}`}>
-                          <Button type="button" variant="primary" size="sm">
-                            Use Template
+            <div className="space-y-6">
+              {/* Prompt Templates */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Prompt Templates</CardTitle>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Click “Use Template” to open the video generator with the prompt pre-filled, or copy it to tweak your own version.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4">
+                    {promptTemplates.map((template) => (
+                      <div
+                        key={template.id}
+                        className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex flex-col gap-3 bg-gray-50/40 dark:bg-gray-900/30"
+                      >
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                            {template.title}
+                          </h4>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {template.description}
+                          </p>
+                        </div>
+                        <pre className="text-xs text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800 rounded-md p-3 whitespace-pre-wrap">
+                          {template.prompt}
+                        </pre>
+                        <div className="flex flex-wrap gap-3">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleCopyTemplate(template.id, template.prompt)}
+                          >
+                            {copiedTemplateId === template.id ? 'Copied!' : 'Copy Prompt'}
                           </Button>
-                        </Link>
+                          <Link href={`/video?prompt=${encodeURIComponent(template.prompt)}`}>
+                            <Button type="button" variant="primary" size="sm">
+                              Use Template
+                            </Button>
+                          </Link>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Features */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Features</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                      🎬 AI Video Generation
+                    </h4>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      Use advanced Sora 2.0 model to generate high-quality videos from text descriptions
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                      🖼️ Reference Images
+                    </h4>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      Upload reference images to help AI better understand your creativity
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                      ⚙️ Flexible Configuration
+                    </h4>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      Customize video aspect ratio, duration, and quality to meet different needs
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                      📊 Real-time Tracking
+                    </h4>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      Monitor task progress in real-time with automatic notifications on completion
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* User Info - Only show if logged in */}
             {userProfile && (
