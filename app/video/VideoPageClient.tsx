@@ -253,7 +253,7 @@ export default function VideoPageClient() {
             violationType: undefined,
           })
         } else if (data.status === 'processing' && data.task_id) {
-          // If processing, start polling
+          // If processing, always start polling (webhook is only for server-side updates)
           setCurrentPrompt(submittedPrompt) // Save prompt for polling
           setCurrentResult({
             task_id: data.task_id,
@@ -262,9 +262,7 @@ export default function VideoPageClient() {
             prompt: submittedPrompt,
             violationType: undefined,
           })
-          if (!useWebhook) {
-            setPollingTaskId(data.task_id)
-          }
+          setPollingTaskId(data.task_id)
         }
 
         // Reset form
