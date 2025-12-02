@@ -618,6 +618,54 @@ body {
   animation: hero-orb-float 22s ease-in-out infinite alternate-reverse;
 }
 
+/* Global cosmic background */
+.cosmic-space,
+.cosmic-stars,
+.cosmic-noise {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.cosmic-space {
+  background:
+    radial-gradient(circle at 15% 20%, rgba(255, 255, 255, 0.12), transparent 45%),
+    radial-gradient(circle at 80% 0%, rgba(245, 217, 125, 0.18), transparent 55%),
+    radial-gradient(circle at 50% 80%, rgba(0, 102, 204, 0.3), transparent 55%),
+    linear-gradient(180deg, rgba(5, 6, 15, 1) 0%, rgba(4, 8, 24, 1) 45%, rgba(3, 6, 16, 1) 100%);
+  background-size: 180% 180%;
+  animation: hero-space-pan 26s ease-in-out infinite alternate;
+  opacity: 0.95;
+}
+
+.cosmic-stars {
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 70% 60%, rgba(82, 158, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 60% 15%, rgba(249, 221, 158, 0.5), transparent);
+  background-size: 450px 450px, 700px 700px, 900px 900px;
+  mix-blend-mode: screen;
+  opacity: 0.35;
+  animation: hero-stars-move 70s linear infinite;
+}
+
+.cosmic-noise {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 85px 85px;
+  mix-blend-mode: screen;
+  opacity: 0.25;
+  animation: cosmic-noise-fade 8s ease-in-out infinite alternate;
+}
+
+@keyframes cosmic-noise-fade {
+  0% {
+    opacity: 0.15;
+  }
+  100% {
+    opacity: 0.3;
+  }
+}
+
 @keyframes hero-space-pan {
   0% {
     background-position: 0% 0%;
