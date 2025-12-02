@@ -657,6 +657,36 @@ body {
   animation: cosmic-noise-fade 8s ease-in-out infinite alternate;
 }
 
+/* Adaptive typography & surfaces inside cosmic sections */
+.cosmic-content {
+  color: #edf2ff;
+}
+
+.cosmic-content :is(.text-gray-900, .text-gray-800, .text-gray-700) {
+  color: #f8fbff !important;
+}
+
+.cosmic-content :is(.text-gray-600, .text-gray-500, .text-gray-400) {
+  color: rgba(229, 235, 255, 0.82) !important;
+}
+
+.cosmic-content :is(.text-gray-300, .text-gray-200, .text-gray-100) {
+  color: rgba(241, 245, 255, 0.9) !important;
+}
+
+.cosmic-content :is(.bg-white, .bg-gray-50, .bg-gray-100) {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: inherit;
+}
+
+.cosmic-content :is(.border-gray-100, .border-gray-200, .border-gray-300) {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.cosmic-content :is(.ring-gray-200, .ring-gray-300) {
+  --tw-ring-color: rgba(255, 255, 255, 0.15) !important;
+}
+
 @keyframes cosmic-noise-fade {
   0% {
     opacity: 0.15;

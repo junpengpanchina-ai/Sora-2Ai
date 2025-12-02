@@ -431,11 +431,8 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         </div>
       </nav>
 
-      <section className="relative isolate overflow-hidden py-24 sm:py-28 lg:py-32">
-        <div className="hero-space absolute inset-0" aria-hidden="true" />
-        <div className="hero-stars absolute inset-0" aria-hidden="true" />
-        <div className="hero-glow hero-glow-left" aria-hidden="true" />
-        <div className="hero-glow hero-glow-right" aria-hidden="true" />
+      <div className="cosmic-content">
+        <section className="relative isolate overflow-hidden py-24 sm:py-28 lg:py-32">
         <div className="relative z-10 mx-auto max-w-6xl px-6 text-left">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-1 text-[0.7rem] uppercase tracking-[0.45em] text-energy-gold-light">
             Sora 2 AI Control Center
@@ -457,11 +454,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               </Button>
             </Link>
             <Link href="/prompts">
-              <Button
-                variant="secondary"
-                size="lg"
-                className="border border-white/30 bg-transparent text-white hover:bg-white/10"
-              >
+              <Button variant="secondary" size="lg">
                 Browse Prompt Library
               </Button>
             </Link>
@@ -486,24 +479,24 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
             ))}
           </div>
         </div>
-      </section>
+        </section>
 
-      <main className="mx-auto max-w-7xl px-4 py-8 text-white sm:px-6 lg:px-8">
+        <main className="mx-auto max-w-7xl px-4 py-8 text-white sm:px-6 lg:px-8">
 
         {/* Pricing and Recharge Section */}
         <div className="mb-8">
-          <Card>
+          <Card className="!bg-white/5 border border-white/15 backdrop-blur-xl text-blue-50 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.9)]">
             <CardHeader>
-              <CardTitle>Pricing Information</CardTitle>
+              <CardTitle className="text-white">Pricing Information</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    <strong className="text-gray-900 dark:text-white">Video Generation Price:</strong>
-                    <span className="font-semibold text-energy-water dark:text-energy-soft"> 10 credits/video</span>
+                  <p className="text-sm text-blue-100/80 mb-2">
+                    <strong className="text-white">Video Generation Price:</strong>
+                    <span className="font-semibold text-energy-water"> 10 credits/video</span>
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-500">
+                  <p className="text-xs text-blue-200/75">
                     【Watermark-free】OpenAI&apos;s latest Sora 2.0 model, official beta testing, pricing is tentative and may change in the future
                   </p>
                 </div>
@@ -1182,6 +1175,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         Feedback
         <span aria-hidden="true">→</span>
       </Link>
+        </main>
       </div>
     </div>
   )
