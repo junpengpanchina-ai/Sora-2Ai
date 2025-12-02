@@ -4,13 +4,13 @@ import React from 'react'
 import { cn } from '@/lib/utils'
 
 const baseStyles =
-  'inline-flex items-center justify-center rounded-lg font-semibold transition-colors focus-ring disabled:opacity-50 disabled:cursor-not-allowed'
+  'inline-flex items-center justify-center rounded-lg font-semibold transition-all duration-200 focus-ring disabled:opacity-50 disabled:cursor-not-allowed'
 
 const variants = {
   primary:
-    'bg-energy-water text-white hover:bg-energy-water-deep dark:bg-energy-water dark:hover:bg-energy-water-deep',
+    'bg-gradient-to-r from-[#1f75ff] via-[#3f8cff] to-[#6fd6ff] text-white shadow-[0_18px_45px_-18px_rgba(33,122,255,0.75)] hover:brightness-110 active:translate-y-[1px]',
   secondary:
-    'bg-white text-energy-deep shadow-sm ring-1 ring-inset ring-energy-gold-outline hover:bg-energy-water-surface dark:bg-gray-800 dark:text-white dark:ring-gray-600 dark:hover:bg-gray-700',
+    'bg-gradient-to-r from-[#151a2b] via-[#1f2741] to-[#2a3c5f] text-white border border-white/15 shadow-[0_18px_35px_-22px_rgba(4,12,32,0.8)] hover:border-white/40 hover:bg-white/10 active:translate-y-[1px]',
   danger:
     'bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700',
   ghost:
