@@ -1161,6 +1161,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           </div>
         </div>
       </main>
+      </div>
 
       {/* Pricing Modal */}
       <PricingModal
@@ -1175,7 +1176,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         Feedback
         <span aria-hidden="true">→</span>
       </Link>
-        </main>
+
       </div>
     </div>
   )
