@@ -433,34 +433,66 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         </div>
       </nav>
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Hero Section */}
-        <div className="mb-8 text-center animate-fade-in">
-          <h2 className="mb-3 text-4xl font-bold text-gray-900 dark:text-white">
-            {hydratedProfile ? `Welcome back, ${hydratedProfile.name || 'User'}!` : 'Welcome to Sora2Ai Videos'}
+      <section className="relative isolate overflow-hidden bg-energy-deep text-white">
+        <div className="hero-space absolute inset-0" aria-hidden="true" />
+        <div className="hero-stars absolute inset-0" aria-hidden="true" />
+        <div className="hero-glow hero-glow-left" aria-hidden="true" />
+        <div className="hero-glow hero-glow-right" aria-hidden="true" />
+        <div className="relative z-10 mx-auto flex min-h-[560px] max-w-6xl flex-col items-center justify-center px-6 py-24 text-center sm:py-28 lg:py-32">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1 text-[0.7rem] uppercase tracking-[0.45em] text-energy-gold-light">
+            新版 Sora 应用
+            <span className="h-1.5 w-1.5 rounded-full bg-energy-gold-light" />
+          </div>
+          <h2 className="mt-6 text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-[3.25rem]">
+            {hydratedProfile ? `欢迎回来，${hydratedProfile.name || '创作者'}！` : '让灵感转化为真实的多模态影片'}
           </h2>
-          <p className="text-lg text-gray-600 dark:text-gray-400 mb-6">
-            Transform your creativity into amazing videos with OpenAI Sora 2.0
+          <p className="mt-4 max-w-3xl text-base text-blue-100/90 sm:text-lg">
+            结合 OpenAI Sora 2.0 引擎与我们自研的工作流，能量蓝与金色粒子交织，将创作、测试、部署串联成一个丝滑的体验。
           </p>
-          <div className="flex items-center justify-center gap-[3cm]">
-            {hydratedProfile ? (
-              <>
-            <Link href="/video">
-              <Button variant="primary" size="lg">
-                Start Generating Video
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+            <Link href={hydratedProfile ? '/video' : '/login'}>
+              <Button variant="primary" size="lg" className="shadow-energy-focus">
+                {hydratedProfile ? '立即生成视频' : '登录后体验'}
               </Button>
             </Link>
+            {hydratedProfile ? (
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-2 shadow-lg backdrop-blur">
                 <TasksDropdown tasks={recentTasks} stats={stats} />
-              </>
+              </div>
             ) : (
-              <Link href="/login">
-                <Button variant="primary" size="lg">
-                  Login to Generate Video
-            </Button>
-              </Link>
+              <Button
+                variant="secondary"
+                size="lg"
+                className="bg-white/15 text-white ring-white/20 hover:bg-white/25"
+              >
+                阅读研究
+              </Button>
             )}
           </div>
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-3 text-sm text-blue-100/80">
+            <a
+              href="https://apps.apple.com/"
+              target="_blank"
+              rel="noreferrer"
+              className="hero-store-badge"
+            >
+              <span>Download on the</span>
+              <strong>App Store</strong>
+            </a>
+            <a
+              href="https://play.google.com/"
+              target="_blank"
+              rel="noreferrer"
+              className="hero-store-badge"
+            >
+              <span>Get it on</span>
+              <strong>Google Play</strong>
+            </a>
+          </div>
         </div>
+      </section>
+
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
 
         {/* Pricing and Recharge Section */}
         <div className="mb-8">
