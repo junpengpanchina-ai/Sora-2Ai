@@ -83,6 +83,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const [copiedTemplateId, setCopiedTemplateId] = useState<string | null>(null)
   const imageSectionRef = useRef<HTMLDivElement | null>(null)
   const videoSectionRef = useRef<HTMLDivElement | null>(null)
+  const accountProfile = hydratedProfile ?? userProfile
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -954,50 +955,78 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                 </CardContent>
               </Card>
 
-              {/* User Info - Only show if logged in */}
-              {userProfile && (
+              {/* User Info */}
               <Card className="w-full">
                 <CardHeader>
                   <CardTitle>Account Information</CardTitle>
+                  {!accountProfile && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Log in to sync your credits, track tasks, and access billing details.
+                    </p>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                      Email
-                    </p>
-                    <p className="text-sm text-gray-900 dark:text-white">
-                      {userProfile.email}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                      Username
-                    </p>
-                    <p className="text-sm text-gray-900 dark:text-white">
-                      {userProfile.name || 'Not set'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                      Created At
-                    </p>
-                    <p className="text-sm text-gray-900 dark:text-white">
-                      {userProfile?.created_at ? formatDate(userProfile.created_at) : '-'}
-                    </p>
-                  </div>
-                  {userProfile.last_login_at && (
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                        Last Login
+                  {accountProfile ? (
+                    <>
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                          Email
+                        </p>
+                        <p className="text-sm text-gray-900 dark:text-white">
+                          {accountProfile.email}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                          Username
+                        </p>
+                        <p className="text-sm text-gray-900 dark:text-white">
+                          {accountProfile.name || 'Not set'}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                            Credits
+                          </p>
+                          <p className="text-sm font-semibold text-energy-water dark:text-energy-soft">
+                            {credits}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                            Created At
+                          </p>
+                          <p className="text-sm text-gray-900 dark:text-white">
+                            {accountProfile?.created_at ? formatDate(accountProfile.created_at) : '-'}
+                          </p>
+                        </div>
+                      </div>
+                      {accountProfile.last_login_at && (
+                        <div>
+                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                            Last Login
+                          </p>
+                          <p className="text-sm text-gray-900 dark:text-white">
+                            {formatDate(accountProfile.last_login_at)}
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="space-y-4">
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
+                        Log in to view your account details, remaining credits, and recent video tasks.
                       </p>
-                      <p className="text-sm text-gray-900 dark:text-white">
-                        {formatDate(userProfile.last_login_at)}
-                      </p>
+                      <Link href="/login">
+                        <Button type="button" variant="primary" size="sm" className="w-full">
+                          Login / Sign up
+                        </Button>
+                      </Link>
                     </div>
                   )}
                 </CardContent>
               </Card>
-              )}
             </div>
           </div>
 
