@@ -339,20 +339,25 @@ export default function VideoPageClient() {
     currentResult?.violationType ? VIOLATION_GUIDANCE[currentResult.violationType] : null
 
   return (
-    <div className="min-h-screen bg-energy-hero dark:bg-energy-hero-dark">
-      <nav className="border-b border-gray-200 bg-white/80 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/80">
+    <div className="relative min-h-screen overflow-hidden bg-[#050b18] text-white">
+      <div className="cosmic-space absolute inset-0" aria-hidden="true" />
+      <div className="cosmic-glow absolute inset-0" aria-hidden="true" />
+      <div className="cosmic-stars absolute inset-0" aria-hidden="true" />
+      <div className="cosmic-noise absolute inset-0" aria-hidden="true" />
+      <div className="relative z-10 cosmic-content">
+      <nav className="border-b border-white/10 bg-white/5 backdrop-blur-lg">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
                 href="/"
-                className="text-xl font-bold text-gray-900 dark:text-white"
+                className="text-xl font-bold text-white"
               >
                 Sora2Ai Videos
               </Link>
               <Link
                 href="/video"
-                className="text-sm font-medium text-energy-water dark:text-energy-soft"
+                className="text-sm font-medium text-energy-water"
               >
                 Video Generation
               </Link>
@@ -367,13 +372,13 @@ export default function VideoPageClient() {
               )}
               <Link
                 href="/"
-                className="text-sm font-medium text-gray-700 transition-colors hover:text-energy-water dark:text-gray-300 dark:hover:text-energy-water-deep"
+                className="text-sm font-medium text-blue-100 transition-colors hover:text-white"
               >
                 Home
               </Link>
               <Link
                 href="/prompts"
-                className="text-sm font-medium text-gray-700 transition-colors hover:text-energy-water dark:text-gray-300 dark:hover:text-energy-water-deep"
+                className="text-sm font-medium text-blue-100 transition-colors hover:text-white"
               >
                 Prompts
               </Link>
@@ -385,94 +390,94 @@ export default function VideoPageClient() {
 
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-4xl font-bold text-white mb-2">
             Sora-2 Video Generation
           </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-400">
+          <p className="text-lg text-blue-100/80">
             Generate high-quality videos using OpenAI Sora 2.0 model
           </p>
         </div>
 
         {/* Generation Form */}
-        <div className="mb-8 rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
+        <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            <h2 className="text-xl font-semibold text-white">
               Create New Task
             </h2>
             {credits !== null && (
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Credits Cost: <span className="font-semibold text-energy-water dark:text-energy-soft">10 credits/video</span>
+              <div className="text-sm text-blue-100/80">
+                Credits Cost: <span className="font-semibold text-energy-water">10 credits/video</span>
               </div>
             )}
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Prompt <span className="text-red-500">*</span>
+              <label className="mb-2 block text-sm font-medium text-blue-100/80">
+                Prompt <span className="text-red-400">*</span>
               </label>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 required
                 rows={4}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-energy-water focus:outline-none focus:ring-energy-water dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white placeholder:text-blue-100/50 shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
                 placeholder="e.g., A cute cat playing on the grass"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="mb-2 block text-sm font-medium text-blue-100/80">
                 Reference Image URL (Optional)
               </label>
               <input
                 type="url"
                 value={referenceUrl}
                 onChange={(e) => setReferenceUrl(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-energy-water focus:outline-none focus:ring-energy-water dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white placeholder:text-blue-100/50 shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
                 placeholder="https://example.com/image.png"
               />
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="mb-2 block text-sm font-medium text-blue-100/80">
                   Aspect Ratio
                 </label>
                 <select
                   value={aspectRatio}
                   onChange={(e) => setAspectRatio(e.target.value as '9:16' | '16:9')}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-energy-water focus:outline-none focus:ring-energy-water dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
                 >
-                  <option value="9:16">9:16 (Portrait)</option>
-                  <option value="16:9">16:9 (Landscape)</option>
+                  <option value="9:16" className="text-black">9:16 (Portrait)</option>
+                  <option value="16:9" className="text-black">16:9 (Landscape)</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="mb-2 block text-sm font-medium text-blue-100/80">
                   Duration (seconds)
                 </label>
                 <select
                   value={duration}
                   onChange={(e) => setDuration(e.target.value as '10' | '15')}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-energy-water focus:outline-none focus:ring-energy-water dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
                 >
-                  <option value="10">10 seconds</option>
-                  <option value="15">15 seconds</option>
+                  <option value="10" className="text-black">10 seconds</option>
+                  <option value="15" className="text-black">15 seconds</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="mb-2 block text-sm font-medium text-blue-100/80">
                   Video Quality
                 </label>
                 <select
                   value={size}
                   onChange={(e) => setSize(e.target.value as 'small' | 'large')}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-energy-water focus:outline-none focus:ring-energy-water dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
                 >
-                  <option value="small">Small</option>
-                  <option value="large">Large</option>
+                  <option value="small" className="text-black">Small</option>
+                  <option value="large" className="text-black">Large</option>
                 </select>
               </div>
             </div>
@@ -483,9 +488,9 @@ export default function VideoPageClient() {
                 id="useWebhook"
                 checked={useWebhook}
                 onChange={(e) => setUseWebhook(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-energy-water focus:ring-energy-water"
+                className="h-4 w-4 rounded border-white/20 bg-white/10 text-energy-water focus:ring-energy-water"
               />
-              <label htmlFor="useWebhook" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+              <label htmlFor="useWebhook" className="ml-2 text-sm text-blue-100/80">
                 Use Webhook callback (Recommended, real-time updates)
               </label>
             </div>
@@ -493,12 +498,12 @@ export default function VideoPageClient() {
             <button
               type="submit"
               disabled={loading || !supabase}
-              className="w-full rounded-md bg-energy-water px-4 py-2 text-white hover:bg-energy-water-deep focus:outline-none focus:ring-2 focus:ring-energy-water focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full rounded-2xl bg-gradient-to-r from-[#1f75ff] via-[#3f8cff] to-[#6fd6ff] px-4 py-3 text-base font-semibold text-white shadow-[0_25px_55px_-25px_rgba(33,122,255,0.9)] transition-transform hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-energy-water disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {!supabase ? 'Initializing...' : loading ? 'Generating...' : 'Generate Video'}
             </button>
             {!supabase && (
-              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
+              <p className="mt-2 text-xs text-blue-100/70 text-center">
                 Setting up secure connection… Please wait a moment.
               </p>
             )}
@@ -507,7 +512,7 @@ export default function VideoPageClient() {
 
         {/* Current Generation Result */}
         {currentResult && (
-          <div className="rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
               Generation Result
             </h2>
@@ -613,6 +618,7 @@ export default function VideoPageClient() {
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   )
