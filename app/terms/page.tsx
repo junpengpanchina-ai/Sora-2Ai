@@ -7,8 +7,15 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <div className="mx-auto max-w-4xl px-6 py-16 text-sm leading-relaxed text-gray-700 dark:text-gray-300">
-      <h1 className="mb-6 text-3xl font-semibold text-energy-deep dark:text-energy-soft">Sora2Ai Videos Terms of Service</h1>
+    <div className="relative min-h-screen overflow-hidden bg-[#050b18] text-white">
+      <div className="cosmic-space absolute inset-0" aria-hidden="true" />
+      <div className="cosmic-glow absolute inset-0" aria-hidden="true" />
+      <div className="cosmic-stars absolute inset-0" aria-hidden="true" />
+      <div className="cosmic-noise absolute inset-0" aria-hidden="true" />
+      <div className="relative z-10 cosmic-content">
+      <div className="mx-auto max-w-4xl px-6 py-16">
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-sm leading-relaxed text-blue-100/85 shadow-[0_35px_120px_-60px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+      <h1 className="mb-6 text-3xl font-semibold text-white">Sora2Ai Videos Terms of Service</h1>
       <p className="mb-4">
         These Terms of Service (“Terms”) reference applicable federal and state regulations in the United States, including but not
         limited to the Federal Trade Commission Act, the Electronic Communications Privacy Act, the Computer Fraud and Abuse Act, and
@@ -16,14 +23,14 @@ export default function TermsPage() {
         (“we,” “us,” or “the Service Provider”) and enterprise customers and their authorized users (“you”).
       </p>
 
-      <h2 className="mt-8 mb-3 text-xl font-semibold">1. Service Description</h2>
+      <h2 className="mt-8 mb-3 text-xl font-semibold text-white">1. Service Description</h2>
       <p className="mb-4">
         Sora2Ai Videos provides AI-powered video and media generation tools, account administration, and data processing capabilities. You
         must ensure that your use is lawful, compliant, and aligned with your contractual and regulatory obligations, including
         downstream communications to your end clients.
       </p>
 
-      <h2 className="mt-8 mb-3 text-xl font-semibold">2. Account Enrollment and Authentication</h2>
+      <h2 className="mt-8 mb-3 text-xl font-semibold text-white">2. Account Enrollment and Authentication</h2>
       <ul className="mb-4 list-disc space-y-2 pl-6">
         <li>You agree to supply accurate, current, and complete corporate or individual information for onboarding and verification.</li>
         <li>You are responsible for maintaining the security of your credentials and safeguarding access to the platform.</li>
@@ -33,7 +40,7 @@ export default function TermsPage() {
         </li>
       </ul>
 
-      <h2 className="mt-8 mb-3 text-xl font-semibold">3. Data Compliance and Content Standards</h2>
+      <h2 className="mt-8 mb-3 text-xl font-semibold text-white">3. Data Compliance and Content Standards</h2>
       <ul className="mb-4 list-disc space-y-2 pl-6">
         <li>
           You must ensure that prompts, uploads, and generated outputs do not infringe intellectual property rights, violate applicable
@@ -49,14 +56,14 @@ export default function TermsPage() {
         </li>
       </ul>
 
-      <h2 className="mt-8 mb-3 text-xl font-semibold">4. Fees and Billing</h2>
+      <h2 className="mt-8 mb-3 text-xl font-semibold text-white">4. Fees and Billing</h2>
       <p className="mb-4">
         Billing terms follow the executed commercial agreement or published pricing. Once payment is received, we provision the
         corresponding quotas and features. Any excess usage attributable to your activity will be charged per the agreed-upon rate
         card.
       </p>
 
-      <h2 className="mt-8 mb-3 text-xl font-semibold">5. Intellectual Property</h2>
+      <h2 className="mt-8 mb-3 text-xl font-semibold text-white">5. Intellectual Property</h2>
       <ul className="mb-4 list-disc space-y-2 pl-6">
         <li>We retain all rights to the platform infrastructure, models, algorithms, documentation, and branding assets.</li>
         <li>
@@ -65,7 +72,7 @@ export default function TermsPage() {
         </li>
       </ul>
 
-      <h2 className="mt-8 mb-3 text-xl font-semibold">6. Limitations of Liability</h2>
+      <h2 className="mt-8 mb-3 text-xl font-semibold text-white">6. Limitations of Liability</h2>
       <ul className="mb-4 list-disc space-y-2 pl-6">
         <li>
           We strive for high availability but are not liable for interruptions caused by force majeure, changes in law, service
@@ -77,31 +84,34 @@ export default function TermsPage() {
         </li>
       </ul>
 
-      <h2 className="mt-8 mb-3 text-xl font-semibold">7. Modification of Terms</h2>
+      <h2 className="mt-8 mb-3 text-xl font-semibold text-white">7. Modification of Terms</h2>
       <p className="mb-4">
         We may update these Terms to reflect changes in law, best practices, or service scope. Updated Terms will be posted on the
         platform or communicated via email. Continued use of the service after the effective date constitutes acceptance of the
         revised Terms.
       </p>
 
-      <h2 className="mt-8 mb-3 text-xl font-semibold">8. Governing Law and Dispute Resolution</h2>
+      <h2 className="mt-8 mb-3 text-xl font-semibold text-white">8. Governing Law and Dispute Resolution</h2>
       <p className="mb-4">
         These Terms are governed by the laws of the State of Delaware, without regard to conflict of law principles. Any dispute that
         cannot be resolved through good-faith negotiations shall be submitted to the state or federal courts located in Wilmington,
         Delaware, and the parties consent to their jurisdiction.
       </p>
 
-      <p className="mt-10 text-xs text-gray-500 dark:text-gray-400">
+      <p className="mt-10 text-xs text-blue-100/70">
         For questions about these Terms or to request a signed master services agreement, please contact us through your account
         representative or official support channels.
       </p>
       <div className="mt-8 flex justify-center">
         <Link
           href="/"
-          className="inline-flex items-center rounded-full border border-energy-gold-outline px-5 py-2.5 text-sm font-medium text-energy-deep transition-colors hover:bg-energy-water-surface dark:border-gray-600 dark:text-energy-soft dark:hover:bg-gray-800"
+          className="inline-flex items-center rounded-full border border-white/20 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/10"
         >
           Back to Home
         </Link>
+      </div>
+        </div>
+      </div>
       </div>
     </div>
   )
