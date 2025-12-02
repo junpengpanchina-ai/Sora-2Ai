@@ -331,6 +331,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#050b18] text-white">
       <div className="cosmic-space absolute inset-0" aria-hidden="true" />
+      <div className="cosmic-glow absolute inset-0" aria-hidden="true" />
       <div className="cosmic-stars absolute inset-0" aria-hidden="true" />
       <div className="cosmic-noise absolute inset-0" aria-hidden="true" />
       <div className="relative z-10">
