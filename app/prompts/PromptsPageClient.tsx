@@ -78,14 +78,14 @@ export default function PromptsPageClient() {
       }
       setError(null)
       try {
-        const response = await fetch('/api/prompts?locale=zh', { signal })
+        const response = await fetch('/api/prompts?locale=en', { signal })
         const payload = await response.json().catch(() => ({}))
 
         if (!response.ok) {
           const message =
             typeof payload.error === 'string'
               ? payload.error
-              : '加载提示词失败，请稍后再试'
+              : 'Failed to load prompts. Please try again later.'
           throw new Error(message)
         }
 
@@ -123,8 +123,8 @@ export default function PromptsPageClient() {
         if (err instanceof Error && err.name === 'AbortError') {
           return
         }
-        console.error('加载提示词失败:', err)
-        setError(err instanceof Error ? err.message : '加载提示词失败，请稍后再试')
+        console.error('Failed to load prompts:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load prompts. Please try again later.')
         setPrompts([])
         setSelectedPrompt(null)
       } finally {
@@ -175,10 +175,10 @@ export default function PromptsPageClient() {
   const handleCopyPrompt = async (promptText: string) => {
     try {
       await navigator.clipboard.writeText(promptText)
-      alert('提示词已复制到剪贴板！')
+      alert('Prompt copied to clipboard!')
     } catch (error) {
-      console.error('Failed to copy:', error)
-      alert('复制失败，请手动复制')
+      console.error('Failed to copy prompt:', error)
+      alert('Copy failed. Please copy it manually.')
     }
   }
 
@@ -219,26 +219,28 @@ export default function PromptsPageClient() {
   }
 
   return (
-    <div className="min-h-screen bg-energy-hero dark:bg-energy-hero-dark">
-      <nav className="border-b border-gray-200 bg-white/80 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/80">
+    <div className="relative min-h-screen overflow-hidden bg-[#050b18] text-white">
+      <div className="cosmic-space absolute inset-0" aria-hidden="true" />
+      <div className="cosmic-glow absolute inset-0" aria-hidden="true" />
+      <div className="cosmic-stars absolute inset-0" aria-hidden="true" />
+      <div className="cosmic-noise absolute inset-0" aria-hidden="true" />
+      <div className="relative z-10 cosmic-content">
+      <nav className="border-b border-white/10 bg-white/5 backdrop-blur-lg">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-4">
-              <Link
-                href="/"
-                className="text-xl font-bold text-gray-900 dark:text-white"
-              >
+              <Link href="/" className="text-xl font-bold text-white">
                 Sora2Ai Videos
               </Link>
               <Link
                 href="/video"
-                className="text-sm font-medium text-gray-700 transition-colors hover:text-energy-water dark:text-gray-300 dark:hover:text-energy-water-deep"
+                className="text-sm font-medium text-blue-100 transition-colors hover:text-white"
               >
                 Video Generation
               </Link>
               <Link
                 href="/prompts"
-                className="text-sm font-medium text-energy-water dark:text-energy-soft"
+                className="text-sm font-medium text-energy-water"
               >
                 Prompt Library
               </Link>
@@ -253,18 +255,18 @@ export default function PromptsPageClient() {
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         {/* Page Title */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="mb-2 text-4xl font-bold text-white">
             Video Prompt Library
           </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-400">
+          <p className="text-lg text-blue-100/80">
             Explore curated AI video generation prompts to quickly create high-quality video content
           </p>
         </div>
 
         {/* Search and Categories */}
-        <div className="mb-8 rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
+        <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="mb-2 block text-sm font-medium text-blue-100/80">
               Search Prompts
             </label>
             <input
@@ -272,12 +274,12 @@ export default function PromptsPageClient() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by title, description, tags, or prompt content..."
-              className="w-full rounded-md border border-gray-300 px-4 py-2 text-gray-900 shadow-sm focus:border-energy-water focus:outline-none focus:ring-energy-water dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              className="w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder:text-blue-100/50 shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="mb-2 block text-sm font-medium text-blue-100/80">
               Category Filter
             </label>
             <div className="flex flex-wrap gap-2" style={{ position: 'relative', zIndex: 1 }}>
@@ -294,10 +296,10 @@ export default function PromptsPageClient() {
                       pointerEvents: 'auto',
                       cursor: 'pointer'
                     }}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                       isSelected
-                        ? 'bg-energy-water text-white hover:bg-energy-water-deep'
-                        : 'bg-energy-water-surface text-gray-700 hover:bg-energy-water-muted/60 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                        ? 'bg-energy-water text-white shadow-lg hover:bg-energy-water-deep'
+                        : 'bg-white/10 text-blue-100 hover:bg-white/20'
                     }`}
                   >
                     {category.icon} {category.label}
@@ -311,23 +313,23 @@ export default function PromptsPageClient() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Prompt List */}
           <div className="lg:col-span-2">
-            <Card>
+            <Card className="border border-white/10 bg-white/5 text-white shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
               <CardHeader>
-                <CardTitle>
+                <CardTitle className="text-white">
                   Prompt Library ({filteredPrompts.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {loading ? (
-                  <div className="flex items-center justify-center py-12 text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center justify-center py-12 text-blue-100/70">
                     <div className="mr-3 h-6 w-6 animate-spin rounded-full border-b-2 border-energy-water"></div>
-                    正在加载提示词...
+                    Loading prompts...
                   </div>
                 ) : error ? (
                   <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-                    <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
+                    <p className="text-sm text-red-300">{error}</p>
                     <Button variant="secondary" size="sm" onClick={() => fetchPrompts()}>
-                      重新加载
+                      Reload
                     </Button>
                   </div>
                 ) : filteredPrompts.length > 0 ? (
@@ -335,11 +337,11 @@ export default function PromptsPageClient() {
                     {filteredPrompts.map((prompt) => (
                       <div
                         key={prompt.id}
-                        className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                        className="cursor-pointer rounded-2xl border border-white/10 bg-white/5 p-4 transition-colors hover:bg-white/10"
                         onClick={() => setSelectedPrompt(prompt)}
                       >
                         <div className="flex items-start justify-between mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                          <h3 className="text-lg font-semibold text-white">
                             {prompt.title}
                           </h3>
                           <span
@@ -350,7 +352,7 @@ export default function PromptsPageClient() {
                             {getDifficultyText(prompt.difficulty)}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                        <p className="mb-3 text-sm text-blue-100/80">
                           {prompt.description}
                         </p>
                         <div className="flex flex-wrap gap-2 mb-3">
@@ -387,8 +389,8 @@ export default function PromptsPageClient() {
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <p className="text-gray-500 dark:text-gray-400">
-                      暂无符合条件的提示词
+                    <p className="text-blue-100/70">
+                      No prompts match your filters yet.
                     </p>
                   </div>
                 )}
@@ -400,25 +402,25 @@ export default function PromptsPageClient() {
           <div className="space-y-6">
             {/* Selected Prompt Details */}
             {selectedPrompt && (
-              <Card>
+              <Card className="border border-white/10 bg-white/5 text-white shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
                 <CardHeader>
-                  <CardTitle>Prompt Details</CardTitle>
+                  <CardTitle className="text-white">Prompt Details</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    <h3 className="mb-2 text-lg font-semibold text-white">
                       {selectedPrompt.title}
                     </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    <p className="mb-3 text-sm text-blue-100/80">
                       {selectedPrompt.description}
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="mb-2 block text-sm font-medium text-blue-100/80">
                       Full Prompt
                     </label>
-                    <div className="rounded-md bg-gray-50 dark:bg-gray-900 p-3 border border-gray-200 dark:border-gray-700">
-                      <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">
+                    <div className="rounded-2xl border border-white/15 bg-white/5 p-3">
+                      <p className="whitespace-pre-wrap text-sm text-white">
                         {selectedPrompt.prompt}
                       </p>
                     </div>
@@ -442,7 +444,7 @@ export default function PromptsPageClient() {
                   </div>
                   <button
                     onClick={() => setSelectedPrompt(null)}
-                    className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    className="text-sm text-blue-200 hover:text-white"
                   >
                     Close Details
                   </button>
@@ -451,21 +453,21 @@ export default function PromptsPageClient() {
             )}
 
             {/* Recommended Books */}
-            <Card>
+            <Card className="border border-white/10 bg-white/5 text-white shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
               <CardHeader>
-                <CardTitle>📚 Recommended Practice Books</CardTitle>
+                <CardTitle className="text-white">📚 Recommended Practice Books</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {recommendedBooks.map((book, index) => (
                     <div
                       key={index}
-                      className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
+                      className="rounded-2xl border border-white/15 bg-white/5 p-3"
                     >
-                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                      <h4 className="mb-1 text-sm font-semibold text-white">
                         {book.title}
                       </h4>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                      <p className="mb-2 text-xs text-blue-100/80">
                         {book.description}
                       </p>
                       <Badge variant="info" className="text-xs">
@@ -474,8 +476,8 @@ export default function PromptsPageClient() {
                     </div>
                   ))}
                 </div>
-                <div className="mt-4 rounded-lg border border-energy-water-surface bg-energy-water-surface p-3 dark:border-energy-water-muted dark:bg-energy-water-muted/25">
-                  <p className="text-xs text-energy-water dark:text-energy-soft/80">
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/10 p-3">
+                  <p className="text-xs text-blue-100">
                     💡 Tip: These books can help you systematically learn prompt engineering and improve the quality and efficiency of AI video generation.
                   </p>
                 </div>
@@ -483,6 +485,7 @@ export default function PromptsPageClient() {
             </Card>
           </div>
         </div>
+      </div>
       </div>
     </div>
   )
