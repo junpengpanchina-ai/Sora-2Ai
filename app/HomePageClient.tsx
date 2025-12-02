@@ -8,7 +8,6 @@ import LogoutButton from '@/components/LogoutButton'
 import LoginButton from '@/components/LoginButton'
 import R2Image from '@/components/R2Image'
 import PricingModal from '@/components/PricingModal'
-import TasksDropdown from '@/components/TasksDropdown'
 import { createClient } from '@/lib/supabase/client'
 
 interface Stats {
@@ -66,6 +65,28 @@ const promptTemplates = [
       'Editorial fashion walk on a reflective runway, bold neon purple and teal lighting, model wearing avant-garde metallic outfit, camera dolly backward with subtle parallax, crisp reflections on glossy floor.',
   },
 ]
+
+const taskStatusStyles: Record<
+  RecentTask['status'],
+  { label: string; classes: string }
+> = {
+  succeeded: {
+    label: '已完成',
+    classes: 'text-emerald-300 border-emerald-400/30 bg-emerald-400/10',
+  },
+  processing: {
+    label: '处理中',
+    classes: 'text-sky-300 border-sky-400/30 bg-sky-400/10',
+  },
+  pending: {
+    label: '排队中',
+    classes: 'text-slate-200 border-slate-400/30 bg-slate-400/10',
+  },
+  failed: {
+    label: '已失败',
+    classes: 'text-rose-300 border-rose-400/30 bg-rose-400/10',
+  },
+}
 
 interface HomePageClientProps {
   userProfile: UserProfile | null
@@ -438,56 +459,109 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         <div className="hero-stars absolute inset-0" aria-hidden="true" />
         <div className="hero-glow hero-glow-left" aria-hidden="true" />
         <div className="hero-glow hero-glow-right" aria-hidden="true" />
-        <div className="relative z-10 mx-auto flex min-h-[560px] max-w-6xl flex-col items-center justify-center px-6 py-24 text-center sm:py-28 lg:py-32">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1 text-[0.7rem] uppercase tracking-[0.45em] text-energy-gold-light">
-            新版 Sora 应用
-            <span className="h-1.5 w-1.5 rounded-full bg-energy-gold-light" />
-          </div>
-          <h2 className="mt-6 text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-[3.25rem]">
-            {hydratedProfile ? `欢迎回来，${hydratedProfile.name || '创作者'}！` : '让灵感转化为真实的多模态影片'}
-          </h2>
-          <p className="mt-4 max-w-3xl text-base text-blue-100/90 sm:text-lg">
-            结合 OpenAI Sora 2.0 引擎与我们自研的工作流，能量蓝与金色粒子交织，将创作、测试、部署串联成一个丝滑的体验。
-          </p>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-4 sm:gap-6">
-            <Link href={hydratedProfile ? '/video' : '/login'}>
-              <Button variant="primary" size="lg" className="shadow-energy-focus">
-                {hydratedProfile ? '立即生成视频' : '登录后体验'}
-              </Button>
-            </Link>
-            {hydratedProfile ? (
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-2 shadow-lg backdrop-blur">
-                <TasksDropdown tasks={recentTasks} stats={stats} />
+        <div className="relative z-10 mx-auto max-w-6xl px-6 py-24 sm:py-28 lg:py-32">
+          <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_380px]">
+            <div className="text-left">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-1 text-[0.7rem] uppercase tracking-[0.45em] text-energy-gold-light">
+                Sora 2 AI 控制台
+                <span className="h-1.5 w-1.5 rounded-full bg-energy-gold-light" />
               </div>
-            ) : (
-              <Button
-                variant="secondary"
-                size="lg"
-                className="bg-white/15 text-white ring-white/20 hover:bg-white/25"
-              >
-                阅读研究
-              </Button>
-            )}
-          </div>
-          <div className="mt-12 flex flex-wrap items-center justify-center gap-3 text-sm text-blue-100/80">
-            <a
-              href="https://apps.apple.com/"
-              target="_blank"
-              rel="noreferrer"
-              className="hero-store-badge"
-            >
-              <span>Download on the</span>
-              <strong>App Store</strong>
-            </a>
-            <a
-              href="https://play.google.com/"
-              target="_blank"
-              rel="noreferrer"
-              className="hero-store-badge"
-            >
-              <span>Get it on</span>
-              <strong>Google Play</strong>
-            </a>
+              <h2 className="mt-6 text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-[3.2rem]">
+                {hydratedProfile ? `欢迎回来，${hydratedProfile.name || '创作者'}！` : '将灵感直接部署到视频生产线'}
+              </h2>
+              <p className="mt-4 max-w-2xl text-base text-blue-100/90 sm:text-lg">
+                UI 更贴近控制台体验，保留宇宙质感但专注于操作流。快速查看任务状态、额度和下一步动作，真正把 Sora 2.0 当成工作台。
+              </p>
+              <div className="mt-8 flex flex-wrap gap-4">
+                <Link href={hydratedProfile ? '/video' : '/login'}>
+                  <Button variant="primary" size="lg" className="shadow-energy-focus">
+                    {hydratedProfile ? '打开视频控制台' : '立即登录'}
+                  </Button>
+                </Link>
+                <Link href="/prompts">
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    className="border border-white/30 bg-transparent text-white hover:bg-white/10"
+                  >
+                    查看示例提示词
+                  </Button>
+                </Link>
+              </div>
+              <div className="mt-10 grid gap-4 sm:grid-cols-2">
+                {[
+                  { label: '进行中任务', value: stats ? stats.processing : '—' },
+                  { label: '累计生成', value: stats ? stats.total : '—' },
+                  { label: '成功率', value: stats ? `${Math.round((stats.succeeded / Math.max(stats.total || 1, 1)) * 100)}%` : '—' },
+                  { label: '可用 Credits', value: typeof credits === 'number' ? credits : '—' },
+                ].map((item) => (
+                  <div key={item.label} className="rounded-xl border border-white/10 bg-[#11182c] p-4">
+                    <p className="text-sm text-blue-100/80">{item.label}</p>
+                    <p className="mt-2 text-3xl font-semibold text-white">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-[#0e1424] p-6 shadow-[0_35px_80px_-40px_rgba(0,0,0,0.85)]">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-blue-100">实时任务</p>
+                <Link
+                  href={hydratedProfile ? '/video' : '/login'}
+                  className="text-xs text-energy-gold-light transition-colors hover:text-white"
+                >
+                  查看全部
+                </Link>
+              </div>
+              <div className="mt-5 space-y-4">
+                {(recentTasks.length ? recentTasks.slice(0, 3) : []).map((task) => {
+                  const meta = taskStatusStyles[task.status]
+                  return (
+                    <div
+                      key={task.id}
+                      className="rounded-xl border border-white/5 bg-[#131b31] p-4"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="text-left">
+                          <p className="text-sm font-medium text-white truncate">{task.prompt}</p>
+                          <p className="text-xs text-blue-200/70">
+                            {formatDate(task.created_at)}
+                          </p>
+                        </div>
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${meta.classes}`}
+                        >
+                          {meta.label}
+                        </span>
+                      </div>
+                      {task.video_url && task.status === 'succeeded' && (
+                        <video
+                          src={task.video_url}
+                          className="mt-3 w-full rounded-lg border border-white/5 object-cover"
+                          controls
+                          preload="metadata"
+                          playsInline
+                        />
+                      )}
+                    </div>
+                  )
+                })}
+                {!recentTasks.length && (
+                  <div className="rounded-xl border border-dashed border-white/15 bg-transparent p-6 text-center text-sm text-blue-200/70">
+                    {hydratedProfile ? '暂无任务，点击上方按钮立即创建。' : '登录后即可查看实时任务。'}
+                  </div>
+                )}
+              </div>
+              <div className="mt-6 space-y-3 text-sm text-blue-100/80">
+                <div className="flex items-center justify-between rounded-xl border border-white/10 px-3 py-2">
+                  <span>快速生成 8s 模板</span>
+                  <span className="text-energy-gold-light text-xs">推荐</span>
+                </div>
+                <div className="flex items-center justify-between rounded-xl border border-white/10 px-3 py-2">
+                  <span>上传素材进行微调</span>
+                  <span className="text-blue-200 text-xs">Beta</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

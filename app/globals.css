@@ -618,32 +618,6 @@ body {
   animation: hero-orb-float 22s ease-in-out infinite alternate-reverse;
 }
 
-.hero-store-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.85rem 1.75rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(5, 10, 25, 0.35);
-  color: white;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  text-transform: none;
-  backdrop-filter: blur(14px);
-  transition: transform 200ms ease, border-color 200ms ease, background 200ms ease;
-}
-
-.hero-store-badge strong {
-  font-weight: 700;
-}
-
-.hero-store-badge:hover {
-  transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.18);
-}
-
 @keyframes hero-space-pan {
   0% {
     background-position: 0% 0%;
