@@ -387,6 +387,77 @@ export interface Database {
           updated_at?: string
         }
       }
+      long_tail_keywords: {
+        Row: {
+          id: string
+          keyword: string
+          intent: 'information' | 'comparison' | 'transaction'
+          product: string | null
+          service: string | null
+          region: string | null
+          pain_point: string | null
+          search_volume: number | null
+          competition_score: number | null
+          priority: number
+          page_slug: string
+          title: string | null
+          meta_description: string | null
+          h1: string | null
+          intro_paragraph: string | null
+          steps: Json
+          faq: Json
+          status: 'draft' | 'published'
+          last_generated_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          keyword: string
+          intent: 'information' | 'comparison' | 'transaction'
+          product?: string | null
+          service?: string | null
+          region?: string | null
+          pain_point?: string | null
+          search_volume?: number | null
+          competition_score?: number | null
+          priority?: number
+          page_slug: string
+          title?: string | null
+          meta_description?: string | null
+          h1?: string | null
+          intro_paragraph?: string | null
+          steps?: Json
+          faq?: Json
+          status?: 'draft' | 'published'
+          last_generated_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          keyword?: string
+          intent?: 'information' | 'comparison' | 'transaction'
+          product?: string | null
+          service?: string | null
+          region?: string | null
+          pain_point?: string | null
+          search_volume?: number | null
+          competition_score?: number | null
+          priority?: number
+          page_slug?: string
+          title?: string | null
+          meta_description?: string | null
+          h1?: string | null
+          intro_paragraph?: string | null
+          steps?: Json
+          faq?: Json
+          status?: 'draft' | 'published'
+          last_generated_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Functions: {
       admin_adjust_user_credits: {
