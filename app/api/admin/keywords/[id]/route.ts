@@ -149,26 +149,37 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       }
     }
 
-    const assignNullableField = (
-      key: keyof Database['public']['Tables']['long_tail_keywords']['Update'],
-      rawValue: unknown
-    ) => {
-      if (rawValue !== undefined) {
-        const normalized = toNullableString(rawValue)
-        if (normalized !== null) {
-          updates[key] = normalized
-        }
-      }
+    if (Object.prototype.hasOwnProperty.call(payload, 'product')) {
+      updates.product = toNullableString(payload.product)
     }
 
-    assignNullableField('product', payload.product)
-    assignNullableField('service', payload.service)
-    assignNullableField('region', payload.region)
-    assignNullableField('pain_point', payload.pain_point)
-    assignNullableField('title', payload.title)
-    assignNullableField('meta_description', payload.meta_description)
-    assignNullableField('h1', payload.h1)
-    assignNullableField('intro_paragraph', payload.intro_paragraph)
+    if (Object.prototype.hasOwnProperty.call(payload, 'service')) {
+      updates.service = toNullableString(payload.service)
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'region')) {
+      updates.region = toNullableString(payload.region)
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'pain_point')) {
+      updates.pain_point = toNullableString(payload.pain_point)
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'title')) {
+      updates.title = toNullableString(payload.title)
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'meta_description')) {
+      updates.meta_description = toNullableString(payload.meta_description)
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'h1')) {
+      updates.h1 = toNullableString(payload.h1)
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'intro_paragraph')) {
+      updates.intro_paragraph = toNullableString(payload.intro_paragraph)
+    }
 
     if (Object.prototype.hasOwnProperty.call(payload, 'search_volume')) {
       updates.search_volume = parseOptionalNumber(payload.search_volume)
