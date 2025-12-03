@@ -22,6 +22,27 @@ type RouteParams = {
 
 type KeywordRow = Database['public']['Tables']['long_tail_keywords']['Row']
 
+type KeywordUpdatePayload = {
+  keyword?: unknown
+  intent?: unknown
+  pageSlug?: unknown
+  page_slug?: unknown
+  status?: unknown
+  product?: unknown
+  service?: unknown
+  region?: unknown
+  pain_point?: unknown
+  search_volume?: unknown
+  competition_score?: unknown
+  priority?: unknown
+  title?: unknown
+  meta_description?: unknown
+  h1?: unknown
+  intro_paragraph?: unknown
+  steps?: unknown
+  faq?: unknown
+}
+
 const parseOptionalNumber = (value: unknown) => {
   if (value === null || value === undefined) {
     return null
@@ -39,6 +60,17 @@ const serializeKeyword = (row: KeywordRow) => ({
   steps: Array.isArray(row.steps) ? row.steps : [],
   faq: Array.isArray(row.faq) ? row.faq : [],
 })
+
+const toNullableString = (value: unknown): string | null => {
+  if (value === null || value === undefined) {
+    return null
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : null
+  }
+  return null
+}
 
 async function revalidateKeywordPaths(slugs: Array<string | null | undefined>) {
   try {
@@ -70,7 +102,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: '缺少关键词 ID' }, { status: 400 })
     }
 
-    const payload = await request.json().catch(() => null)
+    const payload = (await request.json().catch(() => null)) as KeywordUpdatePayload | null
     if (!payload || typeof payload !== 'object') {
       return NextResponse.json({ error: '请求体格式不正确' }, { status: 400 })
     }
@@ -109,8 +141,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       updates.intent = intent
     }
 
-    if (typeof payload.pageSlug === 'string' || typeof payload.page_slug === 'string') {
-      const slugInput = typeof payload.pageSlug === 'string' ? payload.pageSlug : payload.page_slug
+    const slugSource =
+      typeof payload.pageSlug === 'string'
+        ? payload.pageSlug
+        : typeof payload.page_slug === 'string'
+          ? payload.page_slug
+          : null
+    if (slugSource) {
+      const slugInput = slugSource
       const slug = normalizeSlug(slugInput)
       if (!slug) {
         return NextResponse.json({ error: 'URL Slug 不能为空' }, { status: 400 })
@@ -119,8 +157,10 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     if (payload.status !== undefined) {
-      const status =
-        typeof payload.status === 'string' ? payload.status.trim() : payload.status ?? ''
+      if (typeof payload.status !== 'string') {
+        return NextResponse.json({ error: '状态必须是字符串' }, { status: 400 })
+      }
+      const status = payload.status.trim()
       if (!isKeywordStatus(status)) {
         return NextResponse.json({ error: '状态不合法' }, { status: 400 })
       }
@@ -131,25 +171,19 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     if (payload.product !== undefined) {
-      updates.product =
-        typeof payload.product === 'string' ? payload.product.trim() || null : payload.product ?? null
+      updates.product = toNullableString(payload.product)
     }
 
     if (payload.service !== undefined) {
-      updates.service =
-        typeof payload.service === 'string' ? payload.service.trim() || null : payload.service ?? null
+      updates.service = toNullableString(payload.service)
     }
 
     if (payload.region !== undefined) {
-      updates.region =
-        typeof payload.region === 'string' ? payload.region.trim() || null : payload.region ?? null
+      updates.region = toNullableString(payload.region)
     }
 
     if (payload.pain_point !== undefined) {
-      updates.pain_point =
-        typeof payload.pain_point === 'string'
-          ? payload.pain_point.trim() || null
-          : payload.pain_point ?? null
+      updates.pain_point = toNullableString(payload.pain_point)
     }
 
     if (payload.search_volume !== undefined) {
@@ -165,21 +199,19 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     if (payload.title !== undefined) {
-      updates.title = typeof payload.title === 'string' ? payload.title.trim() || null : null
+      updates.title = toNullableString(payload.title)
     }
 
     if (payload.meta_description !== undefined) {
-      updates.meta_description =
-        typeof payload.meta_description === 'string' ? payload.meta_description.trim() || null : null
+      updates.meta_description = toNullableString(payload.meta_description)
     }
 
     if (payload.h1 !== undefined) {
-      updates.h1 = typeof payload.h1 === 'string' ? payload.h1.trim() || null : null
+      updates.h1 = toNullableString(payload.h1)
     }
 
     if (payload.intro_paragraph !== undefined) {
-      updates.intro_paragraph =
-        typeof payload.intro_paragraph === 'string' ? payload.intro_paragraph.trim() || null : null
+      updates.intro_paragraph = toNullableString(payload.intro_paragraph)
     }
 
     if (payload.steps !== undefined) {
