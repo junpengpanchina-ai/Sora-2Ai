@@ -9,6 +9,7 @@ import LoginButton from '@/components/LoginButton'
 import R2Image from '@/components/R2Image'
 import PricingModal from '@/components/PricingModal'
 import { createClient } from '@/lib/supabase/client'
+import { KEYWORD_INTENT_LABELS, isKeywordIntent, type KeywordIntent } from '@/lib/keywords/schema'
 
 interface Stats {
   total: number
@@ -25,6 +26,15 @@ type UserProfile = {
   created_at?: string
   last_login_at?: string | null
   credits?: number | null
+}
+
+interface FeaturedKeyword {
+  id: string
+  keyword: string
+  page_slug: string
+  intent: KeywordIntent
+  region: string | null
+  product: string | null
 }
 
 const promptTemplates = [
@@ -73,6 +83,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const [copiedTemplateId, setCopiedTemplateId] = useState<string | null>(null)
   const imageSectionRef = useRef<HTMLDivElement | null>(null)
   const videoSectionRef = useRef<HTMLDivElement | null>(null)
+  const [featuredKeywords, setFeaturedKeywords] = useState<FeaturedKeyword[]>([])
   const accountProfile = hydratedProfile ?? userProfile
 
   useEffect(() => {
@@ -312,6 +323,50 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     }
   }, [])
 
+  useEffect(() => {
+    let active = true
+    const loadKeywords = async () => {
+      try {
+        const response = await fetch('/api/keywords?limit=6')
+        const data = await response.json().catch(() => ({}))
+        if (!active || !data?.success || !Array.isArray(data.keywords)) {
+          return
+        }
+        const normalized = data.keywords
+          .map((item: unknown) => {
+            if (!item || typeof item !== 'object') {
+              return null
+            }
+            const record = item as Record<string, unknown>
+            const id = typeof record.id === 'string' ? record.id : null
+            const keyword = typeof record.keyword === 'string' ? record.keyword : null
+            const slug = typeof record.page_slug === 'string' ? record.page_slug : null
+            if (!id || !keyword || !slug) {
+              return null
+            }
+            const intentValue = isKeywordIntent(record.intent) ? record.intent : 'information'
+            return {
+              id,
+              keyword,
+              page_slug: slug,
+              intent: intentValue,
+              region: typeof record.region === 'string' ? record.region : null,
+              product: typeof record.product === 'string' ? record.product : null,
+            }
+          })
+          .filter((item): item is FeaturedKeyword => Boolean(item))
+          .slice(0, 6)
+        setFeaturedKeywords(normalized)
+      } catch (error) {
+        console.error('Failed to load featured keywords:', error)
+      }
+    }
+    loadKeywords()
+    return () => {
+      active = false
+    }
+  }, [])
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleString('en-US', {
@@ -481,6 +536,57 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           </div>
         </div>
         </section>
+
+        {featuredKeywords.length > 0 && (
+          <section className="mx-auto max-w-7xl px-4 pb-6 text-white sm:px-6 lg:px-8">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-sm uppercase tracking-[0.4em] text-energy-water/80">SEO NETWORK</p>
+                <h3 className="mt-2 text-2xl font-semibold">热门长尾词入口</h3>
+                <p className="mt-1 text-sm text-blue-100/80">
+                  这些页面已针对不同产品/地域/意图优化，可直接跳转体验。
+                </p>
+              </div>
+              <Link href="/keywords">
+                <Button variant="secondary" size="sm">
+                  查看全部
+                </Button>
+              </Link>
+            </div>
+            <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {featuredKeywords.map((keyword) => (
+                <Link
+                  key={keyword.id}
+                  href={`/keywords/${keyword.page_slug}`}
+                  className="rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-energy-water/60 hover:bg-white/10"
+                >
+                  <p className="text-sm uppercase tracking-[0.2em] text-energy-water">
+                    {KEYWORD_INTENT_LABELS[keyword.intent]}
+                  </p>
+                  <h4 className="mt-2 text-xl font-semibold text-white">{keyword.keyword}</h4>
+                  <p className="mt-1 text-sm text-blue-100/80">
+                    {keyword.region || '不限地域'} · {keyword.product || '核心工具'}
+                  </p>
+                  <span className="mt-3 inline-flex items-center text-sm text-energy-water">
+                    进入页面
+                    <svg
+                      className="ml-1 h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M5 12h14" />
+                      <path d="m12 5 7 7-7 7" />
+                    </svg>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         <main className="mx-auto max-w-7xl px-4 py-8 text-white sm:px-6 lg:px-8">
 
