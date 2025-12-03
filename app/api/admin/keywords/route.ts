@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { validateAdminSession } from '@/lib/admin-auth'
 import { createServiceClient } from '@/lib/supabase/service'
-import type { Database } from '@/types/database'
+import type { Database, Json } from '@/types/database'
 import {
   KEYWORD_INTENTS,
   KEYWORD_STATUSES,
@@ -206,8 +206,8 @@ export async function POST(request: Request) {
       h1: typeof payload.h1 === 'string' ? payload.h1.trim() || null : null,
       intro_paragraph:
         typeof payload.intro_paragraph === 'string' ? payload.intro_paragraph.trim() || null : null,
-      steps,
-      faq,
+      steps: steps as Json,
+      faq: faq as Json,
       status: statusInput,
       last_generated_at: statusInput === 'published' ? new Date().toISOString() : null,
     }

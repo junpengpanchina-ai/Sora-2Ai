@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { validateAdminSession } from '@/lib/admin-auth'
 import { createServiceClient } from '@/lib/supabase/service'
-import type { Database } from '@/types/database'
+import type { Database, Json } from '@/types/database'
 import {
   isKeywordIntent,
   isKeywordStatus,
@@ -21,27 +21,6 @@ type RouteParams = {
 }
 
 type KeywordRow = Database['public']['Tables']['long_tail_keywords']['Row']
-
-type KeywordUpdatePayload = {
-  keyword?: unknown
-  intent?: unknown
-  pageSlug?: unknown
-  page_slug?: unknown
-  status?: unknown
-  product?: unknown
-  service?: unknown
-  region?: unknown
-  pain_point?: unknown
-  search_volume?: unknown
-  competition_score?: unknown
-  priority?: unknown
-  title?: unknown
-  meta_description?: unknown
-  h1?: unknown
-  intro_paragraph?: unknown
-  steps?: unknown
-  faq?: unknown
-}
 
 const parseOptionalNumber = (value: unknown) => {
   if (value === null || value === undefined) {
@@ -90,6 +69,14 @@ async function revalidateKeywordPaths(slugs: Array<string | null | undefined>) {
   }
 }
 
+const readTrimmedString = (value: unknown) => {
+  if (typeof value !== 'string') {
+    return null
+  }
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
 export async function PATCH(request: Request, { params }: RouteParams) {
   try {
     const adminUser = await validateAdminSession()
@@ -102,10 +89,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: '缺少关键词 ID' }, { status: 400 })
     }
 
-    const payload = (await request.json().catch(() => null)) as KeywordUpdatePayload | null
-    if (!payload || typeof payload !== 'object') {
+    const payloadRaw = await request.json().catch(() => null)
+    if (!payloadRaw || typeof payloadRaw !== 'object') {
       return NextResponse.json({ error: '请求体格式不正确' }, { status: 400 })
     }
+    const payload = payloadRaw as Record<string, unknown>
 
     const supabase = await createServiceClient()
 
@@ -125,31 +113,22 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     const updates: Database['public']['Tables']['long_tail_keywords']['Update'] = {}
 
-    if (typeof payload.keyword === 'string') {
-      const keyword = payload.keyword.trim()
-      if (!keyword) {
-        return NextResponse.json({ error: '关键字不能为空' }, { status: 400 })
-      }
-      updates.keyword = keyword
+    const keywordValue = readTrimmedString(payload.keyword)
+    if (keywordValue !== null) {
+      updates.keyword = keywordValue
     }
 
-    if (typeof payload.intent === 'string') {
-      const intent = payload.intent.trim()
-      if (!isKeywordIntent(intent)) {
+    const intentValue = readTrimmedString(payload.intent)
+    if (intentValue) {
+      if (!isKeywordIntent(intentValue)) {
         return NextResponse.json({ error: '意图类型不合法' }, { status: 400 })
       }
-      updates.intent = intent
+      updates.intent = intentValue
     }
 
-    const slugSource =
-      typeof payload.pageSlug === 'string'
-        ? payload.pageSlug
-        : typeof payload.page_slug === 'string'
-          ? payload.page_slug
-          : null
+    const slugSource = readTrimmedString(payload.pageSlug) ?? readTrimmedString(payload.page_slug)
     if (slugSource) {
-      const slugInput = slugSource
-      const slug = normalizeSlug(slugInput)
+      const slug = normalizeSlug(slugSource)
       if (!slug) {
         return NextResponse.json({ error: 'URL Slug 不能为空' }, { status: 400 })
       }
@@ -157,69 +136,63 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     if (payload.status !== undefined) {
-      if (typeof payload.status !== 'string') {
+      const statusValue = readTrimmedString(payload.status)
+      if (!statusValue) {
         return NextResponse.json({ error: '状态必须是字符串' }, { status: 400 })
       }
-      const status = payload.status.trim()
-      if (!isKeywordStatus(status)) {
+      if (!isKeywordStatus(statusValue)) {
         return NextResponse.json({ error: '状态不合法' }, { status: 400 })
       }
-      updates.status = status
-      if (status === 'published') {
+      updates.status = statusValue
+      if (statusValue === 'published') {
         updates.last_generated_at = new Date().toISOString()
       }
     }
 
-    if (payload.product !== undefined) {
-      updates.product = toNullableString(payload.product)
+    const assignNullableField = (
+      key: keyof Database['public']['Tables']['long_tail_keywords']['Update'],
+      rawValue: unknown
+    ) => {
+      if (rawValue !== undefined) {
+        const normalized = toNullableString(rawValue)
+        if (normalized !== null) {
+          updates[key] = normalized
+        }
+      }
     }
 
-    if (payload.service !== undefined) {
-      updates.service = toNullableString(payload.service)
-    }
+    assignNullableField('product', payload.product)
+    assignNullableField('service', payload.service)
+    assignNullableField('region', payload.region)
+    assignNullableField('pain_point', payload.pain_point)
+    assignNullableField('title', payload.title)
+    assignNullableField('meta_description', payload.meta_description)
+    assignNullableField('h1', payload.h1)
+    assignNullableField('intro_paragraph', payload.intro_paragraph)
 
-    if (payload.region !== undefined) {
-      updates.region = toNullableString(payload.region)
-    }
-
-    if (payload.pain_point !== undefined) {
-      updates.pain_point = toNullableString(payload.pain_point)
-    }
-
-    if (payload.search_volume !== undefined) {
+    if (Object.prototype.hasOwnProperty.call(payload, 'search_volume')) {
       updates.search_volume = parseOptionalNumber(payload.search_volume)
     }
 
-    if (payload.competition_score !== undefined) {
+    if (Object.prototype.hasOwnProperty.call(payload, 'competition_score')) {
       updates.competition_score = parseOptionalNumber(payload.competition_score)
     }
 
-    if (payload.priority !== undefined) {
-      updates.priority = parseOptionalNumber(payload.priority) ?? existing.priority
+    if (Object.prototype.hasOwnProperty.call(payload, 'priority')) {
+      const parsedPriority = parseOptionalNumber(payload.priority)
+      if (parsedPriority !== null) {
+        updates.priority = parsedPriority
+      }
     }
 
-    if (payload.title !== undefined) {
-      updates.title = toNullableString(payload.title)
+    if (Object.prototype.hasOwnProperty.call(payload, 'steps')) {
+      const normalizedSteps = normalizeSteps(payload.steps)
+      updates.steps = JSON.parse(JSON.stringify(normalizedSteps)) as Json
     }
 
-    if (payload.meta_description !== undefined) {
-      updates.meta_description = toNullableString(payload.meta_description)
-    }
-
-    if (payload.h1 !== undefined) {
-      updates.h1 = toNullableString(payload.h1)
-    }
-
-    if (payload.intro_paragraph !== undefined) {
-      updates.intro_paragraph = toNullableString(payload.intro_paragraph)
-    }
-
-    if (payload.steps !== undefined) {
-      updates.steps = normalizeSteps(payload.steps)
-    }
-
-    if (payload.faq !== undefined) {
-      updates.faq = normalizeFaq(payload.faq)
+    if (Object.prototype.hasOwnProperty.call(payload, 'faq')) {
+      const normalizedFaq = normalizeFaq(payload.faq)
+      updates.faq = JSON.parse(JSON.stringify(normalizedFaq)) as Json
     }
 
     if (Object.keys(updates).length === 0) {
