@@ -212,7 +212,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const updatePayload = updates as Database['public']['Tables']['long_tail_keywords']['Update']
 
     const { data, error } = await supabase
-      .from('long_tail_keywords')
+      .from<Database['public']['Tables']['long_tail_keywords']['Row']>('long_tail_keywords')
       .update(updatePayload)
       .eq('id', keywordId)
       .select('*')
