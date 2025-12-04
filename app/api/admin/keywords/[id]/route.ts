@@ -111,7 +111,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: '长尾词不存在' }, { status: 404 })
     }
 
-    const updates: Database['public']['Tables']['long_tail_keywords']['Update'] = {}
+    const updates: Record<string, unknown> = {}
 
     const keywordValue = readTrimmedString(payload.keyword)
     if (keywordValue !== null) {
@@ -209,10 +209,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: '没有可更新的字段' }, { status: 400 })
     }
+    const updatePayload = updates as Database['public']['Tables']['long_tail_keywords']['Update']
 
     const { data, error } = await supabase
       .from('long_tail_keywords')
-      .update(updates)
+      .update(updatePayload)
       .eq('id', keywordId)
       .select('*')
       .single()
