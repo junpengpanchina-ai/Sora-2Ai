@@ -25,7 +25,7 @@ const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord |
     .maybeSingle()
 
   if (error) {
-    console.error('加载长尾词失败:', error)
+    console.error('Failed to load keyword:', error)
     return null
   }
 
@@ -55,7 +55,7 @@ const getRelatedKeywords = cache(async (excludeId: string): Promise<KeywordPageR
     .limit(12)
 
   if (error) {
-    console.error('加载相关长尾词失败:', error)
+    console.error('Failed to load related keywords:', error)
     return []
   }
 
@@ -80,23 +80,23 @@ const buildMetaTitle = (keyword: KeywordPageRecord) => {
   if (keyword.title) {
     return keyword.title
   }
-  return `${keyword.keyword} | Sora2Ai 视频生成器`
+  return `${keyword.keyword} | Sora2Ai Video Generator`
 }
 
-const buildMetaDescription = (keyword: KeywordPageRecord) => {
-  if (keyword.meta_description) {
-    return keyword.meta_description
+  const buildMetaDescription = (keyword: KeywordPageRecord) => {
+    if (keyword.meta_description) {
+      return keyword.meta_description
+    }
+    return keyword.intro_paragraph
+      ? keyword.intro_paragraph.slice(0, 155)
+      : `Generate ${keyword.keyword} video content online, including steps, FAQ, and direct tool access.`
   }
-  return keyword.intro_paragraph
-    ? keyword.intro_paragraph.slice(0, 155)
-    : `在线生成 ${keyword.keyword} 视频内容，包含步骤、FAQ 与真实工具入口。`
-}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const keyword = await getKeywordBySlug(params.slug)
   if (!keyword) {
     return {
-      title: '关键词未找到',
+      title: 'Keyword Not Found',
     }
   }
 
@@ -163,20 +163,20 @@ export default async function KeywordLandingPage({ params }: PageProps) {
             <p className="mt-4 max-w-3xl text-lg text-blue-100/80">{keyword.meta_description}</p>
           )}
           <div className="mt-6 flex flex-wrap gap-3 text-xs text-white/70">
-            <span className="rounded-full border border-white/30 px-3 py-1">关键词：{keyword.keyword}</span>
+            <span className="rounded-full border border-white/30 px-3 py-1">Keyword: {keyword.keyword}</span>
             {keyword.product && (
               <span className="rounded-full border border-white/30 px-3 py-1">
-                产品：{keyword.product}
+                Product: {keyword.product}
               </span>
             )}
             {keyword.service && (
               <span className="rounded-full border border-white/30 px-3 py-1">
-                服务：{keyword.service}
+                Service: {keyword.service}
               </span>
             )}
             {keyword.pain_point && (
               <span className="rounded-full border border-white/30 px-3 py-1">
-                痛点：{keyword.pain_point}
+                Pain Point: {keyword.pain_point}
               </span>
             )}
           </div>
@@ -188,7 +188,7 @@ export default async function KeywordLandingPage({ params }: PageProps) {
           <div className="lg:col-span-2 space-y-10">
             {intro && (
               <section className="rounded-2xl bg-white p-6 shadow-sm dark:bg-gray-900/60">
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">场景解析</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Overview</h2>
                 <p className="mt-3 text-gray-600 leading-relaxed dark:text-gray-300 whitespace-pre-line">
                   {intro}
                 </p>
@@ -197,7 +197,7 @@ export default async function KeywordLandingPage({ params }: PageProps) {
 
             {keyword.steps.length > 0 && (
               <section className="rounded-2xl bg-white p-6 shadow-sm dark:bg-gray-900/60">
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">如何使用</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">How to Use</h2>
                 <div className="mt-6 space-y-4">
                   {keyword.steps.map((step, index) => (
                     <div
@@ -223,7 +223,7 @@ export default async function KeywordLandingPage({ params }: PageProps) {
 
             {keyword.faq.length > 0 && (
               <section className="rounded-2xl bg-white p-6 shadow-sm dark:bg-gray-900/60">
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">常见问题</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Frequently Asked Questions</h2>
                 <div className="mt-4 space-y-4">
                   {keyword.faq.map((item, index) => (
                     <details
@@ -249,18 +249,18 @@ export default async function KeywordLandingPage({ params }: PageProps) {
             <KeywordToolEmbed defaultPrompt={keyword.keyword} />
 
             <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">本页要点</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Key Points</h3>
               <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-gray-600 dark:text-gray-300">
-                <li>Title / H1 / Meta Description 均自然包含 {keyword.keyword}</li>
-                <li>正文 150-300 字解释场景，匹配 {intentLabel} 意图</li>
-                <li>步骤 & FAQ 提供真实指南，避免堆砌</li>
-                <li>右侧面板直接连接 Sora2Ai 视频生成器</li>
+                <li>Title / H1 / Meta Description naturally include {keyword.keyword}</li>
+                <li>Body text (150-300 words) explains the scenario, matching {intentLabel} intent</li>
+                <li>Steps & FAQ provide genuine guidance, avoiding keyword stuffing</li>
+                <li>Right panel directly connects to Sora2Ai video generator</li>
               </ul>
             </section>
 
             {relatedKeywords.length > 0 && (
               <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">相关长尾词</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Related Keywords</h3>
                 <div className="mt-4 grid gap-3">
                   {relatedKeywords.map((item) => (
                     <Link
@@ -279,21 +279,21 @@ export default async function KeywordLandingPage({ params }: PageProps) {
             )}
 
             <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">更多工具</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">More Tools</h3>
               <ul className="mt-3 space-y-2 text-sm text-energy-water">
                 <li>
                   <Link href="/" className="hover:underline">
-                    返回 Sora2Ai 首页
+                    Back to Sora2Ai Homepage
                   </Link>
                 </li>
                 <li>
                   <Link href="/prompts" className="hover:underline">
-                    查看提示词库
+                    View Prompt Library
                   </Link>
                 </li>
                 <li>
                   <Link href="/video" className="hover:underline">
-                    直接进入视频生成器
+                    Go to Video Generator
                   </Link>
                 </li>
               </ul>

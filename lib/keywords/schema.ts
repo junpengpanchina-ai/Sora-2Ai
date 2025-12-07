@@ -2,9 +2,9 @@ export const KEYWORD_INTENTS = ['information', 'comparison', 'transaction'] as c
 export type KeywordIntent = (typeof KEYWORD_INTENTS)[number]
 
 export const KEYWORD_INTENT_LABELS: Record<KeywordIntent, string> = {
-  information: '信息型',
-  comparison: '比较型',
-  transaction: '交易型',
+  information: 'Informational',
+  comparison: 'Comparison',
+  transaction: 'Transactional',
 }
 
 export const KEYWORD_STATUSES = ['draft', 'published'] as const

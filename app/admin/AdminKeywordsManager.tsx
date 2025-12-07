@@ -730,18 +730,30 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                         {new Date(keyword.updated_at).toLocaleString()}
                       </td>
                       <td className="py-3 px-4">
-                        <div className="flex flex-wrap gap-2">
-                          <Button size="sm" variant="secondary" onClick={() => startEditing(keyword)}>
-                            编辑
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDelete(keyword)}
-                            disabled={deletingId === keyword.id}
-                          >
-                            {deletingId === keyword.id ? '删除中...' : '删除'}
-                          </Button>
+                        <div className="flex flex-col gap-2">
+                          <div className="flex flex-wrap gap-2">
+                            <Button size="sm" variant="secondary" onClick={() => startEditing(keyword)}>
+                              编辑
+                            </Button>
+                            {keyword.status === 'published' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => window.open(`/keywords/${keyword.page_slug}`, '_blank')}
+                                className="text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                              >
+                                查看
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDelete(keyword)}
+                              disabled={deletingId === keyword.id}
+                            >
+                              {deletingId === keyword.id ? '删除中...' : '删除'}
+                            </Button>
+                          </div>
                         </div>
                       </td>
                     </tr>
