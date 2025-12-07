@@ -21,6 +21,11 @@ function getGrsaiHost(): string {
   return process.env.GRSAI_HOST || 'https://grsai.dakka.com.cn' // 国内直连
 }
 
+// 获取 Grsai Chat API 主机地址（使用 api.grsai.com）
+function getGrsaiChatHost(): string {
+  return 'https://api.grsai.com'
+}
+
 export interface SoraVideoRequest {
   model: string
   prompt: string
@@ -164,5 +169,148 @@ export async function getTaskResult(taskId: string): Promise<GrsaiResultResponse
   }
 
   return await response.json() as GrsaiResultResponse
+}
+
+// ==================== Chat API ====================
+
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant'
+  content: string
+}
+
+export interface ChatCompletionRequest {
+  model: string
+  stream: boolean
+  messages: ChatMessage[]
+  temperature?: number
+  max_tokens?: number
+  top_p?: number
+  frequency_penalty?: number
+  presence_penalty?: number
+}
+
+export interface ChatCompletionChoice {
+  index: number
+  message?: {
+    role: 'assistant'
+    content: string
+    refusal: string | null
+    annotations: unknown[]
+  }
+  delta?: {
+    role?: 'assistant'
+    content?: string
+    refusal?: string | null
+    annotations?: unknown[]
+  }
+  finish_reason: string | null
+}
+
+export interface ChatCompletionResponse {
+  id: string
+  object: 'chat.completion'
+  created: number
+  model: string
+  choices: ChatCompletionChoice[]
+}
+
+/**
+ * 调用 GRSAI Chat API（非流式）
+ */
+export async function createChatCompletion(
+  params: ChatCompletionRequest
+): Promise<ChatCompletionResponse> {
+  const apiKey = getGrsaiApiKey()
+  const host = getGrsaiChatHost()
+  const response = await fetch(`${host}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(params),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Grsai Chat API 错误: ${response.status} - ${errorText}`)
+  }
+
+  return await response.json() as ChatCompletionResponse
+}
+
+/**
+ * 调用 GRSAI Chat API（流式）
+ * 返回一个异步生成器，用于处理流式响应
+ */
+export async function* createChatCompletionStream(
+  params: ChatCompletionRequest
+): AsyncGenerator<ChatCompletionResponse, void, unknown> {
+  const apiKey = getGrsaiApiKey()
+  const host = getGrsaiChatHost()
+  const response = await fetch(`${host}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ ...params, stream: true }),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Grsai Chat API 错误: ${response.status} - ${errorText}`)
+  }
+
+  const reader = response.body?.getReader()
+  if (!reader) {
+    throw new Error('无法读取流式响应')
+  }
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || '' // 保留最后一个不完整的行
+
+      for (const line of lines) {
+        const trimmedLine = line.trim()
+        if (!trimmedLine || trimmedLine === 'data: [DONE]') {
+          continue
+        }
+
+        if (trimmedLine.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(trimmedLine.slice(6)) as ChatCompletionResponse
+            yield data
+          } catch (error) {
+            // 忽略解析错误，继续处理下一行
+            console.warn('解析流式响应失败:', trimmedLine, error)
+          }
+        }
+      }
+    }
+
+    // 处理剩余的 buffer
+    if (buffer.trim() && buffer.trim() !== 'data: [DONE]') {
+      const trimmedLine = buffer.trim()
+      if (trimmedLine.startsWith('data: ')) {
+        try {
+          const data = JSON.parse(trimmedLine.slice(6)) as ChatCompletionResponse
+          yield data
+        } catch {
+          // 忽略解析错误
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
 }
 
