@@ -19,7 +19,7 @@ export async function GET() {
     .limit(5000)
 
   if (error) {
-    console.error('生成长尾词 sitemap 失败:', error)
+    console.error('Failed to generate keyword sitemap:', error)
   }
 
   const data = (Array.isArray(rawData) ? rawData : []) as Pick<KeywordRow, 'page_slug' | 'updated_at'>[]

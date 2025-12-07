@@ -9,9 +9,9 @@ type KeywordRow = Database['public']['Tables']['long_tail_keywords']['Row']
 export const revalidate = 600
 
 export const metadata: Metadata = {
-  title: '长尾关键词索引 | Sora2Ai',
+  title: 'Long-tail Keywords Index | Sora2Ai',
   description:
-    '查看所有针对产品/地域/痛点定制的 Sora2Ai 长尾词页面，快速进入对应 landing page，提升 SEO 覆盖。',
+    'Browse all Sora2Ai long-tail keyword pages customized for products/regions/pain points. Quick access to landing pages for better SEO coverage.',
 }
 
 interface KeywordSummary {
@@ -35,7 +35,7 @@ export default async function KeywordsIndexPage() {
     .order('updated_at', { ascending: false })
 
   if (error) {
-    console.error('加载关键词列表失败:', error)
+    console.error('Failed to load keywords list:', error)
   }
 
   const data = (Array.isArray(rawData) ? rawData : []) as Pick<
@@ -58,15 +58,15 @@ export default async function KeywordsIndexPage() {
       <div className="mx-auto max-w-5xl px-6">
         <div className="mb-10">
           <p className="text-sm uppercase tracking-[0.4em] text-energy-water">Keyword Hub</p>
-          <h1 className="mt-3 text-3xl font-bold">Sora2Ai 长尾词索引</h1>
+          <h1 className="mt-3 text-3xl font-bold">Sora2Ai Long-tail Keywords Index</h1>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-            所有 Long-tail Landing Pages 的静态索引，便于内部链接、提交到 Google Search Console 以及人工审核内容质量。
+            Static index of all Long-tail Landing Pages for internal linking, Google Search Console submission, and content quality review.
           </p>
         </div>
 
         {keywords.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-gray-300 bg-white/70 p-6 text-center text-gray-500 dark:border-gray-800 dark:bg-gray-900/70">
-            暂无已发布的长尾词页面。
+            No published keyword pages yet.
           </p>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
@@ -83,10 +83,10 @@ export default async function KeywordsIndexPage() {
                   {keyword.keyword}
                 </h2>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  {keyword.region || '不限地域'} · {keyword.product || '核心工具'}
+                  {keyword.region || 'Any Region'} · {keyword.product || 'Core Tool'}
                 </p>
                 <p className="mt-3 text-xs text-gray-400">
-                  更新于 {new Date(keyword.updated_at).toLocaleDateString()}
+                  Updated {new Date(keyword.updated_at).toLocaleDateString()}
                 </p>
               </Link>
             ))}
@@ -98,7 +98,7 @@ export default async function KeywordsIndexPage() {
             href="/"
             className="inline-flex items-center text-sm font-medium text-energy-water transition hover:text-energy-water-deep"
           >
-            返回首页
+            Back to Homepage
             <svg
               className="ml-1 h-4 w-4"
               viewBox="0 0 24 24"
