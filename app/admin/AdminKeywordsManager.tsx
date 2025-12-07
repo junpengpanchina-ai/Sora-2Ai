@@ -285,6 +285,13 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
       steps: record.steps.length ? record.steps : [createEmptyStep()],
       faq: record.faq.length ? record.faq : [createEmptyFaq()],
     })
+    // Scroll to edit form after a short delay to allow state update
+    setTimeout(() => {
+      const editCard = document.getElementById('edit-keyword-card')
+      if (editCard) {
+        editCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }, 100)
   }
 
   const handleEditSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -766,7 +773,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
       </Card>
 
       {editingId && (
-        <Card>
+        <Card id="edit-keyword-card">
           <CardHeader>
             <CardTitle>Edit Keyword</CardTitle>
           </CardHeader>
