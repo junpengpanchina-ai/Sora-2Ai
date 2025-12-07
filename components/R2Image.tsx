@@ -18,6 +18,8 @@ interface R2ImageProps {
   useNextImage?: boolean
   /** 自定义 className */
   className?: string
+  /** 图片加载方式：eager（立即加载）或 lazy（懒加载） */
+  loading?: 'lazy' | 'eager'
   /** 图片加载失败时的回调 */
   onError?: () => void
   /** 图片加载成功时的回调 */
@@ -58,6 +60,7 @@ export default function R2Image({
   height,
   useNextImage = false,
   className = '',
+  loading = 'lazy',
   onError,
   onLoad,
 }: R2ImageProps) {
@@ -106,8 +109,9 @@ export default function R2Image({
       className={className}
       onError={handleError}
       onLoad={handleLoad}
-      loading="lazy"
+      loading={loading}
       decoding="async"
+      fetchPriority={loading === 'eager' ? 'high' : 'auto'}
     />
   )
 }

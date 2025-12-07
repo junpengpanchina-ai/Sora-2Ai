@@ -400,31 +400,33 @@ body {
     animation: slide-left-to-right 30s linear infinite;
   }
   
-  /* Image carousel animations - seamless infinite loop */
+  /* Image carousel animations - seamless infinite loop (optimized for 2 sets) */
   @keyframes slide-right {
     0% {
       transform: translateX(0);
     }
     100% {
-      transform: translateX(-33.333%);
+      transform: translateX(-50%);
     }
   }
   
   @keyframes slide-left {
     0% {
-      transform: translateX(-66.666%);
+      transform: translateX(-50%);
     }
     100% {
-      transform: translateX(-33.333%);
+      transform: translateX(0);
     }
   }
   
   .animate-slide-right {
     animation: slide-right 30s linear infinite;
+    will-change: transform;
   }
   
   .animate-slide-left {
     animation: slide-left 30s linear infinite;
+    will-change: transform;
   }
   
   /* Hover to pause */
