@@ -8,9 +8,15 @@ type ConsumptionUpdate = Database['public']['Tables']['consumption_records']['Up
 type AdminAdjustArgs = Database['public']['Functions']['admin_adjust_user_credits']['Args']
 type AdminAdjustReturn = Database['public']['Functions']['admin_adjust_user_credits']['Returns']
 
+type RouteParams = {
+  params: {
+    id: string
+  }
+}
+
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: RouteParams
 ) {
   try {
     const consumptionId = params.id
