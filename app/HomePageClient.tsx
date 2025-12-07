@@ -802,7 +802,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                       loop
                       muted
                       playsInline
-                      preload="none"
+                      preload="metadata"
                     />
                   </div>
                   <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -813,7 +813,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                       loop
                       muted
                       playsInline
-                      preload="none"
+                      preload="metadata"
                     />
                   </div>
                   <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -824,11 +824,11 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                       loop
                       muted
                       playsInline
-                      preload="none"
+                      preload="metadata"
                     />
                   </div>
                 </div>
-                {/* Second set - duplicate for seamless loop, all lazy loaded */}
+                {/* Second set - duplicate for seamless loop, lazy loaded with metadata */}
                 <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
                   <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
                     <video
@@ -838,7 +838,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                       loop
                       muted
                       playsInline
-                      preload="none"
+                      preload="metadata"
                     />
                   </div>
                   <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -849,7 +849,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                       loop
                       muted
                       playsInline
-                      preload="none"
+                      preload="metadata"
                     />
                   </div>
                   <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -860,7 +860,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                       loop
                       muted
                       playsInline
-                      preload="none"
+                      preload="metadata"
                     />
                   </div>
                   <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -871,7 +871,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                       loop
                       muted
                       playsInline
-                      preload="none"
+                      preload="metadata"
                     />
                   </div>
                 </div>
