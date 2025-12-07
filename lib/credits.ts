@@ -7,8 +7,13 @@ type SupabaseServerClient = SupabaseClient<Database>
 type UserCreditsRow = Pick<Database['public']['Tables']['users']['Row'], 'credits'>
 type ConsumptionRecordRow = Database['public']['Tables']['consumption_records']['Row']
 type ConsumptionRecordInsert = Database['public']['Tables']['consumption_records']['Insert']
-// 视频生成消耗的积分（10积分/次，对应￥0.10/次）
+type RechargeRecordInsert = Database['public']['Tables']['recharge_records']['Insert']
+// 视频生成消耗的积分（10积分/次）
 export const CREDITS_PER_VIDEO = 10
+
+// 新用户注册赠送的积分（30积分 = 3美金 = 3次视频生成机会，每次生成消耗10积分）
+// 1美金 = 10积分，所以30积分 = 3美金
+export const WELCOME_BONUS_CREDITS = 30
 
 /**
  * 扣除用户积分并创建消费记录
@@ -184,6 +189,79 @@ export async function refundCreditsByVideoTaskId(
     return await refundCredits(supabase, userId, consumptionRecord.id)
   } catch (error) {
     console.error('Error in refundCreditsByVideoTaskId:', error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    }
+  }
+}
+
+/**
+ * 给新用户赠送欢迎积分（注册奖励）
+ * 创建充值记录并更新用户积分
+ * 对应 1美金 = 10积分，新用户注册赠送 30 积分 = 3美金（3次视频生成机会，每次消耗10积分）
+ */
+export async function addWelcomeBonus(
+  supabase: SupabaseServerClient,
+  userId: string
+): Promise<{ success: boolean; error?: string; rechargeRecordId?: string }> {
+  try {
+    // 获取用户当前积分
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('credits')
+      .eq('id', userId)
+      .single<UserCreditsRow>()
+
+    if (userError || !user) {
+      return { success: false, error: 'User not found' }
+    }
+
+    const currentCredits = user.credits || 0
+
+    // 创建充值记录（记录新用户注册赠送）
+    // 1美金 = 10积分，所以30积分 = 3美金
+    const rechargePayload: RechargeRecordInsert = {
+      user_id: userId,
+      amount: WELCOME_BONUS_CREDITS / 10, // 30积分 ÷ 10 = 3美金（1美金 = 10积分）
+      credits: WELCOME_BONUS_CREDITS,
+      payment_method: 'welcome_bonus',
+      payment_id: `welcome_${userId}_${Date.now()}`,
+      status: 'completed', // 立即完成，因为是系统赠送
+      completed_at: new Date().toISOString(),
+    }
+
+    const { data: rechargeRecord, error: rechargeError } = await supabase
+      .from('recharge_records')
+      .insert(rechargePayload)
+      .select()
+      .single()
+
+    if (rechargeError) {
+      console.error('Failed to create welcome bonus recharge record:', rechargeError)
+      return { success: false, error: 'Failed to create welcome bonus record' }
+    }
+
+    // 更新用户积分
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ credits: currentCredits + WELCOME_BONUS_CREDITS })
+      .eq('id', userId)
+
+    if (updateError) {
+      console.error('Failed to add welcome bonus credits:', updateError)
+      // 如果更新失败，删除充值记录
+      await supabase
+        .from('recharge_records')
+        .delete()
+        .eq('id', rechargeRecord.id)
+      return { success: false, error: 'Failed to add welcome bonus credits' }
+    }
+
+    console.log(`[addWelcomeBonus] Successfully added ${WELCOME_BONUS_CREDITS} credits (${WELCOME_BONUS_CREDITS / CREDITS_PER_VIDEO} video generations) to user ${userId}`)
+    return { success: true, rechargeRecordId: rechargeRecord.id }
+  } catch (error) {
+    console.error('Error in addWelcomeBonus:', error)
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error' 

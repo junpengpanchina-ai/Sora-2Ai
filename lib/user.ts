@@ -2,6 +2,7 @@
 // @ts-nocheck
 import { User } from '@supabase/supabase-js'
 import { SupabaseClient } from '@supabase/supabase-js'
+import { addWelcomeBonus } from '@/lib/credits'
 
 /**
  * 从 Supabase Auth User 对象中提取 Google ID
@@ -210,6 +211,18 @@ export async function getOrCreateUser(
     }
 
     console.log('[getOrCreateUser] User created successfully:', newUser.id)
+    
+    // 给新用户赠送欢迎积分（30积分 = 3美金 = 3次视频生成机会，每次生成消耗10积分，1美金 = 10积分）
+    const welcomeBonusResult = await addWelcomeBonus(supabase, newUser.id)
+    if (welcomeBonusResult.success) {
+      console.log('[getOrCreateUser] Welcome bonus added successfully:', welcomeBonusResult.rechargeRecordId)
+      // 更新返回的积分值
+      newUser.credits = (newUser.credits || 0) + 30
+    } else {
+      console.error('[getOrCreateUser] Failed to add welcome bonus:', welcomeBonusResult.error)
+      // 即使赠送失败，也返回用户信息（积分为0）
+    }
+    
     return newUser
   }
 

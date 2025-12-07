@@ -149,4 +149,63 @@ export async function PATCH(
   }
 }
 
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const rechargeId = params.id
+    if (!rechargeId) {
+      return NextResponse.json({ error: '缺少充值记录ID' }, { status: 400 })
+    }
+
+    const adminUser = await validateAdminSession()
+    if (!adminUser) {
+      return NextResponse.json({ error: '未授权，请先登录' }, { status: 401 })
+    }
+
+    const supabase = await createClient()
+    
+    // 先获取充值记录信息
+    const { data: rechargeRecord, error: fetchError } = await supabase
+      .from('recharge_records')
+      .select('*')
+      .eq('id', rechargeId)
+      .single<RechargeRow>()
+
+    if (fetchError || !rechargeRecord) {
+      return NextResponse.json({ error: '充值记录不存在' }, { status: 404 })
+    }
+
+    // 删除充值记录
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: deleteError } = await (supabase as any)
+      .from('recharge_records')
+      .delete()
+      .eq('id', rechargeId)
+
+    if (deleteError) {
+      console.error('删除充值记录失败:', deleteError)
+      return NextResponse.json(
+        { error: '删除充值记录失败', details: deleteError.message },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: '充值记录已删除',
+    })
+  } catch (error) {
+    console.error('删除充值记录失败:', error)
+    return NextResponse.json(
+      {
+        error: '删除充值记录失败',
+        details: error instanceof Error ? error.message : '未知错误',
+      },
+      { status: 500 }
+    )
+  }
+}
+
 

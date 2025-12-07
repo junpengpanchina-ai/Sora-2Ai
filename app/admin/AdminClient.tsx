@@ -246,6 +246,8 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
   const [issueActionId, setIssueActionId] = useState<string | null>(null)
   const [rechargeActionId, setRechargeActionId] = useState<string | null>(null)
   const [consumptionActionId, setConsumptionActionId] = useState<string | null>(null)
+  const [videoActionId, setVideoActionId] = useState<string | null>(null)
+  const [adjustmentActionId, setAdjustmentActionId] = useState<string | null>(null)
   const [adjustSubmitting, setAdjustSubmitting] = useState(false)
   const [banner, setBanner] = useState<BannerState>(null)
   const bannerTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -594,6 +596,246 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
       }
     },
     [fetchAdjustments, fetchData, showBanner]
+  )
+
+  const handleConsumptionEdit = useCallback(
+    async (consumptionId: string, updates: { description?: string | null; status?: string }) => {
+      setConsumptionActionId(consumptionId)
+      try {
+        const response = await fetch(`/api/admin/consumption/${consumptionId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates),
+        })
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.error ?? '更新失败')
+        }
+        const updated = payload.consumption as ConsumptionRecord | undefined
+        if (updated) {
+          setConsumptionRecords((prev) =>
+            prev.map((record) =>
+              record.id === consumptionId
+                ? {
+                    ...record,
+                    ...updated,
+                    user_email: record.user_email,
+                    user_name: record.user_name,
+                  }
+                : record
+            )
+          )
+        }
+        fetchData()
+        showBanner('success', '消耗记录已更新')
+      } catch (error) {
+        console.error('更新消耗记录失败:', error)
+        showBanner('error', error instanceof Error ? error.message : '更新消耗记录失败')
+      } finally {
+        setConsumptionActionId(null)
+      }
+    },
+    [fetchData, showBanner]
+  )
+
+  const handleRechargeDelete = useCallback(
+    async (rechargeId: string) => {
+      if (!window.confirm('确定要删除这条充值记录吗？此操作不可恢复。')) {
+        return
+      }
+      setRechargeActionId(rechargeId)
+      try {
+        const response = await fetch(`/api/admin/recharges/${rechargeId}`, {
+          method: 'DELETE',
+        })
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.error ?? '删除失败')
+        }
+        setRechargeRecords((prev) => prev.filter((record) => record.id !== rechargeId))
+        fetchData()
+        showBanner('success', '充值记录已删除')
+      } catch (error) {
+        console.error('删除充值记录失败:', error)
+        showBanner('error', error instanceof Error ? error.message : '删除充值记录失败')
+      } finally {
+        setRechargeActionId(null)
+      }
+    },
+    [fetchData, showBanner]
+  )
+
+  const handleConsumptionDelete = useCallback(
+    async (consumptionId: string) => {
+      if (!window.confirm('确定要删除这条消耗记录吗？此操作不可恢复。')) {
+        return
+      }
+      setConsumptionActionId(consumptionId)
+      try {
+        const response = await fetch(`/api/admin/consumption/${consumptionId}`, {
+          method: 'DELETE',
+        })
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.error ?? '删除失败')
+        }
+        setConsumptionRecords((prev) => prev.filter((record) => record.id !== consumptionId))
+        fetchData()
+        showBanner('success', '消耗记录已删除')
+      } catch (error) {
+        console.error('删除消耗记录失败:', error)
+        showBanner('error', error instanceof Error ? error.message : '删除消耗记录失败')
+      } finally {
+        setConsumptionActionId(null)
+      }
+    },
+    [fetchData, showBanner]
+  )
+
+  const handleVideoEdit = useCallback(
+    async (taskId: string, updates: { status?: string; progress?: number; video_url?: string | null }) => {
+      setVideoActionId(taskId)
+      try {
+        const response = await fetch(`/api/admin/videos/${taskId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates),
+        })
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.error ?? '更新失败')
+        }
+        const updated = payload.task as VideoTask | undefined
+        if (updated) {
+          setVideoTasks((prev) =>
+            prev.map((task) =>
+              task.id === taskId
+                ? {
+                    ...task,
+                    ...updated,
+                    user_email: task.user_email,
+                    user_name: task.user_name,
+                  }
+                : task
+            )
+          )
+        }
+        fetchData()
+        showBanner('success', '视频任务已更新')
+      } catch (error) {
+        console.error('更新视频任务失败:', error)
+        showBanner('error', error instanceof Error ? error.message : '更新视频任务失败')
+      } finally {
+        setVideoActionId(null)
+      }
+    },
+    [fetchData, showBanner]
+  )
+
+  const handleVideoDelete = useCallback(
+    async (taskId: string) => {
+      if (!window.confirm('确定要删除这个视频任务吗？此操作不可恢复。')) {
+        return
+      }
+      setVideoActionId(taskId)
+      try {
+        const response = await fetch(`/api/admin/videos/${taskId}`, {
+          method: 'DELETE',
+        })
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.error ?? '删除失败')
+        }
+        setVideoTasks((prev) => prev.filter((task) => task.id !== taskId))
+        fetchData()
+        showBanner('success', '视频任务已删除')
+      } catch (error) {
+        console.error('删除视频任务失败:', error)
+        showBanner('error', error instanceof Error ? error.message : '删除视频任务失败')
+      } finally {
+        setVideoActionId(null)
+      }
+    },
+    [fetchData, showBanner]
+  )
+
+  const handleIssueDelete = useCallback(
+    async (issueId: string) => {
+      if (!window.confirm('确定要删除这个售后反馈吗？此操作不可恢复。')) {
+        return
+      }
+      setIssueActionId(issueId)
+      try {
+        const response = await fetch(`/api/admin/issues/${issueId}`, {
+          method: 'DELETE',
+        })
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.error ?? '删除失败')
+        }
+        setIssues((prev) => prev.filter((issue) => issue.id !== issueId))
+        fetchIssues()
+        showBanner('success', '售后反馈已删除')
+      } catch (error) {
+        console.error('删除售后反馈失败:', error)
+        showBanner('error', error instanceof Error ? error.message : '删除售后反馈失败')
+      } finally {
+        setIssueActionId(null)
+      }
+    },
+    [fetchIssues, showBanner]
+  )
+
+  const handleAdjustmentEdit = useCallback(
+    async (adjustmentId: string, updates: { reason?: string | null; adjustment_type?: string }) => {
+      setAdjustmentActionId(adjustmentId)
+      try {
+        const response = await fetch(`/api/admin/credits/${adjustmentId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates),
+        })
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.error ?? '更新失败')
+        }
+        fetchAdjustments()
+        showBanner('success', '积分调整记录已更新')
+      } catch (error) {
+        console.error('更新积分调整记录失败:', error)
+        showBanner('error', error instanceof Error ? error.message : '更新积分调整记录失败')
+      } finally {
+        setAdjustmentActionId(null)
+      }
+    },
+    [fetchAdjustments, showBanner]
+  )
+
+  const handleAdjustmentDelete = useCallback(
+    async (adjustmentId: string) => {
+      if (!window.confirm('确定要删除这条积分调整记录吗？此操作不可恢复。注意：删除记录不会自动恢复用户积分。')) {
+        return
+      }
+      setAdjustmentActionId(adjustmentId)
+      try {
+        const response = await fetch(`/api/admin/credits/${adjustmentId}`, {
+          method: 'DELETE',
+        })
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.error ?? '删除失败')
+        }
+        setCreditAdjustments((prev) => prev.filter((adj) => adj.id !== adjustmentId))
+        fetchAdjustments()
+        showBanner('success', '积分调整记录已删除')
+      } catch (error) {
+        console.error('删除积分调整记录失败:', error)
+        showBanner('error', error instanceof Error ? error.message : '删除积分调整记录失败')
+      } finally {
+        setAdjustmentActionId(null)
+      }
+    },
+    [fetchAdjustments, showBanner]
   )
 
   const handleAdjustmentSubmit = useCallback(
@@ -967,6 +1209,14 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                                       >
                                         编辑备注
                                       </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="danger"
+                                        onClick={() => handleRechargeDelete(record.id)}
+                                        disabled={isProcessing}
+                                      >
+                                        {isProcessing ? '处理中...' : '删除'}
+                                      </Button>
                                     </div>
                                   </td>
                                 </tr>
@@ -1028,18 +1278,41 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                                     </p>
                                   </td>
                                   <td className="py-3 px-4">
-                                    {record.status === 'completed' ? (
+                                    <div className="flex flex-wrap gap-2">
+                                      {record.status === 'completed' ? (
+                                        <Button
+                                          size="sm"
+                                          variant="secondary"
+                                          onClick={() => handleConsumptionRefund(record.id)}
+                                          disabled={isProcessing}
+                                        >
+                                          {isProcessing ? '处理中...' : '退款返还'}
+                                        </Button>
+                                      ) : (
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">已退款</span>
+                                      )}
                                       <Button
                                         size="sm"
-                                        variant="secondary"
-                                        onClick={() => handleConsumptionRefund(record.id)}
+                                        variant="ghost"
+                                        onClick={() => {
+                                          const newDesc = window.prompt('编辑描述', record.description || '')
+                                          if (newDesc !== null) {
+                                            handleConsumptionEdit(record.id, { description: newDesc })
+                                          }
+                                        }}
                                         disabled={isProcessing}
                                       >
-                                        {isProcessing ? '处理中...' : '退款返还'}
+                                        编辑
                                       </Button>
-                                    ) : (
-                                      <span className="text-xs text-gray-500 dark:text-gray-400">已退款</span>
-                                    )}
+                                      <Button
+                                        size="sm"
+                                        variant="danger"
+                                        onClick={() => handleConsumptionDelete(record.id)}
+                                        disabled={isProcessing}
+                                      >
+                                        {isProcessing ? '处理中...' : '删除'}
+                                      </Button>
+                                    </div>
                                   </td>
                                 </tr>
                               )
@@ -1076,28 +1349,60 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                               <th className="py-3 px-4 text-left">状态</th>
                               <th className="py-3 px-4 text-left">进度</th>
                               <th className="py-3 px-4 text-left">Grsai任务ID</th>
+                              <th className="py-3 px-4 text-left">操作</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {videoTasks.map((task) => (
-                              <tr
-                                key={task.id}
-                                className="border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50"
-                              >
-                                <td className="py-3 px-4">{formatDate(task.created_at)}</td>
-                                <td className="py-3 px-4">{task.user_email || 'N/A'}</td>
-                                <td className="max-w-xs py-3 px-4 truncate" title={task.prompt}>
-                                  {task.prompt}
-                                </td>
-                                <td className="py-3 px-4">{getStatusBadge(task.status)}</td>
-                                <td className="py-3 px-4">{task.progress}%</td>
-                                <td className="py-3 px-4">
-                                  <p className="max-w-[200px] truncate text-xs font-mono text-gray-500 dark:text-gray-400">
-                                    {task.grsai_task_id || 'N/A'}
-                                  </p>
-                                </td>
-                              </tr>
-                            ))}
+                            {videoTasks.map((task) => {
+                              const isProcessing = videoActionId === task.id
+                              return (
+                                <tr
+                                  key={task.id}
+                                  className="border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50"
+                                >
+                                  <td className="py-3 px-4">{formatDate(task.created_at)}</td>
+                                  <td className="py-3 px-4">{task.user_email || 'N/A'}</td>
+                                  <td className="max-w-xs py-3 px-4 truncate" title={task.prompt}>
+                                    {task.prompt}
+                                  </td>
+                                  <td className="py-3 px-4">{getStatusBadge(task.status)}</td>
+                                  <td className="py-3 px-4">{task.progress}%</td>
+                                  <td className="py-3 px-4">
+                                    <p className="max-w-[200px] truncate text-xs font-mono text-gray-500 dark:text-gray-400">
+                                      {task.grsai_task_id || 'N/A'}
+                                    </p>
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    <div className="flex flex-wrap gap-2">
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {
+                                          const newStatus = window.prompt(
+                                            '编辑状态 (pending/processing/succeeded/failed)',
+                                            task.status
+                                          )
+                                          if (newStatus && ['pending', 'processing', 'succeeded', 'failed'].includes(newStatus)) {
+                                            handleVideoEdit(task.id, { status: newStatus })
+                                          }
+                                        }}
+                                        disabled={isProcessing}
+                                      >
+                                        编辑状态
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="danger"
+                                        onClick={() => handleVideoDelete(task.id)}
+                                        disabled={isProcessing}
+                                      >
+                                        {isProcessing ? '处理中...' : '删除'}
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -1198,6 +1503,14 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                                     重新打开
                                   </Button>
                                 )}
+                                <Button
+                                  size="sm"
+                                  variant="danger"
+                                  onClick={() => handleIssueDelete(issue.id)}
+                                  disabled={isProcessing}
+                                >
+                                  {isProcessing ? '处理中...' : '删除'}
+                                </Button>
                               </div>
                             </div>
 
@@ -1468,56 +1781,85 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                               <th className="py-3 px-4 text-left">管理员</th>
                               <th className="py-3 px-4 text-left">前后积分</th>
                               <th className="py-3 px-4 text-left">关联记录</th>
+                              <th className="py-3 px-4 text-left">操作</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {creditAdjustments.map((adjustment) => (
-                              <tr
-                                key={adjustment.id}
-                                className="border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50"
-                              >
-                                <td className="py-3 px-4">{formatDate(adjustment.created_at)}</td>
-                                <td className="py-3 px-4">
-                                  <div className="flex flex-col">
-                                    <span>{adjustment.user_email || adjustment.user_id.substring(0, 8)}</span>
-                                    <span className="text-xs text-gray-500">{adjustment.user_id}</span>
-                                  </div>
-                                </td>
-                                <td className="py-3 px-4">
-                                  <span
-                                    className={
-                                      adjustment.delta >= 0
-                                        ? 'font-semibold text-green-600 dark:text-green-400'
-                                        : 'font-semibold text-red-600 dark:text-red-400'
-                                    }
-                                  >
-                                    {adjustment.delta >= 0 ? '+' : ''}
-                                    {adjustment.delta}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-4">
-                                  {ADJUSTMENT_TYPE_LABELS[adjustment.adjustment_type]}
-                                </td>
-                                <td className="max-w-xs py-3 px-4 text-sm text-gray-600 dark:text-gray-300">
-                                  {adjustment.reason || '—'}
-                                </td>
-                                <td className="py-3 px-4">
-                                  {adjustment.admin_email || adjustment.admin_user_id?.substring(0, 8) || '系统'}
-                                </td>
-                                <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-300">
-                                  {adjustment.before_credits ?? '—'} → {adjustment.after_credits ?? '—'}
-                                </td>
-                                <td className="py-3 px-4 text-xs text-gray-500 dark:text-gray-400">
-                                  {adjustment.related_recharge_id && (
-                                    <div>充值：{adjustment.related_recharge_id}</div>
-                                  )}
-                                  {adjustment.related_consumption_id && (
-                                    <div>消耗：{adjustment.related_consumption_id}</div>
-                                  )}
-                                  {!adjustment.related_recharge_id && !adjustment.related_consumption_id && '—'}
-                                </td>
-                              </tr>
-                            ))}
+                            {creditAdjustments.map((adjustment) => {
+                              const isProcessing = adjustmentActionId === adjustment.id
+                              return (
+                                <tr
+                                  key={adjustment.id}
+                                  className="border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50"
+                                >
+                                  <td className="py-3 px-4">{formatDate(adjustment.created_at)}</td>
+                                  <td className="py-3 px-4">
+                                    <div className="flex flex-col">
+                                      <span>{adjustment.user_email || adjustment.user_id.substring(0, 8)}</span>
+                                      <span className="text-xs text-gray-500">{adjustment.user_id}</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    <span
+                                      className={
+                                        adjustment.delta >= 0
+                                          ? 'font-semibold text-green-600 dark:text-green-400'
+                                          : 'font-semibold text-red-600 dark:text-red-400'
+                                      }
+                                    >
+                                      {adjustment.delta >= 0 ? '+' : ''}
+                                      {adjustment.delta}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    {ADJUSTMENT_TYPE_LABELS[adjustment.adjustment_type]}
+                                  </td>
+                                  <td className="max-w-xs py-3 px-4 text-sm text-gray-600 dark:text-gray-300">
+                                    {adjustment.reason || '—'}
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    {adjustment.admin_email || adjustment.admin_user_id?.substring(0, 8) || '系统'}
+                                  </td>
+                                  <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-300">
+                                    {adjustment.before_credits ?? '—'} → {adjustment.after_credits ?? '—'}
+                                  </td>
+                                  <td className="py-3 px-4 text-xs text-gray-500 dark:text-gray-400">
+                                    {adjustment.related_recharge_id && (
+                                      <div>充值：{adjustment.related_recharge_id}</div>
+                                    )}
+                                    {adjustment.related_consumption_id && (
+                                      <div>消耗：{adjustment.related_consumption_id}</div>
+                                    )}
+                                    {!adjustment.related_recharge_id && !adjustment.related_consumption_id && '—'}
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    <div className="flex flex-wrap gap-2">
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {
+                                          const newReason = window.prompt('编辑原因', adjustment.reason || '')
+                                          if (newReason !== null) {
+                                            handleAdjustmentEdit(adjustment.id, { reason: newReason })
+                                          }
+                                        }}
+                                        disabled={isProcessing}
+                                      >
+                                        编辑
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="danger"
+                                        onClick={() => handleAdjustmentDelete(adjustment.id)}
+                                        disabled={isProcessing}
+                                      >
+                                        {isProcessing ? '处理中...' : '删除'}
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
                           </tbody>
                         </table>
                       </div>
