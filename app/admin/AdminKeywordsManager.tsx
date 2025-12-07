@@ -356,7 +356,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 <Input
                   value={createForm.keyword}
                   onChange={(event) => handleInputChange(setCreateForm, 'keyword', event.target.value)}
-                  placeholder="如：md5 在线加密工具 免费"
+                  placeholder="e.g., sora video generator free online"
                   required
                 />
               </div>
@@ -381,7 +381,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 <Input
                   value={createForm.page_slug}
                   onChange={(event) => handleInputChange(setCreateForm, 'page_slug', event.target.value)}
-                  placeholder="例如：md5-online-free"
+                  placeholder="e.g., sora-video-generator-free"
                 />
               </div>
               <div>
@@ -408,7 +408,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 <Input
                   value={createForm.product}
                   onChange={(event) => handleInputChange(setCreateForm, 'product', event.target.value)}
-                  placeholder="如：Sora2 视频"
+                  placeholder="e.g., Sora2 Video"
                 />
               </div>
               <div>
@@ -416,7 +416,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 <Input
                   value={createForm.service}
                   onChange={(event) => handleInputChange(setCreateForm, 'service', event.target.value)}
-                  placeholder="如：在线生成器"
+                  placeholder="e.g., Online Generator"
                 />
               </div>
               <div>
@@ -424,7 +424,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 <Input
                   value={createForm.region}
                   onChange={(event) => handleInputChange(setCreateForm, 'region', event.target.value)}
-                  placeholder="如：上海"
+                  placeholder="e.g., US, UK, Global"
                 />
               </div>
               <div>
@@ -432,7 +432,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 <Input
                   value={createForm.pain_point}
                   onChange={(event) => handleInputChange(setCreateForm, 'pain_point', event.target.value)}
-                  placeholder="如：批量内容发布"
+                  placeholder="e.g., Batch Content Creation"
                 />
               </div>
             </div>
@@ -475,7 +475,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 <Input
                   value={createForm.title}
                   onChange={(event) => handleInputChange(setCreateForm, 'title', event.target.value)}
-                  placeholder="Title 中包含长尾词"
+                  placeholder="Page title containing long-tail keyword"
                 />
               </div>
               <div>
@@ -483,7 +483,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 <Input
                   value={createForm.h1}
                   onChange={(event) => handleInputChange(setCreateForm, 'h1', event.target.value)}
-                  placeholder="主标题"
+                  placeholder="Main heading (H1)"
                 />
               </div>
             </div>
@@ -496,7 +496,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 onChange={(event) =>
                   handleInputChange(setCreateForm, 'meta_description', event.target.value)
                 }
-                placeholder="140-160 字，自然包含长尾词"
+                placeholder="140-160 characters, naturally includes long-tail keyword"
               />
             </div>
 
@@ -508,7 +508,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 onChange={(event) =>
                   handleInputChange(setCreateForm, 'intro_paragraph', event.target.value)
                 }
-                placeholder="150-300 字，对应搜索意图描述"
+                placeholder="150-300 words, describes the search intent"
               />
             </div>
 
@@ -524,7 +524,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                   <Input
                     value={step.title}
                     onChange={(event) => handleStepChange(setCreateForm, index, 'title', event.target.value)}
-                    placeholder={`步骤 ${index + 1} 标题`}
+                    placeholder={`Step ${index + 1} Title`}
                   />
                   <div className="flex gap-2">
                     <Textarea
@@ -533,7 +533,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                       onChange={(event) =>
                         handleStepChange(setCreateForm, index, 'description', event.target.value)
                       }
-                      placeholder="描述（可选）"
+                      placeholder="Description (optional)"
                     />
                     {createForm.steps.length > 1 && (
                       <Button
@@ -572,7 +572,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                       onChange={(event) =>
                         handleFaqChange(setCreateForm, index, 'answer', event.target.value)
                       }
-                      placeholder="回答"
+                      placeholder="Answer"
                     />
                     {createForm.faq.length > 1 && (
                       <Button
@@ -823,22 +823,22 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
 
               <div className="grid gap-4 md:grid-cols-4">
                 <Input
-                  placeholder="产品"
+                  placeholder="Product"
                   value={editForm.product}
                   onChange={(event) => handleInputChange(setEditForm, 'product', event.target.value)}
                 />
                 <Input
-                  placeholder="服务"
+                  placeholder="Service"
                   value={editForm.service}
                   onChange={(event) => handleInputChange(setEditForm, 'service', event.target.value)}
                 />
                 <Input
-                  placeholder="地域"
+                  placeholder="Region"
                   value={editForm.region}
                   onChange={(event) => handleInputChange(setEditForm, 'region', event.target.value)}
                 />
                 <Input
-                  placeholder="痛点"
+                  placeholder="Pain Point"
                   value={editForm.pain_point}
                   onChange={(event) => handleInputChange(setEditForm, 'pain_point', event.target.value)}
                 />
@@ -847,7 +847,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
               <div className="grid gap-4 md:grid-cols-3">
                 <Input
                   type="number"
-                  placeholder="搜索量"
+                  placeholder="Search Volume"
                   value={editForm.search_volume}
                   onChange={(event) =>
                     handleInputChange(setEditForm, 'search_volume', event.target.value)
@@ -856,14 +856,14 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 <Input
                   type="number"
                   step="0.01"
-                  placeholder="竞争度"
+                  placeholder="Competition Score (0-1)"
                   value={editForm.competition_score}
                   onChange={(event) =>
                     handleInputChange(setEditForm, 'competition_score', event.target.value)
                   }
                 />
                 <Input
-                  placeholder="H1 标题"
+                  placeholder="H1 Heading"
                   value={editForm.h1}
                   onChange={(event) => handleInputChange(setEditForm, 'h1', event.target.value)}
                 />
@@ -872,13 +872,13 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
               <div className="grid gap-4 md:grid-cols-2">
                 <Textarea
                   rows={2}
-                  placeholder="Page Title"
+                  placeholder="Page title containing keyword"
                   value={editForm.title}
                   onChange={(event) => handleInputChange(setEditForm, 'title', event.target.value)}
                 />
                 <Textarea
                   rows={2}
-                  placeholder="Meta Description"
+                  placeholder="Meta description (140-160 chars)"
                   value={editForm.meta_description}
                   onChange={(event) =>
                     handleInputChange(setEditForm, 'meta_description', event.target.value)
@@ -889,7 +889,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
               <div>
                 <Textarea
                   rows={4}
-                  placeholder="场景介绍"
+                  placeholder="Intro paragraph (150-300 words)"
                   value={editForm.intro_paragraph}
                   onChange={(event) =>
                     handleInputChange(setEditForm, 'intro_paragraph', event.target.value)
@@ -909,7 +909,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                     <Input
                       value={step.title}
                       onChange={(event) => handleStepChange(setEditForm, index, 'title', event.target.value)}
-                      placeholder={`步骤 ${index + 1}`}
+                      placeholder={`Step ${index + 1} Title`}
                     />
                     <div className="flex gap-2">
                       <Textarea
