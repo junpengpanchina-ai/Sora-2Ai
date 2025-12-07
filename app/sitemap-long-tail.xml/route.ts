@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import type { Database } from '@/types/database'
+
+type KeywordRow = Database['public']['Tables']['long_tail_keywords']['Row']
 
 export const revalidate = 3600
 
@@ -7,7 +10,8 @@ export async function GET() {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.sora2ai.com'
   const supabase = await createServiceClient()
 
-  const { data, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: rawData, error } = await (supabase as any)
     .from('long_tail_keywords')
     .select('page_slug, updated_at')
     .eq('status', 'published')
@@ -18,7 +22,9 @@ export async function GET() {
     console.error('生成长尾词 sitemap 失败:', error)
   }
 
-  const urls = (data ?? []).map(
+  const data = (Array.isArray(rawData) ? rawData : []) as Pick<KeywordRow, 'page_slug' | 'updated_at'>[]
+
+  const urls = data.map(
     (item) => `
     <url>
       <loc>${baseUrl}/keywords/${item.page_slug}</loc>

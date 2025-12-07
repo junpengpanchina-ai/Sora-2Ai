@@ -97,7 +97,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     const supabase = await createServiceClient()
 
-    const { data: existing, error: fetchError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existingRaw, error: fetchError } = await (supabase as any)
       .from('long_tail_keywords')
       .select('*')
       .eq('id', keywordId)
@@ -107,9 +108,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       throw fetchError
     }
 
-    if (!existing) {
+    if (!existingRaw) {
       return NextResponse.json({ error: '长尾词不存在' }, { status: 404 })
     }
+
+    const existing = existingRaw as KeywordRow
 
     const updates: Record<string, unknown> = {}
 
@@ -209,11 +212,10 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: '没有可更新的字段' }, { status: 400 })
     }
-    const updatePayload = updates as Database['public']['Tables']['long_tail_keywords']['Update']
-
-    const { data, error } = await supabase
-      .from<Database['public']['Tables']['long_tail_keywords']['Row']>('long_tail_keywords')
-      .update(updatePayload)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: rawData, error } = await (supabase as any)
+      .from('long_tail_keywords')
+      .update(updates as Database['public']['Tables']['long_tail_keywords']['Update'])
       .eq('id', keywordId)
       .select('*')
       .single()
@@ -221,6 +223,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     if (error) {
       throw error
     }
+
+    const data = rawData as KeywordRow
 
     await revalidateKeywordPaths([existing.page_slug, data.page_slug])
 
@@ -254,7 +258,8 @@ export async function DELETE(request: Request, { params }: RouteParams) {
 
     const supabase = await createServiceClient()
 
-    const { data, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: rawData, error } = await (supabase as any)
       .from('long_tail_keywords')
       .delete()
       .eq('id', keywordId)
@@ -265,9 +270,11 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       throw error
     }
 
-    if (!data) {
+    if (!rawData) {
       return NextResponse.json({ error: '长尾词不存在' }, { status: 404 })
     }
+
+    const data = rawData as Pick<KeywordRow, 'page_slug'>
 
     await revalidateKeywordPaths([data.page_slug])
 

@@ -1,7 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
+import type { Database } from '@/types/database'
 import { KEYWORD_INTENT_LABELS, type KeywordIntent } from '@/lib/keywords/schema'
+
+type KeywordRow = Database['public']['Tables']['long_tail_keywords']['Row']
 
 export const revalidate = 600
 
@@ -23,7 +26,8 @@ interface KeywordSummary {
 
 export default async function KeywordsIndexPage() {
   const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: rawData, error } = await (supabase as any)
     .from('long_tail_keywords')
     .select('id, keyword, page_slug, intent, region, product, updated_at')
     .eq('status', 'published')
@@ -34,7 +38,12 @@ export default async function KeywordsIndexPage() {
     console.error('加载关键词列表失败:', error)
   }
 
-  const keywords: KeywordSummary[] = (data ?? []).map((item) => ({
+  const data = (Array.isArray(rawData) ? rawData : []) as Pick<
+    KeywordRow,
+    'id' | 'keyword' | 'page_slug' | 'intent' | 'region' | 'product' | 'updated_at'
+ >[]
+
+  const keywords: KeywordSummary[] = data.map((item) => ({
     id: item.id,
     keyword: item.keyword,
     page_slug: item.page_slug,

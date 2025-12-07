@@ -352,9 +352,9 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               intent: intentValue,
               region: typeof record.region === 'string' ? record.region : null,
               product: typeof record.product === 'string' ? record.product : null,
-            }
+            } as FeaturedKeyword | null
           })
-          .filter((item): item is FeaturedKeyword => Boolean(item))
+          .filter((item: FeaturedKeyword | null): item is FeaturedKeyword => Boolean(item))
           .slice(0, 6)
         setFeaturedKeywords(normalized)
       } catch (error) {
