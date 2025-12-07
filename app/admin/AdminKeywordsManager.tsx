@@ -145,14 +145,14 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
         const payload = await response.json().catch(() => ({}))
 
         if (!response.ok || !payload.success) {
-          throw new Error(payload.error ?? '获取长尾词失败')
+          throw new Error(payload.error ?? 'Failed to fetch keywords')
         }
 
         setKeywords(Array.isArray(payload.keywords) ? payload.keywords : [])
         setError(null)
       } catch (err) {
-        console.error('获取长尾词失败:', err)
-        setError(err instanceof Error ? err.message : '获取长尾词失败')
+        console.error('Failed to fetch keywords:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch keywords')
         setKeywords([])
       } finally {
         setLoading(false)
@@ -239,7 +239,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!createForm.keyword.trim()) {
-      onShowBanner('error', '请输入长尾关键词')
+      onShowBanner('error', 'Please enter a keyword')
       return
     }
     setCreating(true)
@@ -251,14 +251,14 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
       })
       const payload = await response.json().catch(() => ({}))
       if (!response.ok || !payload.success) {
-        throw new Error(payload.error ?? '创建失败')
+        throw new Error(payload.error ?? 'Creation failed')
       }
       setCreateForm(DEFAULT_FORM_STATE)
       setKeywords((prev) => [payload.keyword, ...prev])
-      onShowBanner('success', '长尾词已创建')
+      onShowBanner('success', 'Keyword created successfully')
     } catch (err) {
-      console.error('创建长尾词失败:', err)
-      onShowBanner('error', err instanceof Error ? err.message : '创建长尾词失败')
+      console.error('Failed to create keyword:', err)
+      onShowBanner('error', err instanceof Error ? err.message : 'Failed to create keyword')
     } finally {
       setCreating(false)
     }
@@ -299,22 +299,22 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
       })
       const payload = await response.json().catch(() => ({}))
       if (!response.ok || !payload.success) {
-        throw new Error(payload.error ?? '更新失败')
+        throw new Error(payload.error ?? 'Update failed')
       }
       setKeywords((prev) => prev.map((item) => (item.id === editingId ? payload.keyword : item)))
-      onShowBanner('success', '长尾词已更新')
+      onShowBanner('success', 'Keyword updated successfully')
       setEditingId(null)
       setEditForm(DEFAULT_FORM_STATE)
     } catch (err) {
-      console.error('更新长尾词失败:', err)
-      onShowBanner('error', err instanceof Error ? err.message : '更新长尾词失败')
+      console.error('Failed to update keyword:', err)
+      onShowBanner('error', err instanceof Error ? err.message : 'Failed to update keyword')
     } finally {
       setUpdating(false)
     }
   }
 
   const handleDelete = async (record: KeywordRecord) => {
-    if (!window.confirm(`确认删除「${record.keyword}」吗？`)) {
+    if (!window.confirm(`Are you sure you want to delete "${record.keyword}"?`)) {
       return
     }
     setDeletingId(record.id)
@@ -324,17 +324,17 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
       })
       const payload = await response.json().catch(() => ({}))
       if (!response.ok || !payload.success) {
-        throw new Error(payload.error ?? '删除失败')
+        throw new Error(payload.error ?? 'Delete failed')
       }
       setKeywords((prev) => prev.filter((item) => item.id !== record.id))
       if (editingId === record.id) {
         setEditingId(null)
         setEditForm(DEFAULT_FORM_STATE)
       }
-      onShowBanner('success', '长尾词已删除')
+      onShowBanner('success', 'Keyword deleted successfully')
     } catch (err) {
-      console.error('删除长尾词失败:', err)
-      onShowBanner('error', err instanceof Error ? err.message : '删除长尾词失败')
+      console.error('Failed to delete keyword:', err)
+      onShowBanner('error', err instanceof Error ? err.message : 'Failed to delete keyword')
     } finally {
       setDeletingId(null)
     }
@@ -346,13 +346,13 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>创建长尾词页面</CardTitle>
+          <CardTitle>Create Keyword Page</CardTitle>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={handleCreate}>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">关键词</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Keyword</label>
                 <Input
                   value={createForm.keyword}
                   onChange={(event) => handleInputChange(setCreateForm, 'keyword', event.target.value)}
@@ -361,7 +361,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">意图类型</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Intent Type</label>
                 <select
                   className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                   value={createForm.intent}
@@ -385,7 +385,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">状态</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Status</label>
                 <select
                   className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                   value={createForm.status}
@@ -395,7 +395,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 >
                   {KEYWORD_STATUSES.map((status) => (
                     <option key={status} value={status}>
-                      {status === 'published' ? '已发布' : '草稿'}
+                      {status === 'published' ? 'Published' : 'Draft'}
                     </option>
                   ))}
                 </select>
@@ -404,7 +404,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
 
             <div className="grid gap-4 md:grid-cols-4">
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">产品</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Product</label>
                 <Input
                   value={createForm.product}
                   onChange={(event) => handleInputChange(setCreateForm, 'product', event.target.value)}
@@ -412,7 +412,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">服务/功能</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Service/Feature</label>
                 <Input
                   value={createForm.service}
                   onChange={(event) => handleInputChange(setCreateForm, 'service', event.target.value)}
@@ -420,7 +420,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">地域</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Region</label>
                 <Input
                   value={createForm.region}
                   onChange={(event) => handleInputChange(setCreateForm, 'region', event.target.value)}
@@ -428,7 +428,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">痛点/场景</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Pain Point/Scenario</label>
                 <Input
                   value={createForm.pain_point}
                   onChange={(event) => handleInputChange(setCreateForm, 'pain_point', event.target.value)}
@@ -439,16 +439,16 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
 
             <div className="grid gap-4 md:grid-cols-3">
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">搜索量</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Search Volume</label>
                 <Input
                   type="number"
                   value={createForm.search_volume}
                   onChange={(event) => handleInputChange(setCreateForm, 'search_volume', event.target.value)}
-                  placeholder="例如：90"
+                  placeholder="e.g., 90"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">竞争度</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Competition Score</label>
                 <Input
                   type="number"
                   step="0.01"
@@ -460,7 +460,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">优先级</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Priority</label>
                 <Input
                   type="number"
                   value={createForm.priority}
@@ -479,7 +479,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">H1 标题</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">H1 Title</label>
                 <Input
                   value={createForm.h1}
                   onChange={(event) => handleInputChange(setCreateForm, 'h1', event.target.value)}
@@ -501,7 +501,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-600 dark:text-gray-300">场景介绍</label>
+              <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Introduction</label>
               <Textarea
                 rows={4}
                 value={createForm.intro_paragraph}
@@ -514,9 +514,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">使用步骤</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Steps</label>
                 <Button type="button" variant="secondary" size="sm" onClick={() => appendStep(setCreateForm)}>
-                  添加步骤
+                  Add Step
                 </Button>
               </div>
               {createForm.steps.map((step, index) => (
@@ -541,7 +541,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                         variant="ghost"
                         onClick={() => removeStep(setCreateForm, index)}
                       >
-                        删除
+                        Delete
                       </Button>
                     )}
                   </div>
@@ -553,7 +553,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium text-gray-600 dark:text-gray-300">FAQ</label>
                 <Button type="button" variant="secondary" size="sm" onClick={() => appendFaq(setCreateForm)}>
-                  添加问答
+                  Add FAQ
                 </Button>
               </div>
               {createForm.faq.map((item, index) => (
@@ -563,7 +563,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                     onChange={(event) =>
                       handleFaqChange(setCreateForm, index, 'question', event.target.value)
                     }
-                    placeholder={`问题 ${index + 1}`}
+                    placeholder={`Question ${index + 1}`}
                   />
                   <div className="flex gap-2">
                     <Textarea
@@ -580,7 +580,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                         variant="ghost"
                         onClick={() => removeFaq(setCreateForm, index)}
                       >
-                        删除
+                        Delete
                       </Button>
                     )}
                   </div>
@@ -590,7 +590,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
 
             <div className="flex justify-end">
               <Button type="submit" disabled={creating}>
-                {creating ? '创建中...' : '创建长尾词'}
+                {creating ? 'Creating...' : 'Create Keyword'}
               </Button>
             </div>
           </form>
@@ -600,13 +600,13 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <CardTitle>长尾词列表</CardTitle>
+            <CardTitle>Keywords List</CardTitle>
             <div className="flex flex-wrap gap-2">
               <Badge className="bg-energy-water-surface text-energy-water dark:bg-energy-water-muted dark:text-energy-soft">
-                共 {filteredKeywordCount} 条
+                Total {filteredKeywordCount} items
               </Badge>
               <Button size="sm" variant="secondary" onClick={() => fetchKeywords(true)} disabled={fetching}>
-                {fetching ? '刷新中...' : '刷新列表'}
+                {fetching ? 'Refreshing...' : 'Refresh List'}
               </Button>
             </div>
           </div>
@@ -620,7 +620,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
             }}
           >
             <Input
-              placeholder="搜索关键词/标题/URL"
+              placeholder="Search keyword/title/URL"
               value={filters.search}
               onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
             />
@@ -629,7 +629,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
               value={filters.intent}
               onChange={(event) => setFilters((prev) => ({ ...prev, intent: event.target.value }))}
             >
-              <option value="all">全部意图</option>
+              <option value="all">All Intents</option>
               {KEYWORD_INTENTS.map((intent) => (
                 <option key={intent} value={intent}>
                   {KEYWORD_INTENT_LABELS[intent]}
@@ -641,22 +641,22 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
               value={filters.status}
               onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value }))}
             >
-              <option value="all">全部状态</option>
-              <option value="published">已发布</option>
-              <option value="draft">草稿</option>
+              <option value="all">All Status</option>
+              <option value="published">Published</option>
+              <option value="draft">Draft</option>
             </select>
             <Input
-              placeholder="产品"
+              placeholder="Product"
               value={filters.product}
               onChange={(event) => setFilters((prev) => ({ ...prev, product: event.target.value }))}
             />
             <Input
-              placeholder="地域"
+              placeholder="Region"
               value={filters.region}
               onChange={(event) => setFilters((prev) => ({ ...prev, region: event.target.value }))}
             />
             <Input
-              placeholder="痛点"
+              placeholder="Pain Point"
               value={filters.painPoint}
               onChange={(event) => setFilters((prev) => ({ ...prev, painPoint: event.target.value }))}
             />
@@ -665,30 +665,30 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
           {loading ? (
             <div className="flex items-center justify-center py-12 text-gray-500 dark:text-gray-400">
               <div className="mr-3 h-6 w-6 animate-spin rounded-full border-b-2 border-energy-water"></div>
-              正在加载长尾词...
+              Loading keywords...
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-red-500 dark:text-red-400">
               <p>{error}</p>
               <Button variant="secondary" size="sm" onClick={() => fetchKeywords(true)}>
-                重新加载
+                Reload
               </Button>
             </div>
           ) : keywords.length === 0 ? (
-            <div className="py-12 text-center text-gray-500 dark:text-gray-400">暂无数据</div>
+            <div className="py-12 text-center text-gray-500 dark:text-gray-400">No data available</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700">
-                    <th className="py-3 px-4 text-left">关键词</th>
+                    <th className="py-3 px-4 text-left">Keyword</th>
                     <th className="py-3 px-4 text-left">Slug</th>
-                    <th className="py-3 px-4 text-left">意图</th>
-                    <th className="py-3 px-4 text-left">地域/产品</th>
-                    <th className="py-3 px-4 text-left">优先级</th>
-                    <th className="py-3 px-4 text-left">状态</th>
-                    <th className="py-3 px-4 text-left">最近更新时间</th>
-                    <th className="py-3 px-4 text-left">操作</th>
+                    <th className="py-3 px-4 text-left">Intent</th>
+                    <th className="py-3 px-4 text-left">Region/Product</th>
+                    <th className="py-3 px-4 text-left">Priority</th>
+                    <th className="py-3 px-4 text-left">Status</th>
+                    <th className="py-3 px-4 text-left">Last Updated</th>
+                    <th className="py-3 px-4 text-left">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -723,7 +723,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                       <td className="py-3 px-4">{keyword.priority}</td>
                       <td className="py-3 px-4">
                         <Badge className={STATUS_BADGE_STYLES[keyword.status]}>
-                          {keyword.status === 'published' ? '已发布' : '草稿'}
+                          {keyword.status === 'published' ? 'Published' : 'Draft'}
                         </Badge>
                       </td>
                       <td className="py-3 px-4 text-xs text-gray-500 dark:text-gray-400">
@@ -733,7 +733,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                         <div className="flex flex-col gap-2">
                           <div className="flex flex-wrap gap-2">
                             <Button size="sm" variant="secondary" onClick={() => startEditing(keyword)}>
-                              编辑
+                              Edit
                             </Button>
                             {keyword.status === 'published' && (
                               <Button
@@ -742,7 +742,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                                 onClick={() => window.open(`/keywords/${keyword.page_slug}`, '_blank')}
                                 className="text-blue-600 hover:text-blue-700 dark:text-blue-400"
                               >
-                                查看
+                                View
                               </Button>
                             )}
                             <Button
@@ -751,7 +751,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                               onClick={() => handleDelete(keyword)}
                               disabled={deletingId === keyword.id}
                             >
-                              {deletingId === keyword.id ? '删除中...' : '删除'}
+                              {deletingId === keyword.id ? 'Deleting...' : 'Delete'}
                             </Button>
                           </div>
                         </div>
@@ -768,13 +768,13 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
       {editingId && (
         <Card>
           <CardHeader>
-            <CardTitle>编辑长尾词</CardTitle>
+            <CardTitle>Edit Keyword</CardTitle>
           </CardHeader>
           <CardContent>
             <form className="space-y-4" onSubmit={handleEditSubmit}>
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">关键词</label>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Keyword</label>
                   <Input
                     value={editForm.keyword}
                     onChange={(event) => handleInputChange(setEditForm, 'keyword', event.target.value)}
@@ -782,7 +782,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">意图类型</label>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Intent Type</label>
                   <select
                     className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                     value={editForm.intent}
@@ -808,7 +808,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">状态</label>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Status</label>
                   <select
                     className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                     value={editForm.status}
@@ -818,13 +818,13 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                   >
                     {KEYWORD_STATUSES.map((status) => (
                       <option key={status} value={status}>
-                        {status === 'published' ? '已发布' : '草稿'}
+                        {status === 'published' ? 'Published' : 'Draft'}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">优先级</label>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Priority</label>
                   <Input
                     type="number"
                     value={editForm.priority}
@@ -911,9 +911,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">使用步骤</label>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Steps</label>
                   <Button type="button" variant="secondary" size="sm" onClick={() => appendStep(setEditForm)}>
-                    添加步骤
+                    Add Step
                   </Button>
                 </div>
                 {editForm.steps.map((step, index) => (
@@ -937,7 +937,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                           variant="ghost"
                           onClick={() => removeStep(setEditForm, index)}
                         >
-                          删除
+                          Delete
                         </Button>
                       )}
                     </div>
@@ -949,7 +949,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium text-gray-600 dark:text-gray-300">FAQ</label>
                   <Button type="button" variant="secondary" size="sm" onClick={() => appendFaq(setEditForm)}>
-                    添加问答
+                    Add FAQ
                   </Button>
                 </div>
                 {editForm.faq.map((item, index) => (
@@ -959,7 +959,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                       onChange={(event) =>
                         handleFaqChange(setEditForm, index, 'question', event.target.value)
                       }
-                      placeholder={`问题 ${index + 1}`}
+                      placeholder={`Question ${index + 1}`}
                     />
                     <div className="flex gap-2">
                       <Textarea
@@ -975,7 +975,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                           variant="ghost"
                           onClick={() => removeFaq(setEditForm, index)}
                         >
-                          删除
+                          Delete
                         </Button>
                       )}
                     </div>
@@ -985,10 +985,10 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
 
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="outline" onClick={() => setEditingId(null)} disabled={updating}>
-                  取消
+                  Cancel
                 </Button>
                 <Button type="submit" disabled={updating}>
-                  {updating ? '保存中...' : '保存修改'}
+                  {updating ? 'Saving...' : 'Save Changes'}
                 </Button>
               </div>
             </form>

@@ -86,12 +86,12 @@ export async function GET(request: Request) {
       },
     })
   } catch (error) {
-    console.error('获取公开长尾词失败:', error)
+    console.error('Failed to fetch public keywords:', error)
     return NextResponse.json(
       {
         success: false,
-        error: '获取长尾词失败',
-        details: error instanceof Error ? error.message : '未知错误',
+        error: 'Failed to fetch keywords',
+        details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     )

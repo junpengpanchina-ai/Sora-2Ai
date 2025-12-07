@@ -17,7 +17,7 @@ export default function KeywordToolEmbed({ defaultPrompt }: KeywordToolEmbedProp
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!prompt.trim()) {
-      setError('请输入视频生成提示词')
+      setError('Please enter a video generation prompt')
       return
     }
     setError(null)
@@ -35,25 +35,25 @@ export default function KeywordToolEmbed({ defaultPrompt }: KeywordToolEmbedProp
       onSubmit={handleSubmit}
       className="rounded-2xl border border-energy-water/30 bg-white/80 p-6 shadow-lg backdrop-blur dark:border-energy-water/40 dark:bg-gray-900/70"
     >
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white">立即试用视频生成器</h2>
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Try Video Generator Now</h2>
       <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-        输入描述，点击“开始生成”后我们会把提示词带入 /video 页面，登录后即可直接生成。
+        Enter a description, click &quot;Start Generation&quot; and we will take the prompt to the /video page, where you can generate directly after logging in.
       </p>
       <Textarea
         rows={4}
         value={prompt}
         onChange={(event) => setPrompt(event.target.value)}
-        placeholder="例如：10 秒 9:16 竖屏，未来感城市夜景航拍，镜头快速拉近，霓虹光效..."
+        placeholder="e.g., 10-second 9:16 vertical video, futuristic city nightscape aerial view, camera zooming in quickly, neon light effects..."
         className="mt-4"
         required
       />
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
       <div className="mt-4 flex items-center gap-3">
         <Button type="submit" disabled={submitting}>
-          {submitting ? '跳转中...' : '开始生成'}
+          {submitting ? 'Redirecting...' : 'Start Generation'}
         </Button>
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          * 如未登录，会先提示你登录账号。登录后表单会自动填入刚才的提示词。
+          * If not logged in, you will be prompted to log in first. After logging in, the form will automatically fill in the prompt you just entered.
         </p>
       </div>
     </form>

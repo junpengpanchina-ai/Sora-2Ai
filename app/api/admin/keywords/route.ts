@@ -139,9 +139,9 @@ export async function GET(request: Request) {
       },
     })
   } catch (error) {
-    console.error('获取长尾词列表失败:', error)
+    console.error('Failed to fetch keywords list:', error)
     return NextResponse.json(
-      { error: '获取长尾词列表失败', details: error instanceof Error ? error.message : '未知错误' },
+      { error: 'Failed to fetch keywords list', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
@@ -156,17 +156,17 @@ export async function POST(request: Request) {
 
     const payload = await request.json().catch(() => null)
     if (!payload || typeof payload !== 'object') {
-      return NextResponse.json({ error: '请求体格式不正确' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid request body format' }, { status: 400 })
     }
 
     const keyword = typeof payload.keyword === 'string' ? payload.keyword.trim() : ''
     if (!keyword) {
-      return NextResponse.json({ error: '关键字不能为空' }, { status: 400 })
+      return NextResponse.json({ error: 'Keyword cannot be empty' }, { status: 400 })
     }
 
     const intentInput = typeof payload.intent === 'string' ? payload.intent.trim() : ''
     if (!isKeywordIntent(intentInput)) {
-      return NextResponse.json({ error: '意图类型不合法' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid intent type' }, { status: 400 })
     }
 
     const slugInput =
@@ -177,13 +177,13 @@ export async function POST(request: Request) {
           : keyword
     const pageSlug = normalizeSlug(slugInput)
     if (!pageSlug) {
-      return NextResponse.json({ error: 'URL Slug 不能为空' }, { status: 400 })
+      return NextResponse.json({ error: 'URL Slug cannot be empty' }, { status: 400 })
     }
 
     const statusInput =
       typeof payload.status === 'string' ? payload.status.trim() : KEYWORD_STATUSES[0]
     if (!isKeywordStatus(statusInput)) {
-      return NextResponse.json({ error: '状态不合法' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }
 
     const steps = normalizeSteps(payload.steps)
@@ -233,9 +233,9 @@ export async function POST(request: Request) {
       keyword: serializeKeyword(data),
     })
   } catch (error) {
-    console.error('创建长尾词失败:', error)
+    console.error('Failed to create keyword:', error)
     return NextResponse.json(
-      { error: '创建长尾词失败', details: error instanceof Error ? error.message : '未知错误' },
+      { error: 'Failed to create keyword', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

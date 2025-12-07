@@ -81,17 +81,17 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   try {
     const adminUser = await validateAdminSession()
     if (!adminUser) {
-      return NextResponse.json({ error: '未授权，请先登录' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized, please login first' }, { status: 401 })
     }
 
     const keywordId = params.id
     if (!keywordId) {
-      return NextResponse.json({ error: '缺少关键词 ID' }, { status: 400 })
+      return NextResponse.json({ error: 'Missing keyword ID' }, { status: 400 })
     }
 
     const payloadRaw = await request.json().catch(() => null)
     if (!payloadRaw || typeof payloadRaw !== 'object') {
-      return NextResponse.json({ error: '请求体格式不正确' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid request body format' }, { status: 400 })
     }
     const payload = payloadRaw as Record<string, unknown>
 
@@ -109,7 +109,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     if (!existingRaw) {
-      return NextResponse.json({ error: '长尾词不存在' }, { status: 404 })
+      return NextResponse.json({ error: 'Keyword not found' }, { status: 404 })
     }
 
     const existing = existingRaw as KeywordRow
@@ -121,31 +121,31 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       updates.keyword = keywordValue
     }
 
-    const intentValue = readTrimmedString(payload.intent)
-    if (intentValue) {
-      if (!isKeywordIntent(intentValue)) {
-        return NextResponse.json({ error: '意图类型不合法' }, { status: 400 })
+      const intentValue = readTrimmedString(payload.intent)
+      if (intentValue) {
+        if (!isKeywordIntent(intentValue)) {
+          return NextResponse.json({ error: 'Invalid intent type' }, { status: 400 })
+        }
+        updates.intent = intentValue
       }
-      updates.intent = intentValue
-    }
 
-    const slugSource = readTrimmedString(payload.pageSlug) ?? readTrimmedString(payload.page_slug)
-    if (slugSource) {
-      const slug = normalizeSlug(slugSource)
-      if (!slug) {
-        return NextResponse.json({ error: 'URL Slug 不能为空' }, { status: 400 })
+      const slugSource = readTrimmedString(payload.pageSlug) ?? readTrimmedString(payload.page_slug)
+      if (slugSource) {
+        const slug = normalizeSlug(slugSource)
+        if (!slug) {
+          return NextResponse.json({ error: 'URL Slug cannot be empty' }, { status: 400 })
+        }
+        updates.page_slug = slug
       }
-      updates.page_slug = slug
-    }
 
-    if (payload.status !== undefined) {
-      const statusValue = readTrimmedString(payload.status)
-      if (!statusValue) {
-        return NextResponse.json({ error: '状态必须是字符串' }, { status: 400 })
-      }
-      if (!isKeywordStatus(statusValue)) {
-        return NextResponse.json({ error: '状态不合法' }, { status: 400 })
-      }
+      if (payload.status !== undefined) {
+        const statusValue = readTrimmedString(payload.status)
+        if (!statusValue) {
+          return NextResponse.json({ error: 'Status must be a string' }, { status: 400 })
+        }
+        if (!isKeywordStatus(statusValue)) {
+          return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+        }
       updates.status = statusValue
       if (statusValue === 'published') {
         updates.last_generated_at = new Date().toISOString()
@@ -210,7 +210,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     if (Object.keys(updates).length === 0) {
-      return NextResponse.json({ error: '没有可更新的字段' }, { status: 400 })
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: rawData, error } = await (supabase as any)
@@ -233,11 +233,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       keyword: serializeKeyword(data),
     })
   } catch (error) {
-    console.error('更新长尾词失败:', error)
+    console.error('Failed to update keyword:', error)
     return NextResponse.json(
       {
-        error: '更新长尾词失败',
-        details: error instanceof Error ? error.message : '未知错误',
+        error: 'Failed to update keyword',
+        details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     )
@@ -248,12 +248,12 @@ export async function DELETE(request: Request, { params }: RouteParams) {
   try {
     const adminUser = await validateAdminSession()
     if (!adminUser) {
-      return NextResponse.json({ error: '未授权，请先登录' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized, please login first' }, { status: 401 })
     }
 
     const keywordId = params.id
     if (!keywordId) {
-      return NextResponse.json({ error: '缺少关键词 ID' }, { status: 400 })
+      return NextResponse.json({ error: 'Missing keyword ID' }, { status: 400 })
     }
 
     const supabase = await createServiceClient()
@@ -271,7 +271,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     }
 
     if (!rawData) {
-      return NextResponse.json({ error: '长尾词不存在' }, { status: 404 })
+      return NextResponse.json({ error: 'Keyword not found' }, { status: 404 })
     }
 
     const data = rawData as Pick<KeywordRow, 'page_slug'>
@@ -280,11 +280,11 @@ export async function DELETE(request: Request, { params }: RouteParams) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('删除长尾词失败:', error)
+    console.error('Failed to delete keyword:', error)
     return NextResponse.json(
       {
-        error: '删除长尾词失败',
-        details: error instanceof Error ? error.message : '未知错误',
+        error: 'Failed to delete keyword',
+        details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     )
