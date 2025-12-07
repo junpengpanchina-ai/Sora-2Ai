@@ -95,12 +95,12 @@ CREATE TABLE long_tail_keywords (
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `keyword` | TEXT | ✅ | 长尾关键词，如："Sora 视频生成器 免费" |
+| `keyword` | TEXT | ✅ | 长尾关键词，如："sora video generator free online" |
 | `intent` | TEXT | ✅ | 搜索意图：`information`（信息型）、`comparison`（比较型）、`transaction`（交易型） |
-| `product` | TEXT | ❌ | 关联产品，如："Sora2 视频" |
-| `service` | TEXT | ❌ | 服务/功能，如："在线生成器" |
-| `region` | TEXT | ❌ | 目标地域，如："上海" |
-| `pain_point` | TEXT | ❌ | 痛点/场景，如："批量内容发布" |
+| `product` | TEXT | ❌ | 关联产品，如："Sora2 Video" |
+| `service` | TEXT | ❌ | 服务/功能，如："Online Generator" |
+| `region` | TEXT | ❌ | 目标地域，如："US", "UK", "Global" |
+| `pain_point` | TEXT | ❌ | 痛点/场景，如："Batch Content Creation" |
 | `search_volume` | INTEGER | ❌ | 预估搜索量 |
 | `competition_score` | NUMERIC | ❌ | 竞争度评分（0-1） |
 | `priority` | INTEGER | ✅ | 优先级，用于排序（默认 0） |
@@ -137,7 +137,7 @@ CREATE TABLE long_tail_keywords (
 
 #### 1. 基本信息
 
-- **关键词**：输入长尾关键词，如："Sora 视频生成器 免费"
+- **关键词**：输入长尾关键词，如："sora video generator free online"
 - **意图类型**：选择搜索意图
   - 信息型：用户想了解信息
   - 比较型：用户想比较不同方案
@@ -148,8 +148,8 @@ CREATE TABLE long_tail_keywords (
 
 - **产品**：如："Sora2 视频"
 - **服务/功能**：如："在线生成器"
-- **地域**：如："上海"
-- **痛点/场景**：如："批量内容发布"
+- **地域**：如："US", "UK", "Global"
+- **痛点/场景**：如："Batch Content Creation"
 
 #### 3. SEO 数据（可选）
 
@@ -275,8 +275,8 @@ FAQ 使用 JSON-LD 结构化数据，帮助 Google 理解内容。
 
 #### 维度拆分
 
-- **产品/服务维度**：如："Sora 视频生成器"、"AI 视频工具"
-- **地域维度**：如："上海 Sora 视频生成"、"北京 AI 视频制作"
+- **产品/服务维度**：如："sora video generator"、"ai video tool"
+- **地域维度**：如："sora video generator us"、"ai video maker uk"
 - **痛点维度**：如："批量视频生成"、"免费视频制作"
 
 #### 搜索意图分类
@@ -286,7 +286,7 @@ FAQ 使用 JSON-LD 结构化数据，帮助 Google 理解内容。
 - **比较型 (comparison)**：用户想比较不同方案
   - 示例："Sora vs Runway"、"最佳 AI 视频工具"
 - **交易型 (transaction)**：用户想直接使用/购买
-  - 示例："Sora 视频生成器 免费"、"在线 AI 视频制作"
+  - 示例："sora video generator free"、"online ai video maker"
 
 #### 筛选标准
 
@@ -304,8 +304,8 @@ FAQ 使用 JSON-LD 结构化数据，帮助 Google 理解内容。
 
 示例：
 ```
-✅ "Sora 视频生成器 免费 | 在线 AI 视频制作工具"
-❌ "Sora 视频生成器 免费 在线 AI 视频制作工具 免费"
+✅ "Sora Video Generator Free | Online AI Video Maker"
+❌ "Sora Video Generator Free Online AI Video Maker Free"
 ```
 
 #### Meta Description 优化
@@ -316,7 +316,7 @@ FAQ 使用 JSON-LD 结构化数据，帮助 Google 理解内容。
 
 示例：
 ```
-"Sora 视频生成器免费版，支持在线 AI 视频制作。输入文字描述即可生成高质量视频，无需下载安装。立即试用，免费生成你的第一个 AI 视频。"
+"Free Sora video generator online. Create high-quality AI videos from text descriptions. No download required. Try it now and generate your first AI video for free."
 ```
 
 #### H1 优化
