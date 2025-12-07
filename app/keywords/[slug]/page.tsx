@@ -226,19 +226,17 @@ export default async function KeywordLandingPage({ params }: PageProps) {
                 <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Frequently Asked Questions</h2>
                 <div className="mt-4 space-y-4">
                   {keyword.faq.map((item, index) => (
-                    <details
+                    <div
                       key={`${keyword.id}-faq-${index}`}
-                      className="group rounded-xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/50"
-                      open={index === 0}
+                      className="rounded-xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/50"
                     >
-                      <summary className="cursor-pointer list-none text-lg font-medium text-gray-900 dark:text-white flex items-center justify-between">
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                         {item.question}
-                        <span className="ml-2 text-energy-water group-open:rotate-180 transition-transform">⌄</span>
-                      </summary>
+                      </h3>
                       <p className="mt-3 text-sm text-gray-600 leading-relaxed dark:text-gray-300">
                         {item.answer}
                       </p>
-                    </details>
+                    </div>
                   ))}
                 </div>
               </section>
