@@ -206,14 +206,15 @@ export async function POST(request: Request) {
       h1: typeof payload.h1 === 'string' ? payload.h1.trim() || null : null,
       intro_paragraph:
         typeof payload.intro_paragraph === 'string' ? payload.intro_paragraph.trim() || null : null,
-      steps: steps as Json,
-      faq: faq as Json,
+      steps: JSON.parse(JSON.stringify(steps)) as Json,
+      faq: JSON.parse(JSON.stringify(faq)) as Json,
       status: statusInput,
       last_generated_at: statusInput === 'published' ? new Date().toISOString() : null,
     }
 
     const supabase = await createServiceClient()
-    const { data, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: rawData, error } = await (supabase as any)
       .from('long_tail_keywords')
       .insert(insertPayload)
       .select('*')
@@ -222,6 +223,8 @@ export async function POST(request: Request) {
     if (error) {
       throw error
     }
+
+    const data = rawData as KeywordRow
 
     await revalidateKeywordCaches(pageSlug)
 

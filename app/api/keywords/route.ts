@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import type { Database } from '@/types/database'
 import {
   isKeywordIntent,
   KEYWORD_INTENTS,
   normalizeSteps,
   normalizeFaq,
 } from '@/lib/keywords/schema'
+
+type KeywordRow = Database['public']['Tables']['long_tail_keywords']['Row']
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 60
@@ -62,18 +65,18 @@ export async function GET(request: Request) {
       }
     }
 
-    const { data, error } = await query
+    const { data: rawData, error } = await query
     if (error) {
       throw error
     }
 
-    const keywords = Array.isArray(data)
-      ? data.map((item) => ({
-          ...item,
-          steps: normalizeSteps(item.steps),
-          faq: normalizeFaq(item.faq),
-        }))
-      : []
+    const data = (Array.isArray(rawData) ? rawData : []) as KeywordRow[]
+
+    const keywords = data.map((item) => ({
+      ...item,
+      steps: normalizeSteps(item.steps),
+      faq: normalizeFaq(item.faq),
+    }))
 
     return NextResponse.json({
       success: true,

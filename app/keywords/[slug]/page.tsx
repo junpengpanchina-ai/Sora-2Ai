@@ -9,14 +9,15 @@ import KeywordToolEmbed from '../KeywordToolEmbed'
 
 type KeywordRow = Database['public']['Tables']['long_tail_keywords']['Row']
 
-interface KeywordPageRecord extends KeywordRow {
+interface KeywordPageRecord extends Omit<KeywordRow, 'steps' | 'faq'> {
   steps: ReturnType<typeof normalizeSteps>
   faq: ReturnType<typeof normalizeFaq>
 }
 
 const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord | null> => {
   const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: rawData, error } = await (supabase as any)
     .from('long_tail_keywords')
     .select('*')
     .eq('status', 'published')
@@ -28,9 +29,11 @@ const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord |
     return null
   }
 
-  if (!data) {
+  if (!rawData) {
     return null
   }
+
+  const data = rawData as KeywordRow
 
   return {
     ...data,
@@ -41,7 +44,8 @@ const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord |
 
 const getRelatedKeywords = cache(async (excludeId: string): Promise<KeywordPageRecord[]> => {
   const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: rawData, error } = await (supabase as any)
     .from('long_tail_keywords')
     .select('*')
     .eq('status', 'published')
@@ -55,7 +59,9 @@ const getRelatedKeywords = cache(async (excludeId: string): Promise<KeywordPageR
     return []
   }
 
-  return (data ?? []).map((item) => ({
+  const data = (Array.isArray(rawData) ? rawData : []) as KeywordRow[]
+
+  return data.map((item) => ({
     ...item,
     steps: normalizeSteps(item.steps),
     faq: normalizeFaq(item.faq),
