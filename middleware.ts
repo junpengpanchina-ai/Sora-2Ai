@@ -14,7 +14,7 @@ export const config = {
      * - favicon.ico, icon.svg (图标文件)
      * - public 文件夹中的静态资源
      */
-    '/((?!_next/static|_next/image|favicon.ico|icon.svg|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icon.svg|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|html)$).*)',
   ],
 }
 
