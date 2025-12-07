@@ -612,20 +612,21 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           </Card>
         </div>
 
-        {/* Image Carousel - Lazy render to protect LCP */}
+        {/* Image Carousel - Optimized for performance */}
         <div className="mb-8 space-y-6" ref={imageSectionRef}>
           {imagesReady ? (
             <>
-              {/* Top row: slide from right to left */}
-              <div className="overflow-hidden">
-                <div className="flex gap-6 animate-slide-right" style={{ width: '300%' }}>
+              {/* Top row: slide from right to left - Reduced to 2 sets for better performance */}
+              <div className="overflow-hidden will-change-transform">
+                <div className="flex gap-6 animate-slide-right" style={{ width: '200%' }}>
                   {/* First set */}
-                  <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                  <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
                     <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
                       <R2Image
                         src="2b827a33e43a48b2b583ed428977712c.png"
                         alt="Image 1"
                         className="w-full h-auto rounded-lg"
+                        loading="eager"
                       />
                     </div>
                     <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -633,6 +634,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                         src="460bef39f6e34f82912a27e357827963.png"
                         alt="Image 2"
                         className="w-full h-auto rounded-lg"
+                        loading="lazy"
                       />
                     </div>
                     <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -640,6 +642,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                         src="5995d3bfdb674ecebaccc581ed8940b3.png"
                         alt="Image 3"
                         className="w-full h-auto rounded-lg"
+                        loading="lazy"
                       />
                     </div>
                     <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -647,16 +650,18 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                         src="7b0be82bb2134fca87519cbecf30aca9.png"
                         alt="Image 4"
                         className="w-full h-auto rounded-lg"
+                        loading="lazy"
                       />
                     </div>
                   </div>
                   {/* Second set - duplicate for seamless loop */}
-                  <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                  <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
                     <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
                       <R2Image
                         src="2b827a33e43a48b2b583ed428977712c.png"
                         alt="Image 1"
                         className="w-full h-auto rounded-lg"
+                        loading="lazy"
                       />
                     </div>
                     <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -664,6 +669,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                         src="460bef39f6e34f82912a27e357827963.png"
                         alt="Image 2"
                         className="w-full h-auto rounded-lg"
+                        loading="lazy"
                       />
                     </div>
                     <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -671,6 +677,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                         src="5995d3bfdb674ecebaccc581ed8940b3.png"
                         alt="Image 3"
                         className="w-full h-auto rounded-lg"
+                        loading="lazy"
                       />
                     </div>
                     <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -678,53 +685,24 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                         src="7b0be82bb2134fca87519cbecf30aca9.png"
                         alt="Image 4"
                         className="w-full h-auto rounded-lg"
-                      />
-                    </div>
-                  </div>
-                  {/* Third set - extra duplicate for seamless loop */}
-                  <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="2b827a33e43a48b2b583ed428977712c.png"
-                        alt="Image 1"
-                        className="w-full h-auto rounded-lg"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="460bef39f6e34f82912a27e357827963.png"
-                        alt="Image 2"
-                        className="w-full h-auto rounded-lg"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="5995d3bfdb674ecebaccc581ed8940b3.png"
-                        alt="Image 3"
-                        className="w-full h-auto rounded-lg"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="7b0be82bb2134fca87519cbecf30aca9.png"
-                        alt="Image 4"
-                        className="w-full h-auto rounded-lg"
+                        loading="lazy"
                       />
                     </div>
                   </div>
                 </div>
               </div>
               
-              {/* Bottom row: slide from left to right */}
-              <div className="overflow-hidden">
-                <div className="flex gap-6 animate-slide-left" style={{ width: '300%' }}>
+              {/* Bottom row: slide from left to right - Reduced to 2 sets for better performance */}
+              <div className="overflow-hidden will-change-transform">
+                <div className="flex gap-6 animate-slide-left" style={{ width: '200%' }}>
                   {/* First set */}
-                  <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                  <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
                     <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
                       <R2Image
                         src="80dc75a06d0b49c29bdb78eb45dc70a0.png"
                         alt="Image 5"
                         className="w-full h-auto rounded-lg"
+                        loading="lazy"
                       />
                     </div>
                     <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -732,6 +710,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                         src="b451ac136a474a9f91398a403af2d2a6.png"
                         alt="Image 6"
                         className="w-full h-auto rounded-lg"
+                        loading="lazy"
                       />
                     </div>
                     <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -739,6 +718,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                         src="e6e1ebc8cea34e83a106009a485b1cbb.png"
                         alt="Image 7"
                         className="w-full h-auto rounded-lg"
+                        loading="lazy"
                       />
                     </div>
                     <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -746,16 +726,18 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                         src="f566981bc27549b7a2389a6887e9c840.png"
                         alt="Image 8"
                         className="w-full h-auto rounded-lg"
+                        loading="lazy"
                       />
                     </div>
                   </div>
                   {/* Second set - duplicate for seamless loop */}
-                  <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                  <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
                     <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
                       <R2Image
                         src="80dc75a06d0b49c29bdb78eb45dc70a0.png"
                         alt="Image 5"
                         className="w-full h-auto rounded-lg"
+                        loading="lazy"
                       />
                     </div>
                     <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -763,6 +745,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                         src="b451ac136a474a9f91398a403af2d2a6.png"
                         alt="Image 6"
                         className="w-full h-auto rounded-lg"
+                        loading="lazy"
                       />
                     </div>
                     <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -770,6 +753,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                         src="e6e1ebc8cea34e83a106009a485b1cbb.png"
                         alt="Image 7"
                         className="w-full h-auto rounded-lg"
+                        loading="lazy"
                       />
                     </div>
                     <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -777,37 +761,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                         src="f566981bc27549b7a2389a6887e9c840.png"
                         alt="Image 8"
                         className="w-full h-auto rounded-lg"
-                      />
-                    </div>
-                  </div>
-                  {/* Third set - extra duplicate for seamless loop */}
-                  <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="80dc75a06d0b49c29bdb78eb45dc70a0.png"
-                        alt="Image 5"
-                        className="w-full h-auto rounded-lg"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="b451ac136a474a9f91398a403af2d2a6.png"
-                        alt="Image 6"
-                        className="w-full h-auto rounded-lg"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="e6e1ebc8cea34e83a106009a485b1cbb.png"
-                        alt="Image 7"
-                        className="w-full h-auto rounded-lg"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="f566981bc27549b7a2389a6887e9c840.png"
-                        alt="Image 8"
-                        className="w-full h-auto rounded-lg"
+                        loading="lazy"
                       />
                     </div>
                   </div>
@@ -821,13 +775,13 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
             />
           )}
         </div>
-      {/* Video Carousel - Below image carousel */}
+      {/* Video Carousel - Optimized for fast loading */}
         <div className="mb-8" ref={videoSectionRef}>
           {videosReady ? (
-            <div className="overflow-hidden">
-              <div className="flex gap-6 animate-slide-right" style={{ width: '300%' }}>
-                {/* First set */}
-                <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+            <div className="overflow-hidden will-change-transform">
+              <div className="flex gap-6 animate-slide-right" style={{ width: '200%' }}>
+                {/* First set - Only first video autoplays and preloads */}
+                <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
                   <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
                     <video
                       src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/b8edbf0aa26b4afa85b7095b91414f3d.mp4"
@@ -837,7 +791,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                       loop
                       muted
                       playsInline
-                      preload="metadata"
+                      preload="auto"
                     />
                   </div>
                   <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -845,11 +799,10 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                       src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223443_366.mp4"
                       className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
                       controls
-                      autoPlay
                       loop
                       muted
                       playsInline
-                      preload="metadata"
+                      preload="none"
                     />
                   </div>
                   <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -857,11 +810,10 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                       src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223856_981.mp4"
                       className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
                       controls
-                      autoPlay
                       loop
                       muted
                       playsInline
-                      preload="metadata"
+                      preload="none"
                     />
                   </div>
                   <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -869,26 +821,24 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                       src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224357_417.mp4"
                       className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
                       controls
-                      autoPlay
                       loop
                       muted
                       playsInline
-                      preload="metadata"
+                      preload="none"
                     />
                   </div>
                 </div>
-                {/* Second set - duplicate for seamless loop */}
-                <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
+                {/* Second set - duplicate for seamless loop, all lazy loaded */}
+                <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
                   <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
                     <video
                       src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224947_118.mp4"
                       className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
                       controls
-                      autoPlay
                       loop
                       muted
                       playsInline
-                      preload="metadata"
+                      preload="none"
                     />
                   </div>
                   <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -896,11 +846,10 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                       src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223443_366.mp4"
                       className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
                       controls
-                      autoPlay
                       loop
                       muted
                       playsInline
-                      preload="metadata"
+                      preload="none"
                     />
                   </div>
                   <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -908,11 +857,10 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                       src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223856_981.mp4"
                       className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
                       controls
-                      autoPlay
                       loop
                       muted
                       playsInline
-                      preload="metadata"
+                      preload="none"
                     />
                   </div>
                   <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -920,62 +868,10 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                       src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224357_417.mp4"
                       className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
                       controls
-                      autoPlay
                       loop
                       muted
                       playsInline
-                      preload="metadata"
-                    />
-                  </div>
-                </div>
-                {/* Third set - extra duplicate for seamless loop */}
-                <div className="flex gap-6 flex-shrink-0" style={{ width: '33.333%' }}>
-                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <video
-                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/b8edbf0aa26b4afa85b7095b91414f3d.mp4"
-                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                      controls
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      preload="metadata"
-                    />
-                  </div>
-                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <video
-                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224947_118.mp4"
-                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                      controls
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      preload="metadata"
-                    />
-                  </div>
-                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <video
-                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223856_981.mp4"
-                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                      controls
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      preload="metadata"
-                    />
-                  </div>
-                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <video
-                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224357_417.mp4"
-                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                      controls
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      preload="metadata"
+                      preload="none"
                     />
                   </div>
                 </div>
