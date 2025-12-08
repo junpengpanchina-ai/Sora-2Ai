@@ -4,10 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from '@/components/ui'
 import {
   PROMPT_CATEGORIES,
-  PROMPT_DIFFICULTIES,
+  PROMPT_INTENTS,
   PROMPT_LOCALES,
   type PromptCategory,
-  type PromptDifficulty,
+  type PromptIntent,
   type PromptLocale,
 } from '@/lib/prompts/schema'
 
@@ -22,7 +22,7 @@ interface PromptRecord {
   prompt: string
   category: PromptCategory
   tags: string[]
-  difficulty: PromptDifficulty
+  difficulty: PromptIntent
   example: string | null
   locale: PromptLocale
   is_published: boolean
@@ -37,7 +37,7 @@ type PromptFormState = {
   prompt: string
   category: PromptCategory
   tags: string
-  difficulty: PromptDifficulty
+  difficulty: PromptIntent
   example: string
   locale: PromptLocale
   isPublished: boolean
@@ -49,7 +49,7 @@ const DEFAULT_FORM_STATE: PromptFormState = {
   prompt: '',
   category: 'nature',
   tags: '',
-  difficulty: 'beginner',
+  difficulty: 'information',
   example: '',
   locale: 'zh',
   isPublished: true,
@@ -64,10 +64,10 @@ const CATEGORY_LABELS: Record<PromptCategory, string> = {
   cinematic: '电影感',
 }
 
-const DIFFICULTY_LABELS: Record<PromptDifficulty, string> = {
-  beginner: '入门',
-  intermediate: '进阶',
-  advanced: '高级',
+const INTENT_LABELS: Record<PromptIntent, string> = {
+  information: '信息型',
+  comparison: '对比型',
+  transaction: '交易型',
 }
 
 const LOCALE_LABELS: Record<PromptLocale, string> = {
@@ -96,7 +96,7 @@ function normalizePromptRecord(item: unknown): PromptRecord | null {
   const title = typeof record.title === 'string' ? record.title : ''
   const prompt = typeof record.prompt === 'string' ? record.prompt : ''
   const category = (record.category as PromptCategory) ?? 'nature'
-  const difficulty = (record.difficulty as PromptDifficulty) ?? 'beginner'
+  const difficulty = (record.difficulty as PromptIntent) ?? 'information'
   const locale = (record.locale as PromptLocale) ?? 'zh'
 
   if (!id || !title || !prompt) {
@@ -452,7 +452,7 @@ export default function AdminPromptsManager({ onShowBanner }: AdminPromptsManage
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
-                  难度
+                  意图
                 </label>
                 <select
                   className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
@@ -460,13 +460,13 @@ export default function AdminPromptsManager({ onShowBanner }: AdminPromptsManage
                   onChange={(event) =>
                     setNewPromptForm((prev) => ({
                       ...prev,
-                      difficulty: event.target.value as PromptDifficulty,
+                      difficulty: event.target.value as PromptIntent,
                     }))
                   }
                 >
-                  {PROMPT_DIFFICULTIES.map((difficulty) => (
-                    <option key={difficulty} value={difficulty}>
-                      {DIFFICULTY_LABELS[difficulty]}
+                  {PROMPT_INTENTS.map((intent) => (
+                    <option key={intent} value={intent}>
+                      {INTENT_LABELS[intent]}
                     </option>
                   ))}
                 </select>
@@ -626,7 +626,7 @@ export default function AdminPromptsManager({ onShowBanner }: AdminPromptsManage
                     <th className="py-3 px-4 text-left">标题</th>
                     <th className="py-3 px-4 text-left">语言</th>
                     <th className="py-3 px-4 text-left">分类</th>
-                    <th className="py-3 px-4 text-left">难度</th>
+                    <th className="py-3 px-4 text-left">意图</th>
                     <th className="py-3 px-4 text-left">标签</th>
                     <th className="py-3 px-4 text-left">更新于</th>
                     <th className="py-3 px-4 text-left">状态</th>
@@ -644,7 +644,7 @@ export default function AdminPromptsManager({ onShowBanner }: AdminPromptsManage
                       </td>
                       <td className="py-3 px-4">{LOCALE_LABELS[prompt.locale]}</td>
                       <td className="py-3 px-4">{CATEGORY_LABELS[prompt.category]}</td>
-                      <td className="py-3 px-4">{DIFFICULTY_LABELS[prompt.difficulty]}</td>
+                      <td className="py-3 px-4">{INTENT_LABELS[prompt.difficulty]}</td>
                       <td className="py-3 px-4">
                         <div className="flex flex-wrap gap-1">
                           {prompt.tags.map((tag) => (
@@ -779,13 +779,13 @@ export default function AdminPromptsManager({ onShowBanner }: AdminPromptsManage
                     onChange={(event) =>
                       setEditForm((prev) => ({
                         ...prev,
-                        difficulty: event.target.value as PromptDifficulty,
+                        difficulty: event.target.value as PromptIntent,
                       }))
                     }
                   >
-                    {PROMPT_DIFFICULTIES.map((difficulty) => (
-                      <option key={difficulty} value={difficulty}>
-                        {DIFFICULTY_LABELS[difficulty]}
+                    {PROMPT_INTENTS.map((intent) => (
+                      <option key={intent} value={intent}>
+                        {INTENT_LABELS[intent]}
                       </option>
                     ))}
                   </select>

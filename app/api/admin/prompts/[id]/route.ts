@@ -77,7 +77,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     if (typeof payload.difficulty === 'string') {
       const difficulty = payload.difficulty.toLowerCase()
       if (!isPromptDifficulty(difficulty)) {
-        return NextResponse.json({ error: '提示词难度不合法' }, { status: 400 })
+        return NextResponse.json({ error: '提示词意图不合法' }, { status: 400 })
       }
       updates.difficulty = difficulty
     }

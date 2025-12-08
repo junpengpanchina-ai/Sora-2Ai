@@ -2,7 +2,7 @@
 // @ts-nocheck
 import { NextResponse } from 'next/server'
 import type { Database } from '@/types/database'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { validateAdminSession } from '@/lib/admin-auth'
 
 type UserCreditsRow = Pick<Database['public']['Tables']['users']['Row'], 'credits'>
@@ -26,7 +26,7 @@ export async function GET() {
       )
     }
 
-    const supabase = await createClient()
+    const supabase = await createServiceClient()
 
     // 获取总用户数
     const { count: totalUsers, error: usersError } = await supabase

@@ -37,6 +37,12 @@ const nextConfig = {
       }
     }
     
+    // 确保路径别名正确解析
+    if (!config.resolve.alias) {
+      config.resolve.alias = {}
+    }
+    config.resolve.alias['@'] = require('path').join(__dirname)
+    
     // 忽略 Supabase 在 Edge Runtime 中的警告
     // 这些警告不影响功能，因为 Supabase SSR 库会优雅地处理这些情况
     config.ignoreWarnings = [
