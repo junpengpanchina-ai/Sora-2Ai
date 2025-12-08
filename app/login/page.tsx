@@ -42,7 +42,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
           </p>
         </div>
 
-        <div className="mt-12 w-full max-w-xl rounded-[32px] border border-white/20 bg-white/10 p-10 shadow-[0_45px_140px_-60px_rgba(59,130,246,1)] backdrop-blur-2xl">
+        <div className="celestial-panel mt-12 w-full max-w-xl p-10">
           {errorMessage && (
             <div className="mb-6 rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-100">
               <strong className="font-semibold">Sign in failed:</strong> {errorMessage}
@@ -51,18 +51,18 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 
           <div className="space-y-6">
             <LoginButton className="celestial-cta shadow-[0_30px_100px_-45px_rgba(59,130,246,1)] hover:-translate-y-1" />
-            <p className="text-center text-xs leading-relaxed text-blue-100/80">
+            <p className="celestial-terms text-center text-xs leading-relaxed">
               By signing in you agree to our{' '}
               <Link
                 href="/terms"
-                className="font-semibold text-white underline-offset-4 hover:text-sky-200 hover:underline"
+                className="celestial-link font-semibold underline-offset-4 hover:underline"
               >
                 Terms of Service
               </Link>{' '}
               and{' '}
               <Link
                 href="/privacy"
-                className="font-semibold text-white underline-offset-4 hover:text-sky-200 hover:underline"
+                className="celestial-link font-semibold underline-offset-4 hover:underline"
               >
                 Privacy Policy
               </Link>
@@ -71,13 +71,13 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
           </div>
         </div>
 
-        <div className="mt-10 flex flex-wrap items-center justify-center gap-6 text-xs text-blue-100/75">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.9)]" />
+        <div className="celestial-status mt-10 flex flex-wrap items-center justify-center gap-4 text-xs">
+          <div className="celestial-status__item flex items-center gap-2">
+            <span className="celestial-status__dot celestial-status__dot--emerald" />
             <span>Google sign-in · Encrypted</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-2 w-2 rounded-full bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.9)]" />
+          <div className="celestial-status__item flex items-center gap-2">
+            <span className="celestial-status__dot celestial-status__dot--azure" />
             <span>Starfield workspace ready</span>
           </div>
         </div>

@@ -737,45 +737,152 @@ body {
     opacity: 0.8;
   }
 
+  @keyframes auroraShift {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 100% 50%; }
+  }
+
+  @keyframes borderPulse {
+    0%, 100% { opacity: 0.45; }
+    50% { opacity: 0.9; }
+  }
+
   .celestial-chip {
+    position: relative;
     color: #ffffff;
-    border: 1px solid rgba(245, 217, 125, 0.55);
-    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid transparent;
+    background: rgba(7, 18, 44, 0.55);
+    backdrop-filter: blur(18px);
     box-shadow:
-      0 20px 45px -32px rgba(245, 217, 125, 0.8),
-      inset 0 0 35px rgba(91, 146, 255, 0.25);
+      0 25px 60px -35px rgba(99, 147, 255, 0.8),
+      inset 0 0 40px rgba(84, 166, 255, 0.25);
     letter-spacing: 0.45em;
   }
 
+  .celestial-chip::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background: linear-gradient(130deg, rgba(245, 217, 125, 0.9), rgba(99, 179, 237, 0.9));
+    opacity: 0.6;
+    z-index: -1;
+    animation: borderPulse 3s ease-in-out infinite;
+  }
+
   .celestial-heading {
-    color: #ffffff;
-    letter-spacing: 0.015em;
-    -webkit-text-stroke: 0.75px rgba(245, 217, 125, 0.65);
+    position: relative;
+    letter-spacing: 0.02em;
+    background-image: linear-gradient(
+      110deg,
+      #fff9d8 0%,
+      #f5d97d 25%,
+      #bce7ff 55%,
+      #ffeec0 80%,
+      #f9d896 100%
+    );
+    background-size: 220% 220%;
+    -webkit-background-clip: text;
+    color: transparent;
+    animation: auroraShift 8s ease-in-out infinite alternate;
     text-shadow:
-      0 0 25px rgba(245, 217, 125, 0.55),
-      0 0 55px rgba(21, 117, 214, 0.45),
-      0 0 85px rgba(7, 10, 38, 0.9);
+      0 0 30px rgba(245, 217, 125, 0.55),
+      0 15px 45px rgba(15, 35, 84, 0.8);
   }
 
   .celestial-subtitle {
-    color: rgba(255, 255, 255, 0.9);
+    color: rgba(239, 247, 255, 0.92);
     text-shadow:
-      0 0 18px rgba(90, 165, 255, 0.45),
-      0 0 42px rgba(19, 31, 75, 0.7);
+      0 0 20px rgba(95, 168, 255, 0.4),
+      0 0 40px rgba(8, 16, 37, 0.8);
+  }
+
+  .celestial-panel {
+    position: relative;
+    border-radius: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.12), transparent 55%),
+      rgba(6, 15, 39, 0.6);
+    backdrop-filter: blur(24px);
+    box-shadow:
+      0 55px 160px -80px rgba(26, 88, 255, 0.9),
+      inset 0 0 35px rgba(255, 255, 255, 0.08);
+    z-index: 0;
+  }
+
+  .celestial-panel::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    background: linear-gradient(130deg, rgba(245, 217, 125, 0.95), rgba(99, 179, 237, 0.95), rgba(212, 189, 255, 0.85));
+    opacity: 0.45;
+    z-index: -1;
+    filter: blur(1px);
+    animation: borderPulse 5s ease-in-out infinite;
   }
 
   .celestial-cta {
-    border: 1px solid rgba(245, 217, 125, 0.55);
+    border: 1px solid transparent;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 244, 255, 0.92));
     box-shadow:
       0 35px 110px -55px rgba(34, 78, 171, 0.9),
-      0 0 45px rgba(245, 217, 125, 0.45);
+      0 0 55px rgba(245, 217, 125, 0.35);
     transition: box-shadow 300ms ease, transform 300ms ease;
   }
 
   .celestial-cta:hover {
     box-shadow:
-      0 40px 140px -60px rgba(64, 122, 255, 0.95),
-      0 0 70px rgba(245, 217, 125, 0.6);
+      0 45px 150px -65px rgba(76, 132, 255, 0.95),
+      0 0 75px rgba(245, 217, 125, 0.55);
+  }
+
+  .celestial-terms {
+    color: rgba(225, 237, 255, 0.9);
+    text-shadow: 0 0 18px rgba(14, 28, 60, 0.85);
+  }
+
+  .celestial-terms a,
+  .celestial-link {
+    color: #ffe6a7;
+    text-shadow: 0 0 12px rgba(245, 217, 125, 0.65);
+    transition: color 200ms ease;
+  }
+
+  .celestial-terms a:hover,
+  .celestial-link:hover {
+    color: #fffbed;
+  }
+
+  .celestial-status {
+    color: rgba(222, 237, 255, 0.85);
+    text-shadow: 0 0 18px rgba(7, 16, 34, 0.8);
+  }
+
+  .celestial-status__item {
+    padding: 0.45rem 1rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(7, 18, 44, 0.45);
+    backdrop-filter: blur(14px);
+    box-shadow: inset 0 0 22px rgba(34, 76, 165, 0.25);
+  }
+
+  .celestial-status__dot {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 9999px;
+    box-shadow: 0 0 15px currentColor;
+  }
+
+  .celestial-status__dot--emerald {
+    color: #34d399;
+    background: currentColor;
+  }
+
+  .celestial-status__dot--azure {
+    color: #38bdf8;
+    background: currentColor;
   }
   
   /* 骨架屏动画 */
