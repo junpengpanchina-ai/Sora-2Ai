@@ -736,6 +736,47 @@ body {
   .login-visual--canvas .login-visual__spark {
     opacity: 0.8;
   }
+
+  .celestial-chip {
+    color: #ffffff;
+    border: 1px solid rgba(245, 217, 125, 0.55);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow:
+      0 20px 45px -32px rgba(245, 217, 125, 0.8),
+      inset 0 0 35px rgba(91, 146, 255, 0.25);
+    letter-spacing: 0.45em;
+  }
+
+  .celestial-heading {
+    color: #ffffff;
+    letter-spacing: 0.015em;
+    -webkit-text-stroke: 0.75px rgba(245, 217, 125, 0.65);
+    text-shadow:
+      0 0 25px rgba(245, 217, 125, 0.55),
+      0 0 55px rgba(21, 117, 214, 0.45),
+      0 0 85px rgba(7, 10, 38, 0.9);
+  }
+
+  .celestial-subtitle {
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow:
+      0 0 18px rgba(90, 165, 255, 0.45),
+      0 0 42px rgba(19, 31, 75, 0.7);
+  }
+
+  .celestial-cta {
+    border: 1px solid rgba(245, 217, 125, 0.55);
+    box-shadow:
+      0 35px 110px -55px rgba(34, 78, 171, 0.9),
+      0 0 45px rgba(245, 217, 125, 0.45);
+    transition: box-shadow 300ms ease, transform 300ms ease;
+  }
+
+  .celestial-cta:hover {
+    box-shadow:
+      0 40px 140px -60px rgba(64, 122, 255, 0.95),
+      0 0 70px rgba(245, 217, 125, 0.6);
+  }
   
   /* 骨架屏动画 */
   @keyframes shimmer {
