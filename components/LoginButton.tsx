@@ -5,7 +5,11 @@ import { logError } from '@/lib/logger'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
-export default function LoginButton() {
+interface LoginButtonProps {
+  className?: string
+}
+
+export default function LoginButton({ className = '' }: LoginButtonProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
@@ -258,7 +262,7 @@ export default function LoginButton() {
     <button
       onClick={handleLogin}
       disabled={loading}
-      className="group relative w-full flex items-center justify-center gap-3 rounded-xl bg-white px-6 py-4 text-base font-semibold text-gray-900 shadow-lg ring-1 ring-gray-200 transition-all duration-200 hover:bg-gray-50 hover:shadow-xl hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-lg dark:bg-gray-700 dark:text-white dark:ring-gray-600 dark:hover:bg-gray-600"
+      className={`group relative w-full flex items-center justify-center gap-3 rounded-xl bg-white px-6 py-4 text-base font-semibold text-gray-900 shadow-lg ring-1 ring-gray-200 transition-all duration-200 hover:bg-gray-50 hover:shadow-xl hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-lg dark:bg-gray-700 dark:text-white dark:ring-gray-600 dark:hover:bg-gray-600 ${className}`}
     >
       {loading ? (
         <>
