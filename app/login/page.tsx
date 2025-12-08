@@ -29,14 +29,14 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 
       <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 py-12 sm:px-10">
         <div className="w-full max-w-3xl text-center space-y-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-5 py-2 text-[0.65rem] uppercase tracking-[0.45em] text-blue-100/80">
+          <div className="celestial-chip inline-flex items-center gap-2 rounded-full px-5 py-2 text-[0.65rem] uppercase tracking-[0.45em]">
             Sora Control Hub
             <span className="h-1.5 w-1.5 rounded-full bg-sky-300 shadow-[0_0_10px_rgba(125,211,252,0.9)]" />
           </div>
-          <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">
+          <h1 className="celestial-heading text-4xl font-semibold leading-tight sm:text-5xl">
             Welcome to Sora2Ai
           </h1>
-          <p className="mx-auto max-w-2xl text-base text-blue-100/90 sm:text-lg">
+          <p className="celestial-subtitle mx-auto max-w-2xl text-base sm:text-lg">
             Sign in with your Google account to create, monitor, and ship AI videos inside a single
             starfield console that keeps everything encrypted end-to-end.
           </p>
@@ -50,7 +50,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
           )}
 
           <div className="space-y-6">
-            <LoginButton className="shadow-[0_30px_100px_-45px_rgba(59,130,246,1)] hover:-translate-y-1" />
+            <LoginButton className="celestial-cta shadow-[0_30px_100px_-45px_rgba(59,130,246,1)] hover:-translate-y-1" />
             <p className="text-center text-xs leading-relaxed text-blue-100/80">
               By signing in you agree to our{' '}
               <Link
