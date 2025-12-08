@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { Database } from '@/types/database'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { validateAdminSession } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: '未授权，请先登录' }, { status: 401 })
     }
 
-    const supabase = await createClient()
+    const supabase = await createServiceClient()
 
     const { searchParams } = new URL(request.url)
     const statusFilter = searchParams.get('status')

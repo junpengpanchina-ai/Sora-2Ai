@@ -359,7 +359,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
           <form className="space-y-4" onSubmit={handleCreate}>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Keyword</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  关键词 (keyword)
+                </label>
                 <Input
                   value={createForm.keyword}
                   onChange={(event) => handleInputChange(setCreateForm, 'keyword', event.target.value)}
@@ -368,7 +370,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Intent Type</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  意图类型 (intent)
+                </label>
                 <select
                   className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                   value={createForm.intent}
@@ -384,7 +388,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">URL Slug</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  URL别名 (page_slug)
+                </label>
                 <Input
                   value={createForm.page_slug}
                   onChange={(event) => handleInputChange(setCreateForm, 'page_slug', event.target.value)}
@@ -392,7 +398,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Status</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  状态 (status)
+                </label>
                 <select
                   className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                   value={createForm.status}
@@ -411,7 +419,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
 
             <div className="grid gap-4 md:grid-cols-4">
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Product</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  产品 (product)
+                </label>
                 <Input
                   value={createForm.product}
                   onChange={(event) => handleInputChange(setCreateForm, 'product', event.target.value)}
@@ -419,7 +429,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Service/Feature</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  服务/功能 (service)
+                </label>
                 <Input
                   value={createForm.service}
                   onChange={(event) => handleInputChange(setCreateForm, 'service', event.target.value)}
@@ -427,7 +439,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Region</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  地区 (region)
+                </label>
                 <Input
                   value={createForm.region}
                   onChange={(event) => handleInputChange(setCreateForm, 'region', event.target.value)}
@@ -435,7 +449,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Pain Point/Scenario</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  痛点/场景 (pain_point)
+                </label>
                 <Input
                   value={createForm.pain_point}
                   onChange={(event) => handleInputChange(setCreateForm, 'pain_point', event.target.value)}
@@ -446,7 +462,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
 
             <div className="grid gap-4 md:grid-cols-3">
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Search Volume</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  搜索量 (search_volume)
+                </label>
                 <Input
                   type="number"
                   value={createForm.search_volume}
@@ -455,7 +473,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Competition Score</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  竞争度 (competition_score)
+                </label>
                 <Input
                   type="number"
                   step="0.01"
@@ -467,7 +487,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Priority</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  优先级 (priority)
+                </label>
                 <Input
                   type="number"
                   value={createForm.priority}
@@ -478,7 +500,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
 
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Page Title</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  页面标题 (title)
+                </label>
                 <Input
                   value={createForm.title}
                   onChange={(event) => handleInputChange(setCreateForm, 'title', event.target.value)}
@@ -486,7 +510,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">H1 Title</label>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  H1标题 (h1)
+                </label>
                 <Input
                   value={createForm.h1}
                   onChange={(event) => handleInputChange(setCreateForm, 'h1', event.target.value)}
@@ -496,7 +522,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Meta Description</label>
+              <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                元描述 (meta_description)
+              </label>
               <Textarea
                 rows={3}
                 value={createForm.meta_description}
@@ -508,7 +536,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Introduction</label>
+              <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                介绍段落 (intro_paragraph)
+              </label>
               <Textarea
                 rows={4}
                 value={createForm.intro_paragraph}
@@ -781,7 +811,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
             <form className="space-y-4" onSubmit={handleEditSubmit}>
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Keyword</label>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    关键词 (keyword)
+                  </label>
                   <Input
                     value={editForm.keyword}
                     onChange={(event) => handleInputChange(setEditForm, 'keyword', event.target.value)}
@@ -789,7 +821,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Intent Type</label>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    意图类型 (intent)
+                  </label>
                   <select
                     className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                     value={editForm.intent}
@@ -808,14 +842,18 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
 
               <div className="grid gap-4 md:grid-cols-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">URL Slug</label>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    URL别名 (page_slug)
+                  </label>
                   <Input
                     value={editForm.page_slug}
                     onChange={(event) => handleInputChange(setEditForm, 'page_slug', event.target.value)}
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Status</label>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    状态 (status)
+                  </label>
                   <select
                     className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                     value={editForm.status}
@@ -831,7 +869,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Priority</label>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    优先级 (priority)
+                  </label>
                   <Input
                     type="number"
                     value={editForm.priority}
@@ -841,86 +881,136 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
               </div>
 
               <div className="grid gap-4 md:grid-cols-4">
-                <Input
-                  placeholder="Product"
-                  value={editForm.product}
-                  onChange={(event) => handleInputChange(setEditForm, 'product', event.target.value)}
-                />
-                <Input
-                  placeholder="Service"
-                  value={editForm.service}
-                  onChange={(event) => handleInputChange(setEditForm, 'service', event.target.value)}
-                />
-                <Input
-                  placeholder="Region"
-                  value={editForm.region}
-                  onChange={(event) => handleInputChange(setEditForm, 'region', event.target.value)}
-                />
-                <Input
-                  placeholder="Pain Point"
-                  value={editForm.pain_point}
-                  onChange={(event) => handleInputChange(setEditForm, 'pain_point', event.target.value)}
-                />
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    产品 (product)
+                  </label>
+                  <Input
+                    value={editForm.product}
+                    onChange={(event) => handleInputChange(setEditForm, 'product', event.target.value)}
+                    placeholder="e.g., Sora2 Video"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    服务/功能 (service)
+                  </label>
+                  <Input
+                    value={editForm.service}
+                    onChange={(event) => handleInputChange(setEditForm, 'service', event.target.value)}
+                    placeholder="e.g., Online Generator"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    地区 (region)
+                  </label>
+                  <Input
+                    value={editForm.region}
+                    onChange={(event) => handleInputChange(setEditForm, 'region', event.target.value)}
+                    placeholder="e.g., US, UK, Global"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    痛点/场景 (pain_point)
+                  </label>
+                  <Input
+                    value={editForm.pain_point}
+                    onChange={(event) => handleInputChange(setEditForm, 'pain_point', event.target.value)}
+                    placeholder="e.g., Batch Content Creation"
+                  />
+                </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
-                <Input
-                  type="number"
-                  placeholder="Search Volume"
-                  value={editForm.search_volume}
-                  onChange={(event) =>
-                    handleInputChange(setEditForm, 'search_volume', event.target.value)
-                  }
-                />
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="Competition Score (0-1)"
-                  value={editForm.competition_score}
-                  onChange={(event) =>
-                    handleInputChange(setEditForm, 'competition_score', event.target.value)
-                  }
-                />
-                <Input
-                  placeholder="H1 Heading"
-                  value={editForm.h1}
-                  onChange={(event) => handleInputChange(setEditForm, 'h1', event.target.value)}
-                />
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    搜索量 (search_volume)
+                  </label>
+                  <Input
+                    type="number"
+                    value={editForm.search_volume}
+                    onChange={(event) =>
+                      handleInputChange(setEditForm, 'search_volume', event.target.value)
+                    }
+                    placeholder="e.g., 90"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    竞争度 (competition_score)
+                  </label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editForm.competition_score}
+                    onChange={(event) =>
+                      handleInputChange(setEditForm, 'competition_score', event.target.value)
+                    }
+                    placeholder="0 - 1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    H1标题 (h1)
+                  </label>
+                  <Input
+                    value={editForm.h1}
+                    onChange={(event) => handleInputChange(setEditForm, 'h1', event.target.value)}
+                    placeholder="Main heading (H1)"
+                  />
+                </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <Textarea
-                  rows={2}
-                  placeholder="Page title containing keyword"
-                  value={editForm.title}
-                  onChange={(event) => handleInputChange(setEditForm, 'title', event.target.value)}
-                />
-                <Textarea
-                  rows={2}
-                  placeholder="Meta description (140-160 chars)"
-                  value={editForm.meta_description}
-                  onChange={(event) =>
-                    handleInputChange(setEditForm, 'meta_description', event.target.value)
-                  }
-                />
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    页面标题 (title)
+                  </label>
+                  <Textarea
+                    rows={2}
+                    value={editForm.title}
+                    onChange={(event) => handleInputChange(setEditForm, 'title', event.target.value)}
+                    placeholder="Page title containing keyword"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    元描述 (meta_description)
+                  </label>
+                  <Textarea
+                    rows={2}
+                    value={editForm.meta_description}
+                    onChange={(event) =>
+                      handleInputChange(setEditForm, 'meta_description', event.target.value)
+                    }
+                    placeholder="140-160 characters, naturally includes long-tail keyword"
+                  />
+                </div>
               </div>
 
               <div>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  介绍段落 (intro_paragraph)
+                </label>
                 <Textarea
                   rows={4}
-                  placeholder="Intro paragraph (150-300 words)"
                   value={editForm.intro_paragraph}
                   onChange={(event) =>
                     handleInputChange(setEditForm, 'intro_paragraph', event.target.value)
                   }
+                  placeholder="150-300 words, describes the search intent"
                 />
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Steps</label>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    步骤 (steps)
+                  </label>
                   <Button type="button" variant="secondary" size="sm" onClick={() => appendStep(setEditForm)}>
-                    Add Step
+                    添加步骤
                   </Button>
                 </div>
                 {editForm.steps.map((step, index) => (
@@ -954,9 +1044,11 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">FAQ</label>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    常见问题 (faq)
+                  </label>
                   <Button type="button" variant="secondary" size="sm" onClick={() => appendFaq(setEditForm)}>
-                    Add FAQ
+                    添加FAQ
                   </Button>
                 </div>
                 {editForm.faq.map((item, index) => (

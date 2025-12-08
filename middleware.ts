@@ -12,9 +12,11 @@ export const config = {
      * - _next/static (静态文件)
      * - _next/image (图片优化文件)
      * - favicon.ico, icon.svg (图标文件)
+     * - sitemap 文件 (sitemap.xml, sitemap-*.xml)
+     * - robots.txt
      * - public 文件夹中的静态资源
      */
-    '/((?!_next/static|_next/image|favicon.ico|icon.svg|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|html)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icon.svg|sitemap|robots\\.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|html|xml)$).*)',
   ],
 }
 

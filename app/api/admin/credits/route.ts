@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { Database } from '@/types/database'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { validateAdminSession } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: '未授权，请先登录' }, { status: 401 })
     }
 
-    const supabase = await createClient()
+    const supabase = await createServiceClient()
     const { searchParams } = new URL(request.url)
     const limit = Math.min(Number(searchParams.get('limit')) || 50, 200)
     const userIdFilter = searchParams.get('userId')
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '未授权，请先登录' }, { status: 401 })
     }
 
-    const supabase = await createClient()
+    const supabase = await createServiceClient()
     if (!payload.userId && !payload.userEmail) {
       return NextResponse.json({ error: '必须提供 userId 或 userEmail' }, { status: 400 })
     }

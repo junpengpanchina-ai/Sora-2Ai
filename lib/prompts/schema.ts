@@ -9,8 +9,12 @@ export const PROMPT_CATEGORIES = [
 
 export type PromptCategory = (typeof PROMPT_CATEGORIES)[number]
 
-export const PROMPT_DIFFICULTIES = ['beginner', 'intermediate', 'advanced'] as const
-export type PromptDifficulty = (typeof PROMPT_DIFFICULTIES)[number]
+export const PROMPT_INTENTS = ['information', 'comparison', 'transaction'] as const
+export type PromptIntent = (typeof PROMPT_INTENTS)[number]
+
+// 保持向后兼容的别名
+export const PROMPT_DIFFICULTIES = PROMPT_INTENTS
+export type PromptDifficulty = PromptIntent
 
 export const PROMPT_LOCALES = ['zh', 'en'] as const
 export type PromptLocale = (typeof PROMPT_LOCALES)[number]
@@ -19,8 +23,12 @@ export function isPromptCategory(value: unknown): value is PromptCategory {
   return typeof value === 'string' && PROMPT_CATEGORIES.includes(value as PromptCategory)
 }
 
+export function isPromptIntent(value: unknown): value is PromptIntent {
+  return typeof value === 'string' && PROMPT_INTENTS.includes(value as PromptIntent)
+}
+
 export function isPromptDifficulty(value: unknown): value is PromptDifficulty {
-  return typeof value === 'string' && PROMPT_DIFFICULTIES.includes(value as PromptDifficulty)
+  return isPromptIntent(value)
 }
 
 export function isPromptLocale(value: unknown): value is PromptLocale {
