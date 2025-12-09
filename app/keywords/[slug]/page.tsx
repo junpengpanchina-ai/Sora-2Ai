@@ -257,26 +257,57 @@ export default async function KeywordLandingPage({ params }: PageProps) {
               </section>
             )}
 
-            {keyword.faq.length > 0 && (
-              <section className="rounded-2xl bg-white p-6 shadow-sm dark:bg-gray-900/60">
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Frequently Asked Questions</h2>
-                <div className="mt-4 space-y-4">
-                  {keyword.faq.map((item, index) => (
-                    <div
-                      key={`${keyword.id}-faq-${index}`}
-                      className="rounded-xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/50"
+            {/* FAQ 和 Related Keywords 并排显示，高度对齐 */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              {keyword.faq.length > 0 && (
+                <section className="rounded-2xl bg-white p-6 shadow-sm dark:bg-gray-900/60 flex flex-col">
+                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Frequently Asked Questions</h2>
+                  <div className="mt-4 space-y-4 flex-1">
+                    {keyword.faq.map((item, index) => (
+                      <div
+                        key={`${keyword.id}-faq-${index}`}
+                        className="rounded-xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900/50"
+                      >
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                          {item.question}
+                        </h3>
+                        <p className="mt-3 text-sm text-gray-600 leading-relaxed dark:text-gray-300">
+                          {item.answer}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {relatedKeywords.length > 0 && (
+                <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70 flex flex-col">
+                  <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">Related Keywords</h3>
+                  <div className="mt-4 grid gap-3 flex-1">
+                    {relatedKeywords.map((item) => (
+                      <Link
+                        key={item.id}
+                        href={`/keywords/${item.page_slug}`}
+                        className="flex flex-col rounded-xl border border-transparent bg-gray-50 p-3 text-sm text-gray-700 transition hover:border-energy-water hover:bg-white dark:bg-gray-800/60 dark:text-gray-200"
+                      >
+                        <span className="font-medium text-gray-900 dark:text-white">{item.keyword}</span>
+                        {item.region && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{item.region}</span>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <Link
+                      href="/keywords"
+                      className="text-sm text-energy-water hover:underline font-medium"
                     >
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                        {item.question}
-                      </h3>
-                      <p className="mt-3 text-sm text-gray-600 leading-relaxed dark:text-gray-300">
-                        {item.answer}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+                      Want to learn more? View all keywords →
+                    </Link>
+                  </div>
+                </section>
+              )}
+            </div>
           </div>
 
           <div className="space-y-8">
@@ -313,25 +344,6 @@ export default async function KeywordLandingPage({ params }: PageProps) {
               </ul>
             </section>
 
-            {relatedKeywords.length > 0 && (
-              <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Related Keywords</h3>
-                <div className="mt-4 grid gap-3">
-                  {relatedKeywords.map((item) => (
-                    <Link
-                      key={item.id}
-                      href={`/keywords/${item.page_slug}`}
-                      className="flex flex-col rounded-xl border border-transparent bg-gray-50 p-3 text-sm text-gray-700 transition hover:border-energy-water hover:bg-white dark:bg-gray-800/60 dark:text-gray-200"
-                    >
-                      <span className="font-medium text-gray-900 dark:text-white">{item.keyword}</span>
-                      {item.region && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">{item.region}</span>
-                      )}
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            )}
           </div>
         </div>
       </main>
