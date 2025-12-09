@@ -66,6 +66,7 @@ const nextConfig = {
     // 优化服务器组件
     serverComponentsExternalPackages: [],
   },
+  
 }
 
 module.exports = nextConfig

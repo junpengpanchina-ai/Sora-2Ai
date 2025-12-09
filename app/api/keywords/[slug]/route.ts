@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
 import type { Database } from '@/types/database'
 
@@ -19,9 +19,25 @@ const escapeXml = (str: string | null | undefined): string => {
 }
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
+  const slug = params.slug
+
+  // 检查是否是 XML 请求
+  // 1. 检查 Accept 头
+  const acceptHeader = request.headers.get('accept') || ''
+  const acceptsXml = acceptHeader.includes('application/xml') || acceptHeader.includes('text/xml')
+  
+  // 2. 检查查询参数
+  const format = request.nextUrl.searchParams.get('format')
+  const isXmlRequest = acceptsXml || format === 'xml'
+
+  // 如果不是 XML 请求，返回 404
+  if (!isXmlRequest) {
+    return new NextResponse('Not found', { status: 404 })
+  }
+
   try {
     const supabase = await createSupabaseServerClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -29,7 +45,7 @@ export async function GET(
       .from('long_tail_keywords')
       .select('*')
       .eq('status', 'published')
-      .eq('page_slug', params.slug)
+      .eq('page_slug', slug)
       .maybeSingle()
 
     if (error) {

@@ -101,7 +101,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sora2aivideos.com'
-  const canonical = `${baseUrl}/keywords/${keyword.page_slug}.xml`
+  const canonical = `${baseUrl}/keywords/${keyword.page_slug}`
 
   return {
     title: buildMetaTitle(keyword),
