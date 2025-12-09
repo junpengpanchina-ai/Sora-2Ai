@@ -7,6 +7,9 @@ type KeywordRow = Database['public']['Tables']['long_tail_keywords']['Row']
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+// 强制不缓存 XML 响应，避免 CDN 缓存问题
+export const runtime = 'nodejs'
+
 // XML 转义函数
 const escapeXml = (str: string | null | undefined): string => {
   if (!str) return ''
@@ -121,14 +124,16 @@ export async function GET(
   </faq>` : ''}
 </keyword-page>`
 
-    return new NextResponse(xmlContent, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/xml; charset=utf-8',
-        'Cache-Control': 'public, max-age=3600, s-maxage=3600',
-        'X-Content-Type-Options': 'nosniff',
-      },
-    })
+          return new NextResponse(xmlContent, {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/xml; charset=utf-8',
+              'Cache-Control': 'no-cache, no-store, must-revalidate, private',
+              'Pragma': 'no-cache',
+              'Expires': '0',
+              'X-Content-Type-Options': 'nosniff',
+            },
+          })
   } catch (error) {
     console.error('Failed to generate keyword XML:', error)
     return new NextResponse('Internal Server Error', { status: 500 })
