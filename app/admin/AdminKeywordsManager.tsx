@@ -394,7 +394,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 <Input
                   value={createForm.page_slug}
                   onChange={(event) => handleInputChange(setCreateForm, 'page_slug', event.target.value)}
-                  placeholder="e.g., sora-video-generator-free"
+                  placeholder="e.g., sora-video-generator-free (会自动添加 keywords- 前缀)"
                 />
               </div>
               <div>

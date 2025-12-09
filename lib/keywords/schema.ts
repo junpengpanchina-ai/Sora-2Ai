@@ -32,7 +32,7 @@ export function isKeywordStatus(value: unknown): value is KeywordStatus {
 }
 
 export function normalizeSlug(input: string): string {
-  return input
+  let slug = input
     .trim()
     .toLowerCase()
     // 移除文件扩展名（如 .xml, .html 等）
@@ -41,6 +41,13 @@ export function normalizeSlug(input: string): string {
     .replace(/[^a-z0-9-]/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
+  
+  // 统一添加 keywords- 前缀（如果还没有）
+  if (!slug.startsWith('keywords-')) {
+    slug = `keywords-${slug}`
+  }
+  
+  return slug
 }
 
 export function normalizeSteps(value: unknown): KeywordStep[] {
