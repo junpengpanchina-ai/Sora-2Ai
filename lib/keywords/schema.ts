@@ -35,6 +35,8 @@ export function normalizeSlug(input: string): string {
   return input
     .trim()
     .toLowerCase()
+    // 移除文件扩展名（如 .xml, .html 等）
+    .replace(/\.(xml|html|htm|json|txt)$/i, '')
     .replace(/[\s_]+/g, '-')
     .replace(/[^a-z0-9-]/g, '-')
     .replace(/-+/g, '-')

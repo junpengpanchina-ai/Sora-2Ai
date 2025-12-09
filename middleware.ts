@@ -1,7 +1,27 @@
-import { type NextRequest } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from './lib/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // 检查是否是关键词页面的 XML 请求
+  // 如果路径是 /keywords/{slug} 且 Accept 头包含 XML，重写到 API 路由
+  const keywordMatch = pathname.match(/^\/keywords\/([^/]+)$/)
+  if (keywordMatch) {
+    const acceptHeader = request.headers.get('accept') || ''
+    const acceptsXml = acceptHeader.includes('application/xml') || acceptHeader.includes('text/xml')
+    const format = request.nextUrl.searchParams.get('format')
+    
+    if (acceptsXml || format === 'xml') {
+      // 重写到 API 路由
+      const slug = keywordMatch[1]
+      const url = request.nextUrl.clone()
+      url.pathname = `/api/keywords/${slug}`
+      // 保留查询参数
+      return NextResponse.rewrite(url)
+    }
+  }
+
   return await updateSession(request)
 }
 

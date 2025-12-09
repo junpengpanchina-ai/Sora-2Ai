@@ -744,7 +744,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                       </td>
                       <td className="py-3 px-4">
                         <code className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                          /keywords/{keyword.page_slug}.xml
+                          /keywords/{keyword.page_slug}
                         </code>
                       </td>
                       <td className="py-3 px-4">
@@ -776,7 +776,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => window.open(`/keywords/${keyword.page_slug}.xml`, '_blank')}
+                                onClick={() => window.open(`/keywords/${keyword.page_slug}?format=xml`, '_blank')}
                                 className="text-blue-600 hover:text-blue-700 dark:text-blue-400"
                               >
                                 View
