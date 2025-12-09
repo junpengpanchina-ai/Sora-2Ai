@@ -10,17 +10,22 @@ export async function middleware(request: NextRequest) {
   const keywordMatch = pathname.match(/^\/keywords\/([^/]+)$/)
   if (keywordMatch) {
     const format = request.nextUrl.searchParams.get('format')
+    const slug = keywordMatch[1]
+    
+    // 调试日志
+    console.log(`Middleware: Keyword path detected: ${pathname}, slug: ${slug}, format: ${format}`)
     
     // 只有当明确指定 format=xml 时，才返回 XML
     if (format === 'xml') {
       // 重写到 API 路由
-      const slug = keywordMatch[1]
       const url = request.nextUrl.clone()
       url.pathname = `/api/keywords/${slug}`
       // 保留查询参数
+      console.log(`Middleware: Rewriting to XML API: ${url.pathname}`)
       return NextResponse.rewrite(url)
     }
     // 否则，继续到 page.tsx 返回 HTML
+    console.log(`Middleware: Continuing to HTML page for slug: ${slug}`)
   }
 
   return await updateSession(request)

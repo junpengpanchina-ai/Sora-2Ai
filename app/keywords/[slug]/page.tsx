@@ -67,6 +67,11 @@ const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord |
   }
   
   console.log(`Found keyword: ${rawData.page_slug} for slug: ${slug}`)
+  
+  // 如果找到的关键词 page_slug 包含 .xml，记录警告
+  if (rawData.page_slug && rawData.page_slug.includes('.xml')) {
+    console.warn(`Warning: Found keyword with .xml in page_slug: ${rawData.page_slug} for slug: ${slug}`)
+  }
 
   const data = rawData as KeywordRow
 
@@ -149,10 +154,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function KeywordLandingPage({ params }: PageProps) {
-  const keyword = await getKeywordBySlug(params.slug)
+  const slug = decodeURIComponent(params.slug)
+  console.log(`KeywordLandingPage: Requested slug: ${slug}, params.slug: ${params.slug}`)
+  
+  const keyword = await getKeywordBySlug(slug)
   if (!keyword) {
+    console.error(`KeywordLandingPage: Keyword not found for slug: ${slug}`)
     notFound()
   }
+  
+  console.log(`KeywordLandingPage: Found keyword with page_slug: ${keyword.page_slug}`)
 
   const relatedKeywords = await getRelatedKeywords(keyword.id)
   const structuredFaq =
