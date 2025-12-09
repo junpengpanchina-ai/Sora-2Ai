@@ -65,7 +65,13 @@ export async function GET(
     }
 
     if (!rawData) {
+      console.log(`XML API: Keyword not found for slug: ${slug}`)
       return new NextResponse('Keyword not found', { status: 404 })
+    }
+    
+    // 如果找到的关键词 page_slug 包含 .xml，记录警告
+    if (rawData.page_slug && rawData.page_slug.includes('.xml')) {
+      console.warn(`XML API: Warning: Found keyword with .xml in page_slug: ${rawData.page_slug} for slug: ${slug}`)
     }
 
     const keyword = rawData as KeywordRow
