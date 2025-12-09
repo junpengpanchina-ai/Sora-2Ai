@@ -25,13 +25,9 @@ export async function GET(
   const slug = params.slug
 
   // 检查是否是 XML 请求
-  // 1. 检查 Accept 头
-  const acceptHeader = request.headers.get('accept') || ''
-  const acceptsXml = acceptHeader.includes('application/xml') || acceptHeader.includes('text/xml')
-  
-  // 2. 检查查询参数
+  // 只检查查询参数，不检查 Accept 头（因为浏览器通常包含多种内容类型）
   const format = request.nextUrl.searchParams.get('format')
-  const isXmlRequest = acceptsXml || format === 'xml'
+  const isXmlRequest = format === 'xml'
 
   // 如果不是 XML 请求，返回 404
   if (!isXmlRequest) {
