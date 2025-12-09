@@ -776,7 +776,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => window.open(`/keywords/${keyword.page_slug}?format=xml`, '_blank')}
+                                onClick={() => window.open(`/keywords/${keyword.page_slug}`, '_blank')}
                                 className="text-blue-600 hover:text-blue-700 dark:text-blue-400"
                               >
                                 View
