@@ -39,14 +39,34 @@ const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord |
     error = result.error
   }
 
+  // 如果还是找不到，尝试使用 ILIKE 模糊匹配（处理可能的空格或大小写问题）
+  if (!rawData) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (supabase as any)
+      .from('long_tail_keywords')
+      .select('*')
+      .eq('status', 'published')
+      .ilike('page_slug', `%${slug}%`)
+      .limit(1)
+      .maybeSingle()
+    if (result.data) {
+      rawData = result.data
+      error = result.error
+      console.log(`Found keyword with fuzzy match: ${result.data.page_slug} for slug: ${slug}`)
+    }
+  }
+
   if (error) {
     console.error('Failed to load keyword:', error)
     return null
   }
 
   if (!rawData) {
+    console.log(`Keyword not found for slug: ${slug}`)
     return null
   }
+  
+  console.log(`Found keyword: ${rawData.page_slug} for slug: ${slug}`)
 
   const data = rawData as KeywordRow
 
@@ -83,7 +103,8 @@ const getRelatedKeywords = cache(async (excludeId: string): Promise<KeywordPageR
   }))
 })
 
-export const revalidate = 1800
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 type PageProps = {
   params: {
