@@ -65,7 +65,7 @@ export async function GET() {
       lastmod = new Date().toISOString().split('T')[0]
     }
     return `    <url>
-      <loc>${baseUrl}/keywords/${escapedSlug}</loc>
+      <loc>${baseUrl}/keywords/${escapedSlug}.xml</loc>
       <lastmod>${lastmod}</lastmod>
       <priority>0.7</priority>
     </url>`
