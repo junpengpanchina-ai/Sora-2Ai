@@ -16,13 +16,28 @@ interface KeywordPageRecord extends Omit<KeywordRow, 'steps' | 'faq'> {
 
 const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord | null> => {
   const supabase = await createSupabaseServerClient()
+  
+  // 先尝试查询原始 slug（不带扩展名）
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: rawData, error } = await (supabase as any)
+  let { data: rawData, error } = await (supabase as any)
     .from('long_tail_keywords')
     .select('*')
     .eq('status', 'published')
     .eq('page_slug', slug)
     .maybeSingle()
+
+  // 如果找不到，尝试查询带 .xml 后缀的（兼容旧数据）
+  if (!rawData && !slug.endsWith('.xml')) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (supabase as any)
+      .from('long_tail_keywords')
+      .select('*')
+      .eq('status', 'published')
+      .eq('page_slug', `${slug}.xml`)
+      .maybeSingle()
+    rawData = result.data
+    error = result.error
+  }
 
   if (error) {
     console.error('Failed to load keyword:', error)
