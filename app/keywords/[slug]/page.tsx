@@ -198,30 +198,6 @@ export default async function KeywordLandingPage({ params }: PageProps) {
           {keyword.meta_description && (
             <p className="mt-4 max-w-3xl text-lg text-blue-100/80">{keyword.meta_description}</p>
           )}
-          <div className="mt-4 flex items-center gap-3">
-            <Link
-              href={`/keywords/${keyword.page_slug}?format=xml`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-2 text-xs font-medium text-white transition hover:bg-white/20"
-            >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                />
-              </svg>
-              View XML Format
-            </Link>
-          </div>
           <div className="mt-6 flex flex-wrap gap-3 text-xs text-white/70">
             <span className="rounded-full border border-white/30 px-3 py-1">Keyword: {keyword.keyword}</span>
             {keyword.product && (
@@ -316,26 +292,6 @@ export default async function KeywordLandingPage({ params }: PageProps) {
               </ul>
             </section>
 
-            {relatedKeywords.length > 0 && (
-              <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Related Keywords</h3>
-                <div className="mt-4 grid gap-3">
-                  {relatedKeywords.map((item) => (
-                    <Link
-                      key={item.id}
-                      href={`/keywords/${item.page_slug}`}
-                      className="flex flex-col rounded-xl border border-transparent bg-gray-50 p-3 text-sm text-gray-700 transition hover:border-energy-water hover:bg-white dark:bg-gray-800/60 dark:text-gray-200"
-                    >
-                      <span className="font-medium text-gray-900 dark:text-white">{item.keyword}</span>
-                      {item.region && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">{item.region}</span>
-                      )}
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            )}
-
             <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">More Tools</h3>
               <ul className="mt-3 space-y-2 text-sm text-energy-water">
@@ -356,6 +312,26 @@ export default async function KeywordLandingPage({ params }: PageProps) {
                 </li>
               </ul>
             </section>
+
+            {relatedKeywords.length > 0 && (
+              <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Related Keywords</h3>
+                <div className="mt-4 grid gap-3">
+                  {relatedKeywords.map((item) => (
+                    <Link
+                      key={item.id}
+                      href={`/keywords/${item.page_slug}`}
+                      className="flex flex-col rounded-xl border border-transparent bg-gray-50 p-3 text-sm text-gray-700 transition hover:border-energy-water hover:bg-white dark:bg-gray-800/60 dark:text-gray-200"
+                    >
+                      <span className="font-medium text-gray-900 dark:text-white">{item.keyword}</span>
+                      {item.region && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">{item.region}</span>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         </div>
       </main>
