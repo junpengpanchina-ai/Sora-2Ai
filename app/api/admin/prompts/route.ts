@@ -140,7 +140,7 @@ export async function POST(request: Request) {
     }
 
     if (!isPromptDifficulty(difficulty)) {
-      return NextResponse.json({ error: '提示词难度不合法' }, { status: 400 })
+      return NextResponse.json({ error: '提示词意图不合法' }, { status: 400 })
     }
 
     const resolvedLocale = isPromptLocale(locale) ? locale : 'zh'

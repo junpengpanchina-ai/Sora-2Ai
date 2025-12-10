@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { Database } from '@/types/database'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { validateAdminSession } from '@/lib/admin-auth'
 
 type VideoTaskRow = Database['public']['Tables']['video_tasks']['Row']
@@ -28,7 +28,7 @@ export async function PATCH(
       return NextResponse.json({ error: '未授权，请先登录' }, { status: 401 })
     }
 
-    const supabase = await createClient()
+    const supabase = await createServiceClient()
     const payload = (await request.json()) as {
       status?: VideoTaskRow['status']
       progress?: number
@@ -151,7 +151,7 @@ export async function DELETE(
       return NextResponse.json({ error: '未授权，请先登录' }, { status: 401 })
     }
 
-    const supabase = await createClient()
+    const supabase = await createServiceClient()
     
     // 先检查任务是否存在
     const { data: task, error: fetchError } = await supabase

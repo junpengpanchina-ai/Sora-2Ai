@@ -348,7 +348,7 @@ export interface Database {
           prompt: string
           category: 'nature' | 'character' | 'action' | 'scenery' | 'abstract' | 'cinematic'
           tags: string[]
-          difficulty: 'beginner' | 'intermediate' | 'advanced'
+          difficulty: 'information' | 'comparison' | 'transaction'
           example: string | null
           locale: 'zh' | 'en'
           is_published: boolean
@@ -363,7 +363,7 @@ export interface Database {
           prompt: string
           category: 'nature' | 'character' | 'action' | 'scenery' | 'abstract' | 'cinematic'
           tags?: string[]
-          difficulty: 'beginner' | 'intermediate' | 'advanced'
+          difficulty: 'information' | 'comparison' | 'transaction'
           example?: string | null
           locale?: 'zh' | 'en'
           is_published?: boolean
@@ -378,7 +378,7 @@ export interface Database {
           prompt?: string
           category?: 'nature' | 'character' | 'action' | 'scenery' | 'abstract' | 'cinematic'
           tags?: string[]
-          difficulty?: 'beginner' | 'intermediate' | 'advanced'
+          difficulty?: 'information' | 'comparison' | 'transaction'
           example?: string | null
           locale?: 'zh' | 'en'
           is_published?: boolean
