@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Database } from '@/types/database'
+import { getKeywordPageUrl, escapeXml } from '@/lib/utils/url'
 
 type KeywordRow = Database['public']['Tables']['long_tail_keywords']['Row']
 
@@ -8,8 +9,6 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0 // 禁用缓存，确保每次请求都读取最新数据
 
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sora2aivideos.com'
-  
   let rawData: Pick<KeywordRow, 'page_slug' | 'updated_at'>[] = []
   
   try {
@@ -35,19 +34,12 @@ export async function GET() {
 
   const data = rawData as Pick<KeywordRow, 'page_slug' | 'updated_at'>[]
 
-  // 转义 XML 特殊字符
-  const escapeXml = (str: string) => {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;')
-  }
-
   const urls = data.map((item) => {
     const escapedSlug = escapeXml(item.page_slug)
-    // 确保时间格式正确：使用 ISO 8601 格式，只包含日期部分（YYYY-MM-DD）或完整时间
+    // 使用统一的 URL 生成函数，确保不带 format=xml 参数
+    const pageUrl = getKeywordPageUrl(escapedSlug)
+    
+    // 确保时间格式正确：使用 ISO 8601 格式，只包含日期部分（YYYY-MM-DD）
     let lastmod: string
     if (item.updated_at) {
       try {
@@ -65,7 +57,7 @@ export async function GET() {
       lastmod = new Date().toISOString().split('T')[0]
     }
     return `    <url>
-      <loc>${baseUrl}/keywords/${escapedSlug}?format=xml</loc>
+      <loc>${pageUrl}</loc>
       <lastmod>${lastmod}</lastmod>
       <priority>0.7</priority>
     </url>`
