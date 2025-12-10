@@ -16,13 +16,45 @@ interface KeywordPageRecord extends Omit<KeywordRow, 'steps' | 'faq'> {
 
 const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord | null> => {
   const supabase = await createSupabaseServerClient()
+  
+  // 先尝试查询原始 slug（不带扩展名）
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: rawData, error } = await (supabase as any)
+  let { data: rawData, error } = await (supabase as any)
     .from('long_tail_keywords')
     .select('*')
     .eq('status', 'published')
     .eq('page_slug', slug)
     .maybeSingle()
+
+  // 如果找不到，尝试查询带 .xml 后缀的（兼容旧数据）
+  if (!rawData && !slug.endsWith('.xml')) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (supabase as any)
+      .from('long_tail_keywords')
+      .select('*')
+      .eq('status', 'published')
+      .eq('page_slug', `${slug}.xml`)
+      .maybeSingle()
+    rawData = result.data
+    error = result.error
+  }
+
+  // 如果还是找不到，尝试使用 ILIKE 模糊匹配（处理可能的空格或大小写问题）
+  if (!rawData) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (supabase as any)
+      .from('long_tail_keywords')
+      .select('*')
+      .eq('status', 'published')
+      .ilike('page_slug', `%${slug}%`)
+      .limit(1)
+      .maybeSingle()
+    if (result.data) {
+      rawData = result.data
+      error = result.error
+      console.log(`Found keyword with fuzzy match: ${result.data.page_slug} for slug: ${slug}`)
+    }
+  }
 
   if (error) {
     console.error('Failed to load keyword:', error)
@@ -30,7 +62,15 @@ const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord |
   }
 
   if (!rawData) {
+    console.log(`Keyword not found for slug: ${slug}`)
     return null
+  }
+  
+  console.log(`Found keyword: ${rawData.page_slug} for slug: ${slug}`)
+  
+  // 如果找到的关键词 page_slug 包含 .xml，记录警告
+  if (rawData.page_slug && rawData.page_slug.includes('.xml')) {
+    console.warn(`Warning: Found keyword with .xml in page_slug: ${rawData.page_slug} for slug: ${slug}`)
   }
 
   const data = rawData as KeywordRow
@@ -68,7 +108,8 @@ const getRelatedKeywords = cache(async (excludeId: string): Promise<KeywordPageR
   }))
 })
 
-export const revalidate = 1800
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 type PageProps = {
   params: {
@@ -100,7 +141,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.sora2ai.com'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sora2aivideos.com'
   const canonical = `${baseUrl}/keywords/${keyword.page_slug}`
 
   return {
@@ -113,10 +154,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function KeywordLandingPage({ params }: PageProps) {
-  const keyword = await getKeywordBySlug(params.slug)
+  const slug = decodeURIComponent(params.slug)
+  console.log(`KeywordLandingPage: Requested slug: ${slug}, params.slug: ${params.slug}`)
+  
+  const keyword = await getKeywordBySlug(slug)
   if (!keyword) {
+    console.error(`KeywordLandingPage: Keyword not found for slug: ${slug}`)
     notFound()
   }
+  
+  console.log(`KeywordLandingPage: Found keyword with page_slug: ${keyword.page_slug}`)
 
   const relatedKeywords = await getRelatedKeywords(keyword.id)
   const structuredFaq =
@@ -222,7 +269,10 @@ export default async function KeywordLandingPage({ params }: PageProps) {
             )}
 
             {keyword.faq.length > 0 && (
-              <section className="rounded-2xl bg-white p-6 shadow-sm dark:bg-gray-900/60">
+              <section 
+                className="rounded-2xl bg-white p-6 shadow-sm dark:bg-gray-900/60"
+                id="faq-section"
+              >
                 <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Frequently Asked Questions</h2>
                 <div className="mt-4 space-y-4">
                   {keyword.faq.map((item, index) => (
@@ -256,26 +306,6 @@ export default async function KeywordLandingPage({ params }: PageProps) {
               </ul>
             </section>
 
-            {relatedKeywords.length > 0 && (
-              <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Related Keywords</h3>
-                <div className="mt-4 grid gap-3">
-                  {relatedKeywords.map((item) => (
-                    <Link
-                      key={item.id}
-                      href={`/keywords/${item.page_slug}`}
-                      className="flex flex-col rounded-xl border border-transparent bg-gray-50 p-3 text-sm text-gray-700 transition hover:border-energy-water hover:bg-white dark:bg-gray-800/60 dark:text-gray-200"
-                    >
-                      <span className="font-medium text-gray-900 dark:text-white">{item.keyword}</span>
-                      {item.region && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">{item.region}</span>
-                      )}
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            )}
-
             <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">More Tools</h3>
               <ul className="mt-3 space-y-2 text-sm text-energy-water">
@@ -296,6 +326,37 @@ export default async function KeywordLandingPage({ params }: PageProps) {
                 </li>
               </ul>
             </section>
+
+            {relatedKeywords.length > 0 && (
+              <section 
+                className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70 flex flex-col"
+                id="related-keywords-section"
+              >
+                <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">Related Keywords</h3>
+                <div className="mt-4 grid gap-3 flex-1">
+                  {relatedKeywords.map((item) => (
+                    <Link
+                      key={item.id}
+                      href={`/keywords/${item.page_slug}`}
+                      className="flex flex-col rounded-xl border border-transparent bg-gray-50 p-3 text-sm text-gray-700 transition hover:border-energy-water hover:bg-white dark:bg-gray-800/60 dark:text-gray-200"
+                    >
+                      <span className="font-medium text-gray-900 dark:text-white">{item.keyword}</span>
+                      {item.region && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">{item.region}</span>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <Link
+                    href="/keywords"
+                    className="text-sm text-energy-water hover:underline font-medium"
+                  >
+                    Want to learn more? View all keywords →
+                  </Link>
+                </div>
+              </section>
+            )}
           </div>
         </div>
       </main>
@@ -306,6 +367,35 @@ export default async function KeywordLandingPage({ params }: PageProps) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredFaq) }}
         />
       )}
+      
+      {/* 动态对齐 Related Keywords 和 FAQ 的高度 */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+            (function() {
+              function alignHeights() {
+                const faqSection = document.getElementById('faq-section');
+                const relatedSection = document.getElementById('related-keywords-section');
+                
+                if (faqSection && relatedSection) {
+                  const faqHeight = faqSection.offsetHeight;
+                  relatedSection.style.minHeight = faqHeight + 'px';
+                }
+              }
+              
+              // 页面加载后执行
+              if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', alignHeights);
+              } else {
+                alignHeights();
+              }
+              
+              // 窗口大小改变时重新对齐
+              window.addEventListener('resize', alignHeights);
+            })();
+          `,
+        }}
+      />
     </div>
   )
 }

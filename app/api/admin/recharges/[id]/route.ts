@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { Database } from '@/types/database'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { validateAdminSession } from '@/lib/admin-auth'
 
 type RechargeRow = Database['public']['Tables']['recharge_records']['Row']
@@ -38,7 +38,7 @@ export async function PATCH(
       return NextResponse.json({ error: '未授权，请先登录' }, { status: 401 })
     }
 
-    const supabase = await createClient()
+    const supabase = await createServiceClient()
     const { data: rechargeRecord, error: fetchError } = await supabase
       .from('recharge_records')
       .select('*')
@@ -164,7 +164,7 @@ export async function DELETE(
       return NextResponse.json({ error: '未授权，请先登录' }, { status: 401 })
     }
 
-    const supabase = await createClient()
+    const supabase = await createServiceClient()
     
     // 先获取充值记录信息
     const { data: rechargeRecord, error: fetchError } = await supabase

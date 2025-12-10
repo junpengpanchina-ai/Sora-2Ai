@@ -2,7 +2,7 @@
 // @ts-nocheck
 import { NextResponse } from 'next/server'
 import type { Database } from '@/types/database'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { validateAdminSession } from '@/lib/admin-auth'
 
 /**
@@ -25,7 +25,7 @@ export async function GET() {
       )
     }
 
-    const supabase = await createClient()
+    const supabase = await createServiceClient()
     // 获取所有消耗记录
     const { data: consumptionRecords, error: consumptionError } = await supabase
       .from('consumption_records')

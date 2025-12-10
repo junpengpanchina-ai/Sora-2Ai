@@ -281,6 +281,29 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
       if (withLoader) {
         setLoading(true)
       }
+
+      const parseResponse = async <T,>(response: Response, fallbackMessage: string): Promise<T | null> => {
+        try {
+          const payload = await response.json()
+          if (!response.ok) {
+            const messageParts = [
+              typeof payload?.error === 'string' ? payload.error : '',
+              typeof payload?.details === 'string' ? payload.details : '',
+            ]
+              .map((part) => part.trim())
+              .filter(Boolean)
+            const message = messageParts.length > 0 ? messageParts.join('：') : fallbackMessage
+            showBanner('error', message)
+            return null
+          }
+          return payload as T
+        } catch (error) {
+          console.error(fallbackMessage, error)
+          showBanner('error', fallbackMessage)
+          return null
+        }
+      }
+
       try {
         const [statsResponse, rechargeResponse, consumptionResponse, videosResponse] = await Promise.all([
           fetch('/api/admin/stats'),
@@ -289,32 +312,36 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
           fetch('/api/admin/videos'),
         ])
 
-        if (statsResponse.ok) {
-          const statsData = await statsResponse.json()
-          if (statsData.success) {
-            setStats(statsData.stats)
-          }
+        const statsData = await parseResponse<{ success: boolean; stats: UserStats }>(
+          statsResponse,
+          '获取统计数据失败，请稍后再试'
+        )
+        if (statsData?.success) {
+          setStats(statsData.stats)
         }
 
-        if (rechargeResponse.ok) {
-          const rechargeData = await rechargeResponse.json()
-          if (rechargeData.success) {
-            setRechargeRecords(rechargeData.records || [])
-          }
+        const rechargeData = await parseResponse<{ success: boolean; records: RechargeRecord[] }>(
+          rechargeResponse,
+          '获取充值记录失败，请稍后再试'
+        )
+        if (rechargeData?.success) {
+          setRechargeRecords(rechargeData.records || [])
         }
 
-        if (consumptionResponse.ok) {
-          const consumptionData = await consumptionResponse.json()
-          if (consumptionData.success) {
-            setConsumptionRecords(consumptionData.records || [])
-          }
+        const consumptionData = await parseResponse<{ success: boolean; records: ConsumptionRecord[] }>(
+          consumptionResponse,
+          '获取消耗记录失败，请稍后再试'
+        )
+        if (consumptionData?.success) {
+          setConsumptionRecords(consumptionData.records || [])
         }
 
-        if (videosResponse.ok) {
-          const videosData = await videosResponse.json()
-          if (videosData.success) {
-            setVideoTasks(videosData.tasks || [])
-          }
+        const videosData = await parseResponse<{ success: boolean; tasks: VideoTask[] }>(
+          videosResponse,
+          '获取视频任务失败，请稍后再试'
+        )
+        if (videosData?.success) {
+          setVideoTasks(videosData.tasks || [])
         }
       } catch (error) {
         console.error('获取数据失败:', error)
