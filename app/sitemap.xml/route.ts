@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
+import { getBaseUrl } from '@/lib/utils/url'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sora2aivideos.com'
+  const baseUrl = getBaseUrl()
   const entries = [
     `${baseUrl}/sitemap-static.xml`,
     `${baseUrl}/sitemap-long-tail.xml`,
