@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Image from 'next/image'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from '@/components/ui'
 import {
   KEYWORD_INTENTS,
@@ -12,6 +13,7 @@ import {
   type KeywordFaqItem,
 } from '@/lib/keywords/schema'
 import { parseKeywordText, type ParsedKeywordData } from '@/lib/keywords/text-recognition'
+import { createWorker } from 'tesseract.js'
 
 interface AdminKeywordsManagerProps {
   onShowBanner: (type: 'success' | 'error', text: string) => void
@@ -111,6 +113,13 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
   const [createForm, setCreateForm] = useState<KeywordFormState>(DEFAULT_FORM_STATE)
   const [textRecognitionInput, setTextRecognitionInput] = useState('')
   const [isRecognizing, setIsRecognizing] = useState(false)
+  
+  // 图片上传和OCR相关状态
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [isProcessingImage, setIsProcessingImage] = useState(false)
+  const [ocrProgress, setOcrProgress] = useState(0)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<KeywordFormState>(DEFAULT_FORM_STATE)
@@ -358,17 +367,110 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
   const filteredKeywordCount = useMemo(() => keywords.length, [keywords])
 
   /**
-   * 处理文本识别和自动填充
+   * 处理图片上传
    */
-  const handleTextRecognition = () => {
-    if (!textRecognitionInput.trim()) {
-      onShowBanner('error', 'Please paste text to recognize')
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // 验证文件类型
+    if (!file.type.startsWith('image/')) {
+      onShowBanner('error', 'Please select an image file')
+      return
+    }
+
+    // 验证文件大小（限制为10MB）
+    if (file.size > 10 * 1024 * 1024) {
+      onShowBanner('error', 'Image size should be less than 10MB')
+      return
+    }
+
+    setSelectedImage(file)
+    
+    // 创建预览
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  /**
+   * 处理OCR识别
+   * 支持多语言OCR识别
+   */
+  const handleOCRRecognition = async () => {
+    if (!selectedImage) {
+      onShowBanner('error', 'Please select an image first')
+      return
+    }
+
+    setIsProcessingImage(true)
+    setOcrProgress(0)
+    
+    try {
+      // 创建Tesseract worker，支持多语言
+      // 语言代码：eng(英文), chi_sim(简体中文), chi_tra(繁体中文), 
+      // tha(泰语), ara(阿拉伯语), rus(俄语), slv(斯洛文尼亚语), ron(罗马尼亚语),
+      // spa(西班牙语), fra(法语), deu(德语), ita(意大利语), por(葡萄牙语),
+      // nld(荷兰语), pol(波兰语), ces(捷克语), hun(匈牙利语), ell(希腊语),
+      // swe(瑞典语), nor(挪威语), fin(芬兰语), bul(保加利亚语)
+      const languages = 'eng+chi_sim+chi_tra+tha+ara+rus+slv+ron+spa+fra+deu+ita+por+nld+pol+ces+hun+ell+swe+nor+fin+bul'
+      
+      const worker = await createWorker(languages, 1, {
+        logger: (m) => {
+          if (m.status === 'recognizing text') {
+            setOcrProgress(Math.round(m.progress * 100))
+          }
+        },
+      })
+
+      // 执行OCR识别
+      const { data: { text } } = await worker.recognize(selectedImage)
+      
+      // 清理worker
+      await worker.terminate()
+
+      // 将识别出的文字填入文本输入框
+      const cleanedText = text.trim()
+      setTextRecognitionInput(cleanedText)
+      
+      if (!cleanedText) {
+        onShowBanner('error', 'No text found in the image. Please try another image.')
+        return
+      }
+      
+      // 自动执行文本识别和填充
+      await performTextRecognition(cleanedText)
+      
+      onShowBanner('success', `Image text recognized successfully. Found ${cleanedText.length} characters.`)
+      
+      // 清理图片
+      setSelectedImage(null)
+      setImagePreview(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    } catch (err) {
+      console.error('OCR recognition failed:', err)
+      onShowBanner('error', err instanceof Error ? err.message : 'OCR recognition failed. Please try again.')
+    } finally {
+      setIsProcessingImage(false)
+      setOcrProgress(0)
+    }
+  }
+
+  /**
+   * 执行文本识别和填充
+   */
+  const performTextRecognition = async (text: string) => {
+    if (!text.trim()) {
       return
     }
 
     setIsRecognizing(true)
     try {
-      const parsed = parseKeywordText(textRecognitionInput)
+      const parsed = parseKeywordText(text)
       
       // 更新表单字段
       setCreateForm((prev) => {
@@ -416,13 +518,37 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
       
       onShowBanner('success', `Successfully recognized and filled ${recognizedFields} field(s)`)
       
-      // 清空识别输入框
-      setTextRecognitionInput('')
+      // 如果是手动触发的识别，清空输入框
+      if (text === textRecognitionInput) {
+        setTextRecognitionInput('')
+      }
     } catch (err) {
       console.error('Text recognition failed:', err)
       onShowBanner('error', err instanceof Error ? err.message : 'Text recognition failed')
     } finally {
       setIsRecognizing(false)
+    }
+  }
+
+  /**
+   * 处理文本识别和自动填充（手动触发）
+   */
+  const handleTextRecognition = () => {
+    if (!textRecognitionInput.trim()) {
+      onShowBanner('error', 'Please paste text to recognize')
+      return
+    }
+    performTextRecognition(textRecognitionInput)
+  }
+
+  /**
+   * 清除图片
+   */
+  const handleClearImage = () => {
+    setSelectedImage(null)
+    setImagePreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
     }
   }
 
@@ -441,14 +567,91 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
               </span>
             </div>
             <p className="mb-3 text-xs text-gray-600 dark:text-gray-400">
-              粘贴包含关键词信息的文本，系统会自动识别字段并填充表单。支持多语言识别（中文、英文、泰语、印地语、阿拉伯语、俄语、斯洛文尼亚语、罗马尼亚语、西班牙语、法语、德语、意大利语、葡萄牙语、荷兰语、波兰语、捷克语、匈牙利语、希腊语、瑞典语、挪威语、芬兰语等），自动屏蔽各种语言的备注和表单标签。
+              支持两种方式：1) 上传图片自动识别文字（OCR） 2) 直接粘贴文本。系统会自动识别字段并填充表单。支持多语言识别（中文、英文、泰语、印地语、阿拉伯语、俄语、斯洛文尼亚语、罗马尼亚语、西班牙语、法语、德语、意大利语、葡萄牙语、荷兰语、波兰语、捷克语、匈牙利语、希腊语、瑞典语、挪威语、芬兰语等），自动屏蔽各种语言的备注和表单标签。
             </p>
+            
+            {/* 图片上传区域 */}
+            <div className="mb-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                  id="image-upload"
+                  disabled={isProcessingImage}
+                />
+                <label
+                  htmlFor="image-upload"
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                    isProcessingImage
+                      ? 'cursor-not-allowed border-gray-300 bg-gray-100 text-gray-400 dark:border-gray-600 dark:bg-gray-800'
+                      : 'cursor-pointer border-blue-300 bg-blue-100 text-blue-700 hover:bg-blue-200 dark:border-blue-600 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800'
+                  }`}
+                >
+                  📷 {selectedImage ? '更换图片' : '上传图片'}
+                </label>
+                {selectedImage && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleOCRRecognition}
+                      disabled={isProcessingImage}
+                    >
+                      {isProcessingImage ? `识别中 ${ocrProgress}%...` : '🔍 识别图片文字'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearImage}
+                      disabled={isProcessingImage}
+                    >
+                      ✕ 清除
+                    </Button>
+                  </>
+                )}
+              </div>
+              {imagePreview && (
+                <div className="relative rounded-lg border border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-800">
+                  <div className="relative max-h-48 w-full overflow-hidden rounded">
+                    <Image
+                      src={imagePreview}
+                      alt="Preview"
+                      width={800}
+                      height={600}
+                      className="h-auto w-full object-contain"
+                      unoptimized
+                    />
+                  </div>
+                  {isProcessingImage && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50">
+                      <div className="text-center text-white">
+                        <div className="mb-2 text-sm">识别中...</div>
+                        <div className="h-2 w-48 overflow-hidden rounded-full bg-gray-700">
+                          <div
+                            className="h-full bg-blue-500 transition-all duration-300"
+                            style={{ width: `${ocrProgress}%` }}
+                          />
+                        </div>
+                        <div className="mt-1 text-xs">{ocrProgress}%</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 文本输入区域 */}
             <div className="space-y-2">
               <Textarea
                 rows={6}
                 value={textRecognitionInput}
                 onChange={(event) => setTextRecognitionInput(event.target.value)}
-                placeholder="粘贴文本内容，例如：&#10;关键词: Sora2 vs Runway for English Christmas Pantomime videos...&#10;产品: Sora2 AI Video Generator&#10;地区: England, UK&#10;// 中文解释: 这些是中文备注，会被自动过滤"
+                placeholder="粘贴文本内容或上传图片识别，例如：&#10;关键词: Sora2 vs Runway for English Christmas Pantomime videos...&#10;产品: Sora2 AI Video Generator&#10;地区: England, UK&#10;// 中文解释: 这些是中文备注，会被自动过滤"
                 className="font-mono text-sm"
               />
               <div className="flex items-center justify-between">
