@@ -189,7 +189,7 @@ export async function POST(request: Request) {
     const steps = normalizeSteps(payload.steps)
     const faq = normalizeFaq(payload.faq)
 
-    const pageStyle = typeof payload.page_style === 'string' && (payload.page_style === 'default' || payload.page_style === 'christmas')
+    const pageStyle = typeof payload.page_style === 'string' && (payload.page_style === 'default' || payload.page_style === 'christmas' || payload.page_style === 'official')
       ? payload.page_style
       : 'default'
 

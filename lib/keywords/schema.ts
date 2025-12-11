@@ -2,9 +2,9 @@ export const KEYWORD_INTENTS = ['information', 'comparison', 'transaction', 'inf
 export type KeywordIntent = (typeof KEYWORD_INTENTS)[number]
 
 export const KEYWORD_INTENT_LABELS: Record<KeywordIntent, string> = {
-  information: 'Informational',
-  comparison: 'Comparison',
-  transaction: 'Transactional',
+  information: '信息型',
+  comparison: '对比型',
+  transaction: '交易型',
   information_comparison_transaction: '信息 + 对比 + 交易型',
 }
 

@@ -131,7 +131,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
       if (Object.prototype.hasOwnProperty.call(payload, 'page_style')) {
         const pageStyleValue = typeof payload.page_style === 'string' ? payload.page_style.trim() : null
-        if (pageStyleValue && (pageStyleValue === 'default' || pageStyleValue === 'christmas')) {
+        if (pageStyleValue && (pageStyleValue === 'default' || pageStyleValue === 'christmas' || pageStyleValue === 'official')) {
           updates.page_style = pageStyleValue
         }
       }
