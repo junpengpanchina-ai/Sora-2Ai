@@ -154,7 +154,32 @@ function filterRemarksAndLabels(text: string): string {
  */
 function cleanValue(value: string): string {
   // 移除各种语言的备注格式
-  return removeInlineRemark(value)
+  // 对于多行内容，逐行处理，移除备注行和行尾备注
+  return value
+    .split('\n')
+    .map((line) => {
+      // 先移除行尾备注
+      const cleaned = removeInlineRemark(line)
+      // 如果整行是备注行，返回空字符串
+      if (isRemarkLine(line)) {
+        return ''
+      }
+      // 如果包含中文解释，移除整行
+      if (cleaned.includes('// 中文解释：') || cleaned.includes('// 中文解释:')) {
+        return ''
+      }
+      return cleaned
+    })
+    .filter((line) => {
+      const trimmed = line.trim()
+      // 过滤空行和纯备注行
+      if (!trimmed) return false
+      if (isRemarkLine(trimmed)) return false
+      if (trimmed.includes('// 中文解释：') || trimmed.includes('// 中文解释:')) return false
+      return true
+    })
+    .join('\n')
+    .trim()
 }
 
 /**
@@ -664,6 +689,7 @@ function extractIntroParagraph(text: string): string | null {
 /**
  * 识别URL别名字段
  * 支持多语言标签（包括欧洲语言）
+ * 特殊处理：保留 /keywords/keywords- 前缀（加白名单）
  */
 function extractPageSlug(text: string): string | null {
   const labels = [
@@ -695,11 +721,32 @@ function extractPageSlug(text: string): string | null {
   ]
   const value = extractFieldValue(text, labels)
   if (value) {
-    // 移除可能的路径前缀和各种语言的备注
-    return cleanValue(value)
-      .replace(/^\/keywords\//, '')
-      .replace(/^keywords-/, '')
-      .trim()
+    let cleaned = cleanValue(value).trim()
+    
+    // 特殊加白：如果包含 /keywords/keywords- 前缀，保留 keywords- 前缀部分
+    // 例如：/keywords/keywords-england-christmas -> keywords-england-christmas
+    if (cleaned.includes('/keywords/keywords-')) {
+      const match = cleaned.match(/\/keywords\/keywords-(.+)$/)
+      if (match) {
+        // 保留 keywords- 前缀和后续内容
+        return `keywords-${match[1].trim()}`
+      }
+    }
+    
+    // 如果包含 /keywords/ 但不包含 keywords- 前缀，移除 /keywords/ 但保留其他
+    if (cleaned.startsWith('/keywords/') && !cleaned.includes('keywords-')) {
+      cleaned = cleaned.replace(/^\/keywords\//, '')
+    }
+    
+    // 如果已经包含 keywords- 前缀，保留它（不要移除）
+    if (cleaned.startsWith('keywords-')) {
+      return cleaned
+    }
+    
+    // 否则，移除 /keywords/ 前缀（如果有），但不添加 keywords-（让schema.ts中的normalizeSlug处理）
+    cleaned = cleaned.replace(/^\/keywords\//, '')
+    
+    return cleaned
   }
   return null
 }
@@ -923,7 +970,8 @@ function extractSteps(text: string): Array<{ title: string; description?: string
   // 支持格式：步骤1标题: 1.1 Title 或 步骤1标题: Title
   const stepTitlePattern = /步骤\s*(\d+)\s*标题[：:]\s*([^\n]+)/gi
   // 支持格式：步骤1描述: Description（可能跨多行）
-  const stepDescPattern = /步骤\s*(\d+)\s*描述[：:]\s*([\s\S]+?)(?=步骤\s*\d+|Part\s*\d+|常见问题|FAQ|$)/gi
+  // 改进：更准确地匹配描述，直到下一个步骤标题、Part或常见问题，保留所有换行
+  const stepDescPattern = /步骤\s*(\d+)\s*描述[：:]\s*([\s\S]+?)(?=\n\s*步骤\s*\d+\s*标题|\n\s*步骤\s*\d+\s*描述|\n\s*Part\s*\d+|\n\s*常见问题|\n\s*FAQ|$)/gi
   
   const titleMatches = [...text.matchAll(stepTitlePattern)]
   const descMatches = [...text.matchAll(stepDescPattern)]
@@ -960,11 +1008,16 @@ function extractSteps(text: string): Array<{ title: string; description?: string
   
   descMatches.forEach((m) => {
     const stepNum = parseInt(m[1], 10)
-    const description = cleanValue(m[2].trim())
+    // 保留原始描述内容，包括换行，然后清理备注
+    let rawDescription = m[2].trim()
+    // 移除末尾可能的中文解释行
+    rawDescription = rawDescription.replace(/\n\s*\/\/\s*中文解释[：:].*$/i, '')
+    const description = cleanValue(rawDescription)
     if (description) {
       if (!stepMap.has(stepNum)) {
         stepMap.set(stepNum, {})
       }
+      // 确保描述保留换行，但过滤掉备注
       stepMap.get(stepNum)!.description = description
     }
   })
@@ -1052,30 +1105,49 @@ function extractSteps(text: string): Array<{ title: string; description?: string
           let description: string | undefined = undefined
           if (stepNum) {
             const descPattern = new RegExp(
-              `步骤\\s*${stepNum}\\s*描述[：:]\\s*([\\s\\S]+?)(?=步骤\\s*\\d+|Part\\s*\\d+|常见问题|FAQ|$)`,
+              `步骤\\s*${stepNum}\\s*描述[：:]\\s*([\\s\\S]+?)(?=\\n\\s*步骤\\s*\\d+\\s*标题|\\n\\s*步骤\\s*\\d+\\s*描述|\\n\\s*Part\\s*\\d+|\\n\\s*常见问题|\\n\\s*FAQ|$)`,
               'gi'
             )
             const descMatch = partSection.match(descPattern)
             if (descMatch) {
-              description = cleanValue(descMatch[1].trim())
+              let rawDesc = descMatch[1].trim()
+              // 移除末尾可能的中文解释行
+              rawDesc = rawDesc.replace(/\n\s*\/\/\s*中文解释[：:].*$/i, '')
+              description = cleanValue(rawDesc)
             }
           }
           
           // 分离标题和描述（如果描述不在单独的行中）
-          const lines = subStepContent.split('\n').filter((l) => {
-            const trimmed = l.trim()
-            return trimmed && !isRemarkLine(trimmed) && !trimmed.includes('// 中文解释')
-          })
+          // 先清理内容，移除中文备注
+          const cleanedSubStepContent = subStepContent
+            .split('\n')
+            .map((line) => {
+              const cleaned = removeInlineRemark(line)
+              if (isRemarkLine(line) || cleaned.includes('// 中文解释：') || cleaned.includes('// 中文解释:')) {
+                return ''
+              }
+              return cleaned
+            })
+            .filter((line) => {
+              const trimmed = line.trim()
+              return trimmed && !isRemarkLine(trimmed)
+            })
+            .join('\n')
+            .trim()
           
-          if (lines.length > 0) {
-            // 构建标题，包含编号
-            const titlePrefix = subStepNum.includes('.') ? subStepNum : `${partNum}.${subStepNum}`
-            const title = `${titlePrefix} ${lines[0].trim()}`
-            // 如果已经有描述，使用它；否则使用后续行作为描述
-            if (!description && lines.length > 1) {
-              description = lines.slice(1).join('\n').trim() || undefined
+          if (cleanedSubStepContent) {
+            const lines = cleanedSubStepContent.split('\n').filter((l) => l.trim())
+            
+            if (lines.length > 0) {
+              // 构建标题，包含编号
+              const titlePrefix = subStepNum.includes('.') ? subStepNum : `${partNum}.${subStepNum}`
+              const title = `${titlePrefix} ${lines[0].trim()}`
+              // 如果已经有描述，使用它；否则使用后续行作为描述
+              if (!description && lines.length > 1) {
+                description = lines.slice(1).join('\n').trim() || undefined
+              }
+              steps.push({ title, description })
             }
-            steps.push({ title, description })
           }
         })
       } else {
@@ -1100,7 +1172,7 @@ function extractSteps(text: string): Array<{ title: string; description?: string
   
   while ((match = stepPattern.exec(text)) !== null) {
     const stepContent = match[2].trim()
-    // 移除各种语言的备注
+    // 移除各种语言的备注（cleanValue已经处理了多行备注）
     const cleanedContent = cleanValue(stepContent)
     // 分离标题和描述（通常第一行是标题，后续是描述）
     const lines = cleanedContent.split('\n').filter((l) => {
@@ -1109,7 +1181,7 @@ function extractSteps(text: string): Array<{ title: string; description?: string
     })
     if (lines.length > 0) {
       const title = lines[0].replace(/^[\d.]+\s*/, '').trim()
-      const description = lines.slice(1).join('\n').trim() || undefined
+      const description = lines.length > 1 ? lines.slice(1).join('\n').trim() : undefined
       if (title) {
         steps.push({ title, description })
       }
@@ -1166,7 +1238,8 @@ function extractFaq(text: string): Array<{ question: string; answer: string }> {
   // 支持多种格式：问题1: Q: ... 或 问题1: ...
   const questionPattern = /问题\s*(\d+)[：:]\s*(?:Q[：:]?\s*)?([^\n]+)/gi
   // 支持多种格式：回答1: A: ... 或 回答1: ...
-  const answerPattern = /回答\s*(\d+)[：:]\s*(?:A[：:]?\s*)?([\s\S]+?)(?=问题\s*\d+|常见问题|FAQ|$)/gi
+  // 改进：更准确地匹配回答，直到下一个问题、常见问题或FAQ，保留所有换行
+  const answerPattern = /回答\s*(\d+)[：:]\s*(?:A[：:]?\s*)?([\s\S]+?)(?=\n\s*问题\s*\d+|\n\s*常见问题|\n\s*FAQ|$)/gi
   
   const questionMatches = [...text.matchAll(questionPattern)]
   const answerMatches = [...text.matchAll(answerPattern)]
@@ -1191,7 +1264,11 @@ function extractFaq(text: string): Array<{ question: string; answer: string }> {
   
   answerMatches.forEach((m) => {
     const faqNum = parseInt(m[1], 10)
-    let answer = cleanValue(m[2].trim())
+    // 保留原始回答内容，包括换行，然后清理备注
+    let rawAnswer = m[2].trim()
+    // 移除末尾可能的中文解释行
+    rawAnswer = rawAnswer.replace(/\n\s*\/\/\s*中文解释[：:].*$/i, '')
+    let answer = cleanValue(rawAnswer)
     
     // 移除开头的"A:"或"A："如果存在
     answer = answer.replace(/^A[：:]\s*/i, '').trim()
@@ -1200,6 +1277,7 @@ function extractFaq(text: string): Array<{ question: string; answer: string }> {
       if (!faqMap.has(faqNum)) {
         faqMap.set(faqNum, {})
       }
+      // 确保回答保留换行，但过滤掉备注
       faqMap.get(faqNum)!.answer = answer
     }
   })
