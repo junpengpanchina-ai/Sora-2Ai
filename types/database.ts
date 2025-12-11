@@ -391,7 +391,7 @@ export interface Database {
         Row: {
           id: string
           keyword: string
-          intent: 'information' | 'comparison' | 'transaction'
+          intent: 'information' | 'comparison' | 'transaction' | 'information_comparison_transaction'
           product: string | null
           service: string | null
           region: string | null
@@ -414,7 +414,7 @@ export interface Database {
         Insert: {
           id?: string
           keyword: string
-          intent: 'information' | 'comparison' | 'transaction'
+          intent: 'information' | 'comparison' | 'transaction' | 'information_comparison_transaction'
           product?: string | null
           service?: string | null
           region?: string | null
@@ -437,7 +437,7 @@ export interface Database {
         Update: {
           id?: string
           keyword?: string
-          intent?: 'information' | 'comparison' | 'transaction'
+          intent?: 'information' | 'comparison' | 'transaction' | 'information_comparison_transaction'
           product?: string | null
           service?: string | null
           region?: string | null
