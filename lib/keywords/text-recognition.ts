@@ -914,28 +914,47 @@ function extractStatus(text: string): 'draft' | 'published' | null {
  * 识别步骤字段
  * 支持多语言格式（包括欧洲语言）
  * 特别支持：步骤1标题、步骤1描述 格式
+ * 支持Part分组和编号排序（1.1, 1.2, 2.1等）
  */
 function extractSteps(text: string): Array<{ title: string; description?: string }> {
   const steps: Array<{ title: string; description?: string }> = []
   
   // 首先尝试匹配"步骤X标题"和"步骤X描述"格式
+  // 支持格式：步骤1标题: 1.1 Title 或 步骤1标题: Title
   const stepTitlePattern = /步骤\s*(\d+)\s*标题[：:]\s*([^\n]+)/gi
-  const stepDescPattern = /步骤\s*(\d+)\s*描述[：:]\s*([\s\S]+?)(?=步骤\s*\d+|$)/gi
+  // 支持格式：步骤1描述: Description（可能跨多行）
+  const stepDescPattern = /步骤\s*(\d+)\s*描述[：:]\s*([\s\S]+?)(?=步骤\s*\d+|Part\s*\d+|常见问题|FAQ|$)/gi
   
   const titleMatches = [...text.matchAll(stepTitlePattern)]
   const descMatches = [...text.matchAll(stepDescPattern)]
   
-  // 创建步骤映射
-  const stepMap = new Map<number, { title?: string; description?: string }>()
+  // 创建步骤映射（使用步骤编号作为key）
+  const stepMap = new Map<number, { title?: string; description?: string; order?: number }>()
   
   titleMatches.forEach((m) => {
     const stepNum = parseInt(m[1], 10)
-    const title = cleanValue(m[2].trim())
+    let title = cleanValue(m[2].trim())
+    
+    // 提取编号（如1.1, 1.2等）用于排序
+    const numberMatch = title.match(/^(\d+\.\d+|\d+)[.:]?\s*(.+)$/)
+    let order = stepNum
+    if (numberMatch) {
+      const numStr = numberMatch[1]
+      if (numStr.includes('.')) {
+        // 1.1格式，转换为排序数字（1.1 -> 1.1, 1.2 -> 1.2, 2.1 -> 2.1）
+        order = parseFloat(numStr)
+        title = numberMatch[2].trim()
+      } else {
+        title = numberMatch[2].trim()
+      }
+    }
+    
     if (title) {
       if (!stepMap.has(stepNum)) {
-        stepMap.set(stepNum, {})
+        stepMap.set(stepNum, { order })
       }
       stepMap.get(stepNum)!.title = title
+      stepMap.get(stepNum)!.order = order
     }
   })
   
@@ -950,10 +969,15 @@ function extractSteps(text: string): Array<{ title: string; description?: string
     }
   })
   
-  // 将映射转换为数组
+  // 将映射转换为数组，按order排序
   if (stepMap.size > 0) {
     const sortedSteps = Array.from(stepMap.entries())
-      .sort((a, b) => a[0] - b[0])
+      .sort((a, b) => {
+        // 优先按order排序，如果没有order则按stepNum排序
+        const orderA = a[1].order ?? a[0]
+        const orderB = b[1].order ?? b[0]
+        return orderA - orderB
+      })
       .map(([, step]) => step)
       .filter((step) => step.title || step.description)
     
@@ -962,6 +986,109 @@ function extractSteps(text: string): Array<{ title: string; description?: string
         title: step.title || step.description?.split('\n')[0] || 'Step',
         description: step.description && step.title ? step.description : undefined,
       }))
+    }
+  }
+  
+  // 尝试识别Part格式的步骤（Part 1, Part 2等）
+  const partPattern = /Part\s*(\d+)[：:\s–-]+\s*([^\n]+)/gi
+  const partMatches = [...text.matchAll(partPattern)]
+  
+  if (partMatches.length > 0) {
+    // 为每个Part创建步骤，按Part编号排序
+    const sortedPartMatches = [...partMatches].sort((a, b) => {
+      const numA = parseInt(a[1], 10)
+      const numB = parseInt(b[1], 10)
+      return numA - numB
+    })
+    
+    sortedPartMatches.forEach((partMatch, partIndex) => {
+      const partNum = parseInt(partMatch[1], 10)
+      const partTitle = cleanValue(partMatch[2].trim())
+      
+      // 查找该Part下的所有子步骤（格式：1.1, 1.2, 2.1等）
+      const partStartIndex = partMatch.index || 0
+      const nextPartMatch = sortedPartMatches[partIndex + 1]
+      const partEndIndex = nextPartMatch ? nextPartMatch.index : text.length
+      const partSection = text.slice(partStartIndex, partEndIndex)
+      
+      // 匹配该Part下的编号步骤（如1.1, 1.2等），支持多种格式
+      // 格式1: 1.1 Title
+      // 格式2: 步骤1标题: 1.1 Title
+      // 格式3: 步骤1标题: Title（没有编号）
+      const subStepPattern = new RegExp(
+        `(?:步骤\\s*(\\d+)\\s*标题[：:]\\s*)?(\\d+\\.\\d+|${partNum}\\.\\d+|\\d+)[.)]?\\s*([^\\n]+(?:\\n(?!\\d+[.)]|Part\\s*\\d+|步骤\\s*\\d+|常见问题|FAQ|$)[^\\n]+)*)`,
+        'gim'
+      )
+      const subStepMatches = [...partSection.matchAll(subStepPattern)]
+      
+      // 按编号排序子步骤
+      const sortedSubSteps = subStepMatches.sort((a, b) => {
+        // 优先使用步骤编号，如果没有则使用子步骤编号
+        const stepNumA = a[1] ? parseInt(a[1], 10) : 0
+        const stepNumB = b[1] ? parseInt(b[1], 10) : 0
+        if (stepNumA !== stepNumB) {
+          return stepNumA - stepNumB
+        }
+        // 如果步骤编号相同，按子步骤编号排序
+        const numA = a[2].includes('.') ? parseFloat(a[2]) : parseInt(a[2], 10)
+        const numB = b[2].includes('.') ? parseFloat(b[2]) : parseInt(b[2], 10)
+        return numA - numB
+      })
+      
+      if (sortedSubSteps.length > 0) {
+        // 添加Part标题作为第一个步骤
+        steps.push({
+          title: `Part ${partNum}: ${partTitle}`,
+          description: undefined,
+        })
+        
+        // 添加该Part下的子步骤
+        sortedSubSteps.forEach((subMatch) => {
+          const stepNum = subMatch[1] // 步骤编号（如果有）
+          const subStepNum = subMatch[2] // 子步骤编号（1.1, 1.2等）
+          const subStepContent = cleanValue(subMatch[3].trim())
+          
+          // 尝试查找对应的描述（步骤X描述格式）
+          let description: string | undefined = undefined
+          if (stepNum) {
+            const descPattern = new RegExp(
+              `步骤\\s*${stepNum}\\s*描述[：:]\\s*([\\s\\S]+?)(?=步骤\\s*\\d+|Part\\s*\\d+|常见问题|FAQ|$)`,
+              'gi'
+            )
+            const descMatch = partSection.match(descPattern)
+            if (descMatch) {
+              description = cleanValue(descMatch[1].trim())
+            }
+          }
+          
+          // 分离标题和描述（如果描述不在单独的行中）
+          const lines = subStepContent.split('\n').filter((l) => {
+            const trimmed = l.trim()
+            return trimmed && !isRemarkLine(trimmed) && !trimmed.includes('// 中文解释')
+          })
+          
+          if (lines.length > 0) {
+            // 构建标题，包含编号
+            const titlePrefix = subStepNum.includes('.') ? subStepNum : `${partNum}.${subStepNum}`
+            const title = `${titlePrefix} ${lines[0].trim()}`
+            // 如果已经有描述，使用它；否则使用后续行作为描述
+            if (!description && lines.length > 1) {
+              description = lines.slice(1).join('\n').trim() || undefined
+            }
+            steps.push({ title, description })
+          }
+        })
+      } else {
+        // 如果没有找到子步骤，只添加Part标题
+        steps.push({
+          title: `Part ${partNum}: ${partTitle}`,
+          description: undefined,
+        })
+      }
+    })
+    
+    if (steps.length > 0) {
+      return steps
     }
   }
   
@@ -993,10 +1120,18 @@ function extractSteps(text: string): Array<{ title: string; description?: string
   // 这种格式是通用的，不依赖语言
   // 使用 [\s\S] 代替 . 以匹配包括换行符在内的所有字符（兼容 ES2017）
   if (steps.length === 0) {
-    const numberedPattern = /^\s*(\d+\.\d+|\d+)[.)]\s*([\s\S]+?)(?=^\s*\d+[.)]|$)/gim
+    const numberedPattern = /^\s*(\d+\.\d+|\d+)[.)]\s*([\s\S]+?)(?=^\s*\d+[.)]|Part\s*\d+|步骤|$)/gim
     const numberedMatches = [...text.matchAll(numberedPattern)]
     if (numberedMatches.length > 0) {
-      numberedMatches.forEach((m) => {
+      // 按编号排序
+      const sortedMatches = numberedMatches.sort((a, b) => {
+        const numA = a[1].includes('.') ? parseFloat(a[1]) : parseInt(a[1], 10)
+        const numB = b[1].includes('.') ? parseFloat(b[1]) : parseInt(b[1], 10)
+        return numA - numB
+      })
+      
+      sortedMatches.forEach((m) => {
+        const stepNum = m[1]
         const content = m[2].trim()
         // 移除各种语言的备注
         const cleanedContent = cleanValue(content)
@@ -1005,7 +1140,7 @@ function extractSteps(text: string): Array<{ title: string; description?: string
           return trimmed && !isRemarkLine(trimmed) && !trimmed.includes('// 中文解释')
         })
         if (lines.length > 0) {
-          const title = lines[0].trim()
+          const title = `${stepNum} ${lines[0].trim()}`
           const description = lines.slice(1).join('\n').trim() || undefined
           if (title && title.length > 3) {
             steps.push({ title, description })
@@ -1022,13 +1157,16 @@ function extractSteps(text: string): Array<{ title: string; description?: string
  * 识别FAQ字段
  * 支持多语言格式（包括欧洲语言）
  * 特别支持：问题1、回答1 格式
+ * 确保按照数字顺序排列
  */
 function extractFaq(text: string): Array<{ question: string; answer: string }> {
   const faq: Array<{ question: string; answer: string }> = []
   
   // 首先尝试匹配"问题X"和"回答X"格式
-  const questionPattern = /问题\s*(\d+)[：:]\s*([^\n]+)/gi
-  const answerPattern = /回答\s*(\d+)[：:]\s*([\s\S]+?)(?=问题\s*\d+|常见问题|FAQ|$)/gi
+  // 支持多种格式：问题1: Q: ... 或 问题1: ...
+  const questionPattern = /问题\s*(\d+)[：:]\s*(?:Q[：:]?\s*)?([^\n]+)/gi
+  // 支持多种格式：回答1: A: ... 或 回答1: ...
+  const answerPattern = /回答\s*(\d+)[：:]\s*(?:A[：:]?\s*)?([\s\S]+?)(?=问题\s*\d+|常见问题|FAQ|$)/gi
   
   const questionMatches = [...text.matchAll(questionPattern)]
   const answerMatches = [...text.matchAll(answerPattern)]
@@ -1038,7 +1176,11 @@ function extractFaq(text: string): Array<{ question: string; answer: string }> {
   
   questionMatches.forEach((m) => {
     const faqNum = parseInt(m[1], 10)
-    const question = cleanValue(m[2].trim())
+    let question = cleanValue(m[2].trim())
+    
+    // 移除开头的"Q:"或"Q："如果存在
+    question = question.replace(/^Q[：:]\s*/i, '').trim()
+    
     if (question) {
       if (!faqMap.has(faqNum)) {
         faqMap.set(faqNum, {})
@@ -1049,7 +1191,11 @@ function extractFaq(text: string): Array<{ question: string; answer: string }> {
   
   answerMatches.forEach((m) => {
     const faqNum = parseInt(m[1], 10)
-    const answer = cleanValue(m[2].trim())
+    let answer = cleanValue(m[2].trim())
+    
+    // 移除开头的"A:"或"A："如果存在
+    answer = answer.replace(/^A[：:]\s*/i, '').trim()
+    
     if (answer) {
       if (!faqMap.has(faqNum)) {
         faqMap.set(faqNum, {})
@@ -1058,10 +1204,10 @@ function extractFaq(text: string): Array<{ question: string; answer: string }> {
     }
   })
   
-  // 将映射转换为数组
+  // 将映射转换为数组，按数字顺序排序
   if (faqMap.size > 0) {
     const sortedFaq = Array.from(faqMap.entries())
-      .sort((a, b) => a[0] - b[0])
+      .sort((a, b) => a[0] - b[0]) // 按FAQ编号排序
       .map(([, faq]) => faq)
       .filter((item) => item.question && item.answer)
     
@@ -1099,12 +1245,18 @@ function extractFaq(text: string): Array<{ question: string; answer: string }> {
   // 如果没有找到，尝试匹配以问号结尾的行作为问题（支持多种问号）
   // 使用 [\s\S] 代替 . 以匹配包括换行符在内的所有字符（兼容 ES2017）
   if (faq.length === 0) {
-    const questionPattern = /^([\s\S]+[?？؟])\s*\n([\s\S]+?)(?=^[\s\S]+[?？؟]|$)/gim
+    const questionPattern = /^([\s\S]+[?？؟])\s*\n([\s\S]+?)(?=^[\s\S]+[?？？]|常见问题|FAQ|$)/gim
     const questionMatches = [...text.matchAll(questionPattern)]
     if (questionMatches.length > 0) {
+      // 按出现顺序添加（保持原始顺序）
       questionMatches.forEach((m) => {
-        const question = cleanValue(m[1].trim())
-        const answer = cleanValue(m[2].trim())
+        let question = cleanValue(m[1].trim())
+        let answer = cleanValue(m[2].trim())
+        
+        // 移除Q:和A:前缀（如果存在）
+        question = question.replace(/^Q[：:]\s*/i, '').trim()
+        answer = answer.replace(/^A[：:]\s*/i, '').trim()
+        
         if (question && answer) {
           faq.push({ question, answer })
         }
