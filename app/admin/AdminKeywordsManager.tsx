@@ -120,6 +120,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
   const [isProcessingImage, setIsProcessingImage] = useState(false)
   const [ocrProgress, setOcrProgress] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const textAreaRef = useRef<HTMLTextAreaElement>(null)
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<KeywordFormState>(DEFAULT_FORM_STATE)
@@ -180,6 +181,168 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
   useEffect(() => {
     fetchKeywords(true)
   }, [fetchKeywords])
+
+  /**
+   * 执行文本识别和填充
+   */
+  const performTextRecognition = useCallback(async (text: string) => {
+    if (!text.trim()) {
+      return
+    }
+
+    setIsRecognizing(true)
+    try {
+      const parsed = parseKeywordText(text)
+      
+      // 更新表单字段
+      setCreateForm((prev) => {
+        const updated: KeywordFormState = { ...prev }
+        
+        if (parsed.keyword) updated.keyword = parsed.keyword
+        if (parsed.intent && KEYWORD_INTENTS.includes(parsed.intent as KeywordIntent)) {
+          updated.intent = parsed.intent as KeywordIntent
+        }
+        if (parsed.page_style) updated.page_style = parsed.page_style
+        if (parsed.page_slug) updated.page_slug = parsed.page_slug
+        if (parsed.status) updated.status = parsed.status
+        if (parsed.product) updated.product = parsed.product
+        if (parsed.service) updated.service = parsed.service
+        if (parsed.region) updated.region = parsed.region
+        if (parsed.pain_point) updated.pain_point = parsed.pain_point
+        if (parsed.search_volume) updated.search_volume = parsed.search_volume
+        if (parsed.competition_score) updated.competition_score = parsed.competition_score
+        if (parsed.priority) updated.priority = parsed.priority
+        if (parsed.title) updated.title = parsed.title
+        if (parsed.h1) updated.h1 = parsed.h1
+        if (parsed.meta_description) updated.meta_description = parsed.meta_description
+        if (parsed.intro_paragraph) updated.intro_paragraph = parsed.intro_paragraph
+        if (parsed.steps && parsed.steps.length > 0) {
+          updated.steps = parsed.steps.map((step) => ({
+            title: step.title,
+            description: step.description || '',
+          }))
+        }
+        if (parsed.faq && parsed.faq.length > 0) {
+          updated.faq = parsed.faq
+        }
+        
+        return updated
+      })
+      
+      // 统计识别到的字段数量
+      const recognizedFields = Object.keys(parsed).filter((key) => {
+        const value = parsed[key as keyof ParsedKeywordData]
+        if (Array.isArray(value)) {
+          return value.length > 0
+        }
+        return value !== undefined && value !== null && value !== ''
+      }).length
+      
+      onShowBanner('success', `Successfully recognized and filled ${recognizedFields} field(s)`)
+    } catch (err) {
+      console.error('Text recognition failed:', err)
+      onShowBanner('error', err instanceof Error ? err.message : 'Text recognition failed')
+    } finally {
+      setIsRecognizing(false)
+    }
+  }, [onShowBanner])
+
+  /**
+   * 处理粘贴事件（支持粘贴图片）
+   */
+  useEffect(() => {
+    const handlePaste = async (event: ClipboardEvent) => {
+      // 检查是否在文本识别区域内
+      const target = event.target as HTMLElement
+      if (!target.closest('.text-recognition-area')) {
+        return
+      }
+
+      const items = event.clipboardData?.items
+      if (!items) return
+
+      // 查找图片项
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i]
+        if (item.type.startsWith('image/')) {
+          event.preventDefault()
+          
+          const file = item.getAsFile()
+          if (!file) continue
+
+          // 验证文件大小（限制为10MB）
+          if (file.size > 10 * 1024 * 1024) {
+            onShowBanner('error', 'Image size should be less than 10MB')
+            return
+          }
+
+          setSelectedImage(file)
+          
+          // 创建预览
+          const reader = new FileReader()
+          reader.onloadend = () => {
+            setImagePreview(reader.result as string)
+          }
+          reader.readAsDataURL(file)
+          
+          // 等待状态更新后自动触发OCR识别
+          setTimeout(async () => {
+            setIsProcessingImage(true)
+            setOcrProgress(0)
+            
+            try {
+              const languages = 'eng+chi_sim+chi_tra+tha+ara+rus+slv+ron+spa+fra+deu+ita+por+nld+pol+ces+hun+ell+swe+nor+fin+bul'
+              
+              const worker = await createWorker(languages, 1, {
+                logger: (m) => {
+                  if (m.status === 'recognizing text') {
+                    setOcrProgress(Math.round(m.progress * 100))
+                  }
+                },
+              })
+
+              const { data: { text } } = await worker.recognize(file)
+              await worker.terminate()
+
+              const cleanedText = text.trim()
+              setTextRecognitionInput(cleanedText)
+              
+              if (!cleanedText) {
+                onShowBanner('error', 'No text found in the image. Please try another image.')
+                setIsProcessingImage(false)
+                setOcrProgress(0)
+                return
+              }
+              
+              // 调用文本识别函数
+              await performTextRecognition(cleanedText)
+              
+              onShowBanner('success', `Image text recognized successfully. Found ${cleanedText.length} characters.`)
+              
+              // 清理图片
+              setSelectedImage(null)
+              setImagePreview(null)
+            } catch (err) {
+              console.error('OCR recognition failed:', err)
+              onShowBanner('error', err instanceof Error ? err.message : 'OCR recognition failed. Please try again.')
+            } finally {
+              setIsProcessingImage(false)
+              setOcrProgress(0)
+            }
+          }, 100)
+          
+          break
+        }
+      }
+    }
+
+    // 添加全局粘贴事件监听
+    document.addEventListener('paste', handlePaste)
+    
+    return () => {
+      document.removeEventListener('paste', handlePaste)
+    }
+  }, [performTextRecognition, onShowBanner])
 
   const handleInputChange = (
     setter: React.Dispatch<React.SetStateAction<KeywordFormState>>,
@@ -399,8 +562,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
    * 处理OCR识别
    * 支持多语言OCR识别
    */
-  const handleOCRRecognition = async () => {
-    if (!selectedImage) {
+  const handleOCRRecognition = async (imageFile?: File) => {
+    const imageToProcess = imageFile || selectedImage
+    if (!imageToProcess) {
       onShowBanner('error', 'Please select an image first')
       return
     }
@@ -426,7 +590,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
       })
 
       // 执行OCR识别
-      const { data: { text } } = await worker.recognize(selectedImage)
+      const { data: { text } } = await worker.recognize(imageToProcess)
       
       // 清理worker
       await worker.terminate()
@@ -461,76 +625,6 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
   }
 
   /**
-   * 执行文本识别和填充
-   */
-  const performTextRecognition = async (text: string) => {
-    if (!text.trim()) {
-      return
-    }
-
-    setIsRecognizing(true)
-    try {
-      const parsed = parseKeywordText(text)
-      
-      // 更新表单字段
-      setCreateForm((prev) => {
-        const updated: KeywordFormState = { ...prev }
-        
-        if (parsed.keyword) updated.keyword = parsed.keyword
-        if (parsed.intent && KEYWORD_INTENTS.includes(parsed.intent as KeywordIntent)) {
-          updated.intent = parsed.intent as KeywordIntent
-        }
-        if (parsed.page_style) updated.page_style = parsed.page_style
-        if (parsed.page_slug) updated.page_slug = parsed.page_slug
-        if (parsed.status) updated.status = parsed.status
-        if (parsed.product) updated.product = parsed.product
-        if (parsed.service) updated.service = parsed.service
-        if (parsed.region) updated.region = parsed.region
-        if (parsed.pain_point) updated.pain_point = parsed.pain_point
-        if (parsed.search_volume) updated.search_volume = parsed.search_volume
-        if (parsed.competition_score) updated.competition_score = parsed.competition_score
-        if (parsed.priority) updated.priority = parsed.priority
-        if (parsed.title) updated.title = parsed.title
-        if (parsed.h1) updated.h1 = parsed.h1
-        if (parsed.meta_description) updated.meta_description = parsed.meta_description
-        if (parsed.intro_paragraph) updated.intro_paragraph = parsed.intro_paragraph
-        if (parsed.steps && parsed.steps.length > 0) {
-          updated.steps = parsed.steps.map((step) => ({
-            title: step.title,
-            description: step.description || '',
-          }))
-        }
-        if (parsed.faq && parsed.faq.length > 0) {
-          updated.faq = parsed.faq
-        }
-        
-        return updated
-      })
-      
-      // 统计识别到的字段数量
-      const recognizedFields = Object.keys(parsed).filter((key) => {
-        const value = parsed[key as keyof ParsedKeywordData]
-        if (Array.isArray(value)) {
-          return value.length > 0
-        }
-        return value !== undefined && value !== null && value !== ''
-      }).length
-      
-      onShowBanner('success', `Successfully recognized and filled ${recognizedFields} field(s)`)
-      
-      // 如果是手动触发的识别，清空输入框
-      if (text === textRecognitionInput) {
-        setTextRecognitionInput('')
-      }
-    } catch (err) {
-      console.error('Text recognition failed:', err)
-      onShowBanner('error', err instanceof Error ? err.message : 'Text recognition failed')
-    } finally {
-      setIsRecognizing(false)
-    }
-  }
-
-  /**
    * 处理文本识别和自动填充（手动触发）
    */
   const handleTextRecognition = () => {
@@ -538,7 +632,10 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
       onShowBanner('error', 'Please paste text to recognize')
       return
     }
-    performTextRecognition(textRecognitionInput)
+    performTextRecognition(textRecognitionInput).then(() => {
+      // 识别成功后清空输入框
+      setTextRecognitionInput('')
+    })
   }
 
   /**
@@ -560,14 +657,14 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
         </CardHeader>
         <CardContent>
           {/* 文本识别区域 */}
-          <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30">
+          <div className="text-recognition-area mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30">
             <div className="mb-2 flex items-center gap-2">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 📋 文本识别自动填充 (Text Recognition & Auto-fill)
               </span>
             </div>
             <p className="mb-3 text-xs text-gray-600 dark:text-gray-400">
-              支持两种方式：1) 上传图片自动识别文字（OCR） 2) 直接粘贴文本。系统会自动识别字段并填充表单。支持多语言识别（中文、英文、泰语、印地语、阿拉伯语、俄语、斯洛文尼亚语、罗马尼亚语、西班牙语、法语、德语、意大利语、葡萄牙语、荷兰语、波兰语、捷克语、匈牙利语、希腊语、瑞典语、挪威语、芬兰语等），自动屏蔽各种语言的备注和表单标签。
+              支持三种方式：1) 直接粘贴图片（Ctrl+V / Cmd+V）自动识别文字（OCR） 2) 上传图片自动识别文字 3) 直接粘贴文本。系统会自动识别字段并填充表单。支持多语言识别（中文、英文、泰语、印地语、阿拉伯语、俄语、斯洛文尼亚语、罗马尼亚语、西班牙语、法语、德语、意大利语、葡萄牙语、荷兰语、波兰语、捷克语、匈牙利语、希腊语、瑞典语、挪威语、芬兰语等），自动屏蔽各种语言的备注和表单标签。
             </p>
             
             {/* 图片上传区域 */}
@@ -598,7 +695,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                       type="button"
                       variant="secondary"
                       size="sm"
-                      onClick={handleOCRRecognition}
+                      onClick={() => handleOCRRecognition()}
                       disabled={isProcessingImage}
                     >
                       {isProcessingImage ? `识别中 ${ocrProgress}%...` : '🔍 识别图片文字'}
@@ -648,10 +745,14 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
             {/* 文本输入区域 */}
             <div className="space-y-2">
               <Textarea
+                ref={textAreaRef}
                 rows={6}
                 value={textRecognitionInput}
                 onChange={(event) => setTextRecognitionInput(event.target.value)}
-                placeholder="粘贴文本内容或上传图片识别，例如：&#10;关键词: Sora2 vs Runway for English Christmas Pantomime videos...&#10;产品: Sora2 AI Video Generator&#10;地区: England, UK&#10;// 中文解释: 这些是中文备注，会被自动过滤"
+                onPaste={() => {
+                  // 让粘贴事件继续，useEffect中的监听器会处理图片
+                }}
+                placeholder="粘贴文本内容或图片（Ctrl+V / Cmd+V），例如：&#10;关键词: Sora2 vs Runway for English Christmas Pantomime videos...&#10;产品: Sora2 AI Video Generator&#10;地区: England, UK&#10;// 中文解释: 这些是中文备注，会被自动过滤"
                 className="font-mono text-sm"
               />
               <div className="flex items-center justify-between">
