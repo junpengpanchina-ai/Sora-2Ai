@@ -65,46 +65,78 @@ export default function ChristmasBGM({ enabled }: ChristmasBGMProps) {
     }
 
     // Try to play audio (may be blocked by browser autoplay policy)
-    const tryPlay = async () => {
-      if (audioRef.current && audioRef.current.readyState >= 2) {
-        try {
-          await audioRef.current.play()
-          console.log('🎵 Christmas BGM 开始播放')
-        } catch {
-          // Autoplay blocked - audio will play on user interaction
+    const tryPlay = async (force = false) => {
+      if (!audioRef.current) return
+      
+      // 如果音频还没准备好，等待加载
+      if (audioRef.current.readyState < 2) {
+        if (!force) {
+          const waitForReady = () => {
+            if (audioRef.current && audioRef.current.readyState >= 2) {
+              tryPlay(force)
+            } else {
+              setTimeout(waitForReady, 100)
+            }
+          }
+          waitForReady()
+          return
+        }
+      }
+
+      try {
+        // 尝试播放
+        await audioRef.current.play()
+        console.log('🎵 Christmas BGM 开始播放')
+      } catch {
+        // Autoplay blocked - audio will play on user interaction
+        if (!force) {
           console.log('⚠️ 自动播放被阻止，等待用户交互后播放')
           console.log('💡 用户点击页面任意位置后音乐将开始播放')
         }
-      } else if (audioRef.current) {
-        // 如果音频还没准备好，等待加载
-        const waitForReady = () => {
-          if (audioRef.current && audioRef.current.readyState >= 2) {
-            tryPlay()
-          } else {
-            setTimeout(waitForReady, 100)
-          }
-        }
-        waitForReady()
       }
     }
 
-    // Try to play after a small delay to ensure audio is loaded
-    const timeoutId = setTimeout(tryPlay, 500)
-
-    // Also try on user interaction
-    const handleInteraction = () => {
-      tryPlay()
+    // 策略 1: 尝试静音播放然后取消静音（某些浏览器允许）
+    const tryMutedPlay = async () => {
+      if (!audioRef.current) return
+      try {
+        audioRef.current.muted = true
+        await audioRef.current.play()
+        // 播放成功后取消静音
+        setTimeout(() => {
+          if (audioRef.current) {
+            audioRef.current.muted = false
+            console.log('🎵 Christmas BGM 开始播放（静音后取消）')
+          }
+        }, 100)
+      } catch {
+        // 静音播放也失败，等待用户交互
+      }
     }
 
-    document.addEventListener('click', handleInteraction, { once: true })
-    document.addEventListener('keydown', handleInteraction, { once: true })
-    document.addEventListener('touchstart', handleInteraction, { once: true })
+    // 策略 2: 延迟尝试正常播放
+    const timeoutId1 = setTimeout(() => tryPlay(false), 300)
+    const timeoutId2 = setTimeout(() => tryMutedPlay(), 500)
+
+    // 策略 3: 监听用户交互后立即播放
+    const handleInteraction = () => {
+      tryPlay(true)
+    }
+
+    // 监听多种交互事件
+    const events = ['click', 'keydown', 'touchstart', 'mousedown', 'pointerdown']
+    events.forEach(eventType => {
+      document.addEventListener(eventType, handleInteraction, { once: true, passive: true })
+    })
 
     return () => {
-      clearTimeout(timeoutId)
-      document.removeEventListener('click', handleInteraction)
-      document.removeEventListener('keydown', handleInteraction)
-      document.removeEventListener('touchstart', handleInteraction)
+      clearTimeout(timeoutId1)
+      clearTimeout(timeoutId2)
+      // 清理所有事件监听器
+      const events = ['click', 'keydown', 'touchstart', 'mousedown', 'pointerdown']
+      events.forEach(eventType => {
+        document.removeEventListener(eventType, handleInteraction)
+      })
       if (audioRef.current) {
         audioRef.current.pause()
         audioRef.current.currentTime = 0
