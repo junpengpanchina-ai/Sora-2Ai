@@ -67,6 +67,14 @@ const nextConfig = {
     serverComponentsExternalPackages: [],
   },
   
+  // 禁用 Vercel Toolbar（仅在生产环境）
+  // 注意：这需要在 Vercel Dashboard 中同时设置才能完全禁用
+  // Settings > General > Vercel Toolbar > Production: Off
+  env: {
+    // 确保生产环境不显示 Toolbar
+    NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV || 'development',
+  },
+  
 }
 
 module.exports = nextConfig

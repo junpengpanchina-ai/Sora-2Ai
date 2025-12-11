@@ -5,7 +5,7 @@ export const KEYWORD_INTENT_LABELS: Record<KeywordIntent, string> = {
   information: 'Informational',
   comparison: 'Comparison',
   transaction: 'Transactional',
-  information_comparison_transaction: '信息 + 对比 + 交易型',
+  information_comparison_transaction: 'Informational + Comparison + Transactional',
 }
 
 export const KEYWORD_STATUSES = ['draft', 'published'] as const

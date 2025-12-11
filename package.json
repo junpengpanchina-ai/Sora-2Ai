@@ -22,6 +22,7 @@
     "check:backlinks": "node scripts/check-backlinks.js",
     "diagnose:indexing": "node scripts/diagnose-google-indexing.js",
     "check:keywords": "node scripts/check-keywords.js",
+    "add:christmas": "node scripts/add-christmas-keyword.js",
     "monitor:backlinks": "node scripts/monitor-backlinks.js",
     "verify:page-style": "node scripts/verify-page-style-migration.js"
   },
