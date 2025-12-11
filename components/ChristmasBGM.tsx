@@ -70,7 +70,7 @@ export default function ChristmasBGM({ enabled }: ChristmasBGMProps) {
         try {
           await audioRef.current.play()
           console.log('🎵 Christmas BGM 开始播放')
-        } catch (err) {
+        } catch {
           // Autoplay blocked - audio will play on user interaction
           console.log('⚠️ 自动播放被阻止，等待用户交互后播放')
           console.log('💡 用户点击页面任意位置后音乐将开始播放')
