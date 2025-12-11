@@ -252,12 +252,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
    */
   useEffect(() => {
     const handlePaste = async (event: ClipboardEvent) => {
-      // 检查是否在文本识别区域内
-      const target = event.target as HTMLElement
-      if (!target.closest('.text-recognition-area')) {
-        return
-      }
-
+      // 检查剪贴板中是否有图片
       const items = event.clipboardData?.items
       if (!items) return
 
@@ -749,8 +744,83 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 rows={6}
                 value={textRecognitionInput}
                 onChange={(event) => setTextRecognitionInput(event.target.value)}
-                onPaste={() => {
-                  // 让粘贴事件继续，useEffect中的监听器会处理图片
+                onPaste={async (event) => {
+                  // 检查剪贴板中是否有图片
+                  const items = event.clipboardData?.items
+                  if (!items) return
+
+                  for (let i = 0; i < items.length; i++) {
+                    const item = items[i]
+                    if (item.type.startsWith('image/')) {
+                      event.preventDefault()
+                      
+                      const file = item.getAsFile()
+                      if (!file) continue
+
+                      // 验证文件大小（限制为10MB）
+                      if (file.size > 10 * 1024 * 1024) {
+                        onShowBanner('error', 'Image size should be less than 10MB')
+                        return
+                      }
+
+                      setSelectedImage(file)
+                      
+                      // 创建预览
+                      const reader = new FileReader()
+                      reader.onloadend = () => {
+                        setImagePreview(reader.result as string)
+                      }
+                      reader.readAsDataURL(file)
+                      
+                      // 等待状态更新后自动触发OCR识别
+                      setTimeout(async () => {
+                        setIsProcessingImage(true)
+                        setOcrProgress(0)
+                        
+                        try {
+                          const languages = 'eng+chi_sim+chi_tra+tha+ara+rus+slv+ron+spa+fra+deu+ita+por+nld+pol+ces+hun+ell+swe+nor+fin+bul'
+                          
+                          const worker = await createWorker(languages, 1, {
+                            logger: (m) => {
+                              if (m.status === 'recognizing text') {
+                                setOcrProgress(Math.round(m.progress * 100))
+                              }
+                            },
+                          })
+
+                          const { data: { text } } = await worker.recognize(file)
+                          await worker.terminate()
+
+                          const cleanedText = text.trim()
+                          setTextRecognitionInput(cleanedText)
+                          
+                          if (!cleanedText) {
+                            onShowBanner('error', 'No text found in the image. Please try another image.')
+                            setIsProcessingImage(false)
+                            setOcrProgress(0)
+                            return
+                          }
+                          
+                          // 调用文本识别函数
+                          await performTextRecognition(cleanedText)
+                          
+                          onShowBanner('success', `Image text recognized successfully. Found ${cleanedText.length} characters.`)
+                          
+                          // 清理图片
+                          setSelectedImage(null)
+                          setImagePreview(null)
+                        } catch (err) {
+                          console.error('OCR recognition failed:', err)
+                          onShowBanner('error', err instanceof Error ? err.message : 'OCR recognition failed. Please try again.')
+                        } finally {
+                          setIsProcessingImage(false)
+                          setOcrProgress(0)
+                        }
+                      }, 100)
+                      
+                      break
+                    }
+                  }
                 }}
                 placeholder="粘贴文本内容或图片（Ctrl+V / Cmd+V），例如：&#10;关键词: Sora2 vs Runway for English Christmas Pantomime videos...&#10;产品: Sora2 AI Video Generator&#10;地区: England, UK&#10;// 中文解释: 这些是中文备注，会被自动过滤"
                 className="font-mono text-sm"
