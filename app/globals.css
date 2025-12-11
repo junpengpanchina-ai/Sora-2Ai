@@ -1031,4 +1031,109 @@ body {
   }
 }
 
+/* Christmas Theme Styles */
+.christmas-theme {
+  background: linear-gradient(180deg, #0a1a0f 0%, #1a0a0a 50%, #0a1a0f 100%);
+}
+
+.christmas-bg,
+.christmas-snow,
+.christmas-glow,
+.christmas-lights {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.christmas-bg {
+  background:
+    radial-gradient(circle at 30% 20%, rgba(220, 38, 38, 0.25), transparent 40%),
+    radial-gradient(circle at 70% 60%, rgba(34, 197, 94, 0.2), transparent 50%),
+    radial-gradient(circle at 50% 80%, rgba(220, 38, 38, 0.15), transparent 45%),
+    linear-gradient(180deg, #0a1a0f 0%, #1a0a0a 50%, #0f1a0f 100%);
+  background-size: 200% 200%, 180% 180%, 160% 160%, 100% 100%;
+  background-attachment: fixed;
+  animation: christmas-bg-shift 20s ease-in-out infinite alternate;
+}
+
+.christmas-glow {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(220, 38, 38, 0.4), transparent 60%),
+    radial-gradient(circle at 80% 50%, rgba(34, 197, 94, 0.35), transparent 65%),
+    radial-gradient(circle at 50% 10%, rgba(250, 204, 21, 0.3), transparent 55%);
+  mix-blend-mode: screen;
+  filter: blur(60px);
+  opacity: 0.4;
+  animation: christmas-glow-pulse 15s ease-in-out infinite alternate;
+}
+
+.christmas-snow {
+  background-image:
+    radial-gradient(2px 2px at 10% 20%, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1.5px 1.5px at 30% 50%, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(2px 2px at 50% 30%, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(1px 1px at 70% 60%, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(2px 2px at 90% 40%, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1.5px 1.5px at 15% 80%, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(2px 2px at 85% 10%, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1px 1px at 60% 70%, rgba(255, 255, 255, 0.8), transparent);
+  background-size: 400px 400px, 600px 600px, 500px 500px, 450px 450px, 550px 550px, 480px 480px, 520px 520px, 470px 470px;
+  mix-blend-mode: screen;
+  opacity: 0.6;
+  animation: snow-fall 20s linear infinite;
+}
+
+.christmas-lights {
+  background-image:
+    radial-gradient(4px 4px at 20% 15%, rgba(255, 0, 0, 0.9), transparent),
+    radial-gradient(4px 4px at 40% 25%, rgba(0, 255, 0, 0.9), transparent),
+    radial-gradient(4px 4px at 60% 20%, rgba(255, 0, 0, 0.9), transparent),
+    radial-gradient(4px 4px at 80% 30%, rgba(0, 255, 0, 0.9), transparent),
+    radial-gradient(4px 4px at 25% 45%, rgba(255, 255, 0, 0.9), transparent),
+    radial-gradient(4px 4px at 75% 40%, rgba(255, 0, 0, 0.9), transparent),
+    radial-gradient(4px 4px at 50% 50%, rgba(0, 255, 0, 0.9), transparent);
+  background-size: 300px 300px;
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: christmas-lights-twinkle 2s ease-in-out infinite;
+}
+
+@keyframes christmas-bg-shift {
+  0% {
+    background-position: 0% 0%, 20% 20%, 10% 40%, 0% 0%;
+  }
+  100% {
+    background-position: 100% 100%, 80% 80%, 90% 60%, 0% 0%;
+  }
+}
+
+@keyframes christmas-glow-pulse {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.9);
+    opacity: 0.3;
+  }
+  100% {
+    transform: translate3d(20px, -20px, 0) scale(1.1);
+    opacity: 0.5;
+  }
+}
+
+@keyframes snow-fall {
+  0% {
+    transform: translateY(-100vh) translateX(0);
+  }
+  100% {
+    transform: translateY(100vh) translateX(50px);
+  }
+}
+
+@keyframes christmas-lights-twinkle {
+  0%, 100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
 

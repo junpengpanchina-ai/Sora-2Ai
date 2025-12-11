@@ -28,6 +28,7 @@ interface KeywordRecord {
   competition_score: number | null
   priority: number
   page_slug: string
+  page_style: 'default' | 'christmas'
   title: string | null
   meta_description: string | null
   h1: string | null
@@ -43,6 +44,7 @@ interface KeywordRecord {
 type KeywordFormState = {
   keyword: string
   intent: KeywordIntent
+  page_style: 'default' | 'christmas'
   product: string
   service: string
   region: string
@@ -66,6 +68,7 @@ const createEmptyFaq = (): KeywordFaqItem => ({ question: '', answer: '' })
 const DEFAULT_FORM_STATE: KeywordFormState = {
   keyword: '',
   intent: 'information',
+  page_style: 'default',
   product: '',
   service: '',
   region: '',
@@ -219,6 +222,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
   const preparePayload = (form: KeywordFormState) => ({
     keyword: form.keyword.trim(),
     intent: form.intent,
+    page_style: form.page_style,
     product: form.product.trim(),
     service: form.service.trim(),
     region: form.region.trim(),
@@ -269,6 +273,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
     setEditForm({
       keyword: record.keyword,
       intent: record.intent,
+      page_style: record.page_style ?? 'default',
       product: record.product ?? '',
       service: record.service ?? '',
       region: record.region ?? '',
@@ -386,6 +391,26 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                     </option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  页面风格 (page_style)
+                </label>
+                <select
+                  className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                  value={createForm.page_style}
+                  onChange={(event) =>
+                    handleInputChange(setCreateForm, 'page_style', event.target.value as 'default' | 'christmas')
+                  }
+                >
+                  <option value="default">默认风格 (Default)</option>
+                  <option value="christmas">圣诞节风格 🎄 (Christmas)</option>
+                </select>
+                {createForm.page_style === 'christmas' && (
+                  <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                    💡 圣诞节风格包含动态背景和背景音乐
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
@@ -837,6 +862,26 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                       </option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    页面风格 (page_style)
+                  </label>
+                  <select
+                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                    value={editForm.page_style}
+                    onChange={(event) =>
+                      handleInputChange(setEditForm, 'page_style', event.target.value as 'default' | 'christmas')
+                    }
+                  >
+                    <option value="default">默认风格 (Default)</option>
+                    <option value="christmas">圣诞节风格 🎄 (Christmas)</option>
+                  </select>
+                  {editForm.page_style === 'christmas' && (
+                    <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                      💡 圣诞节风格包含动态背景和背景音乐
+                    </p>
+                  )}
                 </div>
               </div>
 

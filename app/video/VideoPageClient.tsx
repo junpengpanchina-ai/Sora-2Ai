@@ -73,12 +73,14 @@ export default function VideoPageClient() {
   const [duration, setDuration] = useState<'10' | '15'>('10')
   const [size, setSize] = useState<'small' | 'large'>('small')
   const [useWebhook, setUseWebhook] = useState(false)
+  const [theme, setTheme] = useState<'default' | 'christmas'>('default')
   const [loading, setLoading] = useState(false)
   const [currentResult, setCurrentResult] = useState<VideoResult | null>(null)
   const [pollingTaskId, setPollingTaskId] = useState<string | null>(null)
   const [currentPrompt, setCurrentPrompt] = useState<string>('') // Save current prompt
   const [credits, setCredits] = useState<number | null>(null)
   const hasReadPromptFromUrl = useRef(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -86,6 +88,68 @@ export default function VideoPageClient() {
     }
     setSupabase(createClient())
   }, [])
+
+  // Handle theme change and background music
+  useEffect(() => {
+    if (theme === 'christmas') {
+      // Create and play Christmas background music
+      if (!audioRef.current) {
+        audioRef.current = new Audio('/sounds/christmas-bgm.mp3')
+        audioRef.current.loop = true
+        audioRef.current.volume = 0.3
+        audioRef.current.preload = 'auto'
+        
+        // Handle audio errors gracefully (file might not exist yet)
+        audioRef.current.addEventListener('error', () => {
+          console.warn('Christmas BGM file not found. Please add /public/sounds/christmas-bgm.mp3')
+          // File not found - this is expected if user hasn't added the music file yet
+        })
+      }
+      
+      // Try to play audio (may be blocked by browser autoplay policy)
+      const tryPlay = async () => {
+        if (audioRef.current) {
+          try {
+            await audioRef.current.play()
+          } catch {
+            // Autoplay blocked - audio will play on user interaction
+            console.log('Autoplay blocked. Audio will play on user interaction.')
+          }
+        }
+      }
+      
+      // Try to play after a small delay to ensure audio is loaded
+      const timeoutId = setTimeout(tryPlay, 500)
+      
+      // Also try on user interaction
+      const handleInteraction = () => {
+        tryPlay()
+      }
+      
+      document.addEventListener('click', handleInteraction, { once: true })
+      document.addEventListener('keydown', handleInteraction, { once: true })
+      
+      return () => {
+        clearTimeout(timeoutId)
+        document.removeEventListener('click', handleInteraction)
+        document.removeEventListener('keydown', handleInteraction)
+      }
+    } else {
+      // Stop and cleanup audio when switching away from Christmas theme
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.currentTime = 0
+      }
+    }
+
+    return () => {
+      // Cleanup on unmount or theme change
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.currentTime = 0
+      }
+    }
+  }, [theme])
 
   const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
     if (!supabase) {
@@ -339,11 +403,22 @@ export default function VideoPageClient() {
     currentResult?.violationType ? VIOLATION_GUIDANCE[currentResult.violationType] : null
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#050b18] text-white">
-      <div className="cosmic-space absolute inset-0" aria-hidden="true" />
-      <div className="cosmic-glow absolute inset-0" aria-hidden="true" />
-      <div className="cosmic-stars absolute inset-0" aria-hidden="true" />
-      <div className="cosmic-noise absolute inset-0" aria-hidden="true" />
+    <div className={`relative min-h-screen overflow-hidden text-white ${theme === 'christmas' ? 'christmas-theme' : 'bg-[#050b18]'}`}>
+      {theme === 'christmas' ? (
+        <>
+          <div className="christmas-bg absolute inset-0" aria-hidden="true" />
+          <div className="christmas-snow absolute inset-0" aria-hidden="true" />
+          <div className="christmas-glow absolute inset-0" aria-hidden="true" />
+          <div className="christmas-lights absolute inset-0" aria-hidden="true" />
+        </>
+      ) : (
+        <>
+          <div className="cosmic-space absolute inset-0" aria-hidden="true" />
+          <div className="cosmic-glow absolute inset-0" aria-hidden="true" />
+          <div className="cosmic-stars absolute inset-0" aria-hidden="true" />
+          <div className="cosmic-noise absolute inset-0" aria-hidden="true" />
+        </>
+      )}
       <div className="relative z-10 cosmic-content">
       <nav className="border-b border-white/10 bg-white/5 backdrop-blur-lg">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -436,6 +511,25 @@ export default function VideoPageClient() {
                 className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white placeholder:text-blue-100/50 shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
                 placeholder="https://example.com/image.png"
               />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-blue-100/80">
+                Theme Style
+              </label>
+              <select
+                value={theme}
+                onChange={(e) => setTheme(e.target.value as 'default' | 'christmas')}
+                className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
+              >
+                <option value="default" className="text-black">Default</option>
+                <option value="christmas" className="text-black">Christmas 🎄</option>
+              </select>
+              {theme === 'christmas' && (
+                <p className="mt-1 text-xs text-blue-100/60">
+                  🎵 Christmas background music will play automatically
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

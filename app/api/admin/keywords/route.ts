@@ -189,9 +189,14 @@ export async function POST(request: Request) {
     const steps = normalizeSteps(payload.steps)
     const faq = normalizeFaq(payload.faq)
 
+    const pageStyle = typeof payload.page_style === 'string' && (payload.page_style === 'default' || payload.page_style === 'christmas')
+      ? payload.page_style
+      : 'default'
+
     const insertPayload: Database['public']['Tables']['long_tail_keywords']['Insert'] = {
       keyword,
       intent: intentInput,
+      page_style: pageStyle,
       product: typeof payload.product === 'string' ? payload.product.trim() || null : null,
       service: typeof payload.service === 'string' ? payload.service.trim() || null : null,
       region: typeof payload.region === 'string' ? payload.region.trim() || null : null,
