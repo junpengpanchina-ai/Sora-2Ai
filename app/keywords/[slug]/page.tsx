@@ -6,6 +6,7 @@ import { createClient as createSupabaseServerClient } from '@/lib/supabase/serve
 import type { Database } from '@/types/database'
 import { normalizeFaq, normalizeSteps, KEYWORD_INTENT_LABELS } from '@/lib/keywords/schema'
 import KeywordToolEmbed from '../KeywordToolEmbed'
+import ChristmasBGM from '@/components/ChristmasBGM'
 
 type KeywordRow = Database['public']['Tables']['long_tail_keywords']['Row']
 
@@ -185,13 +186,28 @@ export default async function KeywordLandingPage({ params }: PageProps) {
   const heroTitle = keyword.h1 || keyword.keyword
   const intro = keyword.intro_paragraph ?? ''
   const intentLabel = KEYWORD_INTENT_LABELS[keyword.intent] ?? ''
+  const pageStyle = keyword.page_style ?? 'default'
+  const isChristmas = pageStyle === 'christmas'
 
   return (
-    <div className="bg-slate-50 dark:bg-gray-950">
-      <div className="relative overflow-hidden border-b border-white/20 bg-gradient-to-br from-[#050b18] via-[#09122C] to-[#050b18]">
-        <div className="cosmic-space absolute inset-0 opacity-60" aria-hidden="true" />
-        <div className="cosmic-glow absolute inset-0 opacity-50" aria-hidden="true" />
-        <div className="relative z-10 mx-auto max-w-6xl px-6 py-16 text-white">
+    <>
+      <ChristmasBGM enabled={isChristmas} />
+      <div className={`bg-slate-50 dark:bg-gray-950 ${isChristmas ? 'christmas-theme' : ''}`}>
+        <div className={`relative overflow-hidden border-b border-white/20 ${isChristmas ? '' : 'bg-gradient-to-br from-[#050b18] via-[#09122C] to-[#050b18]'}`}>
+          {isChristmas ? (
+            <>
+              <div className="christmas-bg absolute inset-0" aria-hidden="true" />
+              <div className="christmas-snow absolute inset-0" aria-hidden="true" />
+              <div className="christmas-glow absolute inset-0" aria-hidden="true" />
+              <div className="christmas-lights absolute inset-0" aria-hidden="true" />
+            </>
+          ) : (
+            <>
+              <div className="cosmic-space absolute inset-0 opacity-60" aria-hidden="true" />
+              <div className="cosmic-glow absolute inset-0 opacity-50" aria-hidden="true" />
+            </>
+          )}
+          <div className="relative z-10 mx-auto max-w-6xl px-6 py-16 text-white">
           <div className="flex flex-wrap items-center gap-3 text-sm uppercase tracking-[0.2em] text-energy-water">
             <span>Long-tail Landing</span>
             <span className="text-white/50">/</span>
@@ -396,7 +412,8 @@ export default async function KeywordLandingPage({ params }: PageProps) {
           `,
         }}
       />
-    </div>
+      </div>
+    </>
   )
 }
 

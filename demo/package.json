@@ -1,0 +1,14 @@
+{
+  "name": "ai-gateway-demo",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "tsx gateway.ts"
+  },
+  "dependencies": {
+    "@types/node": "^25.0.0",
+    "ai": "^5.0.110",
+    "dotenv": "^17.2.3",
+    "tsx": "^4.21.0"
+  }
+}

@@ -129,6 +129,13 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         updates.intent = intentValue
       }
 
+      if (Object.prototype.hasOwnProperty.call(payload, 'page_style')) {
+        const pageStyleValue = typeof payload.page_style === 'string' ? payload.page_style.trim() : null
+        if (pageStyleValue && (pageStyleValue === 'default' || pageStyleValue === 'christmas')) {
+          updates.page_style = pageStyleValue
+        }
+      }
+
       const slugSource = readTrimmedString(payload.pageSlug) ?? readTrimmedString(payload.page_slug)
       if (slugSource) {
         const slug = normalizeSlug(slugSource)
