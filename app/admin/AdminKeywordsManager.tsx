@@ -11,6 +11,7 @@ import {
   type KeywordStep,
   type KeywordFaqItem,
 } from '@/lib/keywords/schema'
+import { parseKeywordText, type ParsedKeywordData } from '@/lib/keywords/text-recognition'
 
 interface AdminKeywordsManagerProps {
   onShowBanner: (type: 'success' | 'error', text: string) => void
@@ -108,6 +109,8 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
 
   const [creating, setCreating] = useState(false)
   const [createForm, setCreateForm] = useState<KeywordFormState>(DEFAULT_FORM_STATE)
+  const [textRecognitionInput, setTextRecognitionInput] = useState('')
+  const [isRecognizing, setIsRecognizing] = useState(false)
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<KeywordFormState>(DEFAULT_FORM_STATE)
@@ -354,6 +357,75 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
 
   const filteredKeywordCount = useMemo(() => keywords.length, [keywords])
 
+  /**
+   * 处理文本识别和自动填充
+   */
+  const handleTextRecognition = () => {
+    if (!textRecognitionInput.trim()) {
+      onShowBanner('error', 'Please paste text to recognize')
+      return
+    }
+
+    setIsRecognizing(true)
+    try {
+      const parsed = parseKeywordText(textRecognitionInput)
+      
+      // 更新表单字段
+      setCreateForm((prev) => {
+        const updated: KeywordFormState = { ...prev }
+        
+        if (parsed.keyword) updated.keyword = parsed.keyword
+        if (parsed.intent && KEYWORD_INTENTS.includes(parsed.intent as KeywordIntent)) {
+          updated.intent = parsed.intent as KeywordIntent
+        }
+        if (parsed.page_style) updated.page_style = parsed.page_style
+        if (parsed.page_slug) updated.page_slug = parsed.page_slug
+        if (parsed.status) updated.status = parsed.status
+        if (parsed.product) updated.product = parsed.product
+        if (parsed.service) updated.service = parsed.service
+        if (parsed.region) updated.region = parsed.region
+        if (parsed.pain_point) updated.pain_point = parsed.pain_point
+        if (parsed.search_volume) updated.search_volume = parsed.search_volume
+        if (parsed.competition_score) updated.competition_score = parsed.competition_score
+        if (parsed.priority) updated.priority = parsed.priority
+        if (parsed.title) updated.title = parsed.title
+        if (parsed.h1) updated.h1 = parsed.h1
+        if (parsed.meta_description) updated.meta_description = parsed.meta_description
+        if (parsed.intro_paragraph) updated.intro_paragraph = parsed.intro_paragraph
+        if (parsed.steps && parsed.steps.length > 0) {
+          updated.steps = parsed.steps.map((step) => ({
+            title: step.title,
+            description: step.description || '',
+          }))
+        }
+        if (parsed.faq && parsed.faq.length > 0) {
+          updated.faq = parsed.faq
+        }
+        
+        return updated
+      })
+      
+      // 统计识别到的字段数量
+      const recognizedFields = Object.keys(parsed).filter((key) => {
+        const value = parsed[key as keyof ParsedKeywordData]
+        if (Array.isArray(value)) {
+          return value.length > 0
+        }
+        return value !== undefined && value !== null && value !== ''
+      }).length
+      
+      onShowBanner('success', `Successfully recognized and filled ${recognizedFields} field(s)`)
+      
+      // 清空识别输入框
+      setTextRecognitionInput('')
+    } catch (err) {
+      console.error('Text recognition failed:', err)
+      onShowBanner('error', err instanceof Error ? err.message : 'Text recognition failed')
+    } finally {
+      setIsRecognizing(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -361,6 +433,40 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
           <CardTitle>Create Keyword Page</CardTitle>
         </CardHeader>
         <CardContent>
+          {/* 文本识别区域 */}
+          <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                📋 文本识别自动填充 (Text Recognition & Auto-fill)
+              </span>
+            </div>
+            <p className="mb-3 text-xs text-gray-600 dark:text-gray-400">
+              粘贴包含关键词信息的文本，系统会自动识别字段并填充表单。支持多语言识别（中文、英文、泰语、印地语、阿拉伯语、俄语、斯洛文尼亚语、罗马尼亚语、西班牙语、法语、德语、意大利语、葡萄牙语、荷兰语、波兰语、捷克语、匈牙利语、希腊语、瑞典语、挪威语、芬兰语等），自动屏蔽各种语言的备注和表单标签。
+            </p>
+            <div className="space-y-2">
+              <Textarea
+                rows={6}
+                value={textRecognitionInput}
+                onChange={(event) => setTextRecognitionInput(event.target.value)}
+                placeholder="粘贴文本内容，例如：&#10;关键词: Sora2 vs Runway for English Christmas Pantomime videos...&#10;产品: Sora2 AI Video Generator&#10;地区: England, UK&#10;// 中文解释: 这些是中文备注，会被自动过滤"
+                className="font-mono text-sm"
+              />
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  💡 支持多语言识别：关键词、产品、服务、地区、标题、H1、元描述等字段，自动过滤各种语言的备注（包括欧洲语言：斯洛文尼亚语、罗马尼亚语、西班牙语、法语、德语、意大利语等）
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleTextRecognition}
+                  disabled={isRecognizing || !textRecognitionInput.trim()}
+                >
+                  {isRecognizing ? '识别中...' : '🔍 识别并填充'}
+                </Button>
+              </div>
+            </div>
+          </div>
+
           <form className="space-y-4" onSubmit={handleCreate}>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
