@@ -28,7 +28,7 @@ interface KeywordRecord {
   competition_score: number | null
   priority: number
   page_slug: string
-  page_style: 'default' | 'christmas'
+  page_style: 'default' | 'christmas' | 'official'
   title: string | null
   meta_description: string | null
   h1: string | null
@@ -44,7 +44,7 @@ interface KeywordRecord {
 type KeywordFormState = {
   keyword: string
   intent: KeywordIntent
-  page_style: 'default' | 'christmas'
+  page_style: 'default' | 'christmas' | 'official'
   product: string
   service: string
   region: string
@@ -396,21 +396,27 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
                   页面风格 (page_style)
                 </label>
-                <select
-                  className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
-                  value={createForm.page_style}
-                  onChange={(event) =>
-                    handleInputChange(setCreateForm, 'page_style', event.target.value as 'default' | 'christmas')
-                  }
-                >
-                  <option value="default">默认风格 (Default)</option>
-                  <option value="christmas">圣诞节风格 🎄 (Christmas)</option>
-                </select>
-                {createForm.page_style === 'christmas' && (
-                  <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
-                    💡 圣诞节风格包含动态背景和背景音乐
-                  </p>
-                )}
+                  <select
+                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                    value={createForm.page_style}
+                    onChange={(event) =>
+                      handleInputChange(setCreateForm, 'page_style', event.target.value as 'default' | 'christmas' | 'official')
+                    }
+                  >
+                    <option value="default">默认风格 (Default)</option>
+                    <option value="christmas">圣诞节风格 🎄 (Christmas)</option>
+                    <option value="official">官网风格 🌐 (Official Website)</option>
+                  </select>
+                  {createForm.page_style === 'christmas' && (
+                    <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                      💡 圣诞节风格包含动态背景和背景音乐
+                    </p>
+                  )}
+                  {createForm.page_style === 'official' && (
+                    <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                      💡 官网风格使用网站官方设计风格
+                    </p>
+                  )}
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
@@ -871,15 +877,21 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                     className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                     value={editForm.page_style}
                     onChange={(event) =>
-                      handleInputChange(setEditForm, 'page_style', event.target.value as 'default' | 'christmas')
+                      handleInputChange(setEditForm, 'page_style', event.target.value as 'default' | 'christmas' | 'official')
                     }
                   >
                     <option value="default">默认风格 (Default)</option>
                     <option value="christmas">圣诞节风格 🎄 (Christmas)</option>
+                    <option value="official">官网风格 🌐 (Official Website)</option>
                   </select>
                   {editForm.page_style === 'christmas' && (
                     <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
                       💡 圣诞节风格包含动态背景和背景音乐
+                    </p>
+                  )}
+                  {editForm.page_style === 'official' && (
+                    <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                      💡 官网风格使用网站官方设计风格
                     </p>
                   )}
                 </div>

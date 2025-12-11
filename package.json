@@ -22,7 +22,8 @@
     "check:backlinks": "node scripts/check-backlinks.js",
     "diagnose:indexing": "node scripts/diagnose-google-indexing.js",
     "check:keywords": "node scripts/check-keywords.js",
-    "monitor:backlinks": "node scripts/monitor-backlinks.js"
+    "monitor:backlinks": "node scripts/monitor-backlinks.js",
+    "verify:page-style": "node scripts/verify-page-style-migration.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.927.0",

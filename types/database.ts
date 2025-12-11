@@ -400,7 +400,7 @@ export interface Database {
           competition_score: number | null
           priority: number
           page_slug: string
-          page_style: 'default' | 'christmas'
+          page_style: 'default' | 'christmas' | 'official'
           title: string | null
           meta_description: string | null
           h1: string | null
@@ -424,7 +424,7 @@ export interface Database {
           competition_score?: number | null
           priority?: number
           page_slug: string
-          page_style?: 'default' | 'christmas'
+          page_style?: 'default' | 'christmas' | 'official'
           title?: string | null
           meta_description?: string | null
           h1?: string | null
@@ -448,7 +448,7 @@ export interface Database {
           competition_score?: number | null
           priority?: number
           page_slug?: string
-          page_style?: 'default' | 'christmas'
+          page_style?: 'default' | 'christmas' | 'official'
           title?: string | null
           meta_description?: string | null
           h1?: string | null
