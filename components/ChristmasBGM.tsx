@@ -114,4 +114,3 @@ export default function ChristmasBGM({ enabled }: ChristmasBGMProps) {
 
   return null
 }
-// Force rebuild
