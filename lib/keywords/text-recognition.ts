@@ -44,9 +44,15 @@ function isRemarkLine(line: string): boolean {
 
 /**
  * 移除行尾的备注
- * 支持多种语言的备注格式
+ * 支持多种语言的备注格式，特别针对中文解释
  */
 function removeInlineRemark(line: string): string {
+  // 优先匹配中文解释格式：// 中文解释：...
+  const chineseRemarkPattern = /\s*\/\/\s*中文解释[:：]\s*.*$/i
+  if (chineseRemarkPattern.test(line)) {
+    return line.replace(chineseRemarkPattern, '').trim()
+  }
+  
   // 匹配行尾的备注：内容 // 备注内容 或 内容 # 备注内容
   const inlineRemarkPatterns = [
     /\s*\/\/\s*(中文解释|解释|备注|说明|comment|explanation|note|remark|หมายเหตุ|คำอธิบาย|شرح|تعليق|комментарий|объяснение|примечание)[:：]?.*$/i,
@@ -96,13 +102,27 @@ function isLabelOnlyLine(line: string): boolean {
 /**
  * 过滤掉备注和表单标签
  * 支持多语言（中文、英文、泰语、阿拉伯语、俄语等）
+ * 特别过滤掉所有中文解释和表单抬头
  */
 function filterRemarksAndLabels(text: string): string {
+  // 表单抬头列表（需要过滤掉的标签行）
+  const formHeaders = [
+    '左边字段', '右边内容', '左边字段（中文）', '右边内容（英文 + 中文解释）',
+    '常见问题', '步骤', 'FAQ', 'Part', '部分',
+  ]
+  
   return text
     .split('\n')
     .map((line) => {
+      const trimmed = line.trim()
+      
       // 如果是备注行，直接移除
-      if (isRemarkLine(line)) {
+      if (isRemarkLine(trimmed)) {
+        return ''
+      }
+      
+      // 如果是表单抬头，移除
+      if (formHeaders.some((header) => trimmed === header || trimmed.startsWith(header + '（') || trimmed.startsWith(header + '('))) {
         return ''
       }
       
@@ -117,6 +137,11 @@ function filterRemarksAndLabels(text: string): string {
       
       // 过滤纯标签行
       if (isLabelOnlyLine(trimmed)) return false
+      
+      // 再次检查是否包含中文解释（可能有多行格式）
+      if (trimmed.includes('// 中文解释：') || trimmed.includes('// 中文解释:')) {
+        return false
+      }
       
       return true
     })
@@ -888,9 +913,57 @@ function extractStatus(text: string): 'draft' | 'published' | null {
 /**
  * 识别步骤字段
  * 支持多语言格式（包括欧洲语言）
+ * 特别支持：步骤1标题、步骤1描述 格式
  */
 function extractSteps(text: string): Array<{ title: string; description?: string }> {
   const steps: Array<{ title: string; description?: string }> = []
+  
+  // 首先尝试匹配"步骤X标题"和"步骤X描述"格式
+  const stepTitlePattern = /步骤\s*(\d+)\s*标题[：:]\s*([^\n]+)/gi
+  const stepDescPattern = /步骤\s*(\d+)\s*描述[：:]\s*([\s\S]+?)(?=步骤\s*\d+|$)/gi
+  
+  const titleMatches = [...text.matchAll(stepTitlePattern)]
+  const descMatches = [...text.matchAll(stepDescPattern)]
+  
+  // 创建步骤映射
+  const stepMap = new Map<number, { title?: string; description?: string }>()
+  
+  titleMatches.forEach((m) => {
+    const stepNum = parseInt(m[1], 10)
+    const title = cleanValue(m[2].trim())
+    if (title) {
+      if (!stepMap.has(stepNum)) {
+        stepMap.set(stepNum, {})
+      }
+      stepMap.get(stepNum)!.title = title
+    }
+  })
+  
+  descMatches.forEach((m) => {
+    const stepNum = parseInt(m[1], 10)
+    const description = cleanValue(m[2].trim())
+    if (description) {
+      if (!stepMap.has(stepNum)) {
+        stepMap.set(stepNum, {})
+      }
+      stepMap.get(stepNum)!.description = description
+    }
+  })
+  
+  // 将映射转换为数组
+  if (stepMap.size > 0) {
+    const sortedSteps = Array.from(stepMap.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([, step]) => step)
+      .filter((step) => step.title || step.description)
+    
+    if (sortedSteps.length > 0) {
+      return sortedSteps.map((step) => ({
+        title: step.title || step.description?.split('\n')[0] || 'Step',
+        description: step.description && step.title ? step.description : undefined,
+      }))
+    }
+  }
   
   // 匹配步骤格式：支持多种语言的"步骤"标签
   // 步骤1、Step 1、ขั้นตอนที่ 1、шаг 1、korak 1、pas 1 等
@@ -905,7 +978,7 @@ function extractSteps(text: string): Array<{ title: string; description?: string
     // 分离标题和描述（通常第一行是标题，后续是描述）
     const lines = cleanedContent.split('\n').filter((l) => {
       const trimmed = l.trim()
-      return trimmed && !isRemarkLine(trimmed)
+      return trimmed && !isRemarkLine(trimmed) && !trimmed.includes('// 中文解释')
     })
     if (lines.length > 0) {
       const title = lines[0].replace(/^[\d.]+\s*/, '').trim()
@@ -929,7 +1002,7 @@ function extractSteps(text: string): Array<{ title: string; description?: string
         const cleanedContent = cleanValue(content)
         const lines = cleanedContent.split('\n').filter((l) => {
           const trimmed = l.trim()
-          return trimmed && !isRemarkLine(trimmed)
+          return trimmed && !isRemarkLine(trimmed) && !trimmed.includes('// 中文解释')
         })
         if (lines.length > 0) {
           const title = lines[0].trim()
@@ -948,9 +1021,57 @@ function extractSteps(text: string): Array<{ title: string; description?: string
 /**
  * 识别FAQ字段
  * 支持多语言格式（包括欧洲语言）
+ * 特别支持：问题1、回答1 格式
  */
 function extractFaq(text: string): Array<{ question: string; answer: string }> {
   const faq: Array<{ question: string; answer: string }> = []
+  
+  // 首先尝试匹配"问题X"和"回答X"格式
+  const questionPattern = /问题\s*(\d+)[：:]\s*([^\n]+)/gi
+  const answerPattern = /回答\s*(\d+)[：:]\s*([\s\S]+?)(?=问题\s*\d+|常见问题|FAQ|$)/gi
+  
+  const questionMatches = [...text.matchAll(questionPattern)]
+  const answerMatches = [...text.matchAll(answerPattern)]
+  
+  // 创建FAQ映射
+  const faqMap = new Map<number, { question?: string; answer?: string }>()
+  
+  questionMatches.forEach((m) => {
+    const faqNum = parseInt(m[1], 10)
+    const question = cleanValue(m[2].trim())
+    if (question) {
+      if (!faqMap.has(faqNum)) {
+        faqMap.set(faqNum, {})
+      }
+      faqMap.get(faqNum)!.question = question
+    }
+  })
+  
+  answerMatches.forEach((m) => {
+    const faqNum = parseInt(m[1], 10)
+    const answer = cleanValue(m[2].trim())
+    if (answer) {
+      if (!faqMap.has(faqNum)) {
+        faqMap.set(faqNum, {})
+      }
+      faqMap.get(faqNum)!.answer = answer
+    }
+  })
+  
+  // 将映射转换为数组
+  if (faqMap.size > 0) {
+    const sortedFaq = Array.from(faqMap.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([, faq]) => faq)
+      .filter((item) => item.question && item.answer)
+    
+    if (sortedFaq.length > 0) {
+      return sortedFaq.map((item) => ({
+        question: item.question!,
+        answer: item.answer!,
+      }))
+    }
+  }
   
   // 匹配FAQ格式：支持多种语言的"常见问题"标签
   // 常见问题、FAQ、คำถามที่พบบ่อย、सामान्य प्रश्न、الأسئلة الشائعة、часто задаваемые вопросы、pogosta vprašanja、întrebări frecvente 等
