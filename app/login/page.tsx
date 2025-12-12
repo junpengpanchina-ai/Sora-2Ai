@@ -50,7 +50,20 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
           )}
 
           <div className="space-y-6">
-            <LoginButton className="celestial-cta shadow-[0_30px_100px_-45px_rgba(59,130,246,1)] hover:-translate-y-1" />
+            <div className="space-y-4">
+              <LoginButton className="celestial-cta shadow-[0_30px_100px_-45px_rgba(59,130,246,1)] hover:-translate-y-1" />
+              
+              {/* Free Trial Info */}
+              <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30 backdrop-blur-sm">
+                <p className="text-xs text-green-100 text-center leading-relaxed">
+                  <strong className="font-semibold">Try Sora2 Free:</strong> Sign in and receive{' '}
+                  <strong className="font-semibold">30 credits immediately</strong> — 
+                  no payment needed, no credit card required. 
+                  Your email is used solely to create your account.
+                </p>
+              </div>
+            </div>
+            
             <p className="celestial-terms text-center text-xs leading-relaxed">
               By signing in you agree to our{' '}
               <Link
