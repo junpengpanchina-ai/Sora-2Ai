@@ -968,10 +968,11 @@ function extractSteps(text: string): Array<{ title: string; description?: string
   
   // 首先尝试匹配"步骤X标题"和"步骤X描述"格式
   // 支持格式：步骤1标题: 1.1 Title 或 步骤1标题: Title
-  const stepTitlePattern = /步骤\s*(\d+)\s*标题[：:]\s*([^\n]+)/gi
+  // 改进：确保匹配的是完整的标签格式，避免误匹配
+  const stepTitlePattern = /^步骤\s*(\d+)\s*标题[：:]\s*(.+)$/gim
   // 支持格式：步骤1描述: Description（可能跨多行）
   // 改进：更准确地匹配描述，直到下一个步骤标题、Part或常见问题，保留所有换行
-  const stepDescPattern = /步骤\s*(\d+)\s*描述[：:]\s*([\s\S]+?)(?=\n\s*步骤\s*\d+\s*标题|\n\s*步骤\s*\d+\s*描述|\n\s*Part\s*\d+|\n\s*常见问题|\n\s*FAQ|$)/gi
+  const stepDescPattern = /^步骤\s*(\d+)\s*描述[：:]\s*([\s\S]+?)(?=^\s*步骤\s*\d+\s*标题|^\s*步骤\s*\d+\s*描述|^\s*Part\s*\d+|^\s*常见问题|^\s*FAQ|$)/gim
   
   const titleMatches = [...text.matchAll(stepTitlePattern)]
   const descMatches = [...text.matchAll(stepDescPattern)]
@@ -1043,7 +1044,8 @@ function extractSteps(text: string): Array<{ title: string; description?: string
   }
   
   // 尝试识别Part格式的步骤（Part 1, Part 2等）
-  const partPattern = /Part\s*(\d+)[：:\s–-]+\s*([^\n]+)/gi
+  // 改进：Part标题必须单独一行，不能和其他内容在同一行
+  const partPattern = /^Part\s*(\d+)[：:\s–-]+\s*([^\n]+)$/gim
   const partMatches = [...text.matchAll(partPattern)]
   
   if (partMatches.length > 0) {
@@ -1054,7 +1056,8 @@ function extractSteps(text: string): Array<{ title: string; description?: string
       return numA - numB
     })
     
-    sortedPartMatches.forEach((partMatch, partIndex) => {
+    for (let partIndex = 0; partIndex < sortedPartMatches.length; partIndex++) {
+      const partMatch = sortedPartMatches[partIndex]
       const partNum = parseInt(partMatch[1], 10)
       const partTitle = cleanValue(partMatch[2].trim())
       
@@ -1064,7 +1067,83 @@ function extractSteps(text: string): Array<{ title: string; description?: string
       const partEndIndex = nextPartMatch ? nextPartMatch.index : text.length
       const partSection = text.slice(partStartIndex, partEndIndex)
       
-      // 匹配该Part下的编号步骤（如1.1, 1.2等），支持多种格式
+      // 首先在该Part区域内查找"步骤X标题"和"步骤X描述"格式
+      const partStepTitlePattern = /^步骤\s*(\d+)\s*标题[：:]\s*(.+)$/gim
+      const partStepDescPattern = /^步骤\s*(\d+)\s*描述[：:]\s*([\s\S]+?)(?=^\s*步骤\s*\d+\s*标题|^\s*步骤\s*\d+\s*描述|^\s*Part\s*\d+|^\s*常见问题|^\s*FAQ|$)/gim
+      
+      const partStepTitles = [...partSection.matchAll(partStepTitlePattern)]
+      const partStepDescs = [...partSection.matchAll(partStepDescPattern)]
+      
+      // 如果找到了步骤标题和描述格式，优先使用它们
+      if (partStepTitles.length > 0 || partStepDescs.length > 0) {
+        const partStepMap = new Map<number, { title?: string; description?: string; order?: number }>()
+        
+        partStepTitles.forEach((m) => {
+          const stepNum = parseInt(m[1], 10)
+          let title = cleanValue(m[2].trim())
+          
+          // 提取编号（如1.1, 1.2等）用于排序
+          const numberMatch = title.match(/^(\d+\.\d+|\d+)[.:]?\s*(.+)$/)
+          let order = stepNum
+          if (numberMatch) {
+            const numStr = numberMatch[1]
+            if (numStr.includes('.')) {
+              order = parseFloat(numStr)
+              title = numberMatch[2].trim()
+            } else {
+              title = numberMatch[2].trim()
+            }
+          }
+          
+          if (title) {
+            if (!partStepMap.has(stepNum)) {
+              partStepMap.set(stepNum, { order })
+            }
+            partStepMap.get(stepNum)!.title = title
+            partStepMap.get(stepNum)!.order = order
+          }
+        })
+        
+        partStepDescs.forEach((m) => {
+          const stepNum = parseInt(m[1], 10)
+          let rawDescription = m[2].trim()
+          rawDescription = rawDescription.replace(/\n\s*\/\/\s*中文解释[：:].*$/i, '')
+          const description = cleanValue(rawDescription)
+          if (description) {
+            if (!partStepMap.has(stepNum)) {
+              partStepMap.set(stepNum, {})
+            }
+            partStepMap.get(stepNum)!.description = description
+          }
+        })
+        
+        // 添加Part标题作为第一个步骤
+        steps.push({
+          title: `Part ${partNum}: ${partTitle}`,
+          description: undefined,
+        })
+        
+        // 添加该Part下的所有步骤，按order排序
+        const sortedPartSteps = Array.from(partStepMap.entries())
+          .sort((a, b) => {
+            const orderA = a[1].order ?? a[0]
+            const orderB = b[1].order ?? b[0]
+            return orderA - orderB
+          })
+          .map(([, step]) => step)
+          .filter((step) => step.title || step.description)
+        
+        sortedPartSteps.forEach((step) => {
+          steps.push({
+            title: step.title || step.description?.split('\n')[0] || 'Step',
+            description: step.description && step.title ? step.description : undefined,
+          })
+        })
+        
+        continue // 跳过后续的通用匹配逻辑，继续处理下一个Part
+      }
+      
+      // 如果没有找到步骤标题/描述格式，尝试匹配编号步骤（如1.1, 1.2等）
       // 格式1: 1.1 Title
       // 格式2: 步骤1标题: 1.1 Title
       // 格式3: 步骤1标题: Title（没有编号）
@@ -1157,7 +1236,7 @@ function extractSteps(text: string): Array<{ title: string; description?: string
           description: undefined,
         })
       }
-    })
+    }
     
     if (steps.length > 0) {
       return steps
@@ -1406,12 +1485,31 @@ function parseTableFormat(text: string): Record<string, string> {
     const line = lines[i].trim()
     if (!line) continue
     
+    // 跳过步骤相关的内容，避免误识别为表格字段
+    // 跳过：步骤X标题、步骤X描述、Part X 等
+    if (
+      /^步骤\s*\d+\s*(标题|描述)[：:]?/i.test(line) ||
+      /^Part\s*\d+/i.test(line) ||
+      /^步骤\s*\d+[：:]/i.test(line)
+    ) {
+      continue
+    }
+    
     // 匹配表格格式：字段名 | 内容 或 字段名\t内容
     // 匹配表格格式：字段名 | 内容 或 字段名\t内容
     // 支持多种分隔符：| \t : ：等
     const tableMatch = line.match(/^(.+?)\s*[|\\t:：]\s*(.+)$/)
     if (tableMatch) {
       const fieldName = tableMatch[1].trim()
+      
+      // 再次检查，确保不是步骤相关的内容
+      if (
+        /^步骤\s*\d+\s*(标题|描述)/i.test(fieldName) ||
+        /^Part\s*\d+/i.test(fieldName)
+      ) {
+        continue
+      }
+      
       let value = tableMatch[2].trim()
       // 移除各种语言的备注
       value = cleanValue(value)
