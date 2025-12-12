@@ -5,6 +5,7 @@ import { createSoraVideoTask } from '@/lib/grsai/client'
 import { formatGrsaiFriendlyError } from '@/lib/grsai/error-utils'
 import { deductCredits, refundCredits } from '@/lib/credits'
 import { getOrCreateUser } from '@/lib/user'
+import { validateOrigin } from '@/lib/csrf'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -19,6 +20,24 @@ const generateVideoSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
+  // #region agent log
+  const origin = request.headers.get('origin')
+  const referer = request.headers.get('referer')
+  const hasCsrfHeader = !!request.headers.get('x-csrf-token') || !!request.headers.get('x-requested-with')
+  fetch('http://127.0.0.1:7242/ingest/ef411af9-a357-4528-93a0-017b8708eb6e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/video/generate/route.ts:23',message:'Video generate POST - ENTRY',data:{origin,referer,hasCsrfHeader,method:'POST'},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
+  
+  // SECURITY FIX: CSRF protection - validate origin/referer
+  if (!validateOrigin(request)) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ef411af9-a357-4528-93a0-017b8708eb6e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/video/generate/route.ts:30',message:'Video generate POST - CSRF REJECTED',data:{origin,referer},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    return NextResponse.json(
+      { error: 'Invalid origin' },
+      { status: 403 }
+    )
+  }
+  
   try {
     // Verify user authentication (only verify login, no database needed)
     const supabase = await createClient(request.headers)
@@ -56,9 +75,22 @@ export async function POST(request: NextRequest) {
     const validatedData = generateVideoSchema.parse(body)
 
     // Build webhook URL (if using callback)
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-                    request.headers.get('origin') || 
-                    'http://localhost:3000'
+    // SECURITY FIX: Only use configured NEXT_PUBLIC_APP_URL, never trust user-controlled Origin header
+    // This prevents SSRF attacks via webhook URL hijacking
+    // #region agent log
+    const originHeader = request.headers.get('origin')
+    const envBaseUrl = process.env.NEXT_PUBLIC_APP_URL
+    fetch('http://127.0.0.1:7242/ingest/ef411af9-a357-4528-93a0-017b8708eb6e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/video/generate/route.ts:65',message:'Webhook URL construction - BEFORE',data:{originHeader,envBaseUrl,useWebhook:validatedData.useWebhook,userId:user.id},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
+    // Only allow webhook if NEXT_PUBLIC_APP_URL is configured
+    // Never use user-controlled headers to prevent SSRF
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ef411af9-a357-4528-93a0-017b8708eb6e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/video/generate/route.ts:73',message:'Webhook URL construction - AFTER (FIXED)',data:{baseUrl,webhookUrl:validatedData.useWebhook ? `${baseUrl}/api/video/callback` : '-1',originHeaderRejected:!!originHeader && !envBaseUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
     const webhookUrl = validatedData.useWebhook 
       ? `${baseUrl}/api/video/callback`
       : '-1' // Use polling method
