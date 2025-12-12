@@ -269,13 +269,29 @@ function extractKeyword(text: string): string | null {
   
   // 如果没有找到，尝试从文本开头提取（可能是第一行就是关键词）
   if (!value) {
-    const firstLine = text.split('\n')[0]?.trim()
-    if (firstLine && firstLine.length > 10) {
-      // 检查是否包含分隔符（冒号、竖线等）
-      const hasSeparator = /[:：|\\t]/.test(firstLine)
-      if (!hasSeparator) {
-        // 如果第一行很长且不包含分隔符，可能是关键词
-        value = cleanValue(firstLine)
+    const lines = text.split('\n')
+    // 检查前几行，看是否有可能是关键词
+    for (let i = 0; i < Math.min(3, lines.length); i++) {
+      const line = lines[i]?.trim()
+      if (!line) continue
+      
+      // 跳过明显的标签行
+      if (
+        /^(关键词|keyword|产品|product|服务|service|地区|region|标题|title|步骤|Part|常见问题|FAQ)/i.test(line) ||
+        /^左边字段|右边内容/i.test(line)
+      ) {
+        continue
+      }
+      
+      // 如果行很长且不包含明显的分隔符，可能是关键词
+      const hasSeparator = /[:：|\\t]\s*[A-Za-z\u4e00-\u9fa5]/.test(line)
+      if (!hasSeparator && line.length > 10) {
+        // 检查是否包含常见的关键词内容（多个单词、逗号分隔等）
+        const wordCount = line.split(/[\s,，、]+/).filter(w => w.length > 2).length
+        if (wordCount >= 3) {
+          value = cleanValue(line)
+          if (value) break
+        }
       }
     }
   }
@@ -1168,10 +1184,11 @@ function extractSteps(text: string): Array<{ title: string; description?: string
       })
       
       if (sortedSubSteps.length > 0) {
-        // 添加Part标题作为第一个步骤
+        // 添加Part标题作为第一个步骤（单独一行，无描述）
+        const partTitleFull = `Part ${partNum}: ${partTitle}`
         steps.push({
-          title: `Part ${partNum}: ${partTitle}`,
-          description: undefined,
+          title: partTitleFull,
+          description: undefined, // Part标题必须单独一行，没有描述
         })
         
         // 添加该Part下的子步骤
@@ -1230,10 +1247,11 @@ function extractSteps(text: string): Array<{ title: string; description?: string
           }
         })
       } else {
-        // 如果没有找到子步骤，只添加Part标题
+        // 如果没有找到子步骤，只添加Part标题（单独一行，无描述）
+        const partTitleFull = `Part ${partNum}: ${partTitle}`
         steps.push({
-          title: `Part ${partNum}: ${partTitle}`,
-          description: undefined,
+          title: partTitleFull,
+          description: undefined, // Part标题必须单独一行，没有描述
         })
       }
     }
