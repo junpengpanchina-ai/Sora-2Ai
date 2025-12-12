@@ -114,13 +114,19 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
   const [textRecognitionInput, setTextRecognitionInput] = useState('')
   const [isRecognizing, setIsRecognizing] = useState(false)
   
-  // 图片上传和OCR相关状态
-  const [selectedImage, setSelectedImage] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [isProcessingImage, setIsProcessingImage] = useState(false)
-  const [ocrProgress, setOcrProgress] = useState(0)
+  // 图片上传和OCR相关状态（支持最多10张图片）
+  interface ImageItem {
+    file: File
+    preview: string
+    isProcessing: boolean
+    progress: number
+    recognizedText?: string
+  }
+  const [selectedImages, setSelectedImages] = useState<ImageItem[]>([])
+  const [isProcessingAnyImage, setIsProcessingAnyImage] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textAreaRef = useRef<HTMLTextAreaElement>(null)
+  const MAX_IMAGES = 10
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<KeywordFormState>(DEFAULT_FORM_STATE)
@@ -248,7 +254,7 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
   }, [onShowBanner])
 
   /**
-   * 处理粘贴事件（支持粘贴图片）
+   * 处理粘贴事件（支持粘贴多张图片，最多10张）
    */
   useEffect(() => {
     const handlePaste = async (event: ClipboardEvent) => {
@@ -256,7 +262,9 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
       const items = event.clipboardData?.items
       if (!items) return
 
-      // 查找图片项
+      const imageFiles: File[] = []
+      
+      // 收集所有图片文件
       for (let i = 0; i < items.length; i++) {
         const item = items[i]
         if (item.type.startsWith('image/')) {
@@ -267,67 +275,57 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
 
           // 验证文件大小（限制为10MB）
           if (file.size > 10 * 1024 * 1024) {
-            onShowBanner('error', 'Image size should be less than 10MB')
-            return
+            onShowBanner('error', `${file.name || '图片'} 大小超过 10MB`)
+            continue
           }
 
-          setSelectedImage(file)
-          
-          // 创建预览
-          const reader = new FileReader()
-          reader.onloadend = () => {
-            setImagePreview(reader.result as string)
-          }
-          reader.readAsDataURL(file)
-          
-          // 等待状态更新后自动触发OCR识别
-          setTimeout(async () => {
-            setIsProcessingImage(true)
-            setOcrProgress(0)
-            
-            try {
-              const languages = 'eng+chi_sim+chi_tra+tha+ara+rus+slv+ron+spa+fra+deu+ita+por+nld+pol+ces+hun+ell+swe+nor+fin+bul'
-              
-              const worker = await createWorker(languages, 1, {
-                logger: (m) => {
-                  if (m.status === 'recognizing text') {
-                    setOcrProgress(Math.round(m.progress * 100))
-                  }
-                },
-              })
-
-              const { data: { text } } = await worker.recognize(file)
-              await worker.terminate()
-
-              const cleanedText = text.trim()
-              setTextRecognitionInput(cleanedText)
-              
-              if (!cleanedText) {
-                onShowBanner('error', 'No text found in the image. Please try another image.')
-                setIsProcessingImage(false)
-                setOcrProgress(0)
-                return
-              }
-              
-              // 调用文本识别函数
-              await performTextRecognition(cleanedText)
-              
-              onShowBanner('success', `Image text recognized successfully. Found ${cleanedText.length} characters.`)
-              
-              // 清理图片
-              setSelectedImage(null)
-              setImagePreview(null)
-            } catch (err) {
-              console.error('OCR recognition failed:', err)
-              onShowBanner('error', err instanceof Error ? err.message : 'OCR recognition failed. Please try again.')
-            } finally {
-              setIsProcessingImage(false)
-              setOcrProgress(0)
-            }
-          }, 100)
-          
-          break
+          imageFiles.push(file)
         }
+      }
+
+      if (imageFiles.length === 0) return
+
+      // 检查是否超过上限
+      const remainingSlots = MAX_IMAGES - selectedImages.length
+      if (remainingSlots <= 0) {
+        onShowBanner('error', `最多只能添加 ${MAX_IMAGES} 张图片`)
+        return
+      }
+
+      // 只处理剩余槽位数量
+      const filesToAdd = imageFiles.slice(0, remainingSlots)
+      const newImages: ImageItem[] = []
+
+      for (const file of filesToAdd) {
+        // 创建预览
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          const preview = reader.result as string
+          setSelectedImages((prev) => {
+            const updated = [...prev]
+            const index = updated.findIndex((img) => img.file === file)
+            if (index >= 0) {
+              updated[index] = { ...updated[index], preview }
+            }
+            return updated
+          })
+        }
+        reader.readAsDataURL(file)
+
+        newImages.push({
+          file,
+          preview: '',
+          isProcessing: false,
+          progress: 0,
+        })
+      }
+
+      if (newImages.length > 0) {
+        setSelectedImages((prev) => [...prev, ...newImages])
+        onShowBanner('success', `已粘贴 ${newImages.length} 张图片`)
+        
+        // 注意：自动识别功能已移除，用户需要手动点击识别按钮
+        // 这样可以避免在useEffect中调用未定义的函数
       }
     }
 
@@ -337,7 +335,8 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
     return () => {
       document.removeEventListener('paste', handlePaste)
     }
-  }, [performTextRecognition, onShowBanner])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [performTextRecognition, onShowBanner, selectedImages.length])
 
   const handleInputChange = (
     setter: React.Dispatch<React.SetStateAction<KeywordFormState>>,
@@ -525,97 +524,197 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
   const filteredKeywordCount = useMemo(() => keywords.length, [keywords])
 
   /**
-   * 处理图片上传
+   * 处理图片上传（支持多张图片，最多10张）
    */
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+    const files = event.target.files
+    if (!files || files.length === 0) return
 
-    // 验证文件类型
-    if (!file.type.startsWith('image/')) {
-      onShowBanner('error', 'Please select an image file')
-      return
-    }
-
-    // 验证文件大小（限制为10MB）
-    if (file.size > 10 * 1024 * 1024) {
-      onShowBanner('error', 'Image size should be less than 10MB')
-      return
-    }
-
-    setSelectedImage(file)
+    const newImages: ImageItem[] = []
     
-    // 创建预览
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string)
+    // 检查是否超过上限
+    const remainingSlots = MAX_IMAGES - selectedImages.length
+    if (remainingSlots <= 0) {
+      onShowBanner('error', `最多只能添加 ${MAX_IMAGES} 张图片`)
+      return
     }
-    reader.readAsDataURL(file)
+
+    // 处理选中的文件（最多处理剩余槽位数量）
+    const filesToProcess = Array.from(files).slice(0, remainingSlots)
+    
+    for (const file of filesToProcess) {
+      // 验证文件类型
+      if (!file.type.startsWith('image/')) {
+        onShowBanner('error', `${file.name} 不是图片文件`)
+        continue
+      }
+
+      // 验证文件大小（限制为10MB）
+      if (file.size > 10 * 1024 * 1024) {
+        onShowBanner('error', `${file.name} 大小超过 10MB`)
+        continue
+      }
+
+      // 创建预览
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const preview = reader.result as string
+        setSelectedImages((prev) => {
+          const updated = [...prev]
+          const index = updated.findIndex((img) => img.file === file)
+          if (index >= 0) {
+            updated[index] = { ...updated[index], preview }
+          }
+          return updated
+        })
+      }
+      reader.readAsDataURL(file)
+
+      // 添加新图片项
+      newImages.push({
+        file,
+        preview: '',
+        isProcessing: false,
+        progress: 0,
+      })
+    }
+
+    if (newImages.length > 0) {
+      setSelectedImages((prev) => [...prev, ...newImages])
+      onShowBanner('success', `已添加 ${newImages.length} 张图片`)
+    }
+
+    // 清空文件输入
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
   /**
-   * 处理OCR识别
-   * 支持多语言OCR识别
+   * 处理单张图片的OCR识别
    */
-  const handleOCRRecognition = async (imageFile?: File) => {
-    const imageToProcess = imageFile || selectedImage
-    if (!imageToProcess) {
-      onShowBanner('error', 'Please select an image first')
-      return
-    }
+  const handleSingleImageOCR = async (imageIndex: number) => {
+    if (imageIndex < 0 || imageIndex >= selectedImages.length) return
 
-    setIsProcessingImage(true)
-    setOcrProgress(0)
+    const imageItem = selectedImages[imageIndex]
+    if (imageItem.isProcessing) return
+
+    // 更新该图片的处理状态
+    setSelectedImages((prev) => {
+      const updated = [...prev]
+      updated[imageIndex] = { ...updated[imageIndex], isProcessing: true, progress: 0 }
+      return updated
+    })
+    setIsProcessingAnyImage(true)
     
     try {
-      // 创建Tesseract worker，支持多语言
-      // 语言代码：eng(英文), chi_sim(简体中文), chi_tra(繁体中文), 
-      // tha(泰语), ara(阿拉伯语), rus(俄语), slv(斯洛文尼亚语), ron(罗马尼亚语),
-      // spa(西班牙语), fra(法语), deu(德语), ita(意大利语), por(葡萄牙语),
-      // nld(荷兰语), pol(波兰语), ces(捷克语), hun(匈牙利语), ell(希腊语),
-      // swe(瑞典语), nor(挪威语), fin(芬兰语), bul(保加利亚语)
       const languages = 'eng+chi_sim+chi_tra+tha+ara+rus+slv+ron+spa+fra+deu+ita+por+nld+pol+ces+hun+ell+swe+nor+fin+bul'
       
       const worker = await createWorker(languages, 1, {
         logger: (m) => {
           if (m.status === 'recognizing text') {
-            setOcrProgress(Math.round(m.progress * 100))
+            setSelectedImages((prev) => {
+              const updated = [...prev]
+              updated[imageIndex] = { ...updated[imageIndex], progress: Math.round(m.progress * 100) }
+              return updated
+            })
           }
         },
       })
 
-      // 执行OCR识别
-      const { data: { text } } = await worker.recognize(imageToProcess)
-      
-      // 清理worker
+      const { data: { text } } = await worker.recognize(imageItem.file)
       await worker.terminate()
 
-      // 将识别出的文字填入文本输入框
       const cleanedText = text.trim()
-      setTextRecognitionInput(cleanedText)
       
+      // 更新图片项的识别文本
+      setSelectedImages((prev) => {
+        const updated = [...prev]
+        updated[imageIndex] = { ...updated[imageIndex], recognizedText: cleanedText, isProcessing: false, progress: 100 }
+        return updated
+      })
+
       if (!cleanedText) {
-        onShowBanner('error', 'No text found in the image. Please try another image.')
+        onShowBanner('error', `图片 ${imageIndex + 1} 未识别到文字`)
         return
       }
+
+      // 合并所有已识别的文本
+      const allTexts = selectedImages
+        .map((img, idx) => {
+          if (idx === imageIndex) return cleanedText
+          return img.recognizedText || ''
+        })
+        .filter((text) => text.trim())
+        .join('\n\n')
+
+      setTextRecognitionInput(allTexts)
       
-      // 自动执行文本识别和填充
-      await performTextRecognition(cleanedText)
-      
-      onShowBanner('success', `Image text recognized successfully. Found ${cleanedText.length} characters.`)
-      
-      // 清理图片
-      setSelectedImage(null)
-      setImagePreview(null)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
+      // 如果有文本，自动执行识别和填充
+      if (allTexts.trim()) {
+        await performTextRecognition(allTexts)
+        onShowBanner('success', `图片 ${imageIndex + 1} 识别成功，共 ${cleanedText.length} 个字符`)
       }
     } catch (err) {
       console.error('OCR recognition failed:', err)
+      setSelectedImages((prev) => {
+        const updated = [...prev]
+        updated[imageIndex] = { ...updated[imageIndex], isProcessing: false, progress: 0 }
+        return updated
+      })
       onShowBanner('error', err instanceof Error ? err.message : 'OCR recognition failed. Please try again.')
     } finally {
-      setIsProcessingImage(false)
-      setOcrProgress(0)
+      setIsProcessingAnyImage(selectedImages.some((img, idx) => idx !== imageIndex && img.isProcessing))
+    }
+  }
+
+  /**
+   * 批量处理所有图片的OCR识别
+   */
+  const handleBatchOCRRecognition = async () => {
+    if (selectedImages.length === 0) {
+      onShowBanner('error', '请先添加图片')
+      return
+    }
+
+    setIsProcessingAnyImage(true)
+    
+    // 按顺序处理所有未识别的图片
+    for (let i = 0; i < selectedImages.length; i++) {
+      if (!selectedImages[i].recognizedText && !selectedImages[i].isProcessing) {
+        await handleSingleImageOCR(i)
+      }
+    }
+
+    // 合并所有识别结果
+    const allTexts = selectedImages
+      .map((img) => img.recognizedText || '')
+      .filter((text) => text.trim())
+      .join('\n\n')
+
+    if (allTexts.trim()) {
+      setTextRecognitionInput(allTexts)
+      await performTextRecognition(allTexts)
+      onShowBanner('success', `已识别 ${selectedImages.filter((img) => img.recognizedText).length} 张图片`)
+    }
+
+    setIsProcessingAnyImage(false)
+  }
+
+  /**
+   * 清除单张图片
+   */
+  const handleRemoveImage = (index: number) => {
+    setSelectedImages((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  /**
+   * 清除所有图片
+   */
+  const handleClearAllImages = () => {
+    setSelectedImages([])
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
     }
   }
 
@@ -633,16 +732,6 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
     })
   }
 
-  /**
-   * 清除图片
-   */
-  const handleClearImage = () => {
-    setSelectedImage(null)
-    setImagePreview(null)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -662,77 +751,126 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
               支持三种方式：1) 直接粘贴图片（Ctrl+V / Cmd+V）自动识别文字（OCR） 2) 上传图片自动识别文字 3) 直接粘贴文本。系统会自动识别字段并填充表单。支持多语言识别（中文、英文、泰语、印地语、阿拉伯语、俄语、斯洛文尼亚语、罗马尼亚语、西班牙语、法语、德语、意大利语、葡萄牙语、荷兰语、波兰语、捷克语、匈牙利语、希腊语、瑞典语、挪威语、芬兰语等），自动屏蔽各种语言的备注和表单标签。
             </p>
             
-            {/* 图片上传区域 */}
+            {/* 图片上传区域（支持最多10张） */}
             <div className="mb-4 space-y-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
+                  multiple
                   onChange={handleImageSelect}
                   className="hidden"
                   id="image-upload"
-                  disabled={isProcessingImage}
+                  disabled={isProcessingAnyImage || selectedImages.length >= MAX_IMAGES}
                 />
                 <label
                   htmlFor="image-upload"
                   className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                    isProcessingImage
+                    isProcessingAnyImage || selectedImages.length >= MAX_IMAGES
                       ? 'cursor-not-allowed border-gray-300 bg-gray-100 text-gray-400 dark:border-gray-600 dark:bg-gray-800'
                       : 'cursor-pointer border-blue-300 bg-blue-100 text-blue-700 hover:bg-blue-200 dark:border-blue-600 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800'
                   }`}
                 >
-                  📷 {selectedImage ? '更换图片' : '上传图片'}
+                  📷 上传图片 {selectedImages.length > 0 && `(${selectedImages.length}/${MAX_IMAGES})`}
                 </label>
-                {selectedImage && (
+                {selectedImages.length > 0 && (
                   <>
                     <Button
                       type="button"
                       variant="secondary"
                       size="sm"
-                      onClick={() => handleOCRRecognition()}
-                      disabled={isProcessingImage}
+                      onClick={handleBatchOCRRecognition}
+                      disabled={isProcessingAnyImage}
                     >
-                      {isProcessingImage ? `识别中 ${ocrProgress}%...` : '🔍 识别图片文字'}
+                      {isProcessingAnyImage ? '批量识别中...' : '🔍 批量识别所有图片'}
                     </Button>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={handleClearImage}
-                      disabled={isProcessingImage}
+                      onClick={handleClearAllImages}
+                      disabled={isProcessingAnyImage}
                     >
-                      ✕ 清除
+                      ✕ 清除全部
                     </Button>
                   </>
                 )}
               </div>
-              {imagePreview && (
-                <div className="relative rounded-lg border border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-800">
-                  <div className="relative max-h-48 w-full overflow-hidden rounded">
-                    <Image
-                      src={imagePreview}
-                      alt="Preview"
-                      width={800}
-                      height={600}
-                      className="h-auto w-full object-contain"
-                      unoptimized
-                    />
-                  </div>
-                  {isProcessingImage && (
-                    <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50">
-                      <div className="text-center text-white">
-                        <div className="mb-2 text-sm">识别中...</div>
-                        <div className="h-2 w-48 overflow-hidden rounded-full bg-gray-700">
-                          <div
-                            className="h-full bg-blue-500 transition-all duration-300"
-                            style={{ width: `${ocrProgress}%` }}
+              
+              {/* 图片预览网格 */}
+              {selectedImages.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                  {selectedImages.map((imageItem, index) => (
+                    <div
+                      key={index}
+                      className="relative rounded-lg border border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-800"
+                    >
+                      {/* 图片编号 */}
+                      <div className="absolute -top-2 -right-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-xs font-bold text-white">
+                        {index + 1}
+                      </div>
+                      
+                      {/* 图片预览 */}
+                      {imageItem.preview && (
+                        <div className="relative aspect-square w-full overflow-hidden rounded">
+                          <Image
+                            src={imageItem.preview}
+                            alt={`Preview ${index + 1}`}
+                            width={200}
+                            height={200}
+                            className="h-full w-full object-cover"
+                            unoptimized
                           />
+                          {/* 处理进度遮罩 */}
+                          {imageItem.isProcessing && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                              <div className="text-center text-white">
+                                <div className="mb-1 text-xs">识别中...</div>
+                                <div className="h-1 w-20 overflow-hidden rounded-full bg-gray-700">
+                                  <div
+                                    className="h-full bg-blue-500 transition-all duration-300"
+                                    style={{ width: `${imageItem.progress}%` }}
+                                  />
+                                </div>
+                                <div className="mt-1 text-[10px]">{imageItem.progress}%</div>
+                              </div>
+                            </div>
+                          )}
+                          {/* 识别完成标记 */}
+                          {imageItem.recognizedText && !imageItem.isProcessing && (
+                            <div className="absolute top-1 left-1 rounded bg-green-500 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                              ✓
+                            </div>
+                          )}
                         </div>
-                        <div className="mt-1 text-xs">{ocrProgress}%</div>
+                      )}
+                      
+                      {/* 操作按钮 */}
+                      <div className="mt-2 flex gap-1">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="flex-1 text-xs"
+                          onClick={() => handleSingleImageOCR(index)}
+                          disabled={imageItem.isProcessing || !!imageItem.recognizedText}
+                        >
+                          {imageItem.isProcessing ? '识别中' : imageItem.recognizedText ? '已识别' : '识别'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="px-2 text-xs"
+                          onClick={() => handleRemoveImage(index)}
+                          disabled={imageItem.isProcessing}
+                        >
+                          ✕
+                        </Button>
                       </div>
                     </div>
-                  )}
+                  ))}
                 </div>
               )}
             </div>
@@ -744,83 +882,8 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                 rows={6}
                 value={textRecognitionInput}
                 onChange={(event) => setTextRecognitionInput(event.target.value)}
-                onPaste={async (event) => {
-                  // 检查剪贴板中是否有图片
-                  const items = event.clipboardData?.items
-                  if (!items) return
-
-                  for (let i = 0; i < items.length; i++) {
-                    const item = items[i]
-                    if (item.type.startsWith('image/')) {
-                      event.preventDefault()
-                      
-                      const file = item.getAsFile()
-                      if (!file) continue
-
-                      // 验证文件大小（限制为10MB）
-                      if (file.size > 10 * 1024 * 1024) {
-                        onShowBanner('error', 'Image size should be less than 10MB')
-                        return
-                      }
-
-                      setSelectedImage(file)
-                      
-                      // 创建预览
-                      const reader = new FileReader()
-                      reader.onloadend = () => {
-                        setImagePreview(reader.result as string)
-                      }
-                      reader.readAsDataURL(file)
-                      
-                      // 等待状态更新后自动触发OCR识别
-                      setTimeout(async () => {
-                        setIsProcessingImage(true)
-                        setOcrProgress(0)
-                        
-                        try {
-                          const languages = 'eng+chi_sim+chi_tra+tha+ara+rus+slv+ron+spa+fra+deu+ita+por+nld+pol+ces+hun+ell+swe+nor+fin+bul'
-                          
-                          const worker = await createWorker(languages, 1, {
-                            logger: (m) => {
-                              if (m.status === 'recognizing text') {
-                                setOcrProgress(Math.round(m.progress * 100))
-                              }
-                            },
-                          })
-
-                          const { data: { text } } = await worker.recognize(file)
-                          await worker.terminate()
-
-                          const cleanedText = text.trim()
-                          setTextRecognitionInput(cleanedText)
-                          
-                          if (!cleanedText) {
-                            onShowBanner('error', 'No text found in the image. Please try another image.')
-                            setIsProcessingImage(false)
-                            setOcrProgress(0)
-                            return
-                          }
-                          
-                          // 调用文本识别函数
-                          await performTextRecognition(cleanedText)
-                          
-                          onShowBanner('success', `Image text recognized successfully. Found ${cleanedText.length} characters.`)
-                          
-                          // 清理图片
-                          setSelectedImage(null)
-                          setImagePreview(null)
-                        } catch (err) {
-                          console.error('OCR recognition failed:', err)
-                          onShowBanner('error', err instanceof Error ? err.message : 'OCR recognition failed. Please try again.')
-                        } finally {
-                          setIsProcessingImage(false)
-                          setOcrProgress(0)
-                        }
-                      }, 100)
-                      
-                      break
-                    }
-                  }
+                onPaste={() => {
+                  // 粘贴事件由全局监听器处理
                 }}
                 placeholder="粘贴文本内容或图片（Ctrl+V / Cmd+V），例如：&#10;关键词: Sora2 vs Runway for English Christmas Pantomime videos...&#10;产品: Sora2 AI Video Generator&#10;地区: England, UK&#10;// 中文解释: 这些是中文备注，会被自动过滤"
                 className="font-mono text-sm"
