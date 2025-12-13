@@ -17,7 +17,7 @@ interface HomepageSettings {
   hero_image_paths: string[]
   hero_image_alt_texts: string[]
   hero_video_paths: string[]
-  theme_style: 'cosmic' | 'minimal' | 'modern' | 'classic'
+  theme_style: 'cosmic' | 'minimal' | 'modern' | 'classic' | 'christmas'
   primary_color: string
   secondary_color: string
   accent_color: string
@@ -268,237 +268,228 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
             </div>
           </div>
 
-          {/* 图片配置 */}
+          {/* 图片配置 - 九宫格展示 */}
           <div className="space-y-4 border-t pt-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold">图片配置</h3>
-                <p className="text-sm text-gray-500">从R2选择图片或上传新图片</p>
+                <p className="text-sm text-gray-500">从R2选择图片或上传新图片，九宫格展示</p>
               </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={loadR2Files}
-                disabled={loadingR2Files}
-              >
-                {loadingR2Files ? '刷新中...' : '刷新列表'}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={loadR2Files}
+                  disabled={loadingR2Files}
+                >
+                  {loadingR2Files ? '刷新中...' : '刷新列表'}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => addArrayItem('hero_image_paths')}
+                >
+                  + 添加图片
+                </Button>
+              </div>
             </div>
 
-            {(formData.hero_image_paths || []).map((path, index) => (
-              <div key={index} className="border rounded-lg p-4 space-y-3">
-                <div className="flex gap-2 items-start">
-                  <div className="flex-1 space-y-2">
-                    {/* 图片预览 */}
-                    {path && (
-                      <div className="relative w-full h-32 border rounded overflow-hidden bg-gray-100">
+            {/* 九宫格展示 */}
+            <div className="grid grid-cols-3 gap-4">
+              {(formData.hero_image_paths || []).map((path, index) => (
+                <div key={index} className="border rounded-lg p-3 space-y-2 bg-gray-50 dark:bg-gray-900">
+                  {/* 图片预览 */}
+                  <div className="relative w-full aspect-square border rounded overflow-hidden bg-gray-100 dark:bg-gray-800">
+                    {path ? (
+                      <>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={getPublicUrl(path)}
                           alt={`Preview ${index + 1}`}
-                          className="w-full h-full object-contain"
+                          className="w-full h-full object-cover"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement
                             target.style.display = 'none'
+                            const parent = target.parentElement
+                            if (parent) {
+                              parent.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 text-xs">图片加载失败</div>'
+                            }
                           }}
                         />
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="absolute top-1 right-1 h-6 w-6 p-0 bg-red-500 hover:bg-red-600 text-white"
+                          onClick={() => removeArrayItem('hero_image_paths', index)}
+                        >
+                          ×
+                        </Button>
+                      </>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-gray-400 text-xs">
+                        未设置
                       </div>
                     )}
-                    
-                    {/* 路径选择器 */}
-                    <div>
-                      <label className="block text-xs font-medium mb-1">选择图片</label>
-                      <select
-                        value={path}
-                        onChange={(e) => updateArrayField('hero_image_paths', index, e.target.value)}
-                        className="w-full px-3 py-2 border rounded-md text-sm"
-                      >
-                        <option value="">-- 选择图片 --</option>
-                        {r2Images.map((img) => (
-                          <option key={img.key} value={img.key}>
-                            {img.key}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* 手动输入路径 */}
-                    <div>
-                      <label className="block text-xs font-medium mb-1">或手动输入路径</label>
-                      <Input
-                        value={path}
-                        onChange={(e) => updateArrayField('hero_image_paths', index, e.target.value)}
-                        placeholder="例如: images/hero.jpg"
-                        className="text-sm"
-                      />
-                    </div>
-
-                    {/* Alt文本 */}
-                    <div>
-                      <label className="block text-xs font-medium mb-1">Alt 文本</label>
-                      <Input
-                        value={(formData.hero_image_alt_texts || [])[index] || ''}
-                        onChange={(e) => updateArrayField('hero_image_alt_texts', index, e.target.value)}
-                        placeholder={`图片描述 ${index + 1}`}
-                        className="text-sm"
-                      />
-                    </div>
-
-                    {/* 上传新图片 */}
-                    <div>
-                      <input
-                        ref={(el) => {
-                          fileInputRefs.current[index] = el
-                        }}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (file) {
-                            handleFileUpload(file, index, 'image')
-                          }
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => fileInputRefs.current[index]?.click()}
-                        disabled={uploading[index]}
-                        className="w-full"
-                      >
-                        {uploading[index] ? '上传中...' : '上传新图片'}
-                      </Button>
-                    </div>
                   </div>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => removeArrayItem('hero_image_paths', index)}
-                  >
-                    删除
-                  </Button>
-                </div>
-              </div>
-            ))}
 
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => addArrayItem('hero_image_paths')}
-            >
-              + 添加图片
-            </Button>
+                  {/* 路径选择器 */}
+                  <div>
+                    <select
+                      value={path}
+                      onChange={(e) => updateArrayField('hero_image_paths', index, e.target.value)}
+                      className="w-full px-2 py-1 border rounded text-xs"
+                    >
+                      <option value="">-- 选择图片 --</option>
+                      {r2Images.map((img) => (
+                        <option key={img.key} value={img.key}>
+                          {img.key.split('/').pop()}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Alt文本 */}
+                  <Input
+                    value={(formData.hero_image_alt_texts || [])[index] || ''}
+                    onChange={(e) => updateArrayField('hero_image_alt_texts', index, e.target.value)}
+                    placeholder={`Alt ${index + 1}`}
+                    className="text-xs h-8"
+                  />
+
+                  {/* 上传按钮 */}
+                  <div>
+                    <input
+                      ref={(el) => {
+                        fileInputRefs.current[index] = el
+                      }}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          handleFileUpload(file, index, 'image')
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => fileInputRefs.current[index]?.click()}
+                      disabled={uploading[index]}
+                      className="w-full h-8 text-xs"
+                    >
+                      {uploading[index] ? '上传中...' : '上传'}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* 视频配置 */}
+          {/* 视频配置 - 九宫格展示 */}
           <div className="space-y-4 border-t pt-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold">视频配置</h3>
-                <p className="text-sm text-gray-500">从R2选择视频或上传新视频</p>
+                <p className="text-sm text-gray-500">从R2选择视频或上传新视频，九宫格展示</p>
               </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={loadR2Files}
-                disabled={loadingR2Files}
-              >
-                {loadingR2Files ? '刷新中...' : '刷新列表'}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={loadR2Files}
+                  disabled={loadingR2Files}
+                >
+                  {loadingR2Files ? '刷新中...' : '刷新列表'}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => addArrayItem('hero_video_paths')}
+                >
+                  + 添加视频
+                </Button>
+              </div>
             </div>
 
-            {(formData.hero_video_paths || []).map((path, index) => (
-              <div key={index} className="border rounded-lg p-4 space-y-3">
-                <div className="flex gap-2 items-start">
-                  <div className="flex-1 space-y-2">
-                    {/* 视频预览 */}
-                    {path && (
-                      <div className="relative w-full h-32 border rounded overflow-hidden bg-gray-100">
+            {/* 九宫格展示 */}
+            <div className="grid grid-cols-3 gap-4">
+              {(formData.hero_video_paths || []).map((path, index) => (
+                <div key={index} className="border rounded-lg p-3 space-y-2 bg-gray-50 dark:bg-gray-900">
+                  {/* 视频预览 */}
+                  <div className="relative w-full aspect-square border rounded overflow-hidden bg-gray-100 dark:bg-gray-800">
+                    {path ? (
+                      <>
                         <video
                           src={getPublicUrl(path)}
-                          className="w-full h-full object-contain"
+                          className="w-full h-full object-cover"
                           controls
                           muted
                         />
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="absolute top-1 right-1 h-6 w-6 p-0 bg-red-500 hover:bg-red-600 text-white"
+                          onClick={() => removeArrayItem('hero_video_paths', index)}
+                        >
+                          ×
+                        </Button>
+                      </>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-gray-400 text-xs">
+                        未设置
                       </div>
                     )}
-
-                    {/* 路径选择器 */}
-                    <div>
-                      <label className="block text-xs font-medium mb-1">选择视频</label>
-                      <select
-                        value={path}
-                        onChange={(e) => updateArrayField('hero_video_paths', index, e.target.value)}
-                        className="w-full px-3 py-2 border rounded-md text-sm"
-                      >
-                        <option value="">-- 选择视频 --</option>
-                        {r2Videos.map((video) => (
-                          <option key={video.key} value={video.key}>
-                            {video.key}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* 手动输入路径 */}
-                    <div>
-                      <label className="block text-xs font-medium mb-1">或手动输入路径</label>
-                      <Input
-                        value={path}
-                        onChange={(e) => updateArrayField('hero_video_paths', index, e.target.value)}
-                        placeholder="例如: videos/demo.mp4"
-                        className="text-sm"
-                      />
-                    </div>
-
-                    {/* 上传新视频 */}
-                    <div>
-                      <input
-                        ref={(el) => {
-                          fileInputRefs.current[`video-${index}`] = el
-                        }}
-                        type="file"
-                        accept="video/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (file) {
-                            handleFileUpload(file, index, 'video')
-                          }
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => fileInputRefs.current[`video-${index}`]?.click()}
-                        disabled={uploading[`video-${index}`]}
-                        className="w-full"
-                      >
-                        {uploading[`video-${index}`] ? '上传中...' : '上传新视频'}
-                      </Button>
-                    </div>
                   </div>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => removeArrayItem('hero_video_paths', index)}
-                  >
-                    删除
-                  </Button>
-                </div>
-              </div>
-            ))}
 
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => addArrayItem('hero_video_paths')}
-            >
-              + 添加视频
-            </Button>
+                  {/* 路径选择器 */}
+                  <div>
+                    <select
+                      value={path}
+                      onChange={(e) => updateArrayField('hero_video_paths', index, e.target.value)}
+                      className="w-full px-2 py-1 border rounded text-xs"
+                    >
+                      <option value="">-- 选择视频 --</option>
+                      {r2Videos.map((video) => (
+                        <option key={video.key} value={video.key}>
+                          {video.key.split('/').pop()}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 上传按钮 */}
+                  <div>
+                    <input
+                      ref={(el) => {
+                        fileInputRefs.current[`video-${index}`] = el
+                      }}
+                      type="file"
+                      accept="video/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          handleFileUpload(file, index, 'video')
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => fileInputRefs.current[`video-${index}`]?.click()}
+                      disabled={uploading[`video-${index}`]}
+                      className="w-full h-8 text-xs"
+                    >
+                      {uploading[`video-${index}`] ? '上传中...' : '上传'}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* 风格配置 */}
@@ -516,6 +507,7 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
                 <option value="minimal">Minimal（简约风格）</option>
                 <option value="modern">Modern（现代风格）</option>
                 <option value="classic">Classic（经典风格）</option>
+                <option value="christmas">Christmas（圣诞节风格）🎄</option>
               </select>
             </div>
 

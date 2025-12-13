@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS homepage_settings (
   hero_video_paths TEXT[], -- 首页展示的视频路径数组
   
   -- 风格配置
-  theme_style TEXT DEFAULT 'cosmic' CHECK (theme_style IN ('cosmic', 'minimal', 'modern', 'classic')),
+  theme_style TEXT DEFAULT 'cosmic' CHECK (theme_style IN ('cosmic', 'minimal', 'modern', 'classic', 'christmas')),
   primary_color TEXT DEFAULT '#3B82F6', -- 主色调
   secondary_color TEXT DEFAULT '#8B5CF6', -- 次色调
   accent_color TEXT DEFAULT '#F59E0B', -- 强调色
@@ -95,7 +95,7 @@ INSERT INTO homepage_settings (
   ],
   'cosmic',
   true
-) ON CONFLICT (id) DO NOTHING;
+) ON CONFLICT DO NOTHING;
 
 -- 添加 RLS 策略
 -- 允许公共读取，只有 service_role 可以写入（通过 API 路由控制）
