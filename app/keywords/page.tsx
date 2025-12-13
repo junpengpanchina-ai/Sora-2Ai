@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
 import type { Database } from '@/types/database'
 import { KEYWORD_INTENT_LABELS, type KeywordIntent } from '@/lib/keywords/schema'
+import TrendingKeywords from '@/components/TrendingKeywords'
 
 type KeywordRow = Database['public']['Tables']['long_tail_keywords']['Row']
 
@@ -55,7 +56,7 @@ export default async function KeywordsIndexPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 py-16 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-      <div className="mx-auto max-w-5xl px-6">
+      <div className="mx-auto max-w-7xl px-6">
         <div className="mb-10">
           <p className="text-sm uppercase tracking-[0.4em] text-energy-water">Keyword Hub</p>
           <h1 className="mt-3 text-3xl font-bold">Sora2Ai Long-tail Keywords Index</h1>
@@ -64,12 +65,17 @@ export default async function KeywordsIndexPage() {
           </p>
         </div>
 
+        {/* 热搜词榜单板块 */}
+        <div className="mb-10">
+          <TrendingKeywords geo="US" limit={10} />
+        </div>
+
         {keywords.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-gray-300 bg-white/70 p-6 text-center text-gray-500 dark:border-gray-800 dark:bg-gray-900/70">
             No published keyword pages yet.
           </p>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {keywords.map((keyword) => (
               <Link
                 key={keyword.id}

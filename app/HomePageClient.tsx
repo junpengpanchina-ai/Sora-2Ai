@@ -9,6 +9,7 @@ import LoginButton from '@/components/LoginButton'
 import R2Image from '@/components/R2Image'
 import PricingModal from '@/components/PricingModal'
 import { createClient } from '@/lib/supabase/client'
+import { getPublicUrl } from '@/lib/r2/client'
 
 interface Stats {
   total: number
@@ -63,6 +64,24 @@ interface HomePageClientProps {
   userProfile: UserProfile | null
 }
 
+interface HomepageSettings {
+  hero_badge_text: string
+  hero_h1_text: string
+  hero_h1_text_logged_in: string
+  hero_description: string
+  hero_image_paths: string[]
+  hero_image_alt_texts: string[]
+  hero_video_paths: string[]
+  theme_style: string
+  primary_color: string
+  secondary_color: string
+  accent_color: string
+  background_gradient: string
+  cta_primary_text: string
+  cta_primary_text_logged_out: string
+  cta_secondary_text: string
+}
+
 export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null)
   const [hydratedProfile, setHydratedProfile] = useState<UserProfile | null>(userProfile)
@@ -72,6 +91,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const [imagesReady, setImagesReady] = useState(false)
   const [videosReady, setVideosReady] = useState(false)
   const [copiedTemplateId, setCopiedTemplateId] = useState<string | null>(null)
+  const [homepageSettings, setHomepageSettings] = useState<HomepageSettings | null>(null)
   const imageSectionRef = useRef<HTMLDivElement | null>(null)
   const videoSectionRef = useRef<HTMLDivElement | null>(null)
   const accountProfile = hydratedProfile ?? userProfile
@@ -81,6 +101,22 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       return
     }
     setSupabase(createClient())
+  }, [])
+
+  // 加载首页配置
+  useEffect(() => {
+    const loadHomepageSettings = async () => {
+      try {
+        const response = await fetch('/api/homepage')
+        const data = await response.json()
+        if (data.success && data.settings) {
+          setHomepageSettings(data.settings)
+        }
+      } catch (error) {
+        console.error('加载首页配置失败:', error)
+      }
+    }
+    loadHomepageSettings()
   }, [])
 
   useEffect(() => {
@@ -438,27 +474,28 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         <section className="relative isolate overflow-hidden py-24 sm:py-28 lg:py-32">
         <div className="relative z-10 mx-auto max-w-6xl px-6 text-left">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-1 text-[0.7rem] uppercase tracking-[0.45em] text-energy-gold-light">
-            Sora 2 AI Control Center
+            {homepageSettings?.hero_badge_text || 'Sora 2 AI Control Center'}
             <span className="h-1.5 w-1.5 rounded-full bg-energy-gold-light" />
           </div>
           <h2 className="mt-6 text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-[3.2rem]">
             {hydratedProfile
-              ? `Welcome back, ${hydratedProfile.name || 'Creator'}!`
-              : 'Turn cinematic ideas into deployable Sora 2.0 workflows.'}
+              ? homepageSettings?.hero_h1_text_logged_in?.replace('{name}', hydratedProfile.name || 'Creator') || `Welcome back, ${hydratedProfile.name || 'Creator'}!`
+              : homepageSettings?.hero_h1_text || 'Turn cinematic ideas into deployable Sora 2.0 workflows.'}
           </h2>
           <p className="mt-4 max-w-3xl text-base text-blue-100/90 sm:text-lg">
-            Operate from a focused dashboard that keeps the cosmic atmosphere but prioritizes productivity.
-            Track pipeline health, credits, and the next action without leaving your control surface.
+            {homepageSettings?.hero_description || 'Operate from a focused dashboard that keeps the cosmic atmosphere but prioritizes productivity. Track pipeline health, credits, and the next action without leaving your control surface.'}
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
             <Link href={hydratedProfile ? '/video' : '/login'}>
               <Button variant="primary" size="lg" className="shadow-energy-focus">
-                {hydratedProfile ? 'Open Video Console' : 'Sign in to Start'}
+                {hydratedProfile 
+                  ? (homepageSettings?.cta_primary_text || 'Open Video Console')
+                  : (homepageSettings?.cta_primary_text_logged_out || 'Sign in to Start')}
               </Button>
             </Link>
             <Link href="/prompts">
               <Button variant="secondary" size="lg">
-                Browse Prompt Library
+                {homepageSettings?.cta_secondary_text || 'Browse Prompt Library'}
               </Button>
             </Link>
           </div>
@@ -511,80 +548,36 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
 
         {/* Image Carousel - Optimized for performance */}
         <div className="mb-8 space-y-6" ref={imageSectionRef}>
-          {imagesReady ? (
+          {imagesReady && homepageSettings?.hero_image_paths && homepageSettings.hero_image_paths.length > 0 ? (
             <>
               {/* Top row: slide from right to left - Reduced to 2 sets for better performance */}
               <div className="overflow-hidden will-change-transform">
                 <div className="flex gap-6 animate-slide-right" style={{ width: '200%' }}>
                   {/* First set */}
                   <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="2b827a33e43a48b2b583ed428977712c.png"
-                        alt="Image 1"
-                        className="w-full h-auto rounded-lg"
-                        loading="eager"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="460bef39f6e34f82912a27e357827963.png"
-                        alt="Image 2"
-                        className="w-full h-auto rounded-lg"
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="5995d3bfdb674ecebaccc581ed8940b3.png"
-                        alt="Image 3"
-                        className="w-full h-auto rounded-lg"
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="7b0be82bb2134fca87519cbecf30aca9.png"
-                        alt="Image 4"
-                        className="w-full h-auto rounded-lg"
-                        loading="lazy"
-                      />
-                    </div>
+                    {homepageSettings.hero_image_paths.slice(0, Math.ceil(homepageSettings.hero_image_paths.length / 2)).map((path, index) => (
+                      <div key={`top-${index}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                        <R2Image
+                          src={path}
+                          alt={homepageSettings.hero_image_alt_texts?.[index] || `Image ${index + 1}`}
+                          className="w-full h-auto rounded-lg"
+                          loading={index === 0 ? "eager" : "lazy"}
+                        />
+                      </div>
+                    ))}
                   </div>
                   {/* Second set - duplicate for seamless loop */}
                   <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="2b827a33e43a48b2b583ed428977712c.png"
-                        alt="Image 1"
-                        className="w-full h-auto rounded-lg"
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="460bef39f6e34f82912a27e357827963.png"
-                        alt="Image 2"
-                        className="w-full h-auto rounded-lg"
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="5995d3bfdb674ecebaccc581ed8940b3.png"
-                        alt="Image 3"
-                        className="w-full h-auto rounded-lg"
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="7b0be82bb2134fca87519cbecf30aca9.png"
-                        alt="Image 4"
-                        className="w-full h-auto rounded-lg"
-                        loading="lazy"
-                      />
-                    </div>
+                    {homepageSettings.hero_image_paths.slice(0, Math.ceil(homepageSettings.hero_image_paths.length / 2)).map((path, index) => (
+                      <div key={`top-dup-${index}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                        <R2Image
+                          src={path}
+                          alt={homepageSettings.hero_image_alt_texts?.[index] || `Image ${index + 1}`}
+                          className="w-full h-auto rounded-lg"
+                          loading="lazy"
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -594,73 +587,29 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                 <div className="flex gap-6 animate-slide-left" style={{ width: '200%' }}>
                   {/* First set */}
                   <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="80dc75a06d0b49c29bdb78eb45dc70a0.png"
-                        alt="Image 5"
-                        className="w-full h-auto rounded-lg"
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="b451ac136a474a9f91398a403af2d2a6.png"
-                        alt="Image 6"
-                        className="w-full h-auto rounded-lg"
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="e6e1ebc8cea34e83a106009a485b1cbb.png"
-                        alt="Image 7"
-                        className="w-full h-auto rounded-lg"
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="f566981bc27549b7a2389a6887e9c840.png"
-                        alt="Image 8"
-                        className="w-full h-auto rounded-lg"
-                        loading="lazy"
-                      />
-                    </div>
+                    {homepageSettings.hero_image_paths.slice(Math.ceil(homepageSettings.hero_image_paths.length / 2)).map((path, index) => (
+                      <div key={`bottom-${index}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                        <R2Image
+                          src={path}
+                          alt={homepageSettings.hero_image_alt_texts?.[Math.ceil(homepageSettings.hero_image_paths.length / 2) + index] || `Image ${Math.ceil(homepageSettings.hero_image_paths.length / 2) + index + 1}`}
+                          className="w-full h-auto rounded-lg"
+                          loading="lazy"
+                        />
+                      </div>
+                    ))}
                   </div>
                   {/* Second set - duplicate for seamless loop */}
                   <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="80dc75a06d0b49c29bdb78eb45dc70a0.png"
-                        alt="Image 5"
-                        className="w-full h-auto rounded-lg"
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="b451ac136a474a9f91398a403af2d2a6.png"
-                        alt="Image 6"
-                        className="w-full h-auto rounded-lg"
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="e6e1ebc8cea34e83a106009a485b1cbb.png"
-                        alt="Image 7"
-                        className="w-full h-auto rounded-lg"
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <R2Image
-                        src="f566981bc27549b7a2389a6887e9c840.png"
-                        alt="Image 8"
-                        className="w-full h-auto rounded-lg"
-                        loading="lazy"
-                      />
-                    </div>
+                    {homepageSettings.hero_image_paths.slice(Math.ceil(homepageSettings.hero_image_paths.length / 2)).map((path, index) => (
+                      <div key={`bottom-dup-${index}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                        <R2Image
+                          src={path}
+                          alt={homepageSettings.hero_image_alt_texts?.[Math.ceil(homepageSettings.hero_image_paths.length / 2) + index] || `Image ${Math.ceil(homepageSettings.hero_image_paths.length / 2) + index + 1}`}
+                          className="w-full h-auto rounded-lg"
+                          loading="lazy"
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -674,103 +623,41 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         </div>
       {/* Video Carousel - Optimized for fast loading */}
         <div className="mb-8" ref={videoSectionRef}>
-          {videosReady ? (
+          {videosReady && homepageSettings?.hero_video_paths && homepageSettings.hero_video_paths.length > 0 ? (
             <div className="overflow-hidden will-change-transform">
               <div className="flex gap-6 animate-slide-right" style={{ width: '200%' }}>
                 {/* First set - Only first video autoplays and preloads */}
                 <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
-                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <video
-                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/b8edbf0aa26b4afa85b7095b91414f3d.mp4"
-                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                      controls
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      preload="auto"
-                    />
-                  </div>
-                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <video
-                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223443_366.mp4"
-                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                      controls
-                      loop
-                      muted
-                      playsInline
-                      preload="metadata"
-                    />
-                  </div>
-                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <video
-                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223856_981.mp4"
-                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                      controls
-                      loop
-                      muted
-                      playsInline
-                      preload="metadata"
-                    />
-                  </div>
-                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <video
-                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224357_417.mp4"
-                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                      controls
-                      loop
-                      muted
-                      playsInline
-                      preload="metadata"
-                    />
-                  </div>
+                  {homepageSettings.hero_video_paths.map((path, index) => (
+                    <div key={`video-${index}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <video
+                        src={getPublicUrl(path)}
+                        className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                        controls
+                        autoPlay={index === 0}
+                        loop
+                        muted
+                        playsInline
+                        preload={index === 0 ? "auto" : "metadata"}
+                      />
+                    </div>
+                  ))}
                 </div>
                 {/* Second set - duplicate for seamless loop, lazy loaded with metadata */}
                 <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
-                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <video
-                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224947_118.mp4"
-                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                      controls
-                      loop
-                      muted
-                      playsInline
-                      preload="metadata"
-                    />
-                  </div>
-                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <video
-                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223443_366.mp4"
-                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                      controls
-                      loop
-                      muted
-                      playsInline
-                      preload="metadata"
-                    />
-                  </div>
-                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <video
-                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_223856_981.mp4"
-                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                      controls
-                      loop
-                      muted
-                      playsInline
-                      preload="metadata"
-                    />
-                  </div>
-                  <div className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                    <video
-                      src="https://pub-2868c824f92441499577980a0b61114c.r2.dev/vdieo/%E5%BE%AE%E4%BF%A1%E8%A7%86%E9%A2%912025-11-09_224357_417.mp4"
-                      className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                      controls
-                      loop
-                      muted
-                      playsInline
-                      preload="metadata"
-                    />
-                  </div>
+                  {homepageSettings.hero_video_paths.map((path, index) => (
+                    <div key={`video-dup-${index}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <video
+                        src={getPublicUrl(path)}
+                        className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
+                        controls
+                        loop
+                        muted
+                        playsInline
+                        preload="metadata"
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation'
 import AdminPromptsManager from './AdminPromptsManager'
 import AdminKeywordsManager from './AdminKeywordsManager'
 import AdminGrsaiChatManager from './AdminGrsaiChatManager'
+import AdminHomepageManager from './AdminHomepageManager'
 
 interface UserStats {
   total_users: number
@@ -240,6 +241,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     | 'prompts'
     | 'keywords'
     | 'grsai-chat'
+    | 'homepage'
   >('overview')
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [issuesLoading, setIssuesLoading] = useState(true)
@@ -976,6 +978,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                   { value: 'prompts', label: '提示词库' },
                   { value: 'keywords', label: '长尾词' },
                   { value: 'grsai-chat', label: 'GRSAI Chat' },
+                  { value: 'homepage', label: '首页管理' },
                 ].map((tab) => (
                   <button
                     key={tab.value}
@@ -1902,6 +1905,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
             {activeTab === 'prompts' && <AdminPromptsManager onShowBanner={showBanner} />}
             {activeTab === 'keywords' && <AdminKeywordsManager onShowBanner={showBanner} />}
             {activeTab === 'grsai-chat' && <AdminGrsaiChatManager onShowBanner={showBanner} />}
+            {activeTab === 'homepage' && <AdminHomepageManager onShowBanner={showBanner} />}
           </>
         )}
       </main>
