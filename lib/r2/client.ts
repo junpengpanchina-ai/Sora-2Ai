@@ -13,109 +13,104 @@ const R2_S3_ENDPOINT = process.env.R2_S3_ENDPOINT || `https://${R2_ACCOUNT_ID}.r
 // 如果不需要认证访问，可以只使用公共 URL
 let r2Client: S3Client | null = null
 
-if (R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY) {
-  // 清理密钥（移除可能的空格、换行等）
-  const cleanAccessKey = R2_ACCESS_KEY_ID.trim()
-  let cleanSecretKey = R2_SECRET_ACCESS_KEY.trim()
+/**
+ * 转换Cloudflare R2 Secret Access Key格式
+ * 将64字符十六进制转换为AWS SDK期望的格式
+ */
+function convertSecretAccessKey(secret: string): string {
+  const trimmed = secret.trim()
   
-  // Cloudflare R2 Secret Access Key 格式处理
-  // 如果提供的是64字符的十六进制，需要转换为Base64格式
-  // AWS SDK 期望 Secret Access Key 是 Base64 编码的字符串（通常是32-44字符）
-  const originalSecretLength = cleanSecretKey.length
-  
-  if (originalSecretLength === 64) {
-    // 64字符十六进制 = 32字节
-    // 尝试将十六进制转换为Base64
+  // 如果是64字符的十六进制，尝试转换
+  if (trimmed.length === 64 && /^[0-9a-fA-F]{64}$/i.test(trimmed)) {
     try {
-      // 验证是否为有效的十六进制字符串
-      if (/^[0-9a-fA-F]{64}$/.test(cleanSecretKey)) {
-        // 将十六进制字符串转换为Buffer（32字节）
-        const hexBuffer = Buffer.from(cleanSecretKey, 'hex')
-        // 转换为Base64（32字节 -> 44字符，包含填充）
-        // 去掉Base64填充，得到43字符（某些情况下可能需要）
-        cleanSecretKey = hexBuffer.toString('base64').replace(/=+$/, '')
-        console.log(`已将64字符十六进制Secret Access Key转换为Base64格式（${cleanSecretKey.length}字符）`)
-      } else {
-        console.warn('Secret Access Key不是有效的64字符十六进制格式，使用原始值')
-      }
+      // 方法1: 转换为Base64
+      const hexBuffer = Buffer.from(trimmed, 'hex')
+      const base64Secret = hexBuffer.toString('base64').replace(/=+$/, '')
+      console.log(`[R2] 已将64字符十六进制转换为Base64: ${base64Secret.length}字符`)
+      return base64Secret
     } catch (error) {
-      console.warn('无法转换Secret Access Key格式，使用原始值:', error)
-    }
-  }
-  
-  // 记录转换信息用于调试
-  if (originalSecretLength === 64 && cleanSecretKey.length !== 64) {
-    console.log('R2 Secret Access Key转换信息:', {
-      原始长度: originalSecretLength,
-      原始格式: '64字符十六进制',
-      转换后长度: cleanSecretKey.length,
-      转换后格式: 'Base64',
-      转换后前10字符: cleanSecretKey.substring(0, 10) + '...',
-    })
-  }
-  
-  try {
-    r2Client = new S3Client({
-      region: 'auto',
-      endpoint: R2_S3_ENDPOINT,
-      credentials: {
-        accessKeyId: cleanAccessKey,
-        secretAccessKey: cleanSecretKey,
-      },
-    })
-    console.log('R2客户端创建成功')
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    const errorDetails = {
-      error: errorMessage,
-      accessKeyLength: cleanAccessKey.length,
-      secretKeyLength: cleanSecretKey.length,
-      originalSecretLength: originalSecretLength,
-      accessKeyPreview: cleanAccessKey.substring(0, 10) + '...',
-      secretKeyPreview: cleanSecretKey.substring(0, 10) + '...',
-      wasConverted: originalSecretLength === 64 && cleanSecretKey.length !== 64,
+      console.warn('[R2] Base64转换失败，尝试其他方法:', error)
     }
     
-    console.error('创建 R2 客户端失败 - 详细信息:', errorDetails)
-    
-    // 如果是长度错误，提供更明确的提示和解决方案
-    if (errorMessage.includes('length') && errorMessage.includes('32')) {
-      // 尝试使用原始64字符的前32字符（作为最后的尝试）
-      if (originalSecretLength === 64 && cleanSecretKey.length === 43) {
-        console.warn('Base64转换后长度为43，尝试使用原始十六进制的前32字符...')
-        const fallbackSecret = R2_SECRET_ACCESS_KEY.trim().substring(0, 32)
-        try {
-          const fallbackClient = new S3Client({
-            region: 'auto',
-            endpoint: R2_S3_ENDPOINT,
-            credentials: {
-              accessKeyId: cleanAccessKey,
-              secretAccessKey: fallbackSecret,
-            },
-          })
-          r2Client = fallbackClient
-          console.log('使用前32字符成功创建R2客户端')
-        } catch (fallbackError) {
-          console.warn('使用前32字符也失败:', fallbackError)
-          throw new Error(
-            `R2密钥长度错误: Secret Access Key长度为${cleanSecretKey.length}字符（原始${originalSecretLength}字符），AWS SDK期望32字符。` +
-            `代码已尝试：1) 将64字符十六进制转换为Base64(${cleanSecretKey.length}字符) 2) 使用前32字符。` +
-            `所有尝试都失败。` +
-            `可能原因：Cloudflare R2 Secret Access Key格式与AWS SDK不兼容。` +
-            `建议：联系Cloudflare支持或查看R2文档确认正确的密钥格式。`
-          )
-        }
-      } else {
+    // 方法2: 如果Base64失败，尝试使用前32字符
+    console.warn('[R2] 尝试使用前32字符作为fallback')
+    return trimmed.substring(0, 32)
+  }
+  
+  // 如果已经是其他格式，直接返回
+  return trimmed
+}
+
+/**
+ * 初始化R2客户端
+ */
+function initializeR2Client(): void {
+  if (r2Client) return // 已经初始化
+  
+  if (!R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
+    console.warn('[R2] Access Key ID 或 Secret Access Key 未配置')
+    return
+  }
+  
+  const cleanAccessKey = R2_ACCESS_KEY_ID.trim()
+  const originalSecret = R2_SECRET_ACCESS_KEY.trim()
+  
+  // 转换Secret Access Key
+  const convertedSecret = convertSecretAccessKey(originalSecret)
+  
+  console.log('[R2] 初始化客户端:', {
+    accessKeyLength: cleanAccessKey.length,
+    originalSecretLength: originalSecret.length,
+    convertedSecretLength: convertedSecret.length,
+    wasConverted: originalSecret.length === 64 && convertedSecret.length !== 64,
+  })
+  
+  // 尝试创建客户端，如果失败则尝试fallback
+  const attempts = [
+    { secret: convertedSecret, name: '转换后的密钥' },
+    { secret: originalSecret.substring(0, 32), name: '前32字符' },
+  ]
+  
+  for (const attempt of attempts) {
+    try {
+      r2Client = new S3Client({
+        region: 'auto',
+        endpoint: R2_S3_ENDPOINT,
+        credentials: {
+          accessKeyId: cleanAccessKey,
+          secretAccessKey: attempt.secret,
+        },
+      })
+      console.log(`[R2] 客户端创建成功 (使用${attempt.name})`)
+      return
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.warn(`[R2] 使用${attempt.name}失败:`, errorMessage)
+      
+      // 如果是长度错误且还有其他尝试，继续
+      if (errorMessage.includes('length') && attempt !== attempts[attempts.length - 1]) {
+        continue
+      }
+      
+      // 最后一次尝试失败，抛出错误
+      if (attempt === attempts[attempts.length - 1]) {
         throw new Error(
-          `R2密钥长度错误: Secret Access Key长度为${cleanSecretKey.length}字符（原始${originalSecretLength}字符），AWS SDK期望32字符。` +
-          `代码已尝试将64字符十六进制转换为Base64，但仍不匹配。` +
-          `建议：联系Cloudflare支持或查看R2文档确认正确的密钥格式。`
+          `R2客户端创建失败: ${errorMessage}\n` +
+          `已尝试: 1) 64字符十六进制转Base64 2) 使用前32字符\n` +
+          `Access Key长度: ${cleanAccessKey.length}, Secret长度: ${attempt.secret.length}\n` +
+          `建议: 检查Cloudflare R2 API Token格式，或联系Cloudflare支持`
         )
       }
     }
-    
-    throw error
   }
+}
+
+// 立即尝试初始化
+try {
+  initializeR2Client()
+} catch (error) {
+  console.error('[R2] 初始化失败:', error)
+  // 不抛出，允许延迟初始化
 }
 
 /**
@@ -158,23 +153,30 @@ interface R2FileListResult {
 }
 
 export async function listR2Files(prefix?: string, maxKeys: number = 100): Promise<R2FileListResult> {
+  // 如果客户端未初始化，尝试初始化
   if (!r2Client) {
-    const configStatus = {
-      hasAccountId: !!R2_ACCOUNT_ID,
-      hasAccessKey: !!R2_ACCESS_KEY_ID,
-      hasSecretKey: !!R2_SECRET_ACCESS_KEY,
-      hasBucket: !!R2_BUCKET_NAME,
-      // 检查 SECRET 是否是 URL（常见错误）
-      secretLooksLikeUrl: R2_SECRET_ACCESS_KEY.startsWith('http://') || R2_SECRET_ACCESS_KEY.startsWith('https://'),
+    try {
+      initializeR2Client()
+    } catch (error) {
+      console.error('[R2] 延迟初始化失败:', error)
+      const configStatus = {
+        hasAccountId: !!R2_ACCOUNT_ID,
+        hasAccessKey: !!R2_ACCESS_KEY_ID,
+        hasSecretKey: !!R2_SECRET_ACCESS_KEY,
+        hasBucket: !!R2_BUCKET_NAME,
+        secretLooksLikeUrl: R2_SECRET_ACCESS_KEY && (R2_SECRET_ACCESS_KEY.startsWith('http://') || R2_SECRET_ACCESS_KEY.startsWith('https://')),
+      }
+      
+      if (configStatus.secretLooksLikeUrl) {
+        throw new Error('R2_SECRET_ACCESS_KEY 配置错误：这应该是一个密钥字符串，而不是URL。请检查你的环境变量配置。')
+      }
+      
+      throw new Error('R2客户端未配置。请设置环境变量: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, 和 R2_SECRET_ACCESS_KEY')
     }
-    
-    console.error('R2客户端未配置:', configStatus)
-    
-    if (configStatus.secretLooksLikeUrl) {
-      throw new Error('R2_SECRET_ACCESS_KEY 配置错误：这应该是一个密钥字符串，而不是URL。请检查你的环境变量配置。')
-    }
-    
-    throw new Error('R2客户端未配置。请设置环境变量: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, 和 R2_SECRET_ACCESS_KEY')
+  }
+  
+  if (!r2Client) {
+    throw new Error('R2客户端初始化失败。请检查环境变量配置和密钥格式。')
   }
 
   try {
