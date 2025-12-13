@@ -332,6 +332,14 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
                 >
                   + 添加图片
                 </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={saving}
+                >
+                  {saving ? '保存中...' : '保存图片设置'}
+                </Button>
               </div>
             </div>
 
@@ -472,6 +480,14 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
                   onClick={() => addArrayItem('hero_video_paths')}
                 >
                   + 添加视频
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={saving}
+                >
+                  {saving ? '保存中...' : '保存视频设置'}
                 </Button>
               </div>
             </div>
