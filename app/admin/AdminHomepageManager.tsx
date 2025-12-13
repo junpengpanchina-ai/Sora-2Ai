@@ -38,6 +38,7 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
   const [r2Videos, setR2Videos] = useState<Array<{ key: string; url: string }>>([])
   const [loadingR2Files, setLoadingR2Files] = useState(false)
   const [uploading, setUploading] = useState<Record<string | number, boolean>>({})
+  const [r2Error, setR2Error] = useState<string | null>(null)
   const fileInputRefs = useRef<Record<string | number, HTMLInputElement | null>>({})
 
   // 加载配置
@@ -92,6 +93,7 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
   const loadR2Files = useCallback(async () => {
     try {
       setLoadingR2Files(true)
+      setR2Error(null)
       const [imagesResponse, videosResponse] = await Promise.all([
         fetch('/api/admin/r2/list?type=image&maxKeys=100'),
         fetch('/api/admin/r2/list?type=video&maxKeys=100'),
@@ -100,11 +102,23 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
       const imagesData = await imagesResponse.json()
       const videosData = await videosResponse.json()
 
+      let errorMessage: string | null = null
+      let errorDetails: string | null = null
+
       if (imagesData.success) {
         setR2Images(imagesData.files.map((f: { key: string; url: string | null }) => ({
           key: f.key || '',
           url: f.url || getPublicUrl(f.key || ''),
         })))
+      } else {
+        errorMessage = imagesData.error || '加载图片列表失败'
+        errorDetails = imagesData.details || imagesData.error
+        // 如果有关键配置问题，显示详细错误
+        if (imagesData.troubleshooting || imagesData.config) {
+          const configInfo = imagesData.config ? `\n配置状态: ${JSON.stringify(imagesData.config, null, 2)}` : ''
+          const troubleshooting = imagesData.troubleshooting ? `\n故障排除:\n${Object.entries(imagesData.troubleshooting).map(([k, v]) => `${k}: ${v}`).join('\n')}` : ''
+          errorDetails = `${errorDetails}${configInfo}${troubleshooting}`
+        }
       }
 
       if (videosData.success) {
@@ -112,9 +126,24 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
           key: f.key || '',
           url: f.url || getPublicUrl(f.key || ''),
         })))
+      } else if (!errorMessage) {
+        errorMessage = videosData.error || '加载视频列表失败'
+        errorDetails = videosData.details || videosData.error
+        if (videosData.troubleshooting || videosData.config) {
+          const configInfo = videosData.config ? `\n配置状态: ${JSON.stringify(videosData.config, null, 2)}` : ''
+          const troubleshooting = videosData.troubleshooting ? `\n故障排除:\n${Object.entries(videosData.troubleshooting).map(([k, v]) => `${k}: ${v}`).join('\n')}` : ''
+          errorDetails = `${errorDetails}${configInfo}${troubleshooting}`
+        }
+      }
+
+      if (errorMessage) {
+        const fullError = errorDetails ? `${errorMessage}\n${errorDetails}` : errorMessage
+        setR2Error(fullError)
+        console.error('R2加载错误:', { errorMessage, errorDetails, imagesData, videosData })
       }
     } catch (error) {
       console.error('加载R2文件列表失败:', error)
+      setR2Error('加载文件列表失败，请检查R2配置')
     } finally {
       setLoadingR2Files(false)
     }
@@ -273,7 +302,19 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold">图片配置</h3>
-                <p className="text-sm text-gray-500">从R2选择图片或上传新图片，九宫格展示</p>
+                <p className="text-sm text-gray-500">从R2选择图片、手动输入路径或上传新图片，九宫格展示</p>
+                {r2Error && (
+                  <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm">
+                    <p className="text-red-600 dark:text-red-400 font-semibold">R2配置错误</p>
+                    <pre className="text-red-500 dark:text-red-300 text-xs mt-1 whitespace-pre-wrap break-words">{r2Error}</pre>
+                    <p className="text-red-600 dark:text-red-400 text-xs mt-2">
+                      提示：检查 Vercel 环境变量设置，确保 R2_SECRET_ACCESS_KEY 是密钥字符串（不是URL）
+                    </p>
+                  </div>
+                )}
+                {!loadingR2Files && r2Images.length === 0 && !r2Error && (
+                  <p className="text-sm text-yellow-500 mt-1">R2中暂无图片，可手动输入路径或上传</p>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button
@@ -335,11 +376,15 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
                   {/* 路径选择器 */}
                   <div>
                     <select
-                      value={path}
-                      onChange={(e) => updateArrayField('hero_image_paths', index, e.target.value)}
+                      value={r2Images.some(img => img.key === path) ? path : ''}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          updateArrayField('hero_image_paths', index, e.target.value)
+                        }
+                      }}
                       className="w-full px-2 py-1 border rounded text-xs"
                     >
-                      <option value="">-- 选择图片 --</option>
+                      <option value="">-- 从R2选择图片 --</option>
                       {r2Images.map((img) => (
                         <option key={img.key} value={img.key}>
                           {img.key.split('/').pop()}
@@ -347,6 +392,14 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
                       ))}
                     </select>
                   </div>
+
+                  {/* 手动输入路径 */}
+                  <Input
+                    value={path}
+                    onChange={(e) => updateArrayField('hero_image_paths', index, e.target.value)}
+                    placeholder="或手动输入路径，如: images/hero.jpg 或 https://..."
+                    className="text-xs h-8"
+                  />
 
                   {/* Alt文本 */}
                   <Input
@@ -393,7 +446,16 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold">视频配置</h3>
-                <p className="text-sm text-gray-500">从R2选择视频或上传新视频，九宫格展示</p>
+                <p className="text-sm text-gray-500">从R2选择视频、手动输入路径或上传新视频，九宫格展示</p>
+                {!loadingR2Files && r2Videos.length === 0 && !r2Error && (
+                  <p className="text-sm text-yellow-500 mt-1">R2中暂无视频，可手动输入路径或上传</p>
+                )}
+                {r2Error && (
+                  <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm">
+                    <p className="text-red-600 dark:text-red-400 font-semibold">R2配置错误</p>
+                    <pre className="text-red-500 dark:text-red-300 text-xs mt-1 whitespace-pre-wrap break-words">{r2Error}</pre>
+                  </div>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button
@@ -447,11 +509,15 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
                   {/* 路径选择器 */}
                   <div>
                     <select
-                      value={path}
-                      onChange={(e) => updateArrayField('hero_video_paths', index, e.target.value)}
+                      value={r2Videos.some(video => video.key === path) ? path : ''}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          updateArrayField('hero_video_paths', index, e.target.value)
+                        }
+                      }}
                       className="w-full px-2 py-1 border rounded text-xs"
                     >
-                      <option value="">-- 选择视频 --</option>
+                      <option value="">-- 从R2选择视频 --</option>
                       {r2Videos.map((video) => (
                         <option key={video.key} value={video.key}>
                           {video.key.split('/').pop()}
@@ -459,6 +525,14 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
                       ))}
                     </select>
                   </div>
+
+                  {/* 手动输入路径 */}
+                  <Input
+                    value={path}
+                    onChange={(e) => updateArrayField('hero_video_paths', index, e.target.value)}
+                    placeholder="或手动输入路径，如: videos/demo.mp4 或 https://..."
+                    className="text-xs h-8"
+                  />
 
                   {/* 上传按钮 */}
                   <div>
