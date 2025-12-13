@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { validateAdminSession } from '@/lib/admin-auth'
 
+// 强制动态渲染，因为使用了 cookies
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 /**
  * 调试端点：检查R2环境变量配置
  * 仅用于诊断问题，不返回敏感信息的前几个字符
