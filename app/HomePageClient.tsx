@@ -92,6 +92,22 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const [videosReady, setVideosReady] = useState(false)
   const [copiedTemplateId, setCopiedTemplateId] = useState<string | null>(null)
   const [homepageSettings, setHomepageSettings] = useState<HomepageSettings | null>(null)
+  const [paymentPlans, setPaymentPlans] = useState<Array<{
+    id: string
+    plan_name: string
+    plan_type: string
+    amount: number
+    currency: string
+    credits: number
+    videos: number
+    description: string | null
+    badge_text: string | null
+    stripe_buy_button_id: string | null
+    stripe_payment_link_id: string | null
+    is_active: boolean
+    is_recommended: boolean
+    display_order: number
+  }>>([])
   const imageSectionRef = useRef<HTMLDivElement | null>(null)
   const videoSectionRef = useRef<HTMLDivElement | null>(null)
   const accountProfile = hydratedProfile ?? userProfile
@@ -103,20 +119,29 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     setSupabase(createClient())
   }, [])
 
-  // 加载首页配置
+  // 加载首页配置和支付计划
   useEffect(() => {
-    const loadHomepageSettings = async () => {
+    const loadData = async () => {
       try {
-        const response = await fetch('/api/homepage')
-        const data = await response.json()
-        if (data.success && data.settings) {
-          setHomepageSettings(data.settings)
+        const [settingsResponse, plansResponse] = await Promise.all([
+          fetch('/api/homepage'),
+          fetch('/api/payment-plans'),
+        ])
+        
+        const settingsData = await settingsResponse.json()
+        if (settingsData.success && settingsData.settings) {
+          setHomepageSettings(settingsData.settings)
+        }
+
+        const plansData = await plansResponse.json()
+        if (plansData.success && plansData.plans) {
+          setPaymentPlans(plansData.plans)
         }
       } catch (error) {
         console.error('加载首页配置失败:', error)
       }
     }
-    loadHomepageSettings()
+    loadData()
   }, [])
 
   useEffect(() => {
@@ -848,92 +873,67 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
             </p>
         </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {/* Basic Plan - $39 */}
-            <Card className="relative">
-            <CardHeader>
-                <CardTitle className="text-xl text-center">Basic Plan</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="text-center">
-                  <div className="text-4xl font-bold text-energy-water dark:text-energy-soft">
-                    $39
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    USD
-                  </div>
-                </div>
-                
-                <div className="text-center py-4 border-t border-b border-gray-200 dark:border-gray-700">
-                  <div className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    50 Videos
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    500 Credits
-                  </div>
-                </div>
+          {paymentPlans.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              {paymentPlans.map((plan) => (
+                <Card 
+                  key={plan.id} 
+                  className={`relative ${plan.is_recommended ? 'border-2 border-energy-gold-mid dark:border-energy-gold-soft shadow-lg' : ''}`}
+                >
+                  {plan.badge_text && (
+                    <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-energy-water text-white shadow-custom-md">
+                      {plan.badge_text}
+                    </Badge>
+                  )}
+                  <CardHeader>
+                    <CardTitle className="text-xl text-center">{plan.plan_name}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="text-center">
+                      <div className="text-4xl font-bold text-energy-water dark:text-energy-soft">
+                        ${plan.amount}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        {plan.currency.toUpperCase()}
+                      </div>
+                    </div>
+                    
+                    <div className="text-center py-4 border-t border-b border-gray-200 dark:border-gray-700">
+                      <div className="text-2xl font-semibold text-gray-900 dark:text-white">
+                        {plan.videos} Videos
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        {plan.credits} Credits
+                      </div>
+                    </div>
 
-                <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
-                  Perfect for individual users and small projects
-                </p>
+                    {plan.description && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                        {plan.description}
+                      </p>
+                    )}
 
-                <div className="text-center text-xs text-gray-500 dark:text-gray-400">
-                  ~ $0.78 / video
-              </div>
+                    <div className="text-center text-xs text-gray-500 dark:text-gray-400">
+                      ~ ${(plan.amount / plan.videos).toFixed(2)} / video
+                    </div>
 
-                <div className="flex justify-center">
-                  <stripe-buy-button
-                    buy-button-id="buy_btn_1SSKRyDqGbi6No9vhYgi4niS"
-                    publishable-key="pk_live_51SKht2DqGbi6No9v57glxTk8MK8r0Ro9lcsHigkf3RNMzI3MLbQry0xPY4wAi5UjUkHGrQpKCBe98cwt0G7Fj1B700YGD58zbP"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Professional Plan - $299 */}
-            <Card className="relative border-2 border-energy-gold-mid dark:border-energy-gold-soft shadow-lg">
-              <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-energy-water text-white shadow-custom-md">
-                Recommended
-              </Badge>
-              <CardHeader>
-                <CardTitle className="text-xl text-center">Professional Plan</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-center">
-                  <div className="text-4xl font-bold text-energy-water dark:text-energy-soft">
-                    $299
-              </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    USD
-                  </div>
-                </div>
-                
-                <div className="text-center py-4 border-t border-b border-gray-200 dark:border-gray-700">
-                  <div className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    200 Videos
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    2000 Credits
-                  </div>
-                </div>
-
-                <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
-                  Perfect for professional users and large projects
-                </p>
-
-                <div className="text-center text-xs text-gray-500 dark:text-gray-400">
-                  ~ $1.50 / video
-                </div>
-
-                <div className="flex justify-center">
-                  <stripe-buy-button
-                    buy-button-id="buy_btn_1SSKYdDqGbi6No9vbFWdJAOt"
-                    publishable-key="pk_live_51SKht2DqGbi6No9v57glxTk8MK8r0Ro9lcsHigkf3RNMzI3MLbQry0xPY4wAi5UjUkHGrQpKCBe98cwt0G7Fj1B700YGD58zbP"
-                  />
-                </div>
-            </CardContent>
-          </Card>
-        </div>
+                    {plan.stripe_buy_button_id && (
+                      <div className="flex justify-center">
+                        <stripe-buy-button
+                          buy-button-id={plan.stripe_buy_button_id}
+                          publishable-key="pk_live_51SKht2DqGbi6No9v57glxTk8MK8r0Ro9lcsHigkf3RNMzI3MLbQry0xPY4wAi5UjUkHGrQpKCBe98cwt0G7Fj1B700YGD58zbP"
+                        />
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              暂无可用的支付计划
+            </div>
+          )}
 
           <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg max-w-4xl mx-auto">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
