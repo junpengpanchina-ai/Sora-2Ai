@@ -65,7 +65,22 @@ interface R2FileListResult {
 
 export async function listR2Files(prefix?: string, maxKeys: number = 100): Promise<R2FileListResult> {
   if (!r2Client) {
-    throw new Error('R2 client not configured. Please set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY')
+    const configStatus = {
+      hasAccountId: !!R2_ACCOUNT_ID,
+      hasAccessKey: !!R2_ACCESS_KEY_ID,
+      hasSecretKey: !!R2_SECRET_ACCESS_KEY,
+      hasBucket: !!R2_BUCKET_NAME,
+      // 检查 SECRET 是否是 URL（常见错误）
+      secretLooksLikeUrl: R2_SECRET_ACCESS_KEY.startsWith('http://') || R2_SECRET_ACCESS_KEY.startsWith('https://'),
+    }
+    
+    console.error('R2客户端未配置:', configStatus)
+    
+    if (configStatus.secretLooksLikeUrl) {
+      throw new Error('R2_SECRET_ACCESS_KEY 配置错误：这应该是一个密钥字符串，而不是URL。请检查你的环境变量配置。')
+    }
+    
+    throw new Error('R2客户端未配置。请设置环境变量: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, 和 R2_SECRET_ACCESS_KEY')
   }
 
   try {
@@ -76,21 +91,48 @@ export async function listR2Files(prefix?: string, maxKeys: number = 100): Promi
       MaxKeys: maxKeys,
     })
 
+    console.log('正在列出R2文件:', {
+      bucket: R2_BUCKET_NAME,
+      prefix: prefix || '根目录',
+      maxKeys,
+      endpoint: R2_S3_ENDPOINT,
+    })
+
     const response = await r2Client.send(command)
 
+    const files = response.Contents?.map((item) => ({
+      key: item.Key,
+      size: item.Size,
+      lastModified: item.LastModified,
+      url: item.Key ? getPublicUrl(item.Key) : null,
+    })) || []
+
+    console.log(`成功获取 ${files.length} 个文件`)
+
     return {
-      files: response.Contents?.map((item) => ({
-        key: item.Key,
-        size: item.Size,
-        lastModified: item.LastModified,
-        url: item.Key ? getPublicUrl(item.Key) : null,
-      })) || [],
+      files,
       isTruncated: response.IsTruncated,
       nextContinuationToken: response.NextContinuationToken,
     }
   } catch (error) {
-    console.error('Failed to list R2 files:', error)
-    throw new Error(`Failed to list files: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    console.error('列出R2文件失败:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      bucket: R2_BUCKET_NAME,
+      prefix: prefix || '根目录',
+      endpoint: R2_S3_ENDPOINT,
+    })
+    
+    // 提供更详细的错误信息
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    if (errorMessage.includes('InvalidAccessKeyId') || errorMessage.includes('SignatureDoesNotMatch')) {
+      throw new Error('R2凭证无效。请检查 R2_ACCESS_KEY_ID 和 R2_SECRET_ACCESS_KEY 是否正确。注意：R2_SECRET_ACCESS_KEY 应该是密钥字符串，不是URL。')
+    }
+    if (errorMessage.includes('NoSuchBucket')) {
+      throw new Error(`R2存储桶不存在: ${R2_BUCKET_NAME}。请检查 R2_BUCKET_NAME 环境变量。`)
+    }
+    
+    throw new Error(`列出文件失败: ${errorMessage}`)
   }
 }
 
