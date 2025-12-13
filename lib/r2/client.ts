@@ -18,28 +18,40 @@ if (R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY) {
   const cleanAccessKey = R2_ACCESS_KEY_ID.trim()
   let cleanSecretKey = R2_SECRET_ACCESS_KEY.trim()
   
-  // 验证密钥格式
-  const secretKeyLength = cleanSecretKey.length
+  // Cloudflare R2 Secret Access Key 格式处理
+  // 如果提供的是64字符的十六进制，需要转换为Base64格式
+  // AWS SDK 期望 Secret Access Key 是 Base64 编码的字符串（通常是32-44字符）
+  const originalSecretLength = cleanSecretKey.length
   
-  // Cloudflare R2 Secret Access Key 通常需要是 Base64 编码（40个字符）
-  // 如果是64个字符的十六进制，需要转换为二进制再转Base64
-  if (secretKeyLength === 64) {
-    // 尝试将64字符的十六进制转换为Base64
+  if (originalSecretLength === 64) {
+    // 64字符十六进制 = 32字节
+    // 尝试将十六进制转换为Base64
     try {
-      // 将十六进制字符串转换为Buffer
-      const hexBuffer = Buffer.from(cleanSecretKey, 'hex')
-      // 转换为Base64
-      cleanSecretKey = hexBuffer.toString('base64')
-      console.log('已将64字符十六进制Secret Access Key转换为Base64格式')
-    } catch {
-      console.warn('无法将Secret Access Key从十六进制转换为Base64，将使用原始值')
+      // 验证是否为有效的十六进制字符串
+      if (/^[0-9a-fA-F]{64}$/.test(cleanSecretKey)) {
+        // 将十六进制字符串转换为Buffer（32字节）
+        const hexBuffer = Buffer.from(cleanSecretKey, 'hex')
+        // 转换为Base64（32字节 -> 44字符，包含填充）
+        // 去掉Base64填充，得到43字符（某些情况下可能需要）
+        cleanSecretKey = hexBuffer.toString('base64').replace(/=+$/, '')
+        console.log(`已将64字符十六进制Secret Access Key转换为Base64格式（${cleanSecretKey.length}字符）`)
+      } else {
+        console.warn('Secret Access Key不是有效的64字符十六进制格式，使用原始值')
+      }
+    } catch (error) {
+      console.warn('无法转换Secret Access Key格式，使用原始值:', error)
     }
   }
   
-  // 最终检查
-  const finalSecretLength = cleanSecretKey.length
-  if (finalSecretLength !== 32 && finalSecretLength !== 40 && finalSecretLength !== 64) {
-    console.warn(`R2 Secret Access Key 长度异常: ${finalSecretLength} 字符。Cloudflare R2 通常需要 40 个字符（Base64）。`)
+  // 记录转换信息用于调试
+  if (originalSecretLength === 64 && cleanSecretKey.length !== 64) {
+    console.log('R2 Secret Access Key转换信息:', {
+      原始长度: originalSecretLength,
+      原始格式: '64字符十六进制',
+      转换后长度: cleanSecretKey.length,
+      转换后格式: 'Base64',
+      转换后前10字符: cleanSecretKey.substring(0, 10) + '...',
+    })
   }
   
   try {
@@ -51,19 +63,57 @@ if (R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY) {
         secretAccessKey: cleanSecretKey,
       },
     })
+    console.log('R2客户端创建成功')
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    console.error('创建 R2 客户端失败:', {
+    const errorDetails = {
       error: errorMessage,
       accessKeyLength: cleanAccessKey.length,
-      secretKeyLength: finalSecretLength,
-      originalSecretLength: R2_SECRET_ACCESS_KEY.trim().length,
+      secretKeyLength: cleanSecretKey.length,
+      originalSecretLength: originalSecretLength,
       accessKeyPreview: cleanAccessKey.substring(0, 10) + '...',
       secretKeyPreview: cleanSecretKey.substring(0, 10) + '...',
-      hint: errorMessage.includes('length') 
-        ? '密钥长度错误。Cloudflare R2 Secret Access Key 应该是 40 个字符的 Base64 编码。如果提供的是64字符十六进制，代码会尝试自动转换。'
-        : '请检查密钥是否正确，确保没有额外的空格或字符。',
-    })
+      wasConverted: originalSecretLength === 64 && cleanSecretKey.length !== 64,
+    }
+    
+    console.error('创建 R2 客户端失败 - 详细信息:', errorDetails)
+    
+    // 如果是长度错误，提供更明确的提示和解决方案
+    if (errorMessage.includes('length') && errorMessage.includes('32')) {
+      // 尝试使用原始64字符的前32字符（作为最后的尝试）
+      if (originalSecretLength === 64 && cleanSecretKey.length === 43) {
+        console.warn('Base64转换后长度为43，尝试使用原始十六进制的前32字符...')
+        const fallbackSecret = R2_SECRET_ACCESS_KEY.trim().substring(0, 32)
+        try {
+          const fallbackClient = new S3Client({
+            region: 'auto',
+            endpoint: R2_S3_ENDPOINT,
+            credentials: {
+              accessKeyId: cleanAccessKey,
+              secretAccessKey: fallbackSecret,
+            },
+          })
+          r2Client = fallbackClient
+          console.log('使用前32字符成功创建R2客户端')
+        } catch (fallbackError) {
+          console.warn('使用前32字符也失败:', fallbackError)
+          throw new Error(
+            `R2密钥长度错误: Secret Access Key长度为${cleanSecretKey.length}字符（原始${originalSecretLength}字符），AWS SDK期望32字符。` +
+            `代码已尝试：1) 将64字符十六进制转换为Base64(${cleanSecretKey.length}字符) 2) 使用前32字符。` +
+            `所有尝试都失败。` +
+            `可能原因：Cloudflare R2 Secret Access Key格式与AWS SDK不兼容。` +
+            `建议：联系Cloudflare支持或查看R2文档确认正确的密钥格式。`
+          )
+        }
+      } else {
+        throw new Error(
+          `R2密钥长度错误: Secret Access Key长度为${cleanSecretKey.length}字符（原始${originalSecretLength}字符），AWS SDK期望32字符。` +
+          `代码已尝试将64字符十六进制转换为Base64，但仍不匹配。` +
+          `建议：联系Cloudflare支持或查看R2文档确认正确的密钥格式。`
+        )
+      }
+    }
+    
     throw error
   }
 }
