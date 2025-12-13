@@ -15,29 +15,19 @@ let r2Client: S3Client | null = null
 
 /**
  * 获取正确的Secret Access Key（处理64字符十六进制格式）
- * AWS SDK期望32字符的密钥，对于64字符的十六进制密钥，使用前32字符
+ * 对于Cloudflare R2的64字符十六进制密钥，尝试多种格式
  */
 function getValidSecretAccessKey(secret: string): string {
   const trimmed = secret.trim()
   
-  // 如果是64字符的十六进制，使用前32字符（AWS SDK期望32字符）
+  // 如果是64字符的十六进制，尝试多种方法
   if (trimmed.length === 64 && /^[0-9a-fA-F]{64}$/i.test(trimmed)) {
-    const first32Chars = trimmed.substring(0, 32)
-    console.log(`[R2] 检测到64字符十六进制密钥，使用前32字符: ${first32Chars.substring(0, 8)}...`)
-    return first32Chars
-  }
-  
-  // 如果已经是32字符或更短，直接返回
-  if (trimmed.length <= 32) {
+    // 方法1: 尝试直接使用完整的64字符（Cloudflare R2可能支持）
+    console.log(`[R2] 检测到64字符十六进制密钥，尝试使用完整64字符`)
     return trimmed
   }
   
-  // 如果长度超过32但不是64，使用前32字符
-  if (trimmed.length > 32) {
-    console.warn(`[R2] 密钥长度${trimmed.length}，使用前32字符`)
-    return trimmed.substring(0, 32)
-  }
-  
+  // 如果已经是其他长度，直接返回
   return trimmed
 }
 
