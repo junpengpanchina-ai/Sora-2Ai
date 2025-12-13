@@ -77,16 +77,40 @@ function initializeR2Client(): void {
         secretAccessKey: validSecret,
       },
     })
-    console.log('[R2] 客户端创建成功')
+    console.log('[R2] 客户端创建成功，密钥长度:', validSecret.length)
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    console.error('[R2] 客户端创建失败:', {
+    
+    // 详细的错误信息用于调试
+    const debugInfo = {
       error: errorMessage,
+      accessKeyId: cleanAccessKey.substring(0, 8) + '...',
       accessKeyLength: cleanAccessKey.length,
-      secretLength: validSecret.length,
+      originalSecretLength: originalSecret.length,
+      originalSecretPreview: originalSecret.substring(0, 8) + '...',
+      validSecretLength: validSecret.length,
+      validSecretPreview: validSecret.substring(0, 8) + '...',
       accountId: R2_ACCOUNT_ID,
       endpoint: R2_S3_ENDPOINT,
-    })
+      bucket: R2_BUCKET_NAME,
+    }
+    
+    console.error('[R2] 客户端创建失败:', debugInfo)
+    
+    // 如果错误信息提到长度问题，提供更详细的说明
+    if (errorMessage.includes('length')) {
+      throw new Error(
+        `R2客户端创建失败: ${errorMessage}\n` +
+        `原始密钥长度: ${originalSecret.length}字符\n` +
+        `处理后密钥长度: ${validSecret.length}字符（应该是32）\n` +
+        `原始密钥预览: ${originalSecret.substring(0, 16)}...\n` +
+        `处理后密钥预览: ${validSecret.substring(0, 16)}...\n` +
+        `Account ID: ${R2_ACCOUNT_ID}\n` +
+        `Endpoint: ${R2_S3_ENDPOINT}\n` +
+        `\n如果密钥长度不是32，请检查 getValidSecretAccessKey 函数的处理逻辑`
+      )
+    }
+    
     throw new Error(
       `R2客户端创建失败: ${errorMessage}\n` +
       `配置详情: Access Key长度=${cleanAccessKey.length}, Secret长度=${validSecret.length}\n` +
