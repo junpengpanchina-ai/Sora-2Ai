@@ -14,14 +14,58 @@ const R2_S3_ENDPOINT = process.env.R2_S3_ENDPOINT || `https://${R2_ACCOUNT_ID}.r
 let r2Client: S3Client | null = null
 
 if (R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY) {
-  r2Client = new S3Client({
-    region: 'auto',
-    endpoint: R2_S3_ENDPOINT,
-    credentials: {
-      accessKeyId: R2_ACCESS_KEY_ID,
-      secretAccessKey: R2_SECRET_ACCESS_KEY,
-    },
-  })
+  // 清理密钥（移除可能的空格、换行等）
+  const cleanAccessKey = R2_ACCESS_KEY_ID.trim()
+  let cleanSecretKey = R2_SECRET_ACCESS_KEY.trim()
+  
+  // 验证密钥格式
+  const secretKeyLength = cleanSecretKey.length
+  
+  // Cloudflare R2 Secret Access Key 通常需要是 Base64 编码（40个字符）
+  // 如果是64个字符的十六进制，需要转换为二进制再转Base64
+  if (secretKeyLength === 64) {
+    // 尝试将64字符的十六进制转换为Base64
+    try {
+      // 将十六进制字符串转换为Buffer
+      const hexBuffer = Buffer.from(cleanSecretKey, 'hex')
+      // 转换为Base64
+      cleanSecretKey = hexBuffer.toString('base64')
+      console.log('已将64字符十六进制Secret Access Key转换为Base64格式')
+    } catch {
+      console.warn('无法将Secret Access Key从十六进制转换为Base64，将使用原始值')
+    }
+  }
+  
+  // 最终检查
+  const finalSecretLength = cleanSecretKey.length
+  if (finalSecretLength !== 32 && finalSecretLength !== 40 && finalSecretLength !== 64) {
+    console.warn(`R2 Secret Access Key 长度异常: ${finalSecretLength} 字符。Cloudflare R2 通常需要 40 个字符（Base64）。`)
+  }
+  
+  try {
+    r2Client = new S3Client({
+      region: 'auto',
+      endpoint: R2_S3_ENDPOINT,
+      credentials: {
+        accessKeyId: cleanAccessKey,
+        secretAccessKey: cleanSecretKey,
+      },
+    })
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    console.error('创建 R2 客户端失败:', {
+      error: errorMessage,
+      accessKeyLength: cleanAccessKey.length,
+      secretKeyLength: finalSecretLength,
+      originalSecretLength: R2_SECRET_ACCESS_KEY.trim().length,
+      accessKeyPreview: cleanAccessKey.substring(0, 10) + '...',
+      secretKeyPreview: cleanSecretKey.substring(0, 10) + '...',
+      hint: errorMessage.includes('length') 
+        ? '密钥长度错误。Cloudflare R2 Secret Access Key 应该是 40 个字符的 Base64 编码。如果提供的是64字符十六进制，代码会尝试自动转换。'
+        : '请检查密钥是否正确，确保没有额外的空格或字符。',
+    })
+    throw error
+  }
 }
 
 /**
