@@ -66,10 +66,15 @@ function initializeR2Client(): void {
   })
   
   // 尝试创建客户端，如果失败则尝试fallback
-  const attempts = [
-    { secret: convertedSecret, name: '转换后的密钥' },
-    { secret: originalSecret.substring(0, 32), name: '前32字符' },
-  ]
+  // 注意：AWS SDK期望32字符，所以优先尝试前32字符
+  const attempts = originalSecret.length === 64 
+    ? [
+        { secret: originalSecret.substring(0, 32), name: '前32字符（优先）' },
+        { secret: convertedSecret, name: 'Base64转换后' },
+      ]
+    : [
+        { secret: convertedSecret, name: '转换后的密钥' },
+      ]
   
   for (const attempt of attempts) {
     try {
