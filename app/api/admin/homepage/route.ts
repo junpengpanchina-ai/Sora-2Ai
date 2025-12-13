@@ -99,16 +99,25 @@ export async function PUT(request: NextRequest) {
     if (cta_primary_text_logged_out !== undefined) updateData.cta_primary_text_logged_out = cta_primary_text_logged_out
     if (cta_secondary_text !== undefined) updateData.cta_secondary_text = cta_secondary_text
 
+    console.log('[保存首页配置] 更新数据:', JSON.stringify(updateData, null, 2))
+
     // 获取当前激活的配置ID
-    const { data: currentSettings } = await supabase
+    const { data: currentSettings, error: queryError } = await supabase
       .from('homepage_settings')
       .select('id')
       .eq('is_active', true)
-      .single()
+      .maybeSingle()
+
+    if (queryError && (queryError as { code?: string }).code !== 'PGRST116') {
+      console.error('[保存首页配置] 查询当前配置失败:', queryError)
+      // 如果查询失败但不是"未找到"错误，记录但继续（可能没有配置）
+    }
 
     let result
     if (currentSettings && (currentSettings as { id?: string }).id) {
       const currentId = (currentSettings as { id: string }).id
+      console.log('[保存首页配置] 更新现有配置，ID:', currentId)
+      
       // 更新现有配置
       const { data, error } = await supabase
         .from('homepage_settings')
@@ -118,14 +127,27 @@ export async function PUT(request: NextRequest) {
         .single()
 
       if (error) {
-        console.error('更新首页配置失败:', error)
+        console.error('[保存首页配置] 更新失败:', {
+          error,
+          errorCode: (error as { code?: string }).code,
+          errorMessage: (error as { message?: string }).message,
+          errorDetails: (error as { details?: string }).details,
+          updateData,
+        })
         return NextResponse.json(
-          { error: '更新首页配置失败', details: error.message },
+          { 
+            error: '更新首页配置失败', 
+            details: (error as { message?: string }).message || 'Unknown error',
+            errorCode: (error as { code?: string }).code,
+          },
           { status: 500 }
         )
       }
       result = data
+      console.log('[保存首页配置] 更新成功')
     } else {
+      console.log('[保存首页配置] 创建新配置')
+      
       // 创建新配置
       updateData.is_active = true
       updateData.created_by = adminUser.id
@@ -136,13 +158,24 @@ export async function PUT(request: NextRequest) {
         .single()
 
       if (error) {
-        console.error('创建首页配置失败:', error)
+        console.error('[保存首页配置] 创建失败:', {
+          error,
+          errorCode: (error as { code?: string }).code,
+          errorMessage: (error as { message?: string }).message,
+          errorDetails: (error as { details?: string }).details,
+          updateData,
+        })
         return NextResponse.json(
-          { error: '创建首页配置失败', details: error.message },
+          { 
+            error: '创建首页配置失败', 
+            details: (error as { message?: string }).message || 'Unknown error',
+            errorCode: (error as { code?: string }).code,
+          },
           { status: 500 }
         )
       }
       result = data
+      console.log('[保存首页配置] 创建成功')
     }
 
     return NextResponse.json({
@@ -151,9 +184,17 @@ export async function PUT(request: NextRequest) {
       message: '首页配置已保存',
     })
   } catch (error) {
-    console.error('保存首页配置异常:', error)
+    console.error('[保存首页配置] 异常:', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorStack: error instanceof Error ? error.stack : undefined,
+    })
     return NextResponse.json(
-      { error: '服务器错误', details: error instanceof Error ? error.message : '未知错误' },
+      { 
+        error: '服务器错误', 
+        details: error instanceof Error ? error.message : '未知错误',
+        stack: error instanceof Error ? error.stack : undefined,
+      },
       { status: 500 }
     )
   }
