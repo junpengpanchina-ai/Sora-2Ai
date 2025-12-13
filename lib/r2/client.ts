@@ -217,6 +217,11 @@ export async function listR2Files(prefix?: string, maxKeys: number = 100): Promi
       endpoint: R2_S3_ENDPOINT,
     })
 
+    // 在实际使用前，再次确认客户端配置
+    if (!r2Client) {
+      throw new Error('R2客户端未初始化')
+    }
+
     const response = await r2Client.send(command)
 
     const files = response.Contents?.map((item) => ({
