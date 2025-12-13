@@ -633,7 +633,475 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
           </div>
         </CardContent>
       </Card>
+
+      {/* 支付计划管理 */}
+      <PaymentPlansManager onShowBanner={onShowBanner} />
     </div>
+  )
+}
+
+// 支付计划管理组件
+interface PaymentPlan {
+  id: string
+  plan_name: string
+  plan_type: 'basic' | 'professional' | 'custom'
+  display_order: number
+  amount: number
+  currency: string
+  credits: number
+  videos: number
+  description: string | null
+  badge_text: string | null
+  stripe_buy_button_id: string | null
+  stripe_payment_link_id: string | null
+  is_active: boolean
+  is_recommended: boolean
+  created_at: string
+  updated_at: string
+}
+
+function PaymentPlansManager({ onShowBanner }: { onShowBanner: (type: 'success' | 'error', text: string) => void }) {
+  const [plans, setPlans] = useState<PaymentPlan[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState<Record<string, boolean>>({})
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<Partial<PaymentPlan>>({})
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [newForm, setNewForm] = useState<Partial<PaymentPlan>>({})
+
+  const loadPlans = useCallback(async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/admin/payment-plans')
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || '加载支付计划失败')
+      }
+
+      setPlans(data.plans || [])
+    } catch (error) {
+      console.error('加载支付计划失败:', error)
+      onShowBanner('error', error instanceof Error ? error.message : '加载支付计划失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [onShowBanner])
+
+  useEffect(() => {
+    loadPlans()
+  }, [loadPlans])
+
+  const handleSave = useCallback(async (plan: PaymentPlan) => {
+    try {
+      setSaving((prev) => ({ ...prev, [plan.id]: true }))
+      const response = await fetch('/api/admin/payment-plans', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...plan, ...editForm }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || '保存失败')
+      }
+
+      setEditingId(null)
+      setEditForm({})
+      await loadPlans()
+      onShowBanner('success', '支付计划已更新')
+    } catch (error) {
+      console.error('保存支付计划失败:', error)
+      onShowBanner('error', error instanceof Error ? error.message : '保存失败')
+    } finally {
+      setSaving((prev) => ({ ...prev, [plan.id]: false }))
+    }
+  }, [editForm, loadPlans, onShowBanner])
+
+  const handleCreate = useCallback(async () => {
+    try {
+      setSaving((prev) => ({ ...prev, new: true }))
+      const response = await fetch('/api/admin/payment-plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newForm),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || '创建失败')
+      }
+
+      setShowAddForm(false)
+      setNewForm({})
+      await loadPlans()
+      onShowBanner('success', '支付计划已创建')
+    } catch (error) {
+      console.error('创建支付计划失败:', error)
+      onShowBanner('error', error instanceof Error ? error.message : '创建失败')
+    } finally {
+      setSaving((prev) => ({ ...prev, new: false }))
+    }
+  }, [newForm, loadPlans, onShowBanner])
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="py-8">
+          <p className="text-center text-gray-500">加载支付计划中...</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>支付计划管理</CardTitle>
+            <p className="text-sm text-gray-500">管理支付计划的名称、价格、描述、Stripe按钮ID等</p>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowAddForm(true)}
+          >
+            + 添加计划
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* 添加新计划表单 */}
+        {showAddForm && (
+          <div className="border rounded-lg p-4 space-y-4 bg-gray-50 dark:bg-gray-900">
+            <h4 className="font-semibold">添加新支付计划</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">计划名称</label>
+                <Input
+                  value={newForm.plan_name || ''}
+                  onChange={(e) => setNewForm((prev) => ({ ...prev, plan_name: e.target.value }))}
+                  placeholder="例如: Basic Plan"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">计划类型</label>
+                <select
+                  value={newForm.plan_type || 'custom'}
+                  onChange={(e) => setNewForm((prev) => ({ ...prev, plan_type: e.target.value as PaymentPlan['plan_type'] }))}
+                  className="w-full px-3 py-2 border rounded-md"
+                >
+                  <option value="basic">Basic</option>
+                  <option value="professional">Professional</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">价格 ($)</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={newForm.amount || ''}
+                  onChange={(e) => setNewForm((prev) => ({ ...prev, amount: parseFloat(e.target.value) }))}
+                  placeholder="39.00"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">视频数量</label>
+                <Input
+                  type="number"
+                  value={newForm.videos || ''}
+                  onChange={(e) => setNewForm((prev) => ({ ...prev, videos: parseInt(e.target.value) }))}
+                  placeholder="50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">积分数量</label>
+                <Input
+                  type="number"
+                  value={newForm.credits || ''}
+                  onChange={(e) => setNewForm((prev) => ({ ...prev, credits: parseInt(e.target.value) }))}
+                  placeholder="500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">显示顺序</label>
+                <Input
+                  type="number"
+                  value={newForm.display_order || 0}
+                  onChange={(e) => setNewForm((prev) => ({ ...prev, display_order: parseInt(e.target.value) }))}
+                  placeholder="0"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium mb-1">描述</label>
+                <Textarea
+                  value={newForm.description || ''}
+                  onChange={(e) => setNewForm((prev) => ({ ...prev, description: e.target.value }))}
+                  placeholder="Perfect for individual users and small projects"
+                  rows={2}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Stripe Buy Button ID</label>
+                <Input
+                  value={newForm.stripe_buy_button_id || ''}
+                  onChange={(e) => setNewForm((prev) => ({ ...prev, stripe_buy_button_id: e.target.value }))}
+                  placeholder="buy_btn_xxxxx"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Stripe Payment Link ID</label>
+                <Input
+                  value={newForm.stripe_payment_link_id || ''}
+                  onChange={(e) => setNewForm((prev) => ({ ...prev, stripe_payment_link_id: e.target.value }))}
+                  placeholder="dRmcN55nY4k33WXfPa0kE03"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">徽章文本（可选）</label>
+                <Input
+                  value={newForm.badge_text || ''}
+                  onChange={(e) => setNewForm((prev) => ({ ...prev, badge_text: e.target.value }))}
+                  placeholder="Recommended"
+                />
+              </div>
+              <div className="col-span-2 flex items-center gap-4">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={newForm.is_active !== false}
+                    onChange={(e) => setNewForm((prev) => ({ ...prev, is_active: e.target.checked }))}
+                  />
+                  <span className="text-sm">启用</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={newForm.is_recommended || false}
+                    onChange={(e) => setNewForm((prev) => ({ ...prev, is_recommended: e.target.checked }))}
+                  />
+                  <span className="text-sm">推荐</span>
+                </label>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setShowAddForm(false)
+                  setNewForm({})
+                }}
+              >
+                取消
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleCreate}
+                disabled={saving.new}
+              >
+                {saving.new ? '创建中...' : '创建计划'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* 计划列表 */}
+        {plans.map((plan) => (
+          <div key={plan.id} className="border rounded-lg p-4 space-y-4">
+            {editingId === plan.id ? (
+              // 编辑模式
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">计划名称</label>
+                    <Input
+                      value={editForm.plan_name ?? plan.plan_name}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, plan_name: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">计划类型</label>
+                    <select
+                      value={editForm.plan_type ?? plan.plan_type}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, plan_type: e.target.value as PaymentPlan['plan_type'] }))}
+                      className="w-full px-3 py-2 border rounded-md"
+                    >
+                      <option value="basic">Basic</option>
+                      <option value="professional">Professional</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">价格 ($)</label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={editForm.amount ?? plan.amount}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, amount: parseFloat(e.target.value) }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">视频数量</label>
+                    <Input
+                      type="number"
+                      value={editForm.videos ?? plan.videos}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, videos: parseInt(e.target.value) }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">积分数量</label>
+                    <Input
+                      type="number"
+                      value={editForm.credits ?? plan.credits}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, credits: parseInt(e.target.value) }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">显示顺序</label>
+                    <Input
+                      type="number"
+                      value={editForm.display_order ?? plan.display_order}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, display_order: parseInt(e.target.value) }))}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium mb-1">描述</label>
+                    <Textarea
+                      value={editForm.description ?? plan.description ?? ''}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+                      rows={2}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Stripe Buy Button ID</label>
+                    <Input
+                      value={editForm.stripe_buy_button_id ?? plan.stripe_buy_button_id ?? ''}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, stripe_buy_button_id: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Stripe Payment Link ID</label>
+                    <Input
+                      value={editForm.stripe_payment_link_id ?? plan.stripe_payment_link_id ?? ''}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, stripe_payment_link_id: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">徽章文本（可选）</label>
+                    <Input
+                      value={editForm.badge_text ?? plan.badge_text ?? ''}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, badge_text: e.target.value }))}
+                    />
+                  </div>
+                  <div className="col-span-2 flex items-center gap-4">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={editForm.is_active !== undefined ? editForm.is_active : plan.is_active}
+                        onChange={(e) => setEditForm((prev) => ({ ...prev, is_active: e.target.checked }))}
+                      />
+                      <span className="text-sm">启用</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={editForm.is_recommended !== undefined ? editForm.is_recommended : plan.is_recommended}
+                        onChange={(e) => setEditForm((prev) => ({ ...prev, is_recommended: e.target.checked }))}
+                      />
+                      <span className="text-sm">推荐</span>
+                    </label>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setEditingId(null)
+                      setEditForm({})
+                    }}
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleSave(plan)}
+                    disabled={saving[plan.id]}
+                  >
+                    {saving[plan.id] ? '保存中...' : '保存'}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              // 查看模式
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-semibold text-lg">{plan.plan_name}</h4>
+                    {plan.badge_text && (
+                      <span className="inline-block px-2 py-1 text-xs bg-energy-water text-white rounded">
+                        {plan.badge_text}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-1 text-xs rounded ${plan.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                      {plan.is_active ? '启用' : '禁用'}
+                    </span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setEditingId(plan.id)
+                        setEditForm({})
+                      }}
+                    >
+                      编辑
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500">价格:</span>
+                    <span className="ml-2 font-semibold">${plan.amount} {plan.currency.toUpperCase()}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">视频:</span>
+                    <span className="ml-2 font-semibold">{plan.videos}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">积分:</span>
+                    <span className="ml-2 font-semibold">{plan.credits}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">单价:</span>
+                    <span className="ml-2 font-semibold">~ ${(plan.amount / plan.videos).toFixed(2)}/video</span>
+                  </div>
+                </div>
+                {plan.description && (
+                  <p className="text-sm text-gray-600">{plan.description}</p>
+                )}
+                <div className="text-xs text-gray-500 space-y-1">
+                  {plan.stripe_buy_button_id && (
+                    <div>Stripe Button ID: <code className="bg-gray-100 px-1 rounded">{plan.stripe_buy_button_id}</code></div>
+                  )}
+                  {plan.stripe_payment_link_id && (
+                    <div>Payment Link ID: <code className="bg-gray-100 px-1 rounded">{plan.stripe_payment_link_id}</code></div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   )
 }
 
