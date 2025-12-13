@@ -22,13 +22,20 @@ export async function GET(request: NextRequest) {
 
     // 检查环境变量配置
     const hasR2Config = process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY
+    const secretKey = process.env.R2_SECRET_ACCESS_KEY || ''
+    const secretLength = secretKey.length
+    
+    // 记录配置信息用于调试
+    console.log('[API] R2配置检查:', {
+      hasAccessKey: !!process.env.R2_ACCESS_KEY_ID,
+      hasSecretKey: !!process.env.R2_SECRET_ACCESS_KEY,
+      secretKeyLength: secretLength,
+      secretKeyPreview: secretKey.substring(0, 10) + '...',
+      accountId: process.env.R2_ACCOUNT_ID,
+      bucket: process.env.R2_BUCKET_NAME,
+    })
+    
     if (!hasR2Config) {
-      console.error('R2配置检查:', {
-        hasAccessKey: !!process.env.R2_ACCESS_KEY_ID,
-        hasSecretKey: !!process.env.R2_SECRET_ACCESS_KEY,
-        accountId: process.env.R2_ACCOUNT_ID,
-        bucket: process.env.R2_BUCKET_NAME,
-      })
       return NextResponse.json(
         { 
           success: false,
