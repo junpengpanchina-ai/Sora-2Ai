@@ -14,30 +14,30 @@ const R2_S3_ENDPOINT = process.env.R2_S3_ENDPOINT || `https://${R2_ACCOUNT_ID}.r
 let r2Client: S3Client | null = null
 
 /**
- * 转换Cloudflare R2 Secret Access Key格式
- * 将64字符十六进制转换为AWS SDK期望的格式
+ * 获取正确的Secret Access Key（处理64字符十六进制格式）
+ * AWS SDK期望32字符的密钥，对于64字符的十六进制密钥，使用前32字符
  */
-function convertSecretAccessKey(secret: string): string {
+function getValidSecretAccessKey(secret: string): string {
   const trimmed = secret.trim()
   
-  // 如果是64字符的十六进制，尝试转换
+  // 如果是64字符的十六进制，使用前32字符（AWS SDK期望32字符）
   if (trimmed.length === 64 && /^[0-9a-fA-F]{64}$/i.test(trimmed)) {
-    try {
-      // 方法1: 转换为Base64
-      const hexBuffer = Buffer.from(trimmed, 'hex')
-      const base64Secret = hexBuffer.toString('base64').replace(/=+$/, '')
-      console.log(`[R2] 已将64字符十六进制转换为Base64: ${base64Secret.length}字符`)
-      return base64Secret
-    } catch (error) {
-      console.warn('[R2] Base64转换失败，尝试其他方法:', error)
-    }
-    
-    // 方法2: 如果Base64失败，尝试使用前32字符
-    console.warn('[R2] 尝试使用前32字符作为fallback')
+    const first32Chars = trimmed.substring(0, 32)
+    console.log(`[R2] 检测到64字符十六进制密钥，使用前32字符: ${first32Chars.substring(0, 8)}...`)
+    return first32Chars
+  }
+  
+  // 如果已经是32字符或更短，直接返回
+  if (trimmed.length <= 32) {
+    return trimmed
+  }
+  
+  // 如果长度超过32但不是64，使用前32字符
+  if (trimmed.length > 32) {
+    console.warn(`[R2] 密钥长度${trimmed.length}，使用前32字符`)
     return trimmed.substring(0, 32)
   }
   
-  // 如果已经是其他格式，直接返回
   return trimmed
 }
 
@@ -54,59 +54,45 @@ function initializeR2Client(): void {
   
   const cleanAccessKey = R2_ACCESS_KEY_ID.trim()
   const originalSecret = R2_SECRET_ACCESS_KEY.trim()
-  
-  // 转换Secret Access Key
-  const convertedSecret = convertSecretAccessKey(originalSecret)
+  const validSecret = getValidSecretAccessKey(originalSecret)
   
   console.log('[R2] 初始化客户端:', {
     accessKeyLength: cleanAccessKey.length,
+    accessKeyPreview: cleanAccessKey.substring(0, 8) + '...',
     originalSecretLength: originalSecret.length,
-    convertedSecretLength: convertedSecret.length,
-    wasConverted: originalSecret.length === 64 && convertedSecret.length !== 64,
+    originalSecretPreview: originalSecret.substring(0, 8) + '...',
+    validSecretLength: validSecret.length,
+    validSecretPreview: validSecret.substring(0, 8) + '...',
+    accountId: R2_ACCOUNT_ID,
+    bucket: R2_BUCKET_NAME,
+    endpoint: R2_S3_ENDPOINT,
   })
   
-  // 尝试创建客户端，如果失败则尝试fallback
-  // 注意：AWS SDK期望32字符，所以优先尝试前32字符
-  const attempts = originalSecret.length === 64 
-    ? [
-        { secret: originalSecret.substring(0, 32), name: '前32字符（优先）' },
-        { secret: convertedSecret, name: 'Base64转换后' },
-      ]
-    : [
-        { secret: convertedSecret, name: '转换后的密钥' },
-      ]
-  
-  for (const attempt of attempts) {
-    try {
-      r2Client = new S3Client({
-        region: 'auto',
-        endpoint: R2_S3_ENDPOINT,
-        credentials: {
-          accessKeyId: cleanAccessKey,
-          secretAccessKey: attempt.secret,
-        },
-      })
-      console.log(`[R2] 客户端创建成功 (使用${attempt.name})`)
-      return
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      console.warn(`[R2] 使用${attempt.name}失败:`, errorMessage)
-      
-      // 如果是长度错误且还有其他尝试，继续
-      if (errorMessage.includes('length') && attempt !== attempts[attempts.length - 1]) {
-        continue
-      }
-      
-      // 最后一次尝试失败，抛出错误
-      if (attempt === attempts[attempts.length - 1]) {
-        throw new Error(
-          `R2客户端创建失败: ${errorMessage}\n` +
-          `已尝试: 1) 64字符十六进制转Base64 2) 使用前32字符\n` +
-          `Access Key长度: ${cleanAccessKey.length}, Secret长度: ${attempt.secret.length}\n` +
-          `建议: 检查Cloudflare R2 API Token格式，或联系Cloudflare支持`
-        )
-      }
-    }
+  try {
+    r2Client = new S3Client({
+      region: 'auto',
+      endpoint: R2_S3_ENDPOINT,
+      credentials: {
+        accessKeyId: cleanAccessKey,
+        secretAccessKey: validSecret,
+      },
+    })
+    console.log('[R2] 客户端创建成功')
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    console.error('[R2] 客户端创建失败:', {
+      error: errorMessage,
+      accessKeyLength: cleanAccessKey.length,
+      secretLength: validSecret.length,
+      accountId: R2_ACCOUNT_ID,
+      endpoint: R2_S3_ENDPOINT,
+    })
+    throw new Error(
+      `R2客户端创建失败: ${errorMessage}\n` +
+      `配置详情: Access Key长度=${cleanAccessKey.length}, Secret长度=${validSecret.length}\n` +
+      `Account ID=${R2_ACCOUNT_ID}, Endpoint=${R2_S3_ENDPOINT}\n` +
+      `建议: 检查环境变量配置，确保R2_ACCESS_KEY_ID和R2_SECRET_ACCESS_KEY正确`
+    )
   }
 }
 
@@ -169,6 +155,8 @@ export async function listR2Files(prefix?: string, maxKeys: number = 100): Promi
         hasAccessKey: !!R2_ACCESS_KEY_ID,
         hasSecretKey: !!R2_SECRET_ACCESS_KEY,
         hasBucket: !!R2_BUCKET_NAME,
+        accessKeyLength: R2_ACCESS_KEY_ID?.length || 0,
+        secretKeyLength: R2_SECRET_ACCESS_KEY?.length || 0,
         secretLooksLikeUrl: R2_SECRET_ACCESS_KEY && (R2_SECRET_ACCESS_KEY.startsWith('http://') || R2_SECRET_ACCESS_KEY.startsWith('https://')),
       }
       
@@ -176,7 +164,13 @@ export async function listR2Files(prefix?: string, maxKeys: number = 100): Promi
         throw new Error('R2_SECRET_ACCESS_KEY 配置错误：这应该是一个密钥字符串，而不是URL。请检查你的环境变量配置。')
       }
       
-      throw new Error('R2客户端未配置。请设置环境变量: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, 和 R2_SECRET_ACCESS_KEY')
+      if (!configStatus.hasAccessKey || !configStatus.hasSecretKey) {
+        throw new Error('R2客户端未配置。请设置环境变量: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, 和 R2_SECRET_ACCESS_KEY')
+      }
+      
+      // 如果配置存在但初始化失败，抛出详细错误
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      throw new Error(`R2客户端初始化失败: ${errorMessage}`)
     }
   }
   
