@@ -1,0 +1,103 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { validateAdminSession } from '@/lib/admin-auth'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+
+const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || '2776117bb412e09a1d30cbe886cd3935'
+const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID || ''
+const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY || ''
+const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || 'sora2'
+const R2_S3_ENDPOINT = process.env.R2_S3_ENDPOINT || `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-2868c824f92441499577980a0b61114c.r2.dev'
+
+// POST - 上传文件到R2（管理员专用）
+export async function POST(request: NextRequest) {
+  try {
+    const adminUser = await validateAdminSession()
+    if (!adminUser) {
+      return NextResponse.json(
+        { error: '未授权，请先登录' },
+        { status: 401 }
+      )
+    }
+
+    if (!R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
+      return NextResponse.json(
+        { error: 'R2凭证未配置，无法上传文件' },
+        { status: 500 }
+      )
+    }
+
+    const formData = await request.formData()
+    const file = formData.get('file') as File | null
+    const folder = formData.get('folder') as string | null || 'images' // 默认上传到images文件夹
+
+    if (!file) {
+      return NextResponse.json(
+        { error: '未提供文件' },
+        { status: 400 }
+      )
+    }
+
+    // 验证文件类型
+    const fileType = file.type
+    const isImage = fileType.startsWith('image/')
+    const isVideo = fileType.startsWith('video/')
+    
+    if (!isImage && !isVideo) {
+      return NextResponse.json(
+        { error: '不支持的文件类型，仅支持图片和视频' },
+        { status: 400 }
+      )
+    }
+
+    // 生成文件路径
+    const timestamp = Date.now()
+    const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const fileKey = `${folder}/${timestamp}_${sanitizedName}`
+
+    // 读取文件内容
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    // 创建S3客户端并上传
+    const s3Client = new S3Client({
+      region: 'auto',
+      endpoint: R2_S3_ENDPOINT,
+      credentials: {
+        accessKeyId: R2_ACCESS_KEY_ID,
+        secretAccessKey: R2_SECRET_ACCESS_KEY,
+      },
+    })
+
+    const command = new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: fileKey,
+      Body: buffer,
+      ContentType: fileType,
+    })
+
+    await s3Client.send(command)
+
+    // 返回文件信息
+    const publicUrl = `${R2_PUBLIC_URL}/${fileKey}`
+
+    return NextResponse.json({
+      success: true,
+      file: {
+        key: fileKey,
+        url: publicUrl,
+        size: file.size,
+        type: fileType,
+        name: file.name,
+      },
+      message: '文件上传成功',
+    })
+  } catch (error) {
+    console.error('上传文件失败:', error)
+    return NextResponse.json(
+      { error: '上传文件失败', details: error instanceof Error ? error.message : '未知错误' },
+      { status: 500 }
+    )
+  }
+}
+
