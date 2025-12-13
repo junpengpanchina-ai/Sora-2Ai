@@ -9,6 +9,26 @@ const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || 'sora2'
 const R2_S3_ENDPOINT = process.env.R2_S3_ENDPOINT || `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
 const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-2868c824f92441499577980a0b61114c.r2.dev'
 
+/**
+ * 获取正确的Secret Access Key（处理64字符十六进制格式）
+ * AWS SDK期望32字符的密钥，对于64字符的十六进制密钥，使用前32字符
+ */
+function getValidSecretAccessKey(secret: string): string {
+  const trimmed = secret.trim()
+  
+  // 如果是64字符的十六进制，使用前32字符（AWS SDK期望32字符）
+  if (trimmed.length === 64 && /^[0-9a-fA-F]{64}$/i.test(trimmed)) {
+    return trimmed.substring(0, 32)
+  }
+  
+  // 如果长度超过32，使用前32字符
+  if (trimmed.length > 32) {
+    return trimmed.substring(0, 32)
+  }
+  
+  return trimmed
+}
+
 // POST - 上传文件到R2（管理员专用）
 export async function POST(request: NextRequest) {
   try {
@@ -59,13 +79,21 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
+    // 处理Secret Access Key（64字符 → 32字符）
+    const validSecretKey = getValidSecretAccessKey(R2_SECRET_ACCESS_KEY)
+    
+    console.log('[R2 Upload] 密钥处理:', {
+      originalLength: R2_SECRET_ACCESS_KEY.length,
+      validLength: validSecretKey.length,
+    })
+    
     // 创建S3客户端并上传
     const s3Client = new S3Client({
       region: 'auto',
       endpoint: R2_S3_ENDPOINT,
       credentials: {
-        accessKeyId: R2_ACCESS_KEY_ID,
-        secretAccessKey: R2_SECRET_ACCESS_KEY,
+        accessKeyId: R2_ACCESS_KEY_ID.trim(),
+        secretAccessKey: validSecretKey,
       },
     })
 
