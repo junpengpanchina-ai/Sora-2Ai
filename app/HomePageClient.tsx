@@ -130,6 +130,10 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         
         const settingsData = await settingsResponse.json()
         if (settingsData.success && settingsData.settings) {
+          console.log('[首页配置] 加载配置:', {
+            theme_style: settingsData.settings.theme_style,
+            ...settingsData.settings,
+          })
           setHomepageSettings(settingsData.settings)
         }
 
@@ -393,6 +397,8 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
 
   // 根据主题样式动态设置背景类
   const themeStyle = homepageSettings?.theme_style || 'cosmic'
+  console.log('[主题样式] 当前主题:', themeStyle, '配置:', homepageSettings)
+  
   const getThemeClasses = () => {
     switch (themeStyle) {
       case 'christmas':

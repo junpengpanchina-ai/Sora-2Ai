@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 
-export const revalidate = 60 // 缓存60秒
+export const dynamic = 'force-dynamic'
+export const revalidate = 0 // 禁用缓存，实时获取最新配置
 
 // GET - 获取首页配置（公开访问）
 export async function GET() {
