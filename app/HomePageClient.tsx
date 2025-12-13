@@ -391,12 +391,57 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       ? Math.round((stats.succeeded / Math.max(stats.total || 1, 1)) * 100)
       : null
 
+  // 根据主题样式动态设置背景类
+  const themeStyle = homepageSettings?.theme_style || 'cosmic'
+  const getThemeClasses = () => {
+    switch (themeStyle) {
+      case 'christmas':
+        return {
+          container: 'relative min-h-screen overflow-hidden text-white christmas-theme',
+          bg: 'christmas-bg',
+          glow: 'christmas-glow',
+          decorations: ['christmas-snow', 'christmas-lights'],
+        }
+      case 'minimal':
+        return {
+          container: 'min-h-screen bg-white text-gray-900',
+          bg: '',
+          glow: '',
+          decorations: [],
+        }
+      case 'modern':
+        return {
+          container: 'min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 text-white',
+          bg: '',
+          glow: '',
+          decorations: [],
+        }
+      case 'classic':
+        return {
+          container: 'min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100 text-gray-900',
+          bg: '',
+          glow: '',
+          decorations: [],
+        }
+      default: // cosmic
+        return {
+          container: 'relative min-h-screen overflow-hidden bg-[#050b18] text-white',
+          bg: 'cosmic-space',
+          glow: 'cosmic-glow',
+          decorations: ['cosmic-stars', 'cosmic-noise'],
+        }
+    }
+  }
+
+  const themeClasses = getThemeClasses()
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#050b18] text-white">
-      <div className="cosmic-space absolute inset-0" aria-hidden="true" />
-      <div className="cosmic-glow absolute inset-0" aria-hidden="true" />
-      <div className="cosmic-stars absolute inset-0" aria-hidden="true" />
-      <div className="cosmic-noise absolute inset-0" aria-hidden="true" />
+    <div className={themeClasses.container}>
+      {themeClasses.bg && <div className={`${themeClasses.bg} absolute inset-0`} aria-hidden="true" />}
+      {themeClasses.glow && <div className={`${themeClasses.glow} absolute inset-0`} aria-hidden="true" />}
+      {themeClasses.decorations.map((decoration, index) => (
+        <div key={index} className={`${decoration} absolute inset-0`} aria-hidden="true" />
+      ))}
       <div className="relative z-10">
       {/* Navigation */}
       <nav className="border-b border-gray-200 bg-white/80 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/80 sticky top-0 z-50">
