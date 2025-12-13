@@ -1130,34 +1130,53 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                   Add Step
                 </Button>
               </div>
-              {createForm.steps.map((step, index) => (
-                <div key={`create-step-${index}`} className="grid gap-2 md:grid-cols-2">
-                  <Input
-                    value={step.title}
-                    onChange={(event) => handleStepChange(setCreateForm, index, 'title', event.target.value)}
-                    placeholder={`Step ${index + 1} Title`}
-                  />
-                  <div className="flex gap-2">
-                    <Textarea
-                      rows={2}
-                      value={step.description ?? ''}
-                      onChange={(event) =>
-                        handleStepChange(setCreateForm, index, 'description', event.target.value)
-                      }
-                      placeholder="Description (optional)"
-                    />
-                    {createForm.steps.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => removeStep(setCreateForm, index)}
-                      >
-                        Delete
-                      </Button>
+              {createForm.steps.map((step, index) => {
+                // 检查是否是Part标题（以"Part"开头且没有description）
+                const isPartTitle = step.title.startsWith('Part ') && !step.description
+                
+                return (
+                  <div key={`create-step-${index}`} className={isPartTitle ? 'col-span-2' : 'grid gap-2 md:grid-cols-2'}>
+                    {isPartTitle ? (
+                      // Part标题单独一行显示
+                      <div className="rounded-lg border-2 border-blue-300 bg-blue-50 p-3 dark:border-blue-700 dark:bg-blue-950/30">
+                        <Input
+                          value={step.title}
+                          onChange={(event) => handleStepChange(setCreateForm, index, 'title', event.target.value)}
+                          placeholder="Part Title"
+                          className="font-semibold text-blue-700 dark:text-blue-300"
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <Input
+                          value={step.title}
+                          onChange={(event) => handleStepChange(setCreateForm, index, 'title', event.target.value)}
+                          placeholder={`Step ${index + 1} Title`}
+                        />
+                        <div className="flex gap-2">
+                          <Textarea
+                            rows={2}
+                            value={step.description ?? ''}
+                            onChange={(event) =>
+                              handleStepChange(setCreateForm, index, 'description', event.target.value)
+                            }
+                            placeholder="Description (optional)"
+                          />
+                          {createForm.steps.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => removeStep(setCreateForm, index)}
+                            >
+                              Delete
+                            </Button>
+                          )}
+                        </div>
+                      </>
                     )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             <div className="space-y-2">
@@ -1613,33 +1632,52 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
                     添加步骤
                   </Button>
                 </div>
-                {editForm.steps.map((step, index) => (
-                  <div key={`edit-step-${index}`} className="grid gap-2 md:grid-cols-2">
-                    <Input
-                      value={step.title}
-                      onChange={(event) => handleStepChange(setEditForm, index, 'title', event.target.value)}
-                      placeholder={`Step ${index + 1} Title`}
-                    />
-                    <div className="flex gap-2">
-                      <Textarea
-                        rows={2}
-                        value={step.description ?? ''}
-                        onChange={(event) =>
-                          handleStepChange(setEditForm, index, 'description', event.target.value)
-                        }
-                      />
-                      {editForm.steps.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() => removeStep(setEditForm, index)}
-                        >
-                          Delete
-                        </Button>
+                {editForm.steps.map((step, index) => {
+                  // 检查是否是Part标题（以"Part"开头且没有description）
+                  const isPartTitle = step.title.startsWith('Part ') && !step.description
+                  
+                  return (
+                    <div key={`edit-step-${index}`} className={isPartTitle ? 'col-span-2' : 'grid gap-2 md:grid-cols-2'}>
+                      {isPartTitle ? (
+                        // Part标题单独一行显示
+                        <div className="rounded-lg border-2 border-blue-300 bg-blue-50 p-3 dark:border-blue-700 dark:bg-blue-950/30">
+                          <Input
+                            value={step.title}
+                            onChange={(event) => handleStepChange(setEditForm, index, 'title', event.target.value)}
+                            placeholder="Part Title"
+                            className="font-semibold text-blue-700 dark:text-blue-300"
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <Input
+                            value={step.title}
+                            onChange={(event) => handleStepChange(setEditForm, index, 'title', event.target.value)}
+                            placeholder={`Step ${index + 1} Title`}
+                          />
+                          <div className="flex gap-2">
+                            <Textarea
+                              rows={2}
+                              value={step.description ?? ''}
+                              onChange={(event) =>
+                                handleStepChange(setEditForm, index, 'description', event.target.value)
+                              }
+                            />
+                            {editForm.steps.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => removeStep(setEditForm, index)}
+                              >
+                                Delete
+                              </Button>
+                            )}
+                          </div>
+                        </>
                       )}
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
               <div className="space-y-2">

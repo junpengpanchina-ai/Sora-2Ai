@@ -271,26 +271,34 @@ function extractKeyword(text: string): string | null {
   if (!value) {
     const lines = text.split('\n')
     // 检查前几行，看是否有可能是关键词
-    for (let i = 0; i < Math.min(3, lines.length); i++) {
+    for (let i = 0; i < Math.min(5, lines.length); i++) {
       const line = lines[i]?.trim()
       if (!line) continue
       
       // 跳过明显的标签行
       if (
         /^(关键词|keyword|产品|product|服务|service|地区|region|标题|title|步骤|Part|常见问题|FAQ)/i.test(line) ||
-        /^左边字段|右边内容/i.test(line)
+        /^左边字段|右边内容/i.test(line) ||
+        /^步骤\d+标题|^步骤\d+描述/i.test(line)
       ) {
         continue
       }
       
       // 如果行很长且不包含明显的分隔符，可能是关键词
+      // 改进：更宽松的匹配条件
       const hasSeparator = /[:：|\\t]\s*[A-Za-z\u4e00-\u9fa5]/.test(line)
-      if (!hasSeparator && line.length > 10) {
+      if (!hasSeparator && line.length > 5) {
         // 检查是否包含常见的关键词内容（多个单词、逗号分隔等）
-        const wordCount = line.split(/[\s,，、]+/).filter(w => w.length > 2).length
-        if (wordCount >= 3) {
-          value = cleanValue(line)
-          if (value) break
+        // 降低要求：至少2个有意义的词
+        const words = line.split(/[\s,，、]+/).filter(w => w.length > 1)
+        const wordCount = words.length
+        if (wordCount >= 2) {
+          // 检查是否包含常见的关键词特征（如AI、video、generator等）
+          const hasKeywordFeatures = /(ai|video|generator|sora|christmas|rush|ranafast|england|ireland|keyword|关键词)/i.test(line)
+          if (hasKeywordFeatures || wordCount >= 3) {
+            value = cleanValue(line)
+            if (value) break
+          }
         }
       }
     }
