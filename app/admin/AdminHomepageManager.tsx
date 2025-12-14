@@ -48,6 +48,16 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
       const response = await fetch('/api/admin/homepage')
       const data = await response.json()
 
+      if (response.status === 401) {
+        const errorMsg = '未授权，请先登录管理员账户'
+        onShowBanner('error', errorMsg)
+        // 延迟重定向，让用户看到错误提示
+        setTimeout(() => {
+          window.location.href = '/admin/login'
+        }, 2000)
+        return
+      }
+
       if (!response.ok || !data.success) {
         throw new Error(data.error || '加载配置失败')
       }
@@ -104,6 +114,21 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
 
       let errorMessage: string | null = null
       let errorDetails: string | null = null
+      let isUnauthorized = false
+
+      // 检查认证错误
+      if (imagesResponse.status === 401 || videosResponse.status === 401) {
+        isUnauthorized = true
+        errorMessage = '未授权，请先登录管理员账户'
+        errorDetails = '需要管理员权限才能访问R2文件列表。请先登录。'
+        setR2Error(`${errorMessage}\n${errorDetails}`)
+        onShowBanner('error', errorMessage)
+        // 延迟重定向，让用户看到错误提示
+        setTimeout(() => {
+          window.location.href = '/admin/login'
+        }, 2000)
+        return
+      }
 
       if (imagesData.success) {
         setR2Images(imagesData.files.map((f: { key: string; url: string | null }) => ({
@@ -136,7 +161,7 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
         }
       }
 
-      if (errorMessage) {
+      if (errorMessage && !isUnauthorized) {
         const fullError = errorDetails ? `${errorMessage}\n${errorDetails}` : errorMessage
         setR2Error(fullError)
         console.error('R2加载错误:', { errorMessage, errorDetails, imagesData, videosData })
@@ -147,7 +172,7 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
     } finally {
       setLoadingR2Files(false)
     }
-  }, [])
+  }, [onShowBanner])
 
   // 上传文件到R2
   const handleFileUpload = useCallback(async (file: File, index: number, type: 'image' | 'video') => {
@@ -162,6 +187,16 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
         method: 'POST',
         body: uploadFormData,
       })
+
+      // 检查 401 错误
+      if (response.status === 401) {
+        const errorMsg = '未授权，请先登录管理员账户'
+        onShowBanner('error', errorMsg)
+        setTimeout(() => {
+          window.location.href = '/admin/login'
+        }, 2000)
+        return
+      }
 
       const data = await response.json()
 
@@ -202,6 +237,16 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
         },
         body: JSON.stringify(formData),
       })
+
+      // 检查 401 错误
+      if (response.status === 401) {
+        const errorMsg = '未授权，请先登录管理员账户'
+        onShowBanner('error', errorMsg)
+        setTimeout(() => {
+          window.location.href = '/admin/login'
+        }, 2000)
+        return
+      }
 
       const data = await response.json()
 
@@ -361,7 +406,14 @@ export default function AdminHomepageManager({ onShowBanner }: AdminHomepageMana
                             target.style.display = 'none'
                             const parent = target.parentElement
                             if (parent) {
-                              parent.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 text-xs">图片加载失败</div>'
+                              const shortPath = path.length > 30 ? path.substring(0, 30) + '...' : path
+                              parent.innerHTML = `
+                                <div class="flex flex-col items-center justify-center h-full text-gray-400 text-xs p-2 text-center">
+                                  <div class="mb-1">图片加载失败</div>
+                                  <div class="text-[10px] opacity-75 break-all">${shortPath}</div>
+                                  <div class="text-[10px] opacity-60 mt-1">请检查路径是否正确</div>
+                                </div>
+                              `
                             }
                           }}
                         />
@@ -755,6 +807,17 @@ function PaymentPlansManager({ onShowBanner }: { onShowBanner: (type: 'success' 
     try {
       setLoading(true)
       const response = await fetch('/api/admin/payment-plans')
+      
+      // 检查 401 错误
+      if (response.status === 401) {
+        const errorMsg = '未授权，请先登录管理员账户'
+        onShowBanner('error', errorMsg)
+        setTimeout(() => {
+          window.location.href = '/admin/login'
+        }, 2000)
+        return
+      }
+
       const data = await response.json()
 
       if (!response.ok || !data.success) {
@@ -783,6 +846,16 @@ function PaymentPlansManager({ onShowBanner }: { onShowBanner: (type: 'success' 
         body: JSON.stringify({ ...plan, ...editForm }),
       })
 
+      // 检查 401 错误
+      if (response.status === 401) {
+        const errorMsg = '未授权，请先登录管理员账户'
+        onShowBanner('error', errorMsg)
+        setTimeout(() => {
+          window.location.href = '/admin/login'
+        }, 2000)
+        return
+      }
+
       const data = await response.json()
 
       if (!response.ok || !data.success) {
@@ -809,6 +882,16 @@ function PaymentPlansManager({ onShowBanner }: { onShowBanner: (type: 'success' 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newForm),
       })
+
+      // 检查 401 错误
+      if (response.status === 401) {
+        const errorMsg = '未授权，请先登录管理员账户'
+        onShowBanner('error', errorMsg)
+        setTimeout(() => {
+          window.location.href = '/admin/login'
+        }, 2000)
+        return
+      }
 
       const data = await response.json()
 

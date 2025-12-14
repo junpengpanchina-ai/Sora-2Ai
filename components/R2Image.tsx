@@ -65,6 +65,7 @@ export default function R2Image({
   onLoad,
 }: R2ImageProps) {
   const [imageError, setImageError] = useState(false)
+  // 使用图片路径作为版本标识，当路径变化时会自动刷新
   const imageUrl = getPublicUrl(src)
 
   const handleError = () => {

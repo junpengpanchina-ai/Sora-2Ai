@@ -123,8 +123,15 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   useEffect(() => {
     const loadData = async () => {
       try {
+        // 添加时间戳参数来破坏浏览器缓存
+        const timestamp = Date.now()
         const [settingsResponse, plansResponse] = await Promise.all([
-          fetch('/api/homepage'),
+          fetch(`/api/homepage?t=${timestamp}`, {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache',
+            },
+          }),
           fetch('/api/payment-plans'),
         ])
         
@@ -132,7 +139,8 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         if (settingsData.success && settingsData.settings) {
           console.log('[首页配置] 加载配置:', {
             theme_style: settingsData.settings.theme_style,
-            ...settingsData.settings,
+            image_count: settingsData.settings.hero_image_paths?.length || 0,
+            image_paths: settingsData.settings.hero_image_paths,
           })
           setHomepageSettings(settingsData.settings)
         }
@@ -146,6 +154,13 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       }
     }
     loadData()
+    
+    // 定期刷新配置（每5分钟），确保同步最新数据
+    const refreshInterval = setInterval(() => {
+      loadData()
+    }, 5 * 60 * 1000) // 5分钟
+    
+    return () => clearInterval(refreshInterval)
   }, [])
 
   useEffect(() => {
@@ -632,7 +647,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                   {/* First set */}
                   <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
                     {homepageSettings.hero_image_paths.slice(0, Math.ceil(homepageSettings.hero_image_paths.length / 2)).map((path, index) => (
-                      <div key={`top-${index}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <div key={`top-${path}-${index}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
                         <R2Image
                           src={path}
                           alt={homepageSettings.hero_image_alt_texts?.[index] || `Image ${index + 1}`}
@@ -645,7 +660,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                   {/* Second set - duplicate for seamless loop */}
                   <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
                     {homepageSettings.hero_image_paths.slice(0, Math.ceil(homepageSettings.hero_image_paths.length / 2)).map((path, index) => (
-                      <div key={`top-dup-${index}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <div key={`top-dup-${path}-${index}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
                         <R2Image
                           src={path}
                           alt={homepageSettings.hero_image_alt_texts?.[index] || `Image ${index + 1}`}
@@ -664,7 +679,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                   {/* First set */}
                   <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
                     {homepageSettings.hero_image_paths.slice(Math.ceil(homepageSettings.hero_image_paths.length / 2)).map((path, index) => (
-                      <div key={`bottom-${index}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <div key={`bottom-${path}-${index}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
                         <R2Image
                           src={path}
                           alt={homepageSettings.hero_image_alt_texts?.[Math.ceil(homepageSettings.hero_image_paths.length / 2) + index] || `Image ${Math.ceil(homepageSettings.hero_image_paths.length / 2) + index + 1}`}
@@ -677,7 +692,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                   {/* Second set - duplicate for seamless loop */}
                   <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
                     {homepageSettings.hero_image_paths.slice(Math.ceil(homepageSettings.hero_image_paths.length / 2)).map((path, index) => (
-                      <div key={`bottom-dup-${index}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
+                      <div key={`bottom-dup-${path}-${index}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
                         <R2Image
                           src={path}
                           alt={homepageSettings.hero_image_alt_texts?.[Math.ceil(homepageSettings.hero_image_paths.length / 2) + index] || `Image ${Math.ceil(homepageSettings.hero_image_paths.length / 2) + index + 1}`}
