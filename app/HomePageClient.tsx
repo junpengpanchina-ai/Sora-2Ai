@@ -393,6 +393,61 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     }
   }, [])
 
+  // 强制所有视频自动播放
+  useEffect(() => {
+    if (!videosReady || !homepageSettings?.hero_video_paths) {
+      return
+    }
+
+    const playAllVideos = () => {
+      const videoSection = videoSectionRef.current
+      if (!videoSection) {
+        return
+      }
+
+      const videos = videoSection.querySelectorAll('video')
+      videos.forEach((video) => {
+        // 确保视频是静音的（浏览器自动播放策略要求）
+        video.muted = true
+        // 尝试播放
+        video.play().catch((err) => {
+          // 如果自动播放失败，记录但不阻止其他视频
+          console.log('视频自动播放失败:', err)
+          // 尝试在用户交互后播放
+          const tryPlayOnInteraction = () => {
+            video.play().catch(() => {})
+            document.removeEventListener('click', tryPlayOnInteraction)
+            document.removeEventListener('touchstart', tryPlayOnInteraction)
+          }
+          document.addEventListener('click', tryPlayOnInteraction, { once: true })
+          document.addEventListener('touchstart', tryPlayOnInteraction, { once: true })
+        })
+      })
+    }
+
+    // 延迟一点确保 DOM 已渲染
+    const timeoutId = setTimeout(playAllVideos, 100)
+    
+    // 当视频加载完成后也尝试播放
+    const videoSection = videoSectionRef.current
+    if (videoSection) {
+      const videos = videoSection.querySelectorAll('video')
+      videos.forEach((video) => {
+        const handleLoadedData = () => {
+          video.muted = true
+          video.play().catch(() => {
+            // 静默失败，onLoadedData 处理器会处理
+          })
+        }
+        video.addEventListener('loadeddata', handleLoadedData)
+      })
+    }
+
+    return () => {
+      clearTimeout(timeoutId)
+    }
+  }, [videosReady, homepageSettings?.hero_video_paths])
+
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -712,12 +767,12 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
             />
           )}
         </div>
-      {/* Video Carousel - Optimized for fast loading */}
+      {/* Video Carousel - Auto-play all videos */}
         <div className="mb-8" ref={videoSectionRef}>
           {videosReady && homepageSettings?.hero_video_paths && homepageSettings.hero_video_paths.length > 0 ? (
             <div className="overflow-hidden will-change-transform">
               <div className="flex gap-6 animate-slide-right" style={{ width: '200%' }}>
-                {/* First set - Only first video autoplays and preloads */}
+                {/* First set - All videos autoplay */}
                 <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
                   {homepageSettings.hero_video_paths.map((path, index) => (
                     <div key={`video-${index}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -725,16 +780,29 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                         src={getPublicUrl(path)}
                         className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
                         controls
-                        autoPlay={index === 0}
+                        autoPlay
                         loop
                         muted
                         playsInline
-                        preload={index === 0 ? "auto" : "metadata"}
+                        preload="auto"
+                        onLoadedData={(e) => {
+                          // 强制播放，确保自动播放生效
+                          const video = e.currentTarget
+                          video.play().catch((err) => {
+                            console.log('自动播放被阻止，尝试静音播放:', err)
+                            // 如果自动播放失败，确保视频是静音的并重试
+                            video.muted = true
+                            video.play().catch(() => {
+                              // 如果仍然失败，可能是浏览器策略限制
+                              console.log('视频自动播放失败，需要用户交互')
+                            })
+                          })
+                        }}
                       />
                     </div>
                   ))}
                 </div>
-                {/* Second set - duplicate for seamless loop, lazy loaded with metadata */}
+                {/* Second set - duplicate for seamless loop, all videos autoplay */}
                 <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
                   {homepageSettings.hero_video_paths.map((path, index) => (
                     <div key={`video-dup-${index}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
@@ -742,10 +810,22 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                         src={getPublicUrl(path)}
                         className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
                         controls
+                        autoPlay
                         loop
                         muted
                         playsInline
-                        preload="metadata"
+                        preload="auto"
+                        onLoadedData={(e) => {
+                          // 强制播放，确保自动播放生效
+                          const video = e.currentTarget
+                          video.play().catch((err) => {
+                            console.log('自动播放被阻止，尝试静音播放:', err)
+                            video.muted = true
+                            video.play().catch(() => {
+                              console.log('视频自动播放失败，需要用户交互')
+                            })
+                          })
+                        }}
                       />
                     </div>
                   ))}
