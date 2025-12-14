@@ -71,16 +71,14 @@ export default function VideoPageClient() {
   const [referenceUrl, setReferenceUrl] = useState('')
   const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>('9:16')
   const [duration, setDuration] = useState<'10' | '15'>('10')
-  const [size, setSize] = useState<'small' | 'large'>('small')
+  const [size] = useState<'small'>('small') // API只支持small，固定值
   const [useWebhook, setUseWebhook] = useState(false)
-  const [theme, setTheme] = useState<'default' | 'christmas'>('default')
   const [loading, setLoading] = useState(false)
   const [currentResult, setCurrentResult] = useState<VideoResult | null>(null)
   const [pollingTaskId, setPollingTaskId] = useState<string | null>(null)
   const [currentPrompt, setCurrentPrompt] = useState<string>('') // Save current prompt
   const [credits, setCredits] = useState<number | null>(null)
   const hasReadPromptFromUrl = useRef(false)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -89,67 +87,6 @@ export default function VideoPageClient() {
     setSupabase(createClient())
   }, [])
 
-  // Handle theme change and background music
-  useEffect(() => {
-    if (theme === 'christmas') {
-      // Create and play Christmas background music
-      if (!audioRef.current) {
-        audioRef.current = new Audio('/sounds/christmas-bgm.mp3')
-        audioRef.current.loop = true
-        audioRef.current.volume = 0.3
-        audioRef.current.preload = 'auto'
-        
-        // Handle audio errors gracefully (file might not exist yet)
-        audioRef.current.addEventListener('error', () => {
-          console.warn('Christmas BGM file not found. Please add /public/sounds/christmas-bgm.mp3')
-          // File not found - this is expected if user hasn't added the music file yet
-        })
-      }
-      
-      // Try to play audio (may be blocked by browser autoplay policy)
-      const tryPlay = async () => {
-        if (audioRef.current) {
-          try {
-            await audioRef.current.play()
-          } catch {
-            // Autoplay blocked - audio will play on user interaction
-            console.log('Autoplay blocked. Audio will play on user interaction.')
-          }
-        }
-      }
-      
-      // Try to play after a small delay to ensure audio is loaded
-      const timeoutId = setTimeout(tryPlay, 500)
-      
-      // Also try on user interaction
-      const handleInteraction = () => {
-        tryPlay()
-      }
-      
-      document.addEventListener('click', handleInteraction, { once: true })
-      document.addEventListener('keydown', handleInteraction, { once: true })
-      
-      return () => {
-        clearTimeout(timeoutId)
-        document.removeEventListener('click', handleInteraction)
-        document.removeEventListener('keydown', handleInteraction)
-      }
-    } else {
-      // Stop and cleanup audio when switching away from Christmas theme
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current.currentTime = 0
-      }
-    }
-
-    return () => {
-      // Cleanup on unmount or theme change
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current.currentTime = 0
-      }
-    }
-  }, [theme])
 
   const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
     if (!supabase) {
@@ -277,7 +214,7 @@ export default function VideoPageClient() {
           url: referenceUrl || undefined,
           aspectRatio,
           duration,
-          size,
+          // size参数已移除，API只支持small，后端固定使用small
           useWebhook,
         }),
       })
@@ -403,22 +340,11 @@ export default function VideoPageClient() {
     currentResult?.violationType ? VIOLATION_GUIDANCE[currentResult.violationType] : null
 
   return (
-    <div className={`relative min-h-screen overflow-hidden text-white ${theme === 'christmas' ? 'christmas-theme' : 'bg-[#050b18]'}`}>
-      {theme === 'christmas' ? (
-        <>
-          <div className="christmas-bg absolute inset-0" aria-hidden="true" />
-          <div className="christmas-snow absolute inset-0" aria-hidden="true" />
-          <div className="christmas-glow absolute inset-0" aria-hidden="true" />
-          <div className="christmas-lights absolute inset-0" aria-hidden="true" />
-        </>
-      ) : (
-        <>
-          <div className="cosmic-space absolute inset-0" aria-hidden="true" />
-          <div className="cosmic-glow absolute inset-0" aria-hidden="true" />
-          <div className="cosmic-stars absolute inset-0" aria-hidden="true" />
-          <div className="cosmic-noise absolute inset-0" aria-hidden="true" />
-        </>
-      )}
+    <div className="relative min-h-screen overflow-hidden text-white bg-[#050b18]">
+      <div className="cosmic-space absolute inset-0" aria-hidden="true" />
+      <div className="cosmic-glow absolute inset-0" aria-hidden="true" />
+      <div className="cosmic-stars absolute inset-0" aria-hidden="true" />
+      <div className="cosmic-noise absolute inset-0" aria-hidden="true" />
       <div className="relative z-10 cosmic-content">
       <nav className="border-b border-white/10 bg-white/5 backdrop-blur-lg">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -513,26 +439,7 @@ export default function VideoPageClient() {
               />
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-blue-100/80">
-                Theme Style
-              </label>
-              <select
-                value={theme}
-                onChange={(e) => setTheme(e.target.value as 'default' | 'christmas')}
-                className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
-              >
-                <option value="default" className="text-black">Default</option>
-                <option value="christmas" className="text-black">Christmas 🎄</option>
-              </select>
-              {theme === 'christmas' && (
-                <p className="mt-1 text-xs text-blue-100/60">
-                  🎵 Christmas background music will play automatically
-                </p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-medium text-blue-100/80">
                   Aspect Ratio
@@ -561,19 +468,6 @@ export default function VideoPageClient() {
                 </select>
               </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-blue-100/80">
-                  Video Quality
-                </label>
-                <select
-                  value={size}
-                  onChange={(e) => setSize(e.target.value as 'small' | 'large')}
-                  className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
-                >
-                  <option value="small" className="text-black">Small</option>
-                  <option value="large" className="text-black">Large</option>
-                </select>
-              </div>
             </div>
 
             <div className="flex items-center">
@@ -651,10 +545,16 @@ export default function VideoPageClient() {
                       src={currentResult.video_url}
                       controls
                       className="max-w-md w-full rounded-lg"
+                      preload="auto"
+                      playsInline
+                      style={{ maxWidth: '100%', height: 'auto' }}
                     >
                       Your browser does not support video playback
                     </video>
                   </div>
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
+                    提示：视频质量取决于API返回的结果。如果视频不够清晰，可能是API限制。
+                  </p>
                   <div className="mt-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {currentResult.remove_watermark && (
