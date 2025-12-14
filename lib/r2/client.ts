@@ -38,7 +38,15 @@ function initializeR2Client(): void {
   if (r2Client) return // 已经初始化
   
   if (!R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
-    console.warn('[R2] Access Key ID 或 Secret Access Key 未配置')
+    // 只在非构建环境（运行时）显示警告，避免构建时的噪音
+    if (typeof window === 'undefined' && process.env.NODE_ENV !== 'production') {
+      // 开发环境显示详细提示
+      console.warn('[R2] Access Key ID 或 Secret Access Key 未配置')
+      console.warn('[R2] 提示: 如果只需要读取公共文件，可以只配置 R2_PUBLIC_URL')
+      console.warn('[R2] 如果需要列出文件或上传，请在 .env.local 中添加:')
+      console.warn('[R2]   R2_ACCESS_KEY_ID=your_access_key_id')
+      console.warn('[R2]   R2_SECRET_ACCESS_KEY=your_secret_access_key')
+    }
     return
   }
   
@@ -110,12 +118,13 @@ function initializeR2Client(): void {
   }
 }
 
-// 立即尝试初始化
-try {
-  initializeR2Client()
-} catch (error) {
-  console.error('[R2] 初始化失败:', error)
-  // 不抛出，允许延迟初始化
+// 延迟初始化：只在运行时初始化，避免构建时的警告
+// 如果环境变量未配置，会在实际使用时再尝试初始化
+if (typeof window === 'undefined') {
+  // 服务器端：延迟初始化，避免构建时执行
+  // 实际使用时（如 API 路由）会调用 initializeR2Client()
+} else {
+  // 客户端：不需要初始化（客户端只使用公共 URL）
 }
 
 /**

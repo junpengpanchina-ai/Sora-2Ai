@@ -1,0 +1,29 @@
+# ============================================
+# Cloudflare R2 配置（管理员功能）
+# ============================================
+# 复制以下内容到 .env.local 文件，并替换为您的实际值
+# ============================================
+
+R2_ACCOUNT_ID=2776117bb412e09a1d30cbe886cd3935
+R2_ACCESS_KEY_ID=你的_access_key_id_粘贴这里
+R2_SECRET_ACCESS_KEY=你的_secret_access_key_粘贴这里
+R2_BUCKET_NAME=sora2
+R2_PUBLIC_URL=https://pub-2868c824f92441499577980a0b61114c.r2.dev
+
+# ============================================
+# 配置说明：
+# ============================================
+# 1. R2_ACCOUNT_ID: Cloudflare Account ID（已提供）
+# 2. R2_ACCESS_KEY_ID: 从 Cloudflare Dashboard 获取的 Access Key ID
+# 3. R2_SECRET_ACCESS_KEY: 从 Cloudflare Dashboard 获取的 Secret Access Key
+# 4. R2_BUCKET_NAME: R2 存储桶名称（已提供：sora2）
+# 5. R2_PUBLIC_URL: R2 公共访问 URL（已提供）
+#
+# 如何获取 Access Key：
+# 1. 访问 https://dash.cloudflare.com/
+# 2. 进入 R2 > Manage R2 API Tokens
+# 3. 创建新 Token（权限：Object Read & Write）
+# 4. 复制 Access Key ID 和 Secret Access Key
+#
+# 详细说明：查看 R2_ADMIN_CONFIG.md
+# ============================================

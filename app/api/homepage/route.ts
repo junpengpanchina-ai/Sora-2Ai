@@ -18,23 +18,44 @@ export async function GET() {
     if (error && (error as { code?: string }).code !== 'PGRST116') {
       console.error('获取首页配置失败:', error)
       // 返回默认配置而不是错误
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         settings: getDefaultSettings(),
       })
+      
+      // 禁用缓存
+      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+      response.headers.set('Pragma', 'no-cache')
+      response.headers.set('Expires', '0')
+      
+      return response
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       settings: data || getDefaultSettings(),
     })
+    
+    // 禁用缓存，确保每次获取最新配置
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    
+    return response
   } catch (error) {
     console.error('获取首页配置异常:', error)
     // 返回默认配置而不是错误
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       settings: getDefaultSettings(),
     })
+    
+    // 禁用缓存
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    
+    return response
   }
 }
 
