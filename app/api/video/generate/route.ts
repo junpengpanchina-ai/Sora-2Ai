@@ -15,7 +15,7 @@ const generateVideoSchema = z.object({
   url: z.string().url().optional().or(z.literal('')),
   aspectRatio: z.enum(['9:16', '16:9']).optional().default('9:16'),
   duration: z.enum(['10', '15']).optional().default('10'),
-  size: z.enum(['small', 'large']).optional().default('small'),
+  // size参数已移除，API只支持small，固定使用small
   useWebhook: z.boolean().optional().default(false),
 })
 
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
         reference_url: validatedData.url || null,
         aspect_ratio: validatedData.aspectRatio,
         duration: parseInt(validatedData.duration),
-        size: validatedData.size,
+        size: 'small', // API只支持small，固定值
         status: 'pending',
         webhook_url: webhookUrl !== '-1' ? webhookUrl : null,
       })
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
       url: validatedData.url || undefined,
       aspectRatio: validatedData.aspectRatio,
       duration: parseInt(validatedData.duration) as 10 | 15,
-      size: validatedData.size,
+      size: 'small' as const, // API只支持small，固定值
       webHook: webhookUrl,
       shutProgress: false,
     }
