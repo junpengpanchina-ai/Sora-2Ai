@@ -71,7 +71,7 @@ export default function VideoPageClient() {
   const [referenceUrl, setReferenceUrl] = useState('')
   const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>('9:16')
   const [duration, setDuration] = useState<'10' | '15'>('10')
-  const [size] = useState<'small'>('small') // API只支持small，固定值
+  // size参数已移除，API只支持small，后端固定使用small
   const [useWebhook, setUseWebhook] = useState(false)
   const [loading, setLoading] = useState(false)
   const [currentResult, setCurrentResult] = useState<VideoResult | null>(null)
