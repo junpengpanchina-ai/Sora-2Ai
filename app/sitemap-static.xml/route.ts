@@ -4,7 +4,16 @@ import { getBaseUrl } from '@/lib/utils/url'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const STATIC_PATHS = ['/', '/video', '/prompts', '/support', '/privacy', '/terms']
+const STATIC_PATHS = [
+  '/',
+  '/video',
+  '/prompts',
+  '/prompts-en',
+  '/keywords',
+  '/support',
+  '/privacy',
+  '/terms',
+]
 
 export async function GET() {
   const baseUrl = getBaseUrl()

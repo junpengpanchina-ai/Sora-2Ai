@@ -151,6 +151,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     alternates: {
       canonical,
     },
+    openGraph: {
+      type: 'article',
+      title: buildMetaTitle(keyword),
+      description: buildMetaDescription(keyword),
+      url: canonical,
+    },
   }
 }
 
@@ -189,8 +195,43 @@ export default async function KeywordLandingPage({ params }: PageProps) {
   const pageStyle = keyword.page_style ?? 'default'
   const isChristmas = pageStyle === 'christmas'
 
+  // Additional Structured Data for Keyword Page
+  const { getKeywordPageUrl } = await import('@/lib/utils/url')
+  const canonical = getKeywordPageUrl(keyword.page_slug)
+  
+  const keywordStructuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: buildMetaTitle(keyword),
+    description: buildMetaDescription(keyword),
+    url: canonical,
+    mainEntity: {
+      '@type': 'Article',
+      headline: heroTitle,
+      description: buildMetaDescription(keyword),
+      articleBody: intro,
+      author: {
+        '@type': 'Organization',
+        name: 'Sora2Ai Videos',
+      },
+      publisher: {
+        '@type': 'Organization',
+        name: 'Sora2Ai Videos',
+        logo: {
+          '@type': 'ImageObject',
+          url: 'https://sora2aivideos.com/icon.svg',
+        },
+      },
+    },
+  }
+
   return (
     <>
+      {/* Structured Data for Keyword Page */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(keywordStructuredData) }}
+      />
       <ChristmasBGM enabled={isChristmas} />
       <div className={`bg-slate-50 dark:bg-gray-950 ${isChristmas ? 'christmas-theme' : ''}`}>
         <div className={`relative overflow-hidden border-b border-white/20 ${isChristmas ? '' : 'bg-gradient-to-br from-[#050b18] via-[#09122C] to-[#050b18]'}`}>
