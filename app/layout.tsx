@@ -123,21 +123,32 @@ export default function RootLayout({
                       try {
                         const elements = document.querySelectorAll(selector);
                         elements.forEach(el => {
+                          // 检查元素是否仍在 DOM 中
+                          if (!el.isConnected || !el.parentNode) {
+                            return;
+                          }
+                          
                           // 查找父容器并移除
                           let container = el;
                           for (let i = 0; i < 5; i++) {
                             container = container.parentElement;
                             if (!container) break;
                             if (container.classList && container.classList.toString().includes('tyGEe93XNeNoND3S3feO')) {
-                              container.remove();
+                              // 检查容器是否仍在 DOM 中
+                              if (container.isConnected && container.parentNode) {
+                                container.remove();
+                              }
                               return;
                             }
                           }
-                          // 如果找不到容器，直接移除元素
-                          el.remove();
+                          // 如果找不到容器，直接移除元素（确保元素仍在 DOM 中）
+                          if (el.isConnected && el.parentNode) {
+                            el.remove();
+                          }
                         });
                       } catch (e) {
-                        // 忽略错误
+                        // 忽略错误，避免干扰 React 的正常渲染
+                        console.debug('Toolbar removal error (safe to ignore):', e);
                       }
                     });
                   };
@@ -150,9 +161,22 @@ export default function RootLayout({
                   }
                   
                   // 监听 DOM 变化（Vercel Toolbar 可能延迟加载）
-                  const observer = new MutationObserver(() => {
-                    hideToolbar();
-                  });
+                  // 使用防抖避免频繁执行
+                  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+                  const debouncedHideToolbar = () => {
+                    if (timeoutId) {
+                      clearTimeout(timeoutId);
+                    }
+                    timeoutId = setTimeout(() => {
+                      try {
+                        hideToolbar();
+                      } catch (e) {
+                        console.debug('Toolbar removal error (safe to ignore):', e);
+                      }
+                    }, 100);
+                  };
+                  
+                  const observer = new MutationObserver(debouncedHideToolbar);
                   observer.observe(document.body, { 
                     childList: true, 
                     subtree: true,
@@ -161,9 +185,27 @@ export default function RootLayout({
                   });
                   
                   // 延迟执行（确保捕获所有动态加载的元素）
-                  setTimeout(hideToolbar, 500);
-                  setTimeout(hideToolbar, 1000);
-                  setTimeout(hideToolbar, 2000);
+                  setTimeout(() => {
+                    try {
+                      hideToolbar();
+                    } catch (e) {
+                      console.debug('Toolbar removal error (safe to ignore):', e);
+                    }
+                  }, 500);
+                  setTimeout(() => {
+                    try {
+                      hideToolbar();
+                    } catch (e) {
+                      console.debug('Toolbar removal error (safe to ignore):', e);
+                    }
+                  }, 1000);
+                  setTimeout(() => {
+                    try {
+                      hideToolbar();
+                    } catch (e) {
+                      console.debug('Toolbar removal error (safe to ignore):', e);
+                    }
+                  }, 2000);
                 }
               })();
             `,
