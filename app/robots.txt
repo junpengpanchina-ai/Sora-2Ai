@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Allow: /prompts
+Allow: /prompts-en
+Allow: /keywords/
+Allow: /video
+Disallow: /admin
+Disallow: /api
+Disallow: /auth
+Disallow: /profile
+Disallow: /payment
+
+Sitemap: https://sora2aivideos.com/sitemap.xml
