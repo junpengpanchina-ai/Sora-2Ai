@@ -24,6 +24,36 @@ export default function SupportPage() {
             </Link>
           </div>
 
+          {/* Help and Support Information */}
+          <div className="mb-8 space-y-4 rounded-2xl border border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-900/40">
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+              How We Can Help You
+            </h2>
+            <p className="text-base text-gray-600 dark:text-gray-300">
+              Our support team is dedicated to resolving your issues quickly and efficiently. Whether 
+              you&apos;re experiencing technical difficulties with video generation, have questions about 
+              your account or credits, need help understanding how to use our platform, or encounter any 
+              errors during the video creation process, we&apos;re here to assist you.
+            </p>
+            <p className="text-base text-gray-600 dark:text-gray-300">
+              Please provide as much detail as possible about your issue, including when it occurred, 
+              what you were trying to do, any error messages you may have seen, and your account information 
+              if relevant. This information helps us diagnose and resolve your issue faster, ensuring you 
+              can get back to creating amazing videos as soon as possible.
+            </p>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mt-6">
+              Common Issues We Can Help With
+            </h3>
+            <ul className="list-disc list-inside space-y-2 text-base text-gray-600 dark:text-gray-300 ml-4">
+              <li>Video generation errors or failures</li>
+              <li>Account and credit management questions</li>
+              <li>Payment and billing inquiries</li>
+              <li>Technical support for platform features</li>
+              <li>Prompt writing assistance and best practices</li>
+              <li>Video quality or output concerns</li>
+            </ul>
+          </div>
+
           <div className="space-y-3 text-center">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
               Customer Support Feedback

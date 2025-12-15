@@ -9,6 +9,39 @@ export const metadata: Metadata = {
 export default async function PromptsPage() {
   // Allow unauthenticated users to browse prompts
   // Render client component
-  return <PromptsPageClient />
+  return (
+    <>
+      {/* SEO-friendly text content for better text-HTML ratio */}
+      <section className="sr-only">
+        <h2>AI Video Prompt Library and Templates</h2>
+        <p>
+          Browse our comprehensive collection of AI video generation prompts designed to help you create 
+          stunning videos using OpenAI Sora 2.0 technology. Our prompt library includes carefully crafted 
+          templates for various categories including nature scenes, character animations, action sequences, 
+          scenic landscapes, abstract visuals, and cinematic content.
+        </p>
+        <p>
+          Whether you&apos;re a beginner learning how to write effective video prompts or an experienced 
+          creator looking for inspiration, our library provides ready-to-use templates that you can copy 
+          and customize. Each prompt includes detailed descriptions, category tags, difficulty levels, and 
+          example outputs to help you understand how to use them effectively.
+        </p>
+        <p>
+          Our prompts are organized by category and difficulty level, making it easy to find the right 
+          template for your project. You can search by keywords, filter by category, or browse through 
+          our curated collections. All prompts are optimized for the Sora 2.0 model to ensure the best 
+          possible video generation results.
+        </p>
+        <h3>How to Use Our Prompt Library</h3>
+        <p>
+          Start by browsing our collection or using the search function to find prompts related to your 
+          project. Click on any prompt to view its full details, including the complete prompt text, 
+          category information, and usage tips. You can copy the prompt directly or use it as inspiration 
+          to create your own custom video descriptions.
+        </p>
+      </section>
+      <PromptsPageClient />
+    </>
+  )
 }
 
