@@ -23,6 +23,43 @@ export async function generateMetadata({ searchParams }: { searchParams?: { prom
   }
 }
 
-export default function VideoPage() {
-  return <VideoPageWrapper />
+export default function VideoPage({ searchParams }: { searchParams?: { prompt?: string } }) {
+  const prompt = searchParams?.prompt
+  
+  // Structured Data for Video Generation Page
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: prompt ? `Generate Video: ${prompt.substring(0, 50)}...` : 'Video Generator - Create AI Videos from Text',
+    description: prompt 
+      ? `Generate AI video with prompt: ${prompt.substring(0, 100)}...`
+      : 'Transform text prompts into professional AI videos instantly. Sora2Ai video generator uses OpenAI Sora 2.0 to create high-quality content from your descriptions.',
+    url: prompt 
+      ? `https://sora2aivideos.com/video?prompt=${encodeURIComponent(prompt)}`
+      : 'https://sora2aivideos.com/video',
+    mainEntity: {
+      '@type': 'SoftwareApplication',
+      name: 'Sora2Ai Video Generator',
+      applicationCategory: 'MultimediaApplication',
+      operatingSystem: 'Web',
+      featureList: [
+        'AI-powered video generation',
+        'OpenAI Sora 2.0 technology',
+        'Text-to-video conversion',
+        'Multiple aspect ratios',
+        'High-quality output',
+      ],
+    },
+  }
+
+  return (
+    <>
+      {/* Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <VideoPageWrapper />
+    </>
+  )
 }

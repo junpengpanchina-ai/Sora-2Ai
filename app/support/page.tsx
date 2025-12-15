@@ -8,8 +8,32 @@ export const metadata = {
 }
 
 export default function SupportPage() {
+  // Structured Data for Support Page
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'ContactPage',
+    name: 'Customer Support Feedback',
+    description: 'Share customer complaints and after-sales feedback so our support team can assist you promptly.',
+    url: 'https://sora2aivideos.com/support',
+    mainEntity: {
+      '@type': 'Organization',
+      name: 'Sora2Ai Videos',
+      contactPoint: {
+        '@type': 'ContactPoint',
+        contactType: 'Customer Support',
+        availableLanguage: ['en', 'ar'],
+      },
+    },
+  }
+
   return (
-    <div className="flex min-h-screen flex-col bg-energy-hero/20 py-16 dark:bg-gray-900/80">
+    <>
+      {/* Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <div className="flex min-h-screen flex-col bg-energy-hero/20 py-16 dark:bg-gray-900/80">
       <div className="mx-auto w-full max-w-4xl rounded-3xl bg-white px-8 py-12 shadow-2xl dark:bg-gray-800 sm:px-10 lg:px-12">
         <div className="mx-auto max-w-3xl space-y-6">
           <div className="flex items-center justify-start">
@@ -70,6 +94,7 @@ export default function SupportPage() {
         </div>
       </div>
     </div>
+    </>
   )
 }
 
