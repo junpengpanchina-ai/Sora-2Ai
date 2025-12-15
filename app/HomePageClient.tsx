@@ -383,7 +383,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
             }
           })
         },
-        { rootMargin: '200px' }
+        { rootMargin: '400px' } // Increased from 200px to 400px for earlier loading
       )
 
       observer.observe(node)
@@ -712,7 +712,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                           src={path}
                           alt={homepageSettings.hero_image_alt_texts?.[index] || `Image ${index + 1}`}
                           className="w-full h-auto rounded-lg"
-                          loading={index === 0 ? "eager" : "lazy"}
+                          loading={index < 2 ? "eager" : "lazy"} // Load first 2 images eagerly for better initial experience
                         />
                       </div>
                     ))}
@@ -789,17 +789,17 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                         loop
                         muted
                         playsInline
-                        preload="auto"
+                        preload={index === 0 ? "metadata" : "none"} // Only preload metadata for first video, none for others
                         onLoadedData={(e) => {
-                          // 强制播放，确保自动播放生效
+                          // Force play to ensure autoplay works
                           const video = e.currentTarget
                           video.play().catch((err) => {
-                            console.log('自动播放被阻止，尝试静音播放:', err)
-                            // 如果自动播放失败，确保视频是静音的并重试
+                            console.log('Autoplay blocked, trying muted playback:', err)
+                            // If autoplay fails, ensure video is muted and retry
                             video.muted = true
                             video.play().catch(() => {
-                              // 如果仍然失败，可能是浏览器策略限制
-                              console.log('视频自动播放失败，需要用户交互')
+                              // If still fails, may be browser policy restriction
+                              console.log('Video autoplay failed, requires user interaction')
                             })
                           })
                         }}
@@ -819,15 +819,15 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                         loop
                         muted
                         playsInline
-                        preload="auto"
+                        preload="none" // Duplicate videos don't need preload
                         onLoadedData={(e) => {
-                          // 强制播放，确保自动播放生效
+                          // Force play to ensure autoplay works
                           const video = e.currentTarget
                           video.play().catch((err) => {
-                            console.log('自动播放被阻止，尝试静音播放:', err)
+                            console.log('Autoplay blocked, trying muted playback:', err)
                             video.muted = true
                             video.play().catch(() => {
-                              console.log('视频自动播放失败，需要用户交互')
+                              console.log('Video autoplay failed, requires user interaction')
                             })
                           })
                         }}
