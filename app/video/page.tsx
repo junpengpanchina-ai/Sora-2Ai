@@ -1,9 +1,72 @@
 import type { Metadata } from 'next'
 import VideoPageWrapper from './VideoPageWrapper'
+import { createServiceClient } from '@/lib/supabase/service'
 
 export async function generateMetadata({ searchParams }: { searchParams?: { prompt?: string } }): Promise<Metadata> {
   const prompt = searchParams?.prompt
   
+  // 尝试从数据库获取SEO配置
+  let seoConfig: { title: string; description: string | null } | null = null
+  
+  if (prompt) {
+    try {
+      const supabase = await createServiceClient()
+      const pageUrl = `/video?prompt=${encodeURIComponent(prompt)}`
+      
+      const { data } = await supabase
+        .from('dynamic_page_seo')
+        .select('title, description')
+        .eq('page_url', pageUrl)
+        .eq('is_active', true)
+        .order('priority', { ascending: false })
+        .limit(1)
+        .single()
+      
+      if (data) {
+        seoConfig = {
+          title: data.title,
+          description: data.description,
+        }
+      }
+    } catch (error) {
+      // 如果查询失败，使用默认逻辑
+      console.error('获取SEO配置失败:', error)
+    }
+  } else {
+    // 无 prompt 时，也尝试获取默认配置
+    try {
+      const supabase = await createServiceClient()
+      const { data } = await supabase
+        .from('dynamic_page_seo')
+        .select('title, description')
+        .eq('page_path', '/video')
+        .eq('page_url', '/video')
+        .eq('is_active', true)
+        .order('priority', { ascending: false })
+        .limit(1)
+        .single()
+      
+      if (data) {
+        seoConfig = {
+          title: data.title,
+          description: data.description,
+        }
+      }
+    } catch (error) {
+      // 如果查询失败，使用默认逻辑
+      console.error('获取SEO配置失败:', error)
+    }
+  }
+  
+  // 如果数据库中有配置，使用数据库配置
+  if (seoConfig) {
+    return {
+      title: seoConfig.title,
+      description: seoConfig.description || undefined,
+    }
+  }
+  
+  // 否则使用默认动态生成逻辑
   if (prompt) {
     // 截取 prompt 的前 80 个字符作为 description 的一部分，确保唯一性
     const promptPreview = prompt.length > 80 ? prompt.substring(0, 80) + '...' : prompt

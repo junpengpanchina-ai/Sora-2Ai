@@ -461,6 +461,56 @@ export interface Database {
           updated_at?: string
         }
       }
+      dynamic_page_seo: {
+        Row: {
+          id: string
+          page_path: string
+          page_params: Json | null
+          page_url: string
+          title: string
+          description: string | null
+          h1_text: string | null
+          seo_content: string | null
+          meta_keywords: string[] | null
+          is_active: boolean
+          priority: number
+          created_by_admin_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          page_path: string
+          page_params?: Json | null
+          page_url: string
+          title: string
+          description?: string | null
+          h1_text?: string | null
+          seo_content?: string | null
+          meta_keywords?: string[] | null
+          is_active?: boolean
+          priority?: number
+          created_by_admin_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          page_path?: string
+          page_params?: Json | null
+          page_url?: string
+          title?: string
+          description?: string | null
+          h1_text?: string | null
+          seo_content?: string | null
+          meta_keywords?: string[] | null
+          is_active?: boolean
+          priority?: number
+          created_by_admin_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Functions: {
       admin_adjust_user_credits: {
