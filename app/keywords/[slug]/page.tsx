@@ -431,12 +431,17 @@ export default async function KeywordLandingPage({ params }: PageProps) {
           __html: `
             (function() {
               function alignHeights() {
-                const faqSection = document.getElementById('faq-section');
-                const relatedSection = document.getElementById('related-keywords-section');
-                
-                if (faqSection && relatedSection) {
-                  const faqHeight = faqSection.offsetHeight;
-                  relatedSection.style.minHeight = faqHeight + 'px';
+                try {
+                  const faqSection = document.getElementById('faq-section');
+                  const relatedSection = document.getElementById('related-keywords-section');
+                  
+                  if (faqSection && relatedSection && faqSection.isConnected && relatedSection.isConnected) {
+                    const faqHeight = faqSection.offsetHeight;
+                    relatedSection.style.minHeight = faqHeight + 'px';
+                  }
+                } catch (error) {
+                  // Silently fail if elements are not found or not connected
+                  console.debug('Align heights error (safe to ignore):', error);
                 }
               }
               

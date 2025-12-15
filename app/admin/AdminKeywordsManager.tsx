@@ -461,9 +461,14 @@ export default function AdminKeywordsManager({ onShowBanner }: AdminKeywordsMana
     })
     // Scroll to edit form after a short delay to allow state update
     setTimeout(() => {
-      const editCard = document.getElementById('edit-keyword-card')
-      if (editCard) {
-        editCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      try {
+        const editCard = document.getElementById('edit-keyword-card')
+        if (editCard && editCard.isConnected) {
+          editCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      } catch (error) {
+        // Silently fail if element is not found or not connected
+        console.debug('Scroll to edit card error (safe to ignore):', error)
       }
     }, 100)
   }

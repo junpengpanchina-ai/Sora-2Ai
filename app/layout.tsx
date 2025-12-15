@@ -126,32 +126,38 @@ export default function RootLayout({
                     selectors.forEach(selector => {
                       try {
                         const elements = document.querySelectorAll(selector);
-                        elements.forEach(el => {
-                          // 检查元素是否仍在 DOM 中
-                          if (!el.isConnected || !el.parentNode) {
-                            return;
-                          }
-                          
-                          // 查找父容器并移除
-                          let container = el;
-                          for (let i = 0; i < 5; i++) {
-                            container = container.parentElement;
-                            if (!container) break;
-                            if (container.classList && container.classList.toString().includes('tyGEe93XNeNoND3S3feO')) {
-                              // 检查容器是否仍在 DOM 中
-                              if (container.isConnected && container.parentNode) {
-                                container.remove();
-                              }
+                        // Use Array.from to avoid iterating over a live NodeList that might change
+                        Array.from(elements).forEach(el => {
+                          try {
+                            // Check if element is still connected to DOM
+                            if (!el.isConnected) {
                               return;
                             }
-                          }
-                          // 如果找不到容器，直接移除元素（确保元素仍在 DOM 中）
-                          if (el.isConnected && el.parentNode) {
-                            el.remove();
+                            
+                            // Find parent container and remove
+                            let container: Element | null = el;
+                            for (let i = 0; i < 5; i++) {
+                              container = container?.parentElement || null;
+                              if (!container) break;
+                              if (container.classList && container.classList.toString().includes('tyGEe93XNeNoND3S3feO')) {
+                                // Check if container is still connected before removing
+                                if (container.isConnected) {
+                                  container.remove();
+                                }
+                                return;
+                              }
+                            }
+                            // If container not found, remove element directly (ensure it's still connected)
+                            if (el.isConnected) {
+                              el.remove();
+                            }
+                          } catch (elementError) {
+                            // Ignore errors for individual elements
+                            console.debug('Element removal error (safe to ignore):', elementError);
                           }
                         });
                       } catch (e) {
-                        // 忽略错误，避免干扰 React 的正常渲染
+                        // Ignore errors, avoid interfering with React's normal rendering
                         console.debug('Toolbar removal error (safe to ignore):', e);
                       }
                     });
@@ -181,12 +187,23 @@ export default function RootLayout({
                   };
                   
                   const observer = new MutationObserver(debouncedHideToolbar);
-                  observer.observe(document.body, { 
-                    childList: true, 
-                    subtree: true,
-                    attributes: true,
-                    attributeFilter: ['class', 'data-custom-button', 'aria-label']
-                  });
+                  if (document.body) {
+                    observer.observe(document.body, { 
+                      childList: true, 
+                      subtree: true,
+                      attributes: true,
+                      attributeFilter: ['class', 'data-custom-button', 'aria-label']
+                    });
+                  }
+                  
+                  // Disconnect observer on page unload to prevent errors during navigation
+                  const handleBeforeUnload = () => {
+                    observer.disconnect();
+                    if (timeoutId) {
+                      clearTimeout(timeoutId);
+                    }
+                  };
+                  window.addEventListener('beforeunload', handleBeforeUnload);
                   
                   // 延迟执行（确保捕获所有动态加载的元素）
                   setTimeout(() => {
