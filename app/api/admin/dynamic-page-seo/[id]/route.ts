@@ -27,7 +27,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     const supabase = await createServiceClient()
 
-    const updatePayload: Database['public']['Tables']['dynamic_page_seo']['Update'] = {}
+    const updatePayload: Partial<Database['public']['Tables']['dynamic_page_seo']['Update']> = {}
 
     if (typeof payload.page_path === 'string') {
       updatePayload.page_path = payload.page_path.trim()
@@ -60,7 +60,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       updatePayload.page_params = payload.page_params
     }
 
-    const { data, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
       .from('dynamic_page_seo')
       .update(updatePayload)
       .eq('id', params.id)
