@@ -5,7 +5,6 @@ import type { Database } from '@/types/database'
 
 type DynamicPageSeoRow = Database['public']['Tables']['dynamic_page_seo']['Row']
 type DynamicPageSeoInsert = Database['public']['Tables']['dynamic_page_seo']['Insert']
-type DynamicPageSeoUpdate = Database['public']['Tables']['dynamic_page_seo']['Update']
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -23,7 +22,8 @@ export async function GET(request: Request) {
     const pagePath = searchParams.get('page_path')
     const isActive = searchParams.get('is_active')
 
-    let query = supabase.from('dynamic_page_seo').select('*').order('priority', { ascending: false }).order('updated_at', { ascending: false })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query = (supabase as any).from('dynamic_page_seo').select('*').order('priority', { ascending: false }).order('updated_at', { ascending: false })
 
     if (pagePath) {
       query = query.eq('page_path', pagePath)
@@ -109,7 +109,8 @@ export async function POST(request: Request) {
       created_by_admin_id: adminUser.id,
     }
 
-    const { data, error } = await supabase.from('dynamic_page_seo').insert(insertPayload).select().single()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any).from('dynamic_page_seo').insert(insertPayload).select().single()
 
     if (error) {
       console.error('创建动态页面SEO配置失败:', error)

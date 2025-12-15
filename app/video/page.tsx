@@ -13,7 +13,8 @@ export async function generateMetadata({ searchParams }: { searchParams?: { prom
       const supabase = await createServiceClient()
       const pageUrl = `/video?prompt=${encodeURIComponent(prompt)}`
       
-      const { data } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase as any)
         .from('dynamic_page_seo')
         .select('title, description')
         .eq('page_url', pageUrl)
@@ -22,10 +23,10 @@ export async function generateMetadata({ searchParams }: { searchParams?: { prom
         .limit(1)
         .single()
       
-      if (data) {
+      if (data && typeof data === 'object' && 'title' in data) {
         seoConfig = {
-          title: data.title,
-          description: data.description,
+          title: data.title as string,
+          description: data.description as string | null,
         }
       }
     } catch (error) {
@@ -36,7 +37,8 @@ export async function generateMetadata({ searchParams }: { searchParams?: { prom
     // 无 prompt 时，也尝试获取默认配置
     try {
       const supabase = await createServiceClient()
-      const { data } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase as any)
         .from('dynamic_page_seo')
         .select('title, description')
         .eq('page_path', '/video')
@@ -46,10 +48,10 @@ export async function generateMetadata({ searchParams }: { searchParams?: { prom
         .limit(1)
         .single()
       
-      if (data) {
+      if (data && typeof data === 'object' && 'title' in data) {
         seoConfig = {
-          title: data.title,
-          description: data.description,
+          title: data.title as string,
+          description: data.description as string | null,
         }
       }
     } catch (error) {
