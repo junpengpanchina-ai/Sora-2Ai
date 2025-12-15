@@ -420,74 +420,7 @@ export default function VideoPageClient() {
           )}
         </div>
 
-        {/* Unique Content Section for Prompt-based Pages */}
-        {prompt && prompt.trim() && (
-          <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
-            <h2 className="text-2xl font-semibold text-white mb-4">
-              About This Video Generation
-            </h2>
-            <div className="space-y-4 text-blue-100/80">
-              <p className="text-base leading-relaxed">
-                This page is specifically designed to generate a video based on the prompt: <strong className="text-white">{prompt}</strong>
-              </p>
-              <p className="text-sm">
-                Each video generated from this prompt will be unique, created using OpenAI&apos;s Sora 2.0 model. The AI interprets your description and creates a high-quality video that matches your vision.
-              </p>
-              <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10">
-                <h3 className="text-lg font-semibold text-white mb-2">Video Details</h3>
-                <ul className="space-y-2 text-sm">
-                  <li><strong className="text-white">Prompt:</strong> {prompt}</li>
-                  <li><strong className="text-white">Model:</strong> OpenAI Sora 2.0</li>
-                  <li><strong className="text-white">Technology:</strong> AI Video Generation</li>
-                  <li><strong className="text-white">Platform:</strong> Sora2Ai Videos</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* How to Create AI Videos Guide */}
-        {!prompt && (
-          <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
-            <h2 className="text-2xl font-semibold text-white mb-4">
-              How to Create AI Videos with Sora2Ai
-            </h2>
-            <div className="space-y-4 text-blue-100/80">
-              <p className="text-base leading-relaxed">
-                Creating AI-generated videos with Sora2Ai is simple and straightforward. Start by entering 
-                a detailed text prompt that describes the video you want to create. Be specific about the 
-                scene, style, camera movement, lighting, mood, and any other visual elements you&apos;re 
-                looking for. The more detailed your description, the better the AI can understand and create 
-                your vision.
-              </p>
-              <p className="text-base leading-relaxed">
-                Our platform uses OpenAI Sora 2.0, one of the most advanced AI video generation models 
-                available. Each video is generated with high quality and attention to detail, ensuring 
-                professional results suitable for marketing, social media, education, or creative projects. 
-                You can choose between portrait (9:16) or landscape (16:9) aspect ratios, and select video 
-                duration of 10 or 15 seconds based on your needs.
-              </p>
-              <p className="text-base leading-relaxed">
-                After submitting your prompt, the video generation process typically takes a few minutes. 
-                You&apos;ll receive real-time updates on the progress through our webhook system, and once 
-                complete, you can download and use your video immediately. Each video generation costs 10 
-                credits, and new users receive 30 free credits to get started.
-              </p>
-              <h3 className="text-lg font-semibold text-white mt-6 mb-3">
-                Best Practices for Writing Video Prompts
-              </h3>
-              <ul className="list-disc list-inside space-y-2 text-sm ml-4">
-                <li>Be specific about visual elements: colors, lighting, camera angles, and movement</li>
-                <li>Describe the mood and atmosphere you want to convey</li>
-                <li>Include details about style: realistic, cinematic, documentary, animated, etc.</li>
-                <li>Mention any specific objects, characters, or scenes you want included</li>
-                <li>Use descriptive language to help the AI understand your creative vision</li>
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {/* Generation Form */}
+        {/* Generation Form - 放在最前面，优先显示 */}
         <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-white">
@@ -585,6 +518,73 @@ export default function VideoPageClient() {
             )}
           </form>
         </div>
+
+        {/* Unique Content Section for Prompt-based Pages */}
+        {prompt && prompt.trim() && (
+          <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
+            <h2 className="text-2xl font-semibold text-white mb-4">
+              About This Video Generation
+            </h2>
+            <div className="space-y-4 text-blue-100/80">
+              <p className="text-base leading-relaxed">
+                This page is specifically designed to generate a video based on the prompt: <strong className="text-white">{prompt}</strong>
+              </p>
+              <p className="text-sm">
+                Each video generated from this prompt will be unique, created using OpenAI&apos;s Sora 2.0 model. The AI interprets your description and creates a high-quality video that matches your vision.
+              </p>
+              <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                <h3 className="text-lg font-semibold text-white mb-2">Video Details</h3>
+                <ul className="space-y-2 text-sm">
+                  <li><strong className="text-white">Prompt:</strong> {prompt}</li>
+                  <li><strong className="text-white">Model:</strong> OpenAI Sora 2.0</li>
+                  <li><strong className="text-white">Technology:</strong> AI Video Generation</li>
+                  <li><strong className="text-white">Platform:</strong> Sora2Ai Videos</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* How to Create AI Videos Guide - 放在表单后面 */}
+        {!prompt && (
+          <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
+            <h2 className="text-2xl font-semibold text-white mb-4">
+              How to Create AI Videos with Sora2Ai
+            </h2>
+            <div className="space-y-4 text-blue-100/80">
+              <p className="text-base leading-relaxed">
+                Creating AI-generated videos with Sora2Ai is simple and straightforward. Start by entering 
+                a detailed text prompt that describes the video you want to create. Be specific about the 
+                scene, style, camera movement, lighting, mood, and any other visual elements you&apos;re 
+                looking for. The more detailed your description, the better the AI can understand and create 
+                your vision.
+              </p>
+              <p className="text-base leading-relaxed">
+                Our platform uses OpenAI Sora 2.0, one of the most advanced AI video generation models 
+                available. Each video is generated with high quality and attention to detail, ensuring 
+                professional results suitable for marketing, social media, education, or creative projects. 
+                You can choose between portrait (9:16) or landscape (16:9) aspect ratios, and select video 
+                duration of 10 or 15 seconds based on your needs.
+              </p>
+              <p className="text-base leading-relaxed">
+                After submitting your prompt, the video generation process typically takes a few minutes. 
+                You&apos;ll receive real-time updates on the progress through our webhook system, and once 
+                complete, you can download and use your video immediately. Each video generation costs 10 
+                credits, and new users receive 30 free credits to get started.
+              </p>
+              <h3 className="text-lg font-semibold text-white mt-6 mb-3">
+                Best Practices for Writing Video Prompts
+              </h3>
+              <ul className="list-disc list-inside space-y-2 text-sm ml-4">
+                <li>Be specific about visual elements: colors, lighting, camera angles, and movement</li>
+                <li>Describe the mood and atmosphere you want to convey</li>
+                <li>Include details about style: realistic, cinematic, documentary, animated, etc.</li>
+                <li>Mention any specific objects, characters, or scenes you want included</li>
+                <li>Use descriptive language to help the AI understand your creative vision</li>
+              </ul>
+            </div>
+          </div>
+        )}
 
         {/* Current Generation Result */}
         {currentResult && (
