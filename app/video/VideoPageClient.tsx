@@ -391,19 +391,66 @@ export default function VideoPageClient() {
 
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            Sora-2 Video Generation
-          </h1>
-          <p className="text-lg text-blue-100/80">
-            Generate high-quality videos using OpenAI Sora 2.0 model
-          </p>
+          {prompt && prompt.trim() ? (
+            <>
+              <h1 className="text-4xl font-bold text-white mb-2">
+                Generate Video: {prompt.length > 60 ? prompt.substring(0, 60) + '...' : prompt}
+              </h1>
+              <p className="text-lg text-blue-100/80 mb-4">
+                Create an AI-generated video from this prompt using OpenAI Sora 2.0. This video will showcase: {prompt.length > 100 ? prompt.substring(0, 100) + '...' : prompt}
+              </p>
+              <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                <p className="text-sm text-blue-100/70 mb-2">
+                  <strong className="text-white">Video Concept:</strong> {prompt}
+                </p>
+                <p className="text-xs text-blue-100/50">
+                  This page is dedicated to generating a video based on your specific prompt. Each video generated from this prompt will be unique, created using advanced AI technology.
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <h1 className="text-4xl font-bold text-white mb-2">
+                Sora-2 Video Generation
+              </h1>
+              <p className="text-lg text-blue-100/80">
+                Generate high-quality videos using OpenAI Sora 2.0 model
+              </p>
+            </>
+          )}
         </div>
+
+        {/* Unique Content Section for Prompt-based Pages */}
+        {prompt && prompt.trim() && (
+          <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
+            <h2 className="text-2xl font-semibold text-white mb-4">
+              About This Video Generation
+            </h2>
+            <div className="space-y-4 text-blue-100/80">
+              <p className="text-base leading-relaxed">
+                This page is specifically designed to generate a video based on the prompt: <strong className="text-white">{prompt}</strong>
+              </p>
+              <p className="text-sm">
+                Each video generated from this prompt will be unique, created using OpenAI&apos;s Sora 2.0 model. The AI interprets your description and creates a high-quality video that matches your vision.
+              </p>
+              <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                <h3 className="text-lg font-semibold text-white mb-2">Video Details</h3>
+                <ul className="space-y-2 text-sm">
+                  <li><strong className="text-white">Prompt:</strong> {prompt}</li>
+                  <li><strong className="text-white">Model:</strong> OpenAI Sora 2.0</li>
+                  <li><strong className="text-white">Technology:</strong> AI Video Generation</li>
+                  <li><strong className="text-white">Platform:</strong> Sora2Ai Videos</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Generation Form */}
         <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-white">
-              Create New Task
+              {prompt && prompt.trim() ? 'Modify or Generate Video' : 'Create New Task'}
             </h2>
             {credits !== null && (
               <div className="text-sm text-blue-100/80">
