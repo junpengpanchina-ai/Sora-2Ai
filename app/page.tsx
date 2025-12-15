@@ -7,8 +7,35 @@ export const metadata: Metadata = {
 }
 
 export default function HomePage() {
+  // Structured Data for Homepage
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: 'Sora2Ai Videos - AI Video Generation Platform',
+    description: 'Transform your ideas into stunning AI-generated videos using OpenAI Sora 2.0. Free credits available for new users.',
+    url: 'https://sora2aivideos.com',
+    mainEntity: {
+      '@type': 'SoftwareApplication',
+      name: 'Sora2Ai Videos',
+      applicationCategory: 'MultimediaApplication',
+      operatingSystem: 'Web',
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'USD',
+        description: '30 free credits for new users',
+      },
+    },
+  }
+
   return (
     <>
+      {/* Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      
       {/* SEO-friendly text content for better text-HTML ratio */}
       <section className="sr-only">
         <h2>About Sora2Ai Videos Platform</h2>

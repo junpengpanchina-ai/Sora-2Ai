@@ -14,6 +14,25 @@ export const metadata: Metadata = {
   icons: {
     icon: '/icon.svg',
   },
+  alternates: {
+    canonical: 'https://sora2aivideos.com',
+    languages: {
+      'en': 'https://sora2aivideos.com',
+      'en-US': 'https://sora2aivideos.com',
+      'ar': 'https://sora2aivideos.com?lang=ar', // Arabic (Saudi Arabia)
+      'ar-SA': 'https://sora2aivideos.com?lang=ar-SA', // Saudi Arabic
+      'x-default': 'https://sora2aivideos.com',
+    },
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    alternateLocale: ['ar_SA'],
+    url: 'https://sora2aivideos.com',
+    siteName: 'Sora2Ai Videos',
+    title: 'Sora2Ai Videos - AI Video Generation Platform',
+    description: 'Transform your ideas into stunning AI-generated videos using OpenAI Sora 2.0. Free credits available for new users.',
+  },
 }
 
 export default function RootLayout({
@@ -21,9 +40,63 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // Detect language from URL or default to English
+  // This will be enhanced by middleware for automatic detection
+  const defaultLang = 'en'
+  
   return (
-    <html lang="en">
+    <html lang={defaultLang}>
       <head>
+        {/* International SEO - hreflang tags */}
+        <link rel="alternate" hrefLang="en" href="https://sora2aivideos.com" />
+        <link rel="alternate" hrefLang="en-US" href="https://sora2aivideos.com" />
+        <link rel="alternate" hrefLang="ar" href="https://sora2aivideos.com?lang=ar" />
+        <link rel="alternate" hrefLang="ar-SA" href="https://sora2aivideos.com?lang=ar-SA" />
+        <link rel="alternate" hrefLang="x-default" href="https://sora2aivideos.com" />
+        
+        {/* Structured Data - Organization */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'Organization',
+              name: 'Sora2Ai Videos',
+              url: 'https://sora2aivideos.com',
+              logo: 'https://sora2aivideos.com/icon.svg',
+              description: 'AI video generation platform powered by OpenAI Sora 2.0',
+              sameAs: [],
+              contactPoint: {
+                '@type': 'ContactPoint',
+                contactType: 'Customer Support',
+                url: 'https://sora2aivideos.com/support',
+              },
+            }),
+          }}
+        />
+        
+        {/* Structured Data - WebSite */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebSite',
+              name: 'Sora2Ai Videos',
+              url: 'https://sora2aivideos.com',
+              description: 'AI video generation platform powered by OpenAI Sora 2.0',
+              potentialAction: {
+                '@type': 'SearchAction',
+                target: {
+                  '@type': 'EntryPoint',
+                  urlTemplate: 'https://sora2aivideos.com/prompts?search={search_term_string}',
+                },
+                'query-input': 'required name=search_term_string',
+              },
+            }),
+          }}
+        />
+        
         <Script src="https://js.stripe.com/v3/buy-button.js" strategy="lazyOnload" />
       </head>
       <body>

@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from './lib/supabase/middleware'
+import { getLanguageFromRequest } from './lib/i18n'
 
 export async function middleware(request: NextRequest) {
-  const { pathname, hostname } = request.nextUrl
+  const { pathname, hostname, searchParams } = request.nextUrl
 
   // 处理 www 子域名重定向到非 www 版本
   if (hostname.startsWith('www.')) {
@@ -35,7 +36,16 @@ export async function middleware(request: NextRequest) {
     console.log(`Middleware: Continuing to HTML page for slug: ${slug}`)
   }
 
-  return await updateSession(request)
+  // 处理会话更新
+  const response = await updateSession(request)
+  
+  // 添加语言检测到响应头（用于国际 SEO）
+  const acceptLanguage = request.headers.get('accept-language')
+  const region = request.geo?.region // Vercel 提供的地理位置信息
+  const detectedLang = getLanguageFromRequest(acceptLanguage, searchParams, region)
+  response.headers.set('Content-Language', detectedLang)
+  
+  return response
 }
 
 export const config = {

@@ -7,10 +7,30 @@ export const metadata: Metadata = {
 }
 
 export default async function PromptsPage() {
+  // Structured Data for Prompts Library
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'AI Video Prompt Library',
+    description: 'Browse our comprehensive collection of AI video generation prompts designed to help you create stunning videos using OpenAI Sora 2.0 technology.',
+    url: 'https://sora2aivideos.com/prompts',
+    mainEntity: {
+      '@type': 'ItemList',
+      name: 'AI Video Prompt Templates',
+      description: 'Curated collection of video generation prompts for various categories',
+    },
+  }
+
   // Allow unauthenticated users to browse prompts
   // Render client component
   return (
     <>
+      {/* Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      
       {/* SEO-friendly text content for better text-HTML ratio */}
       <section className="sr-only">
         <h2>AI Video Prompt Library and Templates</h2>
