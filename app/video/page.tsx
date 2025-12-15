@@ -5,17 +5,19 @@ export async function generateMetadata({ searchParams }: { searchParams?: { prom
   const prompt = searchParams?.prompt
   
   if (prompt) {
-    // 截取 prompt 的前 50 个字符作为 title 的一部分
-    const promptPreview = prompt.length > 50 ? prompt.substring(0, 50) + '...' : prompt
+    // 截取 prompt 的前 60 个字符作为 description 的一部分，确保唯一性
+    const promptPreview = prompt.length > 60 ? prompt.substring(0, 60) + '...' : prompt
+    // 为每个 prompt 生成更独特的描述
+    const uniqueDescription = `Watch AI-generated video: "${promptPreview}". Created with Sora2Ai using OpenAI Sora 2.0 technology. ${prompt.length > 100 ? 'Full prompt available on page.' : 'Generate your own video now.'}`
     return {
       title: `Generate: ${promptPreview}`,
-      description: `Generate AI video with prompt: ${promptPreview}. Create stunning videos using OpenAI Sora 2.0 model.`,
+      description: uniqueDescription,
     }
   }
 
   return {
     title: 'Video Generator - Create AI Videos from Text',
-    description: 'Create stunning AI-generated videos with Sora2Ai. Use OpenAI Sora 2.0 model to generate high-quality video content from text prompts.',
+    description: 'Transform text prompts into professional AI videos instantly. Sora2Ai video generator uses OpenAI Sora 2.0 to create high-quality content from your descriptions.',
   }
 }
 

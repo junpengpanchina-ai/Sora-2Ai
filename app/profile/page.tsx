@@ -6,7 +6,7 @@ import { getOrCreateUser } from '@/lib/user'
 
 export const metadata: Metadata = {
   title: 'My Account - Profile & Credits Management',
-  description: 'Manage your Sora2Ai Videos account, view credits, recharge history, and account settings.',
+  description: 'Access your Sora2Ai account dashboard. Check remaining video generation credits, view purchase history, update profile settings, and manage subscriptions.',
 }
 
 export default async function ProfilePage() {
