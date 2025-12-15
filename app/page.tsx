@@ -3,7 +3,7 @@ import HomePageClient from './HomePageClient'
 
 export const metadata: Metadata = {
   title: 'Home - Create Stunning AI Videos with Sora 2.0',
-  description: 'Generate high-quality video content easily with Sora2Ai Videos and the latest OpenAI Sora 2.0 model. Create stunning AI-generated videos in minutes.',
+  description: 'Welcome to Sora2Ai Videos - the premier platform for AI video generation. Start creating professional videos from text prompts in seconds. Get 30 free credits when you sign up.',
 }
 
 export default function HomePage() {

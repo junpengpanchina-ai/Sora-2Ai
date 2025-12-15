@@ -3,7 +3,7 @@ import PromptsPageClient from './PromptsPageClient'
 
 export const metadata: Metadata = {
   title: 'Prompt Library - AI Video Generation Templates',
-  description: 'Browse and use AI video generation prompt templates. Get inspired with ready-to-use prompts for creating stunning videos with Sora2Ai.',
+  description: 'Explore our curated collection of AI video prompt templates. Copy ready-to-use prompts for fashion, nature, sports, and more. Start creating with Sora2Ai today.',
 }
 
 export default async function PromptsPage() {

@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     default: 'Sora2Ai Videos - AI Video Generation Platform',
     template: '%s | Sora2Ai Videos',
   },
-  description: 'Generate high-quality video content easily with Sora2Ai Videos and the latest OpenAI Sora 2.0 model',
+  description: 'Sora2Ai Videos - Transform your ideas into stunning AI-generated videos using OpenAI Sora 2.0. Free credits available for new users.',
   icons: {
     icon: '/icon.svg',
   },

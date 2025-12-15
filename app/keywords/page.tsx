@@ -12,7 +12,7 @@ export const revalidate = 600
 export const metadata: Metadata = {
   title: 'Keywords Index - SEO Landing Pages Directory',
   description:
-    'Browse all Sora2Ai long-tail keyword pages customized for products/regions/pain points. Quick access to landing pages for better SEO coverage.',
+    'Complete directory of Sora2Ai long-tail keyword landing pages. Find SEO-optimized pages for specific products, regions, and use cases. Improve your video generation workflow.',
 }
 
 interface KeywordSummary {
