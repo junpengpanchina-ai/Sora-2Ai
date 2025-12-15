@@ -2,7 +2,14 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from './lib/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
+  const { pathname, hostname } = request.nextUrl
+
+  // 处理 www 子域名重定向到非 www 版本
+  if (hostname.startsWith('www.')) {
+    const url = request.nextUrl.clone()
+    url.hostname = hostname.replace('www.', '')
+    return NextResponse.redirect(url, 301) // 301 永久重定向
+  }
 
   // 检查是否是关键词页面的 XML 请求
   // 只有当明确指定 format=xml 查询参数时，才返回 XML
