@@ -71,7 +71,7 @@ export default function VideoPageClient() {
   const [referenceUrl, setReferenceUrl] = useState('')
   const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>('9:16')
   const [duration, setDuration] = useState<'10' | '15'>('10')
-  // size参数已移除，API只支持small，后端固定使用small
+  // size parameter removed, API only supports small, backend uses small fixed
   const [useWebhook, setUseWebhook] = useState(false)
   const [loading, setLoading] = useState(false)
   const [currentResult, setCurrentResult] = useState<VideoResult | null>(null)
@@ -135,7 +135,9 @@ export default function VideoPageClient() {
     
     const promptParam = searchParams.get('prompt')
     if (promptParam) {
-      setPrompt(decodeURIComponent(promptParam))
+      // Next.js useSearchParams().get() already decodes the URL parameter
+      // No need to call decodeURIComponent again, which would cause double-decoding and garbled text
+      setPrompt(promptParam)
       hasReadPromptFromUrl.current = true
       // Clear the URL parameter after reading
       const newUrl = new URL(window.location.href)
@@ -214,7 +216,7 @@ export default function VideoPageClient() {
           url: referenceUrl || undefined,
           aspectRatio,
           duration,
-          // size参数已移除，API只支持small，后端固定使用small
+          // size parameter removed, API only supports small, backend uses small fixed
           useWebhook,
         }),
       })
@@ -420,7 +422,7 @@ export default function VideoPageClient() {
           )}
         </div>
 
-        {/* Generation Form - 放在最前面，优先显示 */}
+        {/* Generation Form - Display first, highest priority */}
         <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-white">
@@ -545,50 +547,9 @@ export default function VideoPageClient() {
           </div>
         )}
 
-        {/* How to Create AI Videos Guide - 放在表单后面 */}
-        {!prompt && (
-          <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
-            <h2 className="text-2xl font-semibold text-white mb-4">
-              How to Create AI Videos with Sora2Ai
-            </h2>
-            <div className="space-y-4 text-blue-100/80">
-              <p className="text-base leading-relaxed">
-                Creating AI-generated videos with Sora2Ai is simple and straightforward. Start by entering 
-                a detailed text prompt that describes the video you want to create. Be specific about the 
-                scene, style, camera movement, lighting, mood, and any other visual elements you&apos;re 
-                looking for. The more detailed your description, the better the AI can understand and create 
-                your vision.
-              </p>
-              <p className="text-base leading-relaxed">
-                Our platform uses OpenAI Sora 2.0, one of the most advanced AI video generation models 
-                available. Each video is generated with high quality and attention to detail, ensuring 
-                professional results suitable for marketing, social media, education, or creative projects. 
-                You can choose between portrait (9:16) or landscape (16:9) aspect ratios, and select video 
-                duration of 10 or 15 seconds based on your needs.
-              </p>
-              <p className="text-base leading-relaxed">
-                After submitting your prompt, the video generation process typically takes a few minutes. 
-                You&apos;ll receive real-time updates on the progress through our webhook system, and once 
-                complete, you can download and use your video immediately. Each video generation costs 10 
-                credits, and new users receive 30 free credits to get started.
-              </p>
-              <h3 className="text-lg font-semibold text-white mt-6 mb-3">
-                Best Practices for Writing Video Prompts
-              </h3>
-              <ul className="list-disc list-inside space-y-2 text-sm ml-4">
-                <li>Be specific about visual elements: colors, lighting, camera angles, and movement</li>
-                <li>Describe the mood and atmosphere you want to convey</li>
-                <li>Include details about style: realistic, cinematic, documentary, animated, etc.</li>
-                <li>Mention any specific objects, characters, or scenes you want included</li>
-                <li>Use descriptive language to help the AI understand your creative vision</li>
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {/* Current Generation Result */}
+        {/* Current Generation Result - Display before guide */}
         {currentResult && (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
+          <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
               Generation Result
             </h2>
@@ -641,7 +602,7 @@ export default function VideoPageClient() {
                     </video>
                   </div>
                   <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-                    提示：视频质量取决于API返回的结果。如果视频不够清晰，可能是API限制。
+                    If you encounter any issues, please return to the homepage and provide feedback. We will contact you as soon as possible after receiving your message.
                   </p>
                   <div className="mt-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -700,6 +661,48 @@ export default function VideoPageClient() {
             </div>
           </div>
         )}
+
+        {/* How to Create AI Videos Guide - Display after generation result */}
+        {!prompt && (
+          <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
+            <h2 className="text-2xl font-semibold text-white mb-4">
+              How to Create AI Videos with Sora2Ai
+            </h2>
+            <div className="space-y-4 text-blue-100/80">
+              <p className="text-base leading-relaxed">
+                Creating AI-generated videos with Sora2Ai is simple and straightforward. Start by entering 
+                a detailed text prompt that describes the video you want to create. Be specific about the 
+                scene, style, camera movement, lighting, mood, and any other visual elements you&apos;re 
+                looking for. The more detailed your description, the better the AI can understand and create 
+                your vision.
+              </p>
+              <p className="text-base leading-relaxed">
+                Our platform uses OpenAI Sora 2.0, one of the most advanced AI video generation models 
+                available. Each video is generated with high quality and attention to detail, ensuring 
+                professional results suitable for marketing, social media, education, or creative projects. 
+                You can choose between portrait (9:16) or landscape (16:9) aspect ratios, and select video 
+                duration of 10 or 15 seconds based on your needs.
+              </p>
+              <p className="text-base leading-relaxed">
+                After submitting your prompt, the video generation process typically takes a few minutes. 
+                You&apos;ll receive real-time updates on the progress through our webhook system, and once 
+                complete, you can download and use your video immediately. Each video generation costs 10 
+                credits, and new users receive 30 free credits to get started.
+              </p>
+              <h3 className="text-lg font-semibold text-white mt-6 mb-3">
+                Best Practices for Writing Video Prompts
+              </h3>
+              <ul className="list-disc list-inside space-y-2 text-sm ml-4">
+                <li>Be specific about visual elements: colors, lighting, camera angles, and movement</li>
+                <li>Describe the mood and atmosphere you want to convey</li>
+                <li>Include details about style: realistic, cinematic, documentary, animated, etc.</li>
+                <li>Mention any specific objects, characters, or scenes you want included</li>
+                <li>Use descriptive language to help the AI understand your creative vision</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
       </div>
       </div>
     </div>
