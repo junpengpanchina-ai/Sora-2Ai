@@ -259,6 +259,36 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
           <p className="text-gray-600 dark:text-gray-400">
             View your account information and payment history
           </p>
+          
+          {/* SEO-friendly text content for better text-HTML ratio */}
+          <section className="sr-only">
+            <h2>Account Management and Credits System</h2>
+            <p>
+              Your Sora2Ai Videos account dashboard provides comprehensive management tools for your video generation 
+              activities. Here you can view your remaining credits, check your purchase history, update your profile 
+              settings, and manage your subscriptions. Our credit-based system makes it easy to track your usage and 
+              plan your video generation projects.
+            </p>
+            <p>
+              Credits are used to generate AI videos on our platform. Each video generation requires 10 credits, 
+              and new users receive 30 free credits when they sign up. You can purchase additional credits through 
+              our flexible payment plans, which offer various credit packages to suit different needs and budgets.
+            </p>
+            <p>
+              Your account profile stores your personal information, including your name, email address, and avatar. 
+              You can update these details at any time to keep your account information current. The payment history 
+              section shows all your transactions, including credit purchases and subscription renewals, helping you 
+              track your spending and manage your account effectively.
+            </p>
+            <h3>Account Features</h3>
+            <ul>
+              <li>View and manage your video generation credits</li>
+              <li>Track your purchase history and transactions</li>
+              <li>Update your profile information and avatar</li>
+              <li>Monitor your account activity and usage</li>
+              <li>Manage subscription plans and billing</li>
+            </ul>
+          </section>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
