@@ -2,6 +2,9 @@
 -- 创建用于管理动态页面SEO的表
 -- 支持管理 /video?prompt=... 等动态页面的SEO属性
 
+-- 首先确保 admin_users 表有 is_active 字段（如果不存在则添加）
+ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+
 CREATE TABLE IF NOT EXISTS dynamic_page_seo (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   page_path TEXT NOT NULL, -- 页面路径，如 '/video'
@@ -44,6 +47,8 @@ CREATE POLICY dynamic_page_seo_public_select
   USING (is_active = TRUE);
 
 -- 管理员可以完全管理
+-- 注意：如果 admin_users 表没有 is_active 字段，请先执行：
+-- ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
 DROP POLICY IF EXISTS dynamic_page_seo_admin_all ON dynamic_page_seo;
 CREATE POLICY dynamic_page_seo_admin_all
   ON dynamic_page_seo
@@ -53,7 +58,7 @@ CREATE POLICY dynamic_page_seo_admin_all
     EXISTS (
       SELECT 1 FROM admin_users
       WHERE admin_users.id = auth.uid()
-      AND admin_users.is_active = TRUE
+      AND (admin_users.is_active IS NULL OR admin_users.is_active = TRUE)
     )
   );
 
