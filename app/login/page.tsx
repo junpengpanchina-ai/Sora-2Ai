@@ -46,6 +46,38 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
             Sign in with your Google account to create, monitor, and ship AI videos inside a single
             starfield console that keeps everything encrypted end-to-end.
           </p>
+          
+          {/* SEO-friendly text content for better text-HTML ratio */}
+          <section className="sr-only">
+            <h2>About Sora2Ai Videos Platform</h2>
+            <p>
+              Sora2Ai Videos is a cutting-edge AI video generation platform powered by OpenAI Sora 2.0 technology. 
+              Our platform enables users to transform text descriptions into stunning, professional-quality videos 
+              in seconds. Whether you&apos;re creating marketing content, social media videos, educational materials, 
+              or creative projects, Sora2Ai makes video generation accessible to everyone.
+            </p>
+            <p>
+              When you sign in with your Google account, you&apos;ll receive 30 free credits immediately - no credit 
+              card required. Our secure authentication system ensures your data is protected with end-to-end encryption. 
+              The platform supports various video styles including cinematic shots, documentary footage, fashion content, 
+              nature scenes, sports highlights, and abstract visuals.
+            </p>
+            <p>
+              Getting started is simple: sign in with Google, receive your free credits, and begin creating videos 
+              right away. Our intuitive interface guides you through the video generation process, from writing effective 
+              prompts to downloading your finished videos. All videos are generated using advanced AI technology to ensure 
+              high quality and creative results that match your vision.
+            </p>
+            <h3>Key Features</h3>
+            <ul>
+              <li>AI-powered video generation using OpenAI Sora 2.0</li>
+              <li>Multiple video styles and categories</li>
+              <li>Fast generation times, typically completed in minutes</li>
+              <li>High-quality output suitable for professional use</li>
+              <li>Secure Google authentication with encrypted data</li>
+              <li>Free credits for new users - no credit card required</li>
+            </ul>
+          </section>
         </div>
 
         <div className="celestial-panel mt-12 w-full max-w-xl p-10">

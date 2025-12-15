@@ -63,6 +63,37 @@ export default async function KeywordsIndexPage() {
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
             Static index of all Long-tail Landing Pages for internal linking, Google Search Console submission, and content quality review.
           </p>
+          
+          {/* SEO-friendly text content for better text-HTML ratio */}
+          <section className="sr-only">
+            <h2>Long-tail Keyword Landing Pages Directory</h2>
+            <p>
+              This comprehensive directory contains all published long-tail keyword landing pages for Sora2Ai Videos. 
+              Each landing page is optimized for specific search queries, products, regions, and use cases, providing 
+              targeted content that helps users find exactly what they&apos;re looking for. Our long-tail keyword strategy 
+              focuses on creating highly relevant, SEO-optimized pages that address specific user intents and search queries.
+            </p>
+            <p>
+              Long-tail keywords are specific, multi-word search phrases that typically have lower search volume but higher 
+              conversion rates. By creating dedicated landing pages for these keywords, we can better serve users who are 
+              searching for very specific information about AI video generation, Sora2Ai features, regional availability, 
+              or particular use cases. Each page includes detailed information, step-by-step guides, frequently asked questions, 
+              and related keywords to provide comprehensive coverage of the topic.
+            </p>
+            <p>
+              Our keyword pages are organized by intent (informational, transactional, navigational), region, product, and 
+              use case. This organization helps users navigate to the most relevant content quickly. Each page is regularly 
+              updated to ensure accuracy and relevance, and all pages include structured data markup to help search engines 
+              understand and index the content effectively.
+            </p>
+            <h3>How to Use This Directory</h3>
+            <p>
+              Browse through the keyword pages to find content related to your interests or search for specific keywords 
+              using the search functionality. Each page provides detailed information about the topic, including how to use 
+              Sora2Ai for that specific purpose, best practices, and related resources. These pages are also useful for 
+              internal linking, helping to establish a strong site structure that search engines can easily crawl and index.
+            </p>
+          </section>
         </div>
 
         {/* 热搜词榜单板块 */}
