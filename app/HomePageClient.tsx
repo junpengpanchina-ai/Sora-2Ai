@@ -341,11 +341,14 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         document.body.appendChild(textarea)
         textarea.select()
         document.execCommand('copy')
-        // 安全地移除元素，检查它是否仍在 DOM 中
-        if (textarea.parentNode) {
-          textarea.parentNode.removeChild(textarea)
-        } else if (textarea.isConnected) {
-          textarea.remove()
+        // Safely remove element, check if it's still in DOM
+        try {
+          if (textarea.isConnected && textarea.parentNode) {
+            textarea.remove()
+          }
+        } catch (error) {
+          // Silently fail if element is already removed
+          console.debug('Failed to remove textarea (safe to ignore):', error)
         }
       }
       setCopiedTemplateId(templateId)
@@ -410,41 +413,64 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         return
       }
 
-      const videos = videoSection.querySelectorAll('video')
+      // Use Array.from to create a static copy, avoiding issues if DOM changes during iteration
+      const videos = Array.from(videoSection.querySelectorAll('video'))
       videos.forEach((video) => {
-        // 确保视频是静音的（浏览器自动播放策略要求）
-        video.muted = true
-        // 尝试播放
-        video.play().catch((err) => {
-          // 如果自动播放失败，记录但不阻止其他视频
-          console.log('视频自动播放失败:', err)
-          // 尝试在用户交互后播放
-          const tryPlayOnInteraction = () => {
-            video.play().catch(() => {})
-            document.removeEventListener('click', tryPlayOnInteraction)
-            document.removeEventListener('touchstart', tryPlayOnInteraction)
+        try {
+          // Check if video is still connected to DOM
+          if (!video.isConnected) {
+            return
           }
-          document.addEventListener('click', tryPlayOnInteraction, { once: true })
-          document.addEventListener('touchstart', tryPlayOnInteraction, { once: true })
-        })
+          // Ensure video is muted (required by browser autoplay policy)
+          video.muted = true
+          // Try to play
+          video.play().catch((err) => {
+            // If autoplay fails, log but don't block other videos
+            console.log('Video autoplay failed:', err)
+            // Try to play after user interaction
+            const tryPlayOnInteraction = () => {
+              if (video.isConnected) {
+                video.play().catch(() => {})
+              }
+              document.removeEventListener('click', tryPlayOnInteraction)
+              document.removeEventListener('touchstart', tryPlayOnInteraction)
+            }
+            document.addEventListener('click', tryPlayOnInteraction, { once: true })
+            document.addEventListener('touchstart', tryPlayOnInteraction, { once: true })
+          })
+        } catch (error) {
+          // Ignore errors for individual videos
+          console.debug('Video playback error (safe to ignore):', error)
+        }
       })
     }
 
     // 延迟一点确保 DOM 已渲染
     const timeoutId = setTimeout(playAllVideos, 100)
     
-    // 当视频加载完成后也尝试播放
+    // When video loads, also try to play
     const videoSection = videoSectionRef.current
     if (videoSection) {
-      const videos = videoSection.querySelectorAll('video')
+      // Use Array.from to create a static copy, avoiding issues if DOM changes during iteration
+      const videos = Array.from(videoSection.querySelectorAll('video'))
       videos.forEach((video) => {
-        const handleLoadedData = () => {
-          video.muted = true
-          video.play().catch(() => {
-            // 静默失败，onLoadedData 处理器会处理
-          })
+        try {
+          if (!video.isConnected) {
+            return
+          }
+          const handleLoadedData = () => {
+            if (video.isConnected) {
+              video.muted = true
+              video.play().catch(() => {
+                // Silently fail, onLoadedData handler will handle
+              })
+            }
+          }
+          video.addEventListener('loadeddata', handleLoadedData)
+        } catch (error) {
+          // Ignore errors for individual videos
+          console.debug('Video event listener error (safe to ignore):', error)
         }
-        video.addEventListener('loadeddata', handleLoadedData)
       })
     }
 
