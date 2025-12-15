@@ -341,7 +341,12 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         document.body.appendChild(textarea)
         textarea.select()
         document.execCommand('copy')
-        document.body.removeChild(textarea)
+        // 安全地移除元素，检查它是否仍在 DOM 中
+        if (textarea.parentNode) {
+          textarea.parentNode.removeChild(textarea)
+        } else if (textarea.isConnected) {
+          textarea.remove()
+        }
       }
       setCopiedTemplateId(templateId)
       setTimeout(() => setCopiedTemplateId(null), 2000)
