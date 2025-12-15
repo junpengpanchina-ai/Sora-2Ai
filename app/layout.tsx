@@ -6,7 +6,10 @@ import { SpeedInsights } from '@vercel/speed-insights/next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Sora2Ai Videos - AI Video Generation Platform',
+  title: {
+    default: 'Sora2Ai Videos - AI Video Generation Platform',
+    template: '%s | Sora2Ai Videos',
+  },
   description: 'Generate high-quality video content easily with Sora2Ai Videos and the latest OpenAI Sora 2.0 model',
   icons: {
     icon: '/icon.svg',

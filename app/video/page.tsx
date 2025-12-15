@@ -1,56 +1,24 @@
-'use client'
+import type { Metadata } from 'next'
+import VideoPageWrapper from './VideoPageWrapper'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import VideoPageClient from './VideoPageClient'
-import { createClient } from '@/lib/supabase/client'
+export async function generateMetadata({ searchParams }: { searchParams?: { prompt?: string } }): Promise<Metadata> {
+  const prompt = searchParams?.prompt
+  
+  if (prompt) {
+    // 截取 prompt 的前 50 个字符作为 title 的一部分
+    const promptPreview = prompt.length > 50 ? prompt.substring(0, 50) + '...' : prompt
+    return {
+      title: `Generate: ${promptPreview}`,
+      description: `Generate AI video with prompt: ${promptPreview}. Create stunning videos using OpenAI Sora 2.0 model.`,
+    }
+  }
+
+  return {
+    title: 'Video Generator - Create AI Videos from Text',
+    description: 'Create stunning AI-generated videos with Sora2Ai. Use OpenAI Sora 2.0 model to generate high-quality video content from text prompts.',
+  }
+}
 
 export default function VideoPage() {
-  const router = useRouter()
-  const [authorized, setAuthorized] = useState<boolean | null>(null)
-
-  useEffect(() => {
-    const supabase = createClient()
-
-    const checkSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (!session) {
-        setAuthorized(false)
-        router.replace('/login')
-        return
-      }
-
-      setAuthorized(true)
-    }
-
-    checkSession()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        setAuthorized(false)
-        router.replace('/login')
-      } else {
-        setAuthorized(true)
-      }
-    })
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [router])
-
-  if (authorized === null) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
-  }
-
-  if (!authorized) {
-    return null
-  }
-
-  return <VideoPageClient />
+  return <VideoPageWrapper />
 }

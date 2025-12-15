@@ -1,7 +1,13 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ProfileClient from './ProfileClient'
 import { getOrCreateUser } from '@/lib/user'
+
+export const metadata: Metadata = {
+  title: 'My Account - Profile & Credits Management',
+  description: 'Manage your Sora2Ai Videos account, view credits, recharge history, and account settings.',
+}
 
 export default async function ProfilePage() {
   const supabase = await createClient()

@@ -10,7 +10,7 @@ type KeywordRow = Database['public']['Tables']['long_tail_keywords']['Row']
 export const revalidate = 600
 
 export const metadata: Metadata = {
-  title: 'Long-tail Keywords Index | Sora2Ai',
+  title: 'Keywords Index - SEO Landing Pages Directory',
   description:
     'Browse all Sora2Ai long-tail keyword pages customized for products/regions/pain points. Quick access to landing pages for better SEO coverage.',
 }

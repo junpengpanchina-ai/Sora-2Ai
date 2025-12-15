@@ -1,5 +1,11 @@
+import type { Metadata } from 'next'
 import LoginButton from '@/components/LoginButton'
 import Link from 'next/link'
+
+export const metadata: Metadata = {
+  title: 'Sign In - Login to Create AI Videos',
+  description: 'Sign in to Sora2Ai Videos with your Google account. Get 30 free credits to start creating AI-generated videos instantly.',
+}
 
 interface LoginPageProps {
   searchParams?: {
