@@ -47,6 +47,10 @@ export default function RootLayout({
   return (
     <html lang={defaultLang}>
       <head>
+        {/* Performance optimization - DNS prefetch and preconnect for R2 CDN */}
+        <link rel="dns-prefetch" href="https://pub-2868c824f92441499577980a0b61114c.r2.dev" />
+        <link rel="preconnect" href="https://pub-2868c824f92441499577980a0b61114c.r2.dev" crossOrigin="anonymous" />
+        
         {/* International SEO - hreflang tags */}
         <link rel="alternate" hrefLang="en" href="https://sora2aivideos.com" />
         <link rel="alternate" hrefLang="en-US" href="https://sora2aivideos.com" />
