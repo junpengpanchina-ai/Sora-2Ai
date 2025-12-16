@@ -56,25 +56,67 @@ export async function GET(
       )
     }
 
-    // Use the original video URL directly - no R2 upload needed!
-    // The vendor's API already provides high-quality videos, just like they do
-    const downloadUrl = task.video_url
+    // Download video from API URL and stream it to the client
+    // This ensures download works even if the API URL has CORS restrictions
+    const videoUrl = task.video_url
 
-    console.log('[video/download] Direct download from original API URL:', {
+    console.log('[video/download] Downloading video from API URL:', {
       taskId: task.id,
-      videoUrl: downloadUrl,
-      isR2Video: downloadUrl.includes('r2.dev'),
-      note: 'Using original API URL directly, same as vendor - no R2 storage needed',
+      videoUrl,
+      note: 'Streaming video through server to ensure download works',
     })
 
-    // Directly redirect to the video URL for download
-    // This allows the browser to handle the download properly
-    return NextResponse.redirect(downloadUrl, {
-      status: 302,
-      headers: {
-        'Content-Disposition': `attachment; filename="video-${task.id}.mp4"`,
-      },
-    })
+    try {
+      // Fetch video from API URL
+      const videoResponse = await fetch(videoUrl, {
+        headers: {
+          'Accept': 'video/mp4,video/*;q=0.9,*/*;q=0.8',
+          'Accept-Encoding': 'identity', // Get original quality
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      })
+
+      if (!videoResponse.ok) {
+        console.error('[video/download] Failed to fetch video:', {
+          status: videoResponse.status,
+          statusText: videoResponse.statusText,
+          videoUrl,
+        })
+        return NextResponse.json(
+          { error: `Failed to fetch video: ${videoResponse.status} ${videoResponse.statusText}` },
+          { status: videoResponse.status }
+        )
+      }
+
+      // Get video content type and size
+      const contentType = videoResponse.headers.get('content-type') || 'video/mp4'
+      const contentLength = videoResponse.headers.get('content-length')
+
+      // Stream the video to the client
+      const videoBuffer = await videoResponse.arrayBuffer()
+
+      return new NextResponse(videoBuffer, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Content-Disposition': `attachment; filename="video-${task.id}.mp4"`,
+          'Content-Length': contentLength || videoBuffer.byteLength.toString(),
+          'Cache-Control': 'no-cache',
+        },
+      })
+    } catch (fetchError) {
+      console.error('[video/download] Error fetching video:', {
+        error: fetchError instanceof Error ? fetchError.message : String(fetchError),
+        videoUrl,
+      })
+      return NextResponse.json(
+        {
+          error: 'Failed to download video',
+          details: fetchError instanceof Error ? fetchError.message : 'Unknown error',
+        },
+        { status: 500 }
+      )
+    }
   } catch (error) {
     console.error('Failed to get download URL:', error)
     return NextResponse.json(
