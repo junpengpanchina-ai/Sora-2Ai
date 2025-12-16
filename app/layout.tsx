@@ -171,36 +171,78 @@ export default function RootLayout({
                   }
                   
                   // 监听 DOM 变化（Vercel Toolbar 可能延迟加载）
-                  // 使用防抖避免频繁执行
+                  // 使用防抖避免频繁执行，并添加错误边界
                   let timeoutId = null;
+                  let observer = null;
+                  
                   const debouncedHideToolbar = () => {
                     if (timeoutId) {
                       clearTimeout(timeoutId);
                     }
                     timeoutId = setTimeout(() => {
                       try {
+                        // Check if document still exists and is ready
+                        if (!document || !document.body) {
+                          return;
+                        }
                         hideToolbar();
                       } catch (e) {
-                        console.debug('Toolbar removal error (safe to ignore):', e);
+                        // Silently ignore errors to prevent React rendering issues
+                        // These errors are harmless and occur during React's concurrent rendering
+                        if (process.env.NODE_ENV === 'development') {
+                          console.debug('Toolbar removal error (safe to ignore):', e);
+                        }
                       }
-                    }, 100);
+                    }, 200); // Increased debounce time to reduce frequency
                   };
                   
-                  const observer = new MutationObserver(debouncedHideToolbar);
-                  if (document.body) {
-                    observer.observe(document.body, { 
-                      childList: true, 
-                      subtree: true,
-                      attributes: true,
-                      attributeFilter: ['class', 'data-custom-button', 'aria-label']
-                    });
+                  try {
+                    if (document.body) {
+                      observer = new MutationObserver((mutations) => {
+                        // Only process if mutations actually contain relevant elements
+                        const hasRelevantMutations = mutations.some(mutation => {
+                          if (mutation.type === 'childList') {
+                            const addedNodes = Array.from(mutation.addedNodes);
+                            return addedNodes.some(node => 
+                              node.nodeType === 1 && // Element node
+                              (node.classList?.toString().includes('tyGEe93XNeNoND3S3feO') ||
+                               node.querySelector && node.querySelector('[data-custom-button*="Vercel Toolbar"]'))
+                            );
+                          }
+                          return false;
+                        });
+                        
+                        if (hasRelevantMutations) {
+                          debouncedHideToolbar();
+                        }
+                      });
+                      
+                      observer.observe(document.body, { 
+                        childList: true, 
+                        subtree: true,
+                        attributes: false, // Disable attribute observation to reduce calls
+                      });
+                    }
+                  } catch (observerError) {
+                    // Silently fail if observer cannot be created
+                    if (process.env.NODE_ENV === 'development') {
+                      console.debug('MutationObserver creation error (safe to ignore):', observerError);
+                    }
                   }
                   
                   // Disconnect observer on page unload to prevent errors during navigation
                   const handleBeforeUnload = () => {
-                    observer.disconnect();
-                    if (timeoutId) {
-                      clearTimeout(timeoutId);
+                    try {
+                      if (observer) {
+                        observer.disconnect();
+                        observer = null;
+                      }
+                      if (timeoutId) {
+                        clearTimeout(timeoutId);
+                        timeoutId = null;
+                      }
+                    } catch (e) {
+                      // Ignore cleanup errors
                     }
                   };
                   window.addEventListener('beforeunload', handleBeforeUnload);

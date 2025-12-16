@@ -152,10 +152,29 @@ export default function VideoPageClient() {
 
     const interval = setInterval(async () => {
       try {
+        console.log('[VideoPage] 🔍 Polling task status:', { taskId: pollingTaskId })
+        
         const response = await fetch(`/api/video/result/${pollingTaskId}`, {
           headers: await getAuthHeaders(),
         })
+        
+        console.log('[VideoPage] 📥 Polling response:', {
+          taskId: pollingTaskId,
+          status: response.status,
+          ok: response.ok,
+        })
+        
         const data = await response.json()
+        console.log('[VideoPage] 📦 Polling data:', {
+          taskId: pollingTaskId,
+          success: data.success,
+          status: data.status,
+          progress: data.progress,
+          hasVideoUrl: !!data.video_url,
+          hasError: !!data.error,
+          error: data.error,
+          violationType: data.violation_type,
+        })
         
         if (data.success) {
           setCurrentResult(prev => ({
@@ -173,9 +192,20 @@ export default function VideoPageClient() {
 
           // If task completed, stop polling
           if (data.status === 'succeeded' || data.status === 'failed') {
+            console.log('[VideoPage] ✅ Polling completed:', {
+              taskId: pollingTaskId,
+              finalStatus: data.status,
+            })
             setPollingTaskId(null)
           }
         } else if (data.status === 'failed') {
+          console.error('[VideoPage] ❌ Task failed during polling:', {
+            taskId: pollingTaskId,
+            error: data.error,
+            violationType: data.violation_type,
+            fullResponse: data,
+          })
+          
           setCurrentResult(prev => ({
             ...(prev ?? { task_id: pollingTaskId, prompt: currentPrompt }),
             task_id: pollingTaskId,
@@ -188,7 +218,12 @@ export default function VideoPageClient() {
           setPollingTaskId(null)
         }
       } catch (error) {
-        console.error(`Failed to poll task ${pollingTaskId}:`, error)
+        console.error(`[VideoPage] ❌ Failed to poll task ${pollingTaskId}:`, {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          taskId: pollingTaskId,
+        })
+        setPollingTaskId(null)
       }
     }, 3000) // Poll every 3 seconds
 
@@ -198,12 +233,29 @@ export default function VideoPageClient() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!supabase) {
-      console.error('Supabase client not initialized')
+      console.error('[VideoPage] ❌ Supabase client not initialized')
       return
     }
     setLoading(true)
 
     try {
+      const requestBody = {
+        prompt,
+        url: referenceUrl || undefined,
+        aspectRatio,
+        duration,
+        // size parameter removed, API only supports small, backend uses small fixed
+        useWebhook,
+      }
+      
+      console.log('[VideoPage] 📤 Starting video generation request:', {
+        prompt: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
+        hasReferenceUrl: !!referenceUrl,
+        aspectRatio,
+        duration,
+        useWebhook,
+      })
+
       const authHeaders = await getAuthHeaders()
       const response = await fetch('/api/video/generate', {
         method: 'POST',
@@ -211,22 +263,32 @@ export default function VideoPageClient() {
           'Content-Type': 'application/json',
           ...authHeaders,
         },
-        body: JSON.stringify({
-          prompt,
-          url: referenceUrl || undefined,
-          aspectRatio,
-          duration,
-          // size parameter removed, API only supports small, backend uses small fixed
-          useWebhook,
-        }),
+        body: JSON.stringify(requestBody),
+      })
+
+      console.log('[VideoPage] 📥 Received response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
       })
 
       if (response.status === 401) {
+        console.warn('[VideoPage] ⚠️ Unauthorized (401), redirecting to login')
         router.push('/login')
         return
       }
 
       const data = await response.json()
+      console.log('[VideoPage] 📦 Response data:', {
+        success: data.success,
+        status: data.status,
+        hasError: !!data.error,
+        error: data.error,
+        details: data.details,
+        taskId: data.task_id,
+        violationType: data.violation_type,
+      })
+
       const violationTypeFromResponse = parseViolationType(data.violation_type)
 
       if (data.success) {
@@ -246,6 +308,10 @@ export default function VideoPageClient() {
         
         // If completed immediately, show result directly
         if (data.status === 'succeeded' && data.video_url) {
+          console.log('[VideoPage] ✅ Video generation completed immediately:', {
+            taskId: data.task_id,
+            videoUrl: data.video_url,
+          })
           setCurrentResult({
             task_id: data.task_id || '',
             status: 'succeeded',
@@ -256,6 +322,10 @@ export default function VideoPageClient() {
             violationType: undefined,
           })
         } else if (data.status === 'processing' && data.task_id) {
+          console.log('[VideoPage] 🔄 Video generation in progress, starting polling:', {
+            taskId: data.task_id,
+            progress: data.progress ?? 0,
+          })
           // If processing, always start polling (webhook is only for server-side updates)
           setCurrentPrompt(submittedPrompt) // Save prompt for polling
           setCurrentResult({
@@ -274,17 +344,31 @@ export default function VideoPageClient() {
       } else {
         const errorMsg = data.error || 'Unknown error'
         const errorDetails = data.details || ''
+        const technicalDetails = data.technicalDetails || ''
+        
+        console.error('[VideoPage] ❌ Video generation failed:', {
+          error: errorMsg,
+          details: errorDetails,
+          technicalDetails: technicalDetails,
+          status: data.status,
+          taskId: data.task_id,
+          violationType: violationTypeFromResponse,
+          fullResponse: data,
+        })
         
         let shouldClearResult = true
 
         if (errorMsg.includes('Insufficient credits') || errorMsg.includes('credits')) {
+          console.warn('[VideoPage] ⚠️ Insufficient credits')
           alert(`Insufficient credits! Video generation requires 10 credits. Current credits: ${credits || 0}. Please recharge first.`)
           router.push('/')
         } else if (errorMsg.includes('User not found')) {
+          console.error('[VideoPage] ❌ User not found')
           alert(`User not found: ${errorDetails || 'Please try logging in again'}\n\nIf the problem persists, please contact support.`)
           // Optional: auto redirect to login page
           // router.push('/login')
         } else if (violationTypeFromResponse) {
+          console.warn('[VideoPage] ⚠️ Content violation detected:', violationTypeFromResponse)
           setCurrentResult({
             task_id: data.task_id || '',
             status: 'failed',
@@ -295,6 +379,16 @@ export default function VideoPageClient() {
           })
           shouldClearResult = false
         } else {
+          // Log detailed error information to console
+          console.error('[VideoPage] ❌ Generation failed - Full error details:', {
+            errorMessage: errorMsg,
+            errorDetails: errorDetails,
+            technicalDetails: technicalDetails,
+            httpStatus: response.status,
+            responseData: data,
+            requestBody: requestBody,
+          })
+          
           alert(`Generation failed: ${errorMsg}${errorDetails ? '\n\n' + errorDetails : ''}`)
         }
 
@@ -303,10 +397,15 @@ export default function VideoPageClient() {
         }
       }
     } catch (error) {
-      console.error('Failed to generate video:', error)
+      console.error('[VideoPage] ❌ Exception during video generation:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : undefined,
+      })
       alert('Failed to generate video, please try again later')
     } finally {
       setLoading(false)
+      console.log('[VideoPage] ✅ Video generation request completed (loading set to false)')
     }
   }
 
@@ -593,11 +692,32 @@ export default function VideoPageClient() {
                     <video
                       src={currentResult.video_url}
                       controls
-                      className="max-w-md w-full rounded-lg"
+                      className="w-full rounded-lg"
                       preload="metadata"
                       playsInline
                       crossOrigin="anonymous"
-                      style={{ maxWidth: '100%', height: 'auto' }}
+                      style={{ maxWidth: '100%', height: 'auto', width: 'auto' }}
+                      onLoadedMetadata={(e) => {
+                        // Log video quality information for debugging
+                        const video = e.currentTarget
+                        console.log('[VideoPage] 📹 Video loaded:', {
+                          src: currentResult.video_url,
+                          videoWidth: video.videoWidth,
+                          videoHeight: video.videoHeight,
+                          duration: video.duration,
+                          readyState: video.readyState,
+                          networkState: video.networkState,
+                          isFromR2: currentResult.video_url?.includes('r2.dev'),
+                          isFromOriginalApi: !currentResult.video_url?.includes('r2.dev'),
+                        })
+                      }}
+                      onError={(e) => {
+                        console.error('[VideoPage] ❌ Video load error:', {
+                          error: e,
+                          src: currentResult.video_url,
+                          networkState: e.currentTarget.networkState,
+                        })
+                      }}
                     >
                       Your browser does not support video playback
                     </video>
@@ -614,10 +734,10 @@ export default function VideoPageClient() {
                       )}
                       {currentResult.task_id && currentResult.video_url && (
                         <a
-                          href={currentResult.video_url}
+                          href={`/api/video/download/${currentResult.task_id}`}
                           download={`video-${currentResult.task_id}.mp4`}
                           className="inline-flex items-center gap-2 rounded-lg bg-energy-water px-4 py-2 text-sm font-medium text-white hover:bg-energy-water/90 transition-colors"
-                          title="Download original quality video (no compression)"
+                          title="Download original quality video (uploaded to R2 on-demand, no compression)"
                         >
                           <svg
                             className="h-4 w-4"
