@@ -135,7 +135,7 @@ export default function RootLayout({
                             }
                             
                             // Find parent container and remove
-                            let container: Element | null = el;
+                            let container = el;
                             for (let i = 0; i < 5; i++) {
                               container = container?.parentElement || null;
                               if (!container) break;
@@ -172,7 +172,7 @@ export default function RootLayout({
                   
                   // 监听 DOM 变化（Vercel Toolbar 可能延迟加载）
                   // 使用防抖避免频繁执行
-                  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+                  let timeoutId = null;
                   const debouncedHideToolbar = () => {
                     if (timeoutId) {
                       clearTimeout(timeoutId);
