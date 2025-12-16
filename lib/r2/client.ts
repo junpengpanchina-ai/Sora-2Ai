@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 // R2 配置
@@ -312,6 +312,181 @@ export async function checkFileExists(key: string): Promise<boolean> {
       return false
     }
     throw error instanceof Error ? error : new Error('Unknown error while checking file existence')
+  }
+}
+
+/**
+ * 上传文件到 R2（从 URL 下载并上传，保持原始质量）
+ * 
+ * @param sourceUrl - 源视频 URL
+ * @param key - 在 R2 中存储的路径，例如 'videos/task-123.mp4'
+ * @returns 上传后的公共 URL
+ * 
+ * @example
+ * ```tsx
+ * import { uploadVideoFromUrl } from '@/lib/r2/client'
+ * 
+ * const r2Url = await uploadVideoFromUrl(
+ *   'https://example.com/video.mp4',
+ *   'videos/task-123.mp4'
+ * )
+ * ```
+ */
+export async function uploadVideoFromUrl(
+  sourceUrl: string,
+  key: string
+): Promise<string> {
+  // Ensure R2 client is initialized
+  if (!r2Client) {
+    try {
+      initializeR2Client()
+    } catch (error) {
+      console.error('[R2] Failed to initialize client for upload:', error)
+      throw new Error('R2 client not configured. Please set R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY')
+    }
+  }
+
+  if (!r2Client) {
+    throw new Error('R2 client initialization failed')
+  }
+
+  try {
+    // Download video from source URL
+    // Ensure we get the original quality video, not a compressed version
+    console.log('[R2] Downloading original video from:', sourceUrl)
+    const videoResponse = await fetch(sourceUrl, {
+      // Add headers to ensure we get the original quality (no compression)
+      headers: {
+        'Accept': 'video/mp4,video/*;q=0.9,*/*;q=0.8',
+        'Accept-Encoding': 'identity', // Don't compress, get original quality
+        'User-Agent': 'Sora2Ai/1.0',
+      },
+      // Don't follow redirects that might lead to compressed versions
+      redirect: 'follow',
+    })
+
+    if (!videoResponse.ok) {
+      throw new Error(`Failed to download video: ${videoResponse.status} ${videoResponse.statusText}`)
+    }
+
+    // Check content type and size
+    const contentType = videoResponse.headers.get('content-type') || 'video/mp4'
+    const contentLength = videoResponse.headers.get('content-length')
+    const contentLengthBytes = contentLength ? parseInt(contentLength) : null
+    
+    // Get video as buffer
+    const videoBuffer = await videoResponse.arrayBuffer()
+    const buffer = Buffer.from(videoBuffer)
+    const actualSizeBytes = buffer.length
+    
+    // Log detailed video information for quality verification
+    const videoInfo = {
+      sourceUrl,
+      contentType,
+      expectedSize: contentLengthBytes ? `${(contentLengthBytes / 1024 / 1024).toFixed(2)} MB (${contentLengthBytes} bytes)` : 'unknown',
+      actualSize: `${(actualSizeBytes / 1024 / 1024).toFixed(2)} MB (${actualSizeBytes} bytes)`,
+      sizeMatch: contentLengthBytes ? actualSizeBytes === contentLengthBytes : 'unknown',
+      r2Key: key,
+    }
+    
+    console.log('[R2] Video quality verification:', videoInfo)
+    
+    // Warn if sizes don't match (might indicate compression)
+    if (contentLengthBytes && actualSizeBytes !== contentLengthBytes) {
+      console.warn('[R2] ⚠️ Video size mismatch - expected:', contentLengthBytes, 'bytes, got:', actualSizeBytes, 'bytes')
+      console.warn('[R2] This might indicate the video was compressed during download')
+    } else if (contentLengthBytes && actualSizeBytes === contentLengthBytes) {
+      console.log('[R2] ✅ Video size matches - original quality preserved')
+    }
+
+    // Clean key (remove leading slash if present)
+    const cleanKey = key.startsWith('/') ? key.slice(1) : key
+
+    // Upload to R2
+    console.log('[R2] Uploading video to R2:', cleanKey)
+    const command = new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: cleanKey,
+      Body: buffer,
+      ContentType: contentType,
+      // Preserve original video quality - no compression
+      Metadata: {
+        'source-url': sourceUrl,
+        'uploaded-at': new Date().toISOString(),
+        'original-size': actualSizeBytes.toString(),
+        'content-type': contentType,
+      },
+    })
+
+    await r2Client.send(command)
+    console.log('[R2] ✅ Video uploaded successfully to R2:', {
+      key: cleanKey,
+      size: `${(actualSizeBytes / 1024 / 1024).toFixed(2)} MB`,
+      r2Url: getPublicUrl(cleanKey),
+    })
+
+    // Return public URL with video info object for additional verification
+    return getPublicUrl(cleanKey)
+  } catch (error) {
+    console.error('[R2] Failed to upload video:', {
+      error: error instanceof Error ? error.message : String(error),
+      sourceUrl,
+      key,
+    })
+    throw new Error(
+      `Failed to upload video to R2: ${error instanceof Error ? error.message : 'Unknown error'}`
+    )
+  }
+}
+
+/**
+ * Delete a file from R2
+ * 
+ * @param key - The file key to delete, e.g., 'videos/task-123.mp4'
+ * @returns Success status
+ * 
+ * @example
+ * ```tsx
+ * import { deleteR2File } from '@/lib/r2/client'
+ * 
+ * await deleteR2File('videos/task-123.mp4')
+ * ```
+ */
+export async function deleteR2File(key: string): Promise<void> {
+  // Ensure R2 client is initialized
+  if (!r2Client) {
+    try {
+      initializeR2Client()
+    } catch (error) {
+      console.error('[R2] Failed to initialize client for delete:', error)
+      throw new Error('R2 client not configured. Please set R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY')
+    }
+  }
+
+  if (!r2Client) {
+    throw new Error('R2 client initialization failed')
+  }
+
+  try {
+    // Clean key (remove leading slash if present)
+    const cleanKey = key.startsWith('/') ? key.slice(1) : key
+
+    console.log('[R2] Deleting file from R2:', cleanKey)
+    const command = new DeleteObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: cleanKey,
+    })
+
+    await r2Client.send(command)
+    console.log('[R2] ✅ File deleted successfully:', cleanKey)
+  } catch (error) {
+    console.error('[R2] Failed to delete file:', {
+      error: error instanceof Error ? error.message : String(error),
+      key,
+    })
+    throw new Error(
+      `Failed to delete file from R2: ${error instanceof Error ? error.message : 'Unknown error'}`
+    )
   }
 }
 

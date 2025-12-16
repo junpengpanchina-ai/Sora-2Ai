@@ -49,9 +49,54 @@ export async function POST(request: NextRequest) {
               callbackData.status === 'failed' ? 'failed' : 'processing',
     }
 
-    // If task completed, update result information
+    // If task completed, optionally download and upload to R2 to preserve quality
+    // Controlled by R2_AUTO_UPLOAD_VIDEOS environment variable (default: false to save storage)
     if (callbackData.status === 'succeeded' && callbackData.results?.[0]) {
-      updateData.video_url = callbackData.results[0].url
+      const originalVideoUrl = callbackData.results[0].url
+      const autoUploadToR2 = process.env.R2_AUTO_UPLOAD_VIDEOS === 'true'
+      
+      if (autoUploadToR2) {
+        // Try to download and upload to R2 to preserve original quality
+        try {
+          const { uploadVideoFromUrl } = await import('@/lib/r2/client')
+          const r2Key = `videos/${videoTask.id}.mp4`
+          
+          console.log('[video/callback] Starting video upload to R2:', {
+            taskId: videoTask.id,
+            originalUrl: originalVideoUrl,
+            r2Key,
+          })
+          
+          const r2Url = await uploadVideoFromUrl(originalVideoUrl, r2Key)
+          
+          // Use R2 URL instead of original API URL for better quality and persistence
+          updateData.video_url = r2Url
+          console.log('[video/callback] ✅ Video successfully uploaded to R2 with original quality:', {
+            taskId: videoTask.id,
+            r2Url,
+            originalUrl: originalVideoUrl,
+            qualityCheck: 'You can verify quality at /api/video/check-quality/' + videoTask.id,
+          })
+        } catch (uploadError) {
+          // If upload fails, fallback to original URL
+          console.warn('[video/callback] ⚠️ Failed to upload video to R2, using original URL:', {
+            taskId: videoTask.id,
+            error: uploadError instanceof Error ? uploadError.message : String(uploadError),
+            fallbackUrl: originalVideoUrl,
+          })
+          updateData.video_url = originalVideoUrl
+        }
+      } else {
+        // Use original API URL to save R2 storage space
+        // Videos can be uploaded to R2 on-demand when user clicks download
+        updateData.video_url = originalVideoUrl
+        console.log('[video/callback] Using original API URL (R2_AUTO_UPLOAD_VIDEOS=false to save storage):', {
+          taskId: videoTask.id,
+          originalUrl: originalVideoUrl,
+          note: 'Video can be uploaded to R2 on-demand when needed',
+        })
+      }
+      
       updateData.remove_watermark = callbackData.results[0].removeWatermark ?? true
       updateData.pid = callbackData.results[0].pid || null
       updateData.completed_at = new Date().toISOString()

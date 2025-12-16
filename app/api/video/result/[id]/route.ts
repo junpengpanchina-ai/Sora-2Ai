@@ -120,6 +120,39 @@ export async function GET(
         const data = grsaiResult.data
 
         if (data.status === 'succeeded' && data.results?.[0]) {
+          const originalVideoUrl = data.results[0].url
+          let finalVideoUrl = originalVideoUrl
+          
+          // Try to download and upload to R2 to preserve original quality (if enabled)
+          const autoUploadToR2 = process.env.R2_AUTO_UPLOAD_VIDEOS === 'true'
+          if (internalTaskId && autoUploadToR2) {
+            try {
+              const { uploadVideoFromUrl } = await import('@/lib/r2/client')
+              const r2Key = `videos/${internalTaskId}.mp4`
+              
+              console.log('[video/result] Starting video upload to R2:', {
+                taskId: internalTaskId,
+                originalUrl: originalVideoUrl,
+                r2Key,
+              })
+              
+              finalVideoUrl = await uploadVideoFromUrl(originalVideoUrl, r2Key)
+              console.log('[video/result] ✅ Video successfully uploaded to R2 with original quality:', {
+                taskId: internalTaskId,
+                r2Url: finalVideoUrl,
+                originalUrl: originalVideoUrl,
+                qualityCheck: 'You can verify quality at /api/video/check-quality/' + internalTaskId,
+              })
+            } catch (uploadError) {
+              // If upload fails, fallback to original URL
+              console.warn('[video/result] ⚠️ Failed to upload video to R2, using original URL:', {
+                taskId: internalTaskId,
+                error: uploadError instanceof Error ? uploadError.message : String(uploadError),
+                fallbackUrl: originalVideoUrl,
+              })
+            }
+          }
+          
           // Update database if we have internal task ID
           if (internalTaskId) {
             await supabase
@@ -127,7 +160,7 @@ export async function GET(
               .update({
                 status: 'succeeded',
                 progress: data.progress,
-                video_url: data.results[0].url,
+                video_url: finalVideoUrl,
                 remove_watermark: data.results[0].removeWatermark ?? true,
                 pid: data.results[0].pid || null,
                 completed_at: new Date().toISOString(),
@@ -139,7 +172,7 @@ export async function GET(
             success: true,
             status: 'succeeded',
             progress: data.progress,
-            video_url: data.results[0].url,
+            video_url: finalVideoUrl,
             remove_watermark: data.results[0].removeWatermark ?? true,
             pid: data.results[0].pid,
             task_id: internalTaskId || grsaiTaskId,
