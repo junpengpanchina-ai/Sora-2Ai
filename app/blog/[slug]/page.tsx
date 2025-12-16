@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getBaseUrl } from '@/lib/utils/url'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { cache } from 'react'
 
 // 从数据库获取博客文章
@@ -34,7 +35,8 @@ const getBlogPostBySlug = cache(async (slug: string) => {
 
 // 获取所有已发布的博客文章slug（用于静态生成）
 export async function generateStaticParams() {
-  const supabase = await createSupabaseServerClient()
+  // 在静态生成时使用 service client，不需要 cookies
+  const supabase = await createServiceClient()
   
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
@@ -175,7 +177,7 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
                 Related Articles
               </h2>
               <ul className="space-y-3">
-                {relatedPosts.map((related) => (
+                {relatedPosts.map((related: { slug: string; title: string }) => (
                   <li key={related.slug}>
                     <Link
                       href={`/blog/${related.slug}`}

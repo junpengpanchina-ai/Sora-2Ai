@@ -25,6 +25,7 @@ interface Prompt {
   created_at: string
   updated_at: string
   created_by_admin_id?: string | null
+  slug?: string | null
 }
 
 // Recommended practice books
@@ -383,6 +384,28 @@ export default function PromptsPageClient() {
                           >
                             Copy Prompt
                           </Button>
+                          {prompt.slug && (
+                            <Link
+                              href={`/prompts/${prompt.slug}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+                            >
+                              View Details
+                              <svg
+                                className="ml-1 h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 5l7 7-7 7"
+                                />
+                              </svg>
+                            </Link>
+                          )}
                         </div>
                       </div>
                     ))}

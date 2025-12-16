@@ -351,6 +351,7 @@ export interface Database {
           difficulty: 'information' | 'comparison' | 'transaction'
           example: string | null
           locale: 'zh' | 'en'
+          slug: string | null
           is_published: boolean
           created_by_admin_id: string | null
           created_at: string
@@ -366,6 +367,7 @@ export interface Database {
           difficulty: 'information' | 'comparison' | 'transaction'
           example?: string | null
           locale?: 'zh' | 'en'
+          slug?: string | null
           is_published?: boolean
           created_by_admin_id?: string | null
           created_at?: string
@@ -381,6 +383,7 @@ export interface Database {
           difficulty?: 'information' | 'comparison' | 'transaction'
           example?: string | null
           locale?: 'zh' | 'en'
+          slug?: string | null
           is_published?: boolean
           created_by_admin_id?: string | null
           created_at?: string
@@ -506,6 +509,156 @@ export interface Database {
           meta_keywords?: string[] | null
           is_active?: boolean
           priority?: number
+          created_by_admin_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      blog_posts: {
+        Row: {
+          id: string
+          slug: string
+          title: string
+          description: string
+          h1: string
+          content: string
+          published_at: string | null
+          is_published: boolean
+          related_posts: string[]
+          seo_keywords: string[]
+          created_by_admin_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          title: string
+          description: string
+          h1: string
+          content: string
+          published_at?: string | null
+          is_published?: boolean
+          related_posts?: string[]
+          seo_keywords?: string[]
+          created_by_admin_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          slug?: string
+          title?: string
+          description?: string
+          h1?: string
+          content?: string
+          published_at?: string | null
+          is_published?: boolean
+          related_posts?: string[]
+          seo_keywords?: string[]
+          created_by_admin_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      use_cases: {
+        Row: {
+          id: string
+          slug: string
+          title: string
+          h1: string
+          description: string
+          content: string
+          use_case_type: 'marketing' | 'social-media' | 'youtube' | 'tiktok' | 'product-demo' | 'ads' | 'education' | 'other'
+          featured_prompt_ids: string[]
+          related_use_case_ids: string[]
+          seo_keywords: string[]
+          is_published: boolean
+          created_by_admin_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          title: string
+          h1: string
+          description: string
+          content: string
+          use_case_type: 'marketing' | 'social-media' | 'youtube' | 'tiktok' | 'product-demo' | 'ads' | 'education' | 'other'
+          featured_prompt_ids?: string[]
+          related_use_case_ids?: string[]
+          seo_keywords?: string[]
+          is_published?: boolean
+          created_by_admin_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          slug?: string
+          title?: string
+          h1?: string
+          description?: string
+          content?: string
+          use_case_type?: 'marketing' | 'social-media' | 'youtube' | 'tiktok' | 'product-demo' | 'ads' | 'education' | 'other'
+          featured_prompt_ids?: string[]
+          related_use_case_ids?: string[]
+          seo_keywords?: string[]
+          is_published?: boolean
+          created_by_admin_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      compare_pages: {
+        Row: {
+          id: string
+          slug: string
+          title: string
+          h1: string
+          description: string
+          content: string
+          tool_a_name: string
+          tool_b_name: string
+          comparison_points: Json
+          winner: 'tool_a' | 'tool_b' | 'tie' | null
+          seo_keywords: string[]
+          is_published: boolean
+          created_by_admin_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          title: string
+          h1: string
+          description: string
+          content: string
+          tool_a_name?: string
+          tool_b_name: string
+          comparison_points?: Json
+          winner?: 'tool_a' | 'tool_b' | 'tie' | null
+          seo_keywords?: string[]
+          is_published?: boolean
+          created_by_admin_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          slug?: string
+          title?: string
+          h1?: string
+          description?: string
+          content?: string
+          tool_a_name?: string
+          tool_b_name?: string
+          comparison_points?: Json
+          winner?: 'tool_a' | 'tool_b' | 'tie' | null
+          seo_keywords?: string[]
+          is_published?: boolean
           created_by_admin_id?: string | null
           created_at?: string
           updated_at?: string

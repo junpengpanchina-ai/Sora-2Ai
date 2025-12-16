@@ -64,7 +64,7 @@ export default async function BlogPage() {
           </div>
         ) : (
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {blogPosts.map((post) => (
+            {blogPosts.map((post: { slug: string; title: string; description: string; date: string }) => (
               <article
                 key={post.slug}
                 className="rounded-2xl bg-white p-6 shadow-sm transition hover:shadow-md dark:bg-gray-900/60"
