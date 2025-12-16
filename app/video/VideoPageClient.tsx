@@ -775,6 +775,15 @@ export default function VideoPageClient() {
                     <p className="text-sm text-red-600 dark:text-red-300">
                       {currentResult.error || 'Unknown error'}
                     </p>
+                    {/* Show credits refunded message for all failures */}
+                    <div className="mt-3 rounded-md bg-green-50 p-3 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                      <p className="text-xs font-medium text-green-800 dark:text-green-200 flex items-center gap-1">
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Credits have been automatically refunded. You can try again with a different prompt.
+                      </p>
+                    </div>
                     {violationInfo && (
                       <div className="mt-3 rounded-md bg-yellow-50 p-3 dark:bg-yellow-900/20">
                         <p className="text-xs font-medium text-yellow-800 dark:text-yellow-200 mb-1">
@@ -788,9 +797,6 @@ export default function VideoPageClient() {
                             <li key={tip}>{tip}</li>
                           ))}
                         </ul>
-                        <p className="mt-2 text-xs text-yellow-600 dark:text-yellow-400">
-                          💡 Your credits have been refunded automatically.
-                        </p>
                       </div>
                     )}
                   </div>

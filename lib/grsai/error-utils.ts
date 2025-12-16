@@ -60,9 +60,26 @@ export function formatGrsaiFriendlyError({
   }
 
   const detail = (error || msg)?.trim()
+  
+  // Handle common system errors from Grsai API
+  if (detail && /system error|system error please try again/i.test(detail)) {
+    return {
+      message: 'The video generation service encountered a system error. This is usually temporary. Please try again in a few minutes. Your credits have been automatically refunded.',
+    }
+  }
+  
+  // Handle "Failed to generate" errors
+  if (detail && /failed to generate/i.test(detail)) {
+    return {
+      message: detail.includes('system error')
+        ? 'The video generation service encountered a system error. Please try again in a few minutes. Your credits have been automatically refunded.'
+        : `Video generation failed. ${detail}. Your credits have been automatically refunded.`,
+    }
+  }
+  
   let message =
     fallback ||
-    'Video generation failed because the upstream service returned an unexpected error. Please try again in a few minutes.'
+    'Video generation failed because the upstream service returned an unexpected error. Please try again in a few minutes. Your credits have been automatically refunded.'
   if (detail) {
     message += ` Details: ${detail}`
   }
