@@ -196,12 +196,45 @@ export async function POST(request: NextRequest) {
     // If using streaming response and completed, return result directly
     if (!validatedData.useWebhook && 'status' in grsaiResponse) {
       if (grsaiResponse.status === 'succeeded' && grsaiResponse.results?.[0]) {
+        const originalVideoUrl = grsaiResponse.results[0].url
+        let finalVideoUrl = originalVideoUrl
+        
+        // Try to download and upload to R2 to preserve original quality (if enabled)
+        const autoUploadToR2 = process.env.R2_AUTO_UPLOAD_VIDEOS === 'true'
+        if (autoUploadToR2) {
+          try {
+            const { uploadVideoFromUrl } = await import('@/lib/r2/client')
+            const r2Key = `videos/${videoTask.id}.mp4`
+            
+            console.log('[video/generate] Starting video upload to R2:', {
+              taskId: videoTask.id,
+              originalUrl: originalVideoUrl,
+              r2Key,
+            })
+            
+            finalVideoUrl = await uploadVideoFromUrl(originalVideoUrl, r2Key)
+            console.log('[video/generate] ✅ Video successfully uploaded to R2 with original quality:', {
+              taskId: videoTask.id,
+              r2Url: finalVideoUrl,
+              originalUrl: originalVideoUrl,
+              qualityCheck: 'You can verify quality at /api/video/check-quality/' + videoTask.id,
+            })
+          } catch (uploadError) {
+            // If upload fails, fallback to original URL
+            console.warn('[video/generate] ⚠️ Failed to upload video to R2, using original URL:', {
+              taskId: videoTask.id,
+              error: uploadError instanceof Error ? uploadError.message : String(uploadError),
+              fallbackUrl: originalVideoUrl,
+            })
+          }
+        }
+        
         // Update task with result
         await supabase
           .from('video_tasks')
           .update({
             status: 'succeeded',
-            video_url: grsaiResponse.results[0].url,
+            video_url: finalVideoUrl,
             remove_watermark: grsaiResponse.results[0].removeWatermark ?? true,
             pid: grsaiResponse.results[0].pid || null,
             completed_at: new Date().toISOString(),
@@ -212,7 +245,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: true,
           status: 'succeeded',
-          video_url: grsaiResponse.results[0].url,
+          video_url: finalVideoUrl,
           remove_watermark: grsaiResponse.results[0].removeWatermark,
           pid: grsaiResponse.results[0].pid,
           task_id: videoTask.id,

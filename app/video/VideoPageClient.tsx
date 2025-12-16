@@ -594,8 +594,9 @@ export default function VideoPageClient() {
                       src={currentResult.video_url}
                       controls
                       className="max-w-md w-full rounded-lg"
-                      preload="auto"
+                      preload="metadata"
                       playsInline
+                      crossOrigin="anonymous"
                       style={{ maxWidth: '100%', height: 'auto' }}
                     >
                       Your browser does not support video playback
@@ -610,6 +611,29 @@ export default function VideoPageClient() {
                         <span className="text-xs text-green-600 dark:text-green-400">
                           ✓ No Watermark
                         </span>
+                      )}
+                      {currentResult.task_id && currentResult.video_url && (
+                        <a
+                          href={currentResult.video_url}
+                          download={`video-${currentResult.task_id}.mp4`}
+                          className="inline-flex items-center gap-2 rounded-lg bg-energy-water px-4 py-2 text-sm font-medium text-white hover:bg-energy-water/90 transition-colors"
+                          title="Download original quality video (no compression)"
+                        >
+                          <svg
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                            />
+                          </svg>
+                          Download Original Video
+                        </a>
                       )}
                     </div>
                     <button
