@@ -1,5 +1,5 @@
-// API endpoint to get original video download URL (no compression)
-// Smart upload: Only upload to R2 when user clicks download (on-demand), not automatically
+// API endpoint to download video directly from original API URL
+// No R2 storage needed - use original API URL directly, same as the vendor does
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 import { createClient } from '@/lib/supabase/server'
@@ -56,57 +56,24 @@ export async function GET(
       )
     }
 
-    // Smart upload: If video is from API (not R2), upload to R2 on-demand when user downloads
-    // This saves storage space - only videos that users actually download are stored in R2
-    const isR2Video = task.video_url.includes('r2.dev')
-    let downloadUrl = task.video_url
+    // Use the original video URL directly - no R2 upload needed!
+    // The vendor's API already provides high-quality videos, just like they do
+    const downloadUrl = task.video_url
 
-    if (!isR2Video) {
-      // Video is from API, upload to R2 on-demand for original quality
-      try {
-        const { uploadVideoFromUrl } = await import('@/lib/r2/client')
-        const r2Key = `videos/${task.id}.mp4`
-        
-        console.log('[video/download] Uploading video to R2 on-demand (user requested download):', {
-          taskId: task.id,
-          originalUrl: task.video_url,
-          r2Key,
-        })
-        
-        const r2Url = await uploadVideoFromUrl(task.video_url, r2Key)
-        
-        // Update database with R2 URL for future use
-        const updateData: Partial<Database['public']['Tables']['video_tasks']['Update']> = {
-          video_url: r2Url,
-        }
-        await supabase
-          .from('video_tasks')
-          .update(updateData)
-          .eq('id', task.id)
-        
-        downloadUrl = r2Url
-        console.log('[video/download] ✅ Video uploaded to R2 on-demand:', {
-          taskId: task.id,
-          r2Url,
-        })
-      } catch (uploadError) {
-        // If upload fails, fallback to original API URL
-        console.warn('[video/download] ⚠️ Failed to upload to R2, using original URL:', {
-          taskId: task.id,
-          error: uploadError instanceof Error ? uploadError.message : String(uploadError),
-          fallbackUrl: task.video_url,
-        })
-        // Continue with original URL
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      downloadUrl,
+    console.log('[video/download] Direct download from original API URL:', {
       taskId: task.id,
+      videoUrl: downloadUrl,
       isR2Video: downloadUrl.includes('r2.dev'),
-      uploadedOnDemand: !isR2Video && downloadUrl.includes('r2.dev'),
-      note: 'This URL points to the original video file with no compression. Video was uploaded to R2 on-demand when you clicked download.',
+      note: 'Using original API URL directly, same as vendor - no R2 storage needed',
+    })
+
+    // Directly redirect to the video URL for download
+    // This allows the browser to handle the download properly
+    return NextResponse.redirect(downloadUrl, {
+      status: 302,
+      headers: {
+        'Content-Disposition': `attachment; filename="video-${task.id}.mp4"`,
+      },
     })
   } catch (error) {
     console.error('Failed to get download URL:', error)

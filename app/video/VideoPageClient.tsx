@@ -737,7 +737,7 @@ export default function VideoPageClient() {
                           href={`/api/video/download/${currentResult.task_id}`}
                           download={`video-${currentResult.task_id}.mp4`}
                           className="inline-flex items-center gap-2 rounded-lg bg-energy-water px-4 py-2 text-sm font-medium text-white hover:bg-energy-water/90 transition-colors"
-                          title="Download original quality video (uploaded to R2 on-demand, no compression)"
+                          title="Download original quality video directly from API (no compression, no storage)"
                         >
                           <svg
                             className="h-4 w-4"
