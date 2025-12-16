@@ -40,6 +40,7 @@ CREATE INDEX IF NOT EXISTS idx_payment_plans_display_order ON payment_plans(disp
 CREATE INDEX IF NOT EXISTS idx_payment_plans_type ON payment_plans(plan_type);
 
 -- 创建更新时间触发器
+DROP TRIGGER IF EXISTS update_payment_plans_updated_at ON payment_plans;
 CREATE TRIGGER update_payment_plans_updated_at
   BEFORE UPDATE ON payment_plans
   FOR EACH ROW
