@@ -7,10 +7,10 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: {
-    default: 'Sora2Ai Videos - AI Video Generation Platform',
-    template: '%s | Sora2Ai Videos',
+    default: 'Sora Alternative – Best AI Video Generators Like OpenAI Sora',
+    template: '%s | Best Sora Alternative',
   },
-  description: 'Sora2Ai Videos - Transform your ideas into stunning AI-generated videos using OpenAI Sora 2.0. Free credits available for new users.',
+  description: 'Find the best Sora alternatives for AI video generation. Create stunning text-to-video content with our free AI video generator. Compare top Sora alternatives and start creating videos today.',
   icons: {
     icon: '/icon.svg',
   },
@@ -29,9 +29,9 @@ export const metadata: Metadata = {
     locale: 'en_US',
     alternateLocale: ['ar_SA'],
     url: 'https://sora2aivideos.com',
-    siteName: 'Sora2Ai Videos',
-    title: 'Sora2Ai Videos - AI Video Generation Platform',
-    description: 'Transform your ideas into stunning AI-generated videos using OpenAI Sora 2.0. Free credits available for new users.',
+    siteName: 'Best Sora Alternative',
+    title: 'Sora Alternative – Best AI Video Generators Like OpenAI Sora',
+    description: 'Find the best Sora alternatives for AI video generation. Create stunning text-to-video content with our free AI video generator. Compare top Sora alternatives and start creating videos today.',
   },
 }
 
@@ -65,10 +65,10 @@ export default function RootLayout({
             __html: JSON.stringify({
               '@context': 'https://schema.org',
               '@type': 'Organization',
-              name: 'Sora2Ai Videos',
+              name: 'Best Sora Alternative',
               url: 'https://sora2aivideos.com',
               logo: 'https://sora2aivideos.com/icon.svg',
-              description: 'AI video generation platform powered by OpenAI Sora 2.0',
+              description: 'Best Sora alternative for AI video generation. Create text-to-video content with our free AI video generator.',
               sameAs: [],
               contactPoint: {
                 '@type': 'ContactPoint',
@@ -86,9 +86,9 @@ export default function RootLayout({
             __html: JSON.stringify({
               '@context': 'https://schema.org',
               '@type': 'WebSite',
-              name: 'Sora2Ai Videos',
+              name: 'Best Sora Alternative',
               url: 'https://sora2aivideos.com',
-              description: 'AI video generation platform powered by OpenAI Sora 2.0',
+              description: 'Best Sora alternative for AI video generation. Create text-to-video content with our free AI video generator.',
               potentialAction: {
                 '@type': 'SearchAction',
                 target: {

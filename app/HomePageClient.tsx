@@ -651,16 +651,16 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         <section className="relative isolate overflow-hidden py-24 sm:py-28 lg:py-32">
         <div className="relative z-10 mx-auto max-w-6xl px-6 text-left">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-1 text-[0.7rem] uppercase tracking-[0.45em] text-energy-gold-light">
-            {homepageSettings?.hero_badge_text || 'Sora 2 AI Control Center'}
+            {homepageSettings?.hero_badge_text || 'Best Sora Alternative'}
             <span className="h-1.5 w-1.5 rounded-full bg-energy-gold-light" />
           </div>
           <h2 className="mt-6 text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-[3.2rem]">
             {hydratedProfile
-              ? homepageSettings?.hero_h1_text_logged_in?.replace('{name}', hydratedProfile.name || 'Creator') || `Welcome back, ${hydratedProfile.name || 'Creator'}!`
-              : homepageSettings?.hero_h1_text || 'Turn cinematic ideas into deployable Sora 2.0 workflows.'}
+              ? homepageSettings?.hero_h1_text_logged_in?.replace('{name}', hydratedProfile.name || 'Creator') || `Welcome back, ${hydratedProfile.name || 'Creator'}! Create AI Videos Like Sora`
+              : homepageSettings?.hero_h1_text || 'Best Sora Alternatives for AI Video Generation'}
           </h2>
           <p className="mt-4 max-w-3xl text-base text-blue-100/90 sm:text-lg">
-            {homepageSettings?.hero_description || 'Operate from a focused dashboard that keeps the cosmic atmosphere but prioritizes productivity. Track pipeline health, credits, and the next action without leaving your control surface.'}
+            {homepageSettings?.hero_description || 'Find the best Sora alternatives for creating stunning text-to-video content. Our free AI video generator lets you create professional videos from text prompts in seconds. Compare top Sora alternatives and start creating today.'}
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
             <Link href={hydratedProfile ? '/video' : '/login'}>
