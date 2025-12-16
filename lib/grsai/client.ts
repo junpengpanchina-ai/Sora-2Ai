@@ -83,7 +83,37 @@ export async function createSoraVideoTask(
 
   if (!response.ok) {
     const errorText = await response.text()
-    throw new Error(`Grsai API 错误: ${response.status} - ${errorText}`)
+    let errorMessage = `Grsai API 错误: ${response.status}`
+    
+    // Try to parse error details if available
+    try {
+      const errorJson = JSON.parse(errorText)
+      if (errorJson.msg) {
+        errorMessage += ` - ${errorJson.msg}`
+      } else if (errorJson.error) {
+        errorMessage += ` - ${errorJson.error}`
+      } else if (errorJson.message) {
+        errorMessage += ` - ${errorJson.message}`
+      } else {
+        errorMessage += ` - ${errorText}`
+      }
+    } catch {
+      // If not JSON, use raw text
+      errorMessage += ` - ${errorText}`
+    }
+    
+    // Add helpful context based on status code
+    if (response.status === 401) {
+      errorMessage += ' (提示: 请检查 GRSAI_API_KEY 是否正确配置)'
+    } else if (response.status === 403) {
+      errorMessage += ' (提示: API Key 可能没有权限或已过期)'
+    } else if (response.status === 429) {
+      errorMessage += ' (提示: API 请求频率过高，请稍后重试)'
+    } else if (response.status === 500 || response.status === 502 || response.status === 503) {
+      errorMessage += ' (提示: API 服务暂时不可用，请稍后重试)'
+    }
+    
+    throw new Error(errorMessage)
   }
 
   // 如果使用 webHook: "-1"，会立即返回 id

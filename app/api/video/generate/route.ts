@@ -159,6 +159,16 @@ export async function POST(request: NextRequest) {
     try {
       grsaiResponse = await createSoraVideoTask(grsaiParams)
     } catch (apiError) {
+      // Log detailed error for debugging
+      const errorMessage = apiError instanceof Error ? apiError.message : 'Unknown error'
+      console.error('[video/generate] Grsai API call failed:', {
+        error: errorMessage,
+        taskId: videoTask.id,
+        prompt: validatedData.prompt.substring(0, 50),
+        grsaiHost: process.env.GRSAI_HOST || 'https://grsai.dakka.com.cn',
+        hasApiKey: !!process.env.GRSAI_API_KEY,
+      })
+      
       // If API call fails, refund credits and update task status
       if (consumptionId) {
         await refundCredits(supabase, userProfile.id, consumptionId)
@@ -167,12 +177,30 @@ export async function POST(request: NextRequest) {
         .from('video_tasks')
         .update({ 
           status: 'failed',
-          error_message: apiError instanceof Error ? apiError.message : 'API call failed'
+          error_message: errorMessage
         })
         .eq('id', videoTask.id)
       
+      // Provide more helpful error message
+      let userFriendlyError = errorMessage
+      if (errorMessage.includes('GRSAI_API_KEY 环境变量未配置')) {
+        userFriendlyError = 'API Key 未配置。请检查服务器配置中的 GRSAI_API_KEY 环境变量。'
+      } else if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+        userFriendlyError = 'API Key 无效或已过期。请检查 GRSAI_API_KEY 配置。'
+      } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+        userFriendlyError = 'API Key 没有权限访问此服务。请检查 API Key 配置。'
+      } else if (errorMessage.includes('429') || errorMessage.includes('Rate limit')) {
+        userFriendlyError = 'API 请求频率过高，请稍后重试。'
+      } else if (errorMessage.includes('500') || errorMessage.includes('502') || errorMessage.includes('503')) {
+        userFriendlyError = 'API 服务暂时不可用，请稍后重试。'
+      }
+      
       return NextResponse.json(
-        { error: 'Failed to call video generation API', details: apiError instanceof Error ? apiError.message : 'Unknown error' },
+        { 
+          error: 'Failed to call video generation API', 
+          details: userFriendlyError,
+          technicalDetails: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        },
         { status: 500 }
       )
     }
