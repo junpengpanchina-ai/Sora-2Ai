@@ -72,6 +72,21 @@ export async function createSoraVideoTask(
 ): Promise<SoraVideoResponse | GrsaiTaskIdResponse> {
   const apiKey = getGrsaiApiKey()
   const host = getGrsaiHost()
+  
+  // Log request details for debugging (without sensitive info)
+  console.log('[Grsai API] Creating video task:', {
+    host,
+    model: params.model,
+    aspectRatio: params.aspectRatio,
+    duration: params.duration,
+    size: params.size,
+    hasPrompt: !!params.prompt,
+    promptLength: params.prompt?.length,
+    hasUrl: !!params.url,
+    webHook: params.webHook ? (params.webHook === '-1' ? 'polling' : 'webhook') : 'none',
+    apiKeyPrefix: apiKey.substring(0, 10) + '...',
+  })
+  
   const response = await fetch(`${host}/v1/video/sora-video`, {
     method: 'POST',
     headers: {
@@ -85,9 +100,20 @@ export async function createSoraVideoTask(
     const errorText = await response.text()
     let errorMessage = `Grsai API 错误: ${response.status}`
     
+    // Log full error response for debugging
+    console.error('[Grsai API] Request failed:', {
+      status: response.status,
+      statusText: response.statusText,
+      url: `${host}/v1/video/sora-video`,
+      errorText,
+      headers: Object.fromEntries(response.headers.entries()),
+    })
+    
     // Try to parse error details if available
     try {
       const errorJson = JSON.parse(errorText)
+      console.error('[Grsai API] Parsed error response:', errorJson)
+      
       if (errorJson.msg) {
         errorMessage += ` - ${errorJson.msg}`
       } else if (errorJson.error) {
@@ -95,7 +121,7 @@ export async function createSoraVideoTask(
       } else if (errorJson.message) {
         errorMessage += ` - ${errorJson.message}`
       } else {
-        errorMessage += ` - ${errorText}`
+        errorMessage += ` - ${JSON.stringify(errorJson)}`
       }
     } catch {
       // If not JSON, use raw text
@@ -115,6 +141,9 @@ export async function createSoraVideoTask(
     
     throw new Error(errorMessage)
   }
+  
+  // Log successful response (first 100 chars of prompt for debugging)
+  console.log('[Grsai API] Request successful, processing response...')
 
   // 如果使用 webHook: "-1"，会立即返回 id
   if (params.webHook === '-1') {

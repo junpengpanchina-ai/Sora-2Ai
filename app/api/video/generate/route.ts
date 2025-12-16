@@ -279,6 +279,16 @@ export async function POST(request: NextRequest) {
           task_id: videoTask.id,
         })
       } else if (grsaiResponse.status === 'failed') {
+        // Log detailed failure information
+        console.error('[video/generate] Video generation failed:', {
+          taskId: videoTask.id,
+          grsaiTaskId: grsaiResponse.id,
+          failureReason: grsaiResponse.failure_reason,
+          error: grsaiResponse.error,
+          prompt: validatedData.prompt.substring(0, 50),
+          progress: grsaiResponse.progress,
+        })
+        
         const friendlyError = formatGrsaiFriendlyError({
           failureReason: grsaiResponse.failure_reason,
           error: grsaiResponse.error,
