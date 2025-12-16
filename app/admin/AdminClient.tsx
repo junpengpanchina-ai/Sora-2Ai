@@ -18,6 +18,7 @@ import AdminPromptsManager from './AdminPromptsManager'
 import AdminKeywordsManager from './AdminKeywordsManager'
 import AdminGrsaiChatManager from './AdminGrsaiChatManager'
 import AdminHomepageManager from './AdminHomepageManager'
+import AdminBlogManager from './AdminBlogManager'
 
 interface UserStats {
   total_users: number
@@ -242,6 +243,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     | 'keywords'
     | 'grsai-chat'
     | 'homepage'
+    | 'blog'
   >('overview')
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [issuesLoading, setIssuesLoading] = useState(true)
@@ -977,6 +979,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                   { value: 'adjustments', label: '积分调整' },
                   { value: 'prompts', label: '提示词库' },
                   { value: 'keywords', label: '长尾词' },
+                  { value: 'blog', label: '博客文章' },
                   { value: 'grsai-chat', label: 'GRSAI Chat' },
                   { value: 'homepage', label: '首页管理' },
                 ].map((tab) => (
@@ -1904,6 +1907,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
 
             {activeTab === 'prompts' && <AdminPromptsManager onShowBanner={showBanner} />}
             {activeTab === 'keywords' && <AdminKeywordsManager onShowBanner={showBanner} />}
+            {activeTab === 'blog' && <AdminBlogManager onShowBanner={showBanner} />}
             {activeTab === 'grsai-chat' && <AdminGrsaiChatManager onShowBanner={showBanner} />}
             {activeTab === 'homepage' && <AdminHomepageManager onShowBanner={showBanner} />}
           </>

@@ -43,6 +43,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_homepage_settings_active
   WHERE is_active = true;
 
 -- 创建更新时间触发器
+DROP TRIGGER IF EXISTS update_homepage_settings_updated_at ON homepage_settings;
 CREATE TRIGGER update_homepage_settings_updated_at
   BEFORE UPDATE ON homepage_settings
   FOR EACH ROW
