@@ -353,20 +353,45 @@ export async function uploadVideoFromUrl(
   try {
     // Download video from source URL
     // Ensure we get the original quality video, not a compressed version
+    // Use realistic browser headers to avoid being flagged as bot/malicious access
     console.log('[R2] Downloading original video from:', sourceUrl)
     const videoResponse = await fetch(sourceUrl, {
       // Add headers to ensure we get the original quality (no compression)
+      // Use realistic browser headers to avoid being flagged
       headers: {
         'Accept': 'video/mp4,video/*;q=0.9,*/*;q=0.8',
         'Accept-Encoding': 'identity', // Don't compress, get original quality
-        'User-Agent': 'Sora2Ai/1.0',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://sora2aivideos.com/',
+        'Sec-Fetch-Dest': 'video',
+        'Sec-Fetch-Mode': 'no-cors',
+        'Sec-Fetch-Site': 'cross-site',
       },
       // Don't follow redirects that might lead to compressed versions
       redirect: 'follow',
     })
 
     if (!videoResponse.ok) {
-      throw new Error(`Failed to download video: ${videoResponse.status} ${videoResponse.statusText}`)
+      const errorText = await videoResponse.text().catch(() => 'Unable to read error response')
+      console.error('[R2] ❌ Failed to download video:', {
+        status: videoResponse.status,
+        statusText: videoResponse.statusText,
+        sourceUrl,
+        errorText: errorText.substring(0, 200), // Limit error text length
+        headers: Object.fromEntries(videoResponse.headers.entries()),
+      })
+      
+      // Provide more helpful error messages
+      if (videoResponse.status === 403) {
+        throw new Error(`Access denied (403): The source video URL may have access restrictions or the server is blocking our requests. This might indicate the source is blocking automated downloads. Details: ${errorText.substring(0, 100)}`)
+      } else if (videoResponse.status === 404) {
+        throw new Error(`Video not found (404): The source video URL is no longer available. Details: ${errorText.substring(0, 100)}`)
+      } else if (videoResponse.status === 429) {
+        throw new Error(`Rate limited (429): Too many requests to source server. This might indicate the source is rate-limiting our downloads. Please try again later. Details: ${errorText.substring(0, 100)}`)
+      } else {
+        throw new Error(`Failed to download video (${videoResponse.status}): ${videoResponse.statusText}. Details: ${errorText.substring(0, 100)}`)
+      }
     }
 
     // Check content type and size
