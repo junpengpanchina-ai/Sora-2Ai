@@ -109,6 +109,52 @@ const getRelatedKeywords = cache(async (excludeId: string): Promise<KeywordPageR
   }))
 })
 
+// 获取相关使用场景（通过关键词匹配）
+const getRelatedUseCases = cache(async (keyword: string): Promise<Array<{
+  id: string
+  slug: string
+  title: string
+  description: string
+  use_case_type: string
+}>> => {
+  const supabase = await createSupabaseServerClient()
+  
+  // 将关键词转换为小写用于匹配
+  const keywordLower = keyword.toLowerCase()
+  
+  // 查找使用场景的 seo_keywords 数组包含此关键词或相关词
+  // 由于 Supabase 不支持直接查询数组包含，我们使用文本搜索
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from('use_cases')
+    .select('id, slug, title, description, use_case_type, seo_keywords')
+    .eq('is_published', true)
+    .limit(10)
+
+  if (error || !data) {
+    return []
+  }
+
+  // 在应用层过滤：检查 seo_keywords 数组是否包含相关关键词
+  const matched = data
+    .filter((uc: { seo_keywords: string[] | null }) => {
+      if (!uc.seo_keywords || uc.seo_keywords.length === 0) return false
+      // 检查关键词是否包含在 seo_keywords 中，或 seo_keywords 中的词是否包含在关键词中
+      return uc.seo_keywords.some(seoKw => 
+        keywordLower.includes(seoKw.toLowerCase()) || 
+        seoKw.toLowerCase().includes(keywordLower)
+      )
+    })
+    .slice(0, 6)
+    .map((uc: { seo_keywords: unknown }) => {
+      // 移除 seo_keywords 字段，只返回需要的字段
+      const { seo_keywords, ...rest } = uc
+      return rest
+    })
+
+  return matched
+})
+
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
@@ -173,6 +219,7 @@ export default async function KeywordLandingPage({ params }: PageProps) {
   console.log(`KeywordLandingPage: Found keyword with page_slug: ${keyword.page_slug}`)
 
   const relatedKeywords = await getRelatedKeywords(keyword.id)
+  const relatedUseCases = await getRelatedUseCases(keyword.keyword)
   const structuredFaq =
     keyword.faq.length > 0
       ? {
@@ -384,6 +431,43 @@ export default async function KeywordLandingPage({ params }: PageProps) {
               </ul>
             </section>
 
+            {/* Related Use Cases */}
+            {relatedUseCases.length > 0 && (
+              <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70">
+                <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">Related Use Cases</h3>
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                  Explore comprehensive guides for this keyword:
+                </p>
+                <div className="mt-4 space-y-3">
+                  {relatedUseCases.map((useCase) => (
+                    <Link
+                      key={useCase.id}
+                      href={`/use-cases/${useCase.slug}`}
+                      className="block rounded-xl border border-gray-200 bg-gray-50 p-4 transition hover:border-energy-water hover:bg-white dark:border-gray-700 dark:bg-gray-800/60 dark:hover:bg-gray-700"
+                    >
+                      <h4 className="font-medium text-gray-900 dark:text-white">
+                        {useCase.title}
+                      </h4>
+                      {useCase.description && (
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                          {useCase.description}
+                        </p>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <Link
+                    href="/use-cases"
+                    className="text-sm text-energy-water hover:underline font-medium"
+                  >
+                    View all use cases →
+                  </Link>
+                </div>
+              </section>
+            )}
+
+            {/* Related Keywords */}
             {relatedKeywords.length > 0 && (
               <section 
                 className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70 flex flex-col"
