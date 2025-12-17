@@ -21,6 +21,7 @@ import AdminHomepageManager from './AdminHomepageManager'
 import AdminBlogManager from './AdminBlogManager'
 import AdminUseCasesManager from './AdminUseCasesManager'
 import AdminComparePagesManager from './AdminComparePagesManager'
+import AdminBatchContentGenerator from './AdminBatchContentGenerator'
 
 interface UserStats {
   total_users: number
@@ -248,6 +249,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     | 'blog'
     | 'use-cases'
     | 'compare-pages'
+    | 'batch-generator'
   >('overview')
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [issuesLoading, setIssuesLoading] = useState(true)
@@ -986,6 +988,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                   { value: 'blog', label: '博客文章' },
                   { value: 'use-cases', label: '使用场景' },
                   { value: 'compare-pages', label: '对比页' },
+                  { value: 'batch-generator', label: '批量生成' },
                   { value: 'grsai-chat', label: 'GRSAI Chat' },
                   { value: 'homepage', label: '首页管理' },
                 ].map((tab) => (
@@ -1916,6 +1919,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
             {activeTab === 'blog' && <AdminBlogManager onShowBanner={showBanner} />}
             {activeTab === 'use-cases' && <AdminUseCasesManager onShowBanner={showBanner} />}
             {activeTab === 'compare-pages' && <AdminComparePagesManager onShowBanner={showBanner} />}
+            {activeTab === 'batch-generator' && <AdminBatchContentGenerator onShowBanner={showBanner} />}
             {activeTab === 'grsai-chat' && <AdminGrsaiChatManager onShowBanner={showBanner} />}
             {activeTab === 'homepage' && <AdminHomepageManager onShowBanner={showBanner} />}
           </>
