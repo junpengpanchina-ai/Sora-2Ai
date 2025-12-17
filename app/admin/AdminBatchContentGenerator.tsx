@@ -17,6 +17,9 @@ interface BatchTask {
   result?: string
   error?: string
   savedId?: string // 保存到数据库后的 ID
+  savedTable?: string // 保存到哪个表
+  savedSlug?: string // 保存后的 slug
+  model?: string // 使用的模型
 }
 
 export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchContentGeneratorProps) {
@@ -28,13 +31,118 @@ export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchC
   const [autoSave, setAutoSave] = useState(true) // 默认开启自动保存
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // CSV 示例
+  // 预设数据池
+  const useCaseScenes = [
+    'Fitness Course Video', 'Pet Short Video', 'Amazon Product Video', 'Education Course Video',
+    'Marketing Ad Video', 'TikTok Viral Video', 'YouTube Tutorial Video', 'Product Demo Video',
+    'Real Estate Tour Video', 'Food Recipe Video', 'Travel Vlog Video', 'Fashion Showcase Video',
+    'Tech Product Review', 'Gaming Highlight Video', 'Music Video', 'Corporate Training Video',
+    'Event Promotion Video', 'Charity Campaign Video', 'News Summary Video', 'Sports Highlight Video',
+    'Beauty Tutorial Video', 'Home Decor Video', 'Car Review Video', 'Book Trailer Video',
+    'App Demo Video', 'Website Intro Video', 'Podcast Video', 'Webinar Recording Video',
+    'Customer Testimonial Video', 'Brand Story Video', 'Holiday Greeting Video', 'Birthday Video',
+    'Wedding Highlight Video', 'Graduation Video', 'Anniversary Video', 'New Product Launch Video',
+    'Sale Promotion Video', 'Event Recap Video', 'Behind The Scenes Video', 'Team Introduction Video',
+    'Company Culture Video', 'Service Explanation Video', 'FAQ Video', 'How-to Guide Video',
+    'Unboxing Video', 'Comparison Video', 'Before After Video', 'Transformation Video',
+    'Success Story Video', 'Case Study Video'
+  ]
+
+  const industries = [
+    'Fitness & Sports', 'Pet Care', 'E-commerce', 'Education', 'Marketing & Advertising',
+    'Social Media', 'Entertainment', 'Technology', 'Real Estate', 'Food & Beverage',
+    'Travel & Tourism', 'Fashion & Beauty', 'Gaming', 'Music', 'Corporate',
+    'Events', 'Charity', 'News & Media', 'Automotive', 'Publishing',
+    'Mobile Apps', 'Web Services', 'Healthcare', 'Finance', 'Retail'
+  ]
+
+  const keywords = [
+    'ai fitness video generator', 'ai pet video maker', 'ai product video creator',
+    'ai education video tool', 'ai marketing video generator', 'ai tiktok video maker',
+    'ai youtube video generator', 'ai product demo creator', 'ai real estate video tool',
+    'ai food video generator', 'ai travel vlog maker', 'ai fashion video creator',
+    'ai tech review generator', 'ai gaming video maker', 'ai music video creator',
+    'ai corporate training video', 'ai event video generator', 'ai charity video maker',
+    'ai news video creator', 'ai sports video generator', 'ai beauty tutorial maker',
+    'ai home decor video', 'ai car review generator', 'ai book trailer maker',
+    'ai app demo video', 'ai website intro generator', 'ai podcast video maker',
+    'ai webinar video creator', 'ai testimonial video', 'ai brand story generator',
+    'ai holiday video maker', 'ai birthday video creator', 'ai wedding video generator',
+    'ai graduation video maker', 'ai anniversary video', 'ai product launch video',
+    'ai sale video generator', 'ai event recap video', 'ai behind scenes video',
+    'ai team intro video', 'ai company culture video', 'ai service explanation video',
+    'ai faq video generator', 'ai how to video maker', 'ai unboxing video creator',
+    'ai comparison video', 'ai before after video', 'ai transformation video',
+    'ai success story video', 'ai case study video'
+  ]
+
+  const styles = ['realistic', 'cinematic', 'animated', 'commercial', 'educational', 'creative', 'professional', 'casual']
+
+  // 生成随机 CSV 数据
+  const generateRandomCSV = (count: number = 50): string => {
+    const template = SEO_CONTENT_TEMPLATES.find((t) => t.id === selectedTemplate)
+    if (!template) return ''
+
+    const headers = template.parameters.map((p) => p.key).join(',')
+    const rows: string[] = []
+
+    for (let i = 0; i < count; i++) {
+      const row: string[] = []
+      
+      template.parameters.forEach((param) => {
+        if (param.key === 'scene') {
+          row.push(useCaseScenes[i % useCaseScenes.length])
+        } else if (param.key === 'industry') {
+          row.push(industries[i % industries.length])
+        } else if (param.key === 'keyword') {
+          row.push(keywords[i % keywords.length])
+        } else if (param.key === 'style') {
+          row.push(styles[i % styles.length])
+        } else if (param.key === 'title') {
+          // 为博客文章生成标题
+          const titles = [
+            'Best AI Video Generator for Creators',
+            'How to Create Stunning Videos with AI',
+            'AI Video Generation: Complete Guide',
+            'Top AI Video Tools for Marketing',
+            'Creating Professional Videos with AI',
+            'AI Video Maker: Tips and Tricks',
+            'Transform Your Content with AI Video',
+            'AI Video Generation Made Easy',
+            'Master AI Video Creation',
+            'AI Video Tools: Everything You Need to Know'
+          ]
+          row.push(titles[i % titles.length])
+        } else if (param.key === 'audience') {
+          const audiences = [
+            'Content Creators', 'Marketing Professionals', 'Business Owners',
+            'Educators', 'Social Media Managers', 'Video Editors', 'Entrepreneurs',
+            'Small Business Owners', 'Agencies', 'Freelancers'
+          ]
+          row.push(audiences[i % audiences.length])
+        } else if (param.key === 'tool_a') {
+          row.push('OpenAI Sora')
+        } else if (param.key === 'tool_b') {
+          const tools = ['Runway', 'Pika Labs', 'Luma AI', 'Stable Video', 'Kling AI']
+          row.push(tools[i % tools.length])
+        } else {
+          row.push('')
+        }
+      })
+      
+      rows.push(row.join(','))
+    }
+
+    return [headers, ...rows].join('\n')
+  }
+
+  // CSV 示例（保留原有的）
   const csvExample = `scene,industry,keyword,style
-健身课程视频,体育培训,ai fitness video generator,realistic
-宠物短视频,宠物店,ai pet tiktok video,cute
-亚马逊产品视频,电商,ai product video generator,studio
-教育课程视频,在线教育,ai education video generator,professional
-营销广告视频,广告公司,ai marketing video generator,commercial`
+Fitness Course Video,Fitness & Sports,ai fitness video generator,realistic
+Pet Short Video,Pet Care,ai pet tiktok video,animated
+Amazon Product Video,E-commerce,ai product video generator,commercial
+Education Course Video,Education,ai education video generator,educational
+Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professional`
 
   /**
    * 解析 CSV
@@ -136,16 +244,50 @@ export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchC
   }
 
   /**
+   * 验证生成的内容是否符合要求
+   */
+  const validateContent = (content: string): { valid: boolean; error?: string } => {
+    if (!content || content.trim().length < 100) {
+      return { valid: false, error: '内容太短（少于100字符）' }
+    }
+
+    // 检查是否包含必要的标题
+    const hasH1 = /^#\s+.+$/m.test(content) || /<h1[^>]*>.+?<\/h1>/i.test(content)
+    if (!hasH1) {
+      return { valid: false, error: '缺少 H1 标题' }
+    }
+
+    // 检查是否包含必要的结构（至少2个H2）
+    const h2Count = (content.match(/^##\s+.+$/gm) || []).length + (content.match(/<h2[^>]*>.+?<\/h2>/gi) || []).length
+    if (h2Count < 2) {
+      return { valid: false, error: '内容结构不完整（至少需要2个H2）' }
+    }
+
+    return { valid: true }
+  }
+
+  /**
    * 自动保存到数据库
    */
-  const saveToDatabase = async (task: BatchTask, content: string): Promise<string> => {
+  const saveToDatabase = async (task: BatchTask, content: string): Promise<{ id: string; table: string; slug: string }> => {
+    // 先验证内容
+    const validation = validateContent(content)
+    if (!validation.valid) {
+      throw new Error(validation.error || '内容验证失败')
+    }
+
     try {
       const h1 = extractH1(content) || task.params.scene || task.params.keyword || task.params.title || 'Untitled'
       const title = task.params.title || task.params.scene || task.params.keyword || h1
       const description = extractDescription(content)
       const slug = generateSlugFromText(task.params.keyword || task.params.scene || task.params.title || h1)
 
+      if (!slug) {
+        throw new Error('无法生成有效的 slug')
+      }
+
       let savedId = ''
+      let savedTable = ''
 
       // 根据模板类型保存到不同的表
       if (task.templateId === 'use-case') {
@@ -179,6 +321,11 @@ export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchC
 
         const data = await response.json()
         savedId = data.useCase?.id || ''
+        savedTable = 'use_cases'
+        
+        if (!savedId) {
+          throw new Error('保存成功但未返回 ID')
+        }
       } else if (task.templateId === 'long-tail-keyword') {
         // 保存到 long_tail_keywords 表
         const response = await fetch('/api/admin/keywords', {
@@ -203,6 +350,11 @@ export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchC
 
         const data = await response.json()
         savedId = data.keyword?.id || ''
+        savedTable = 'long_tail_keywords'
+        
+        if (!savedId) {
+          throw new Error('保存成功但未返回 ID')
+        }
       } else if (task.templateId === 'blog-post') {
         // 保存到 blog_posts 表
         const response = await fetch('/api/admin/blog-posts', {
@@ -227,6 +379,11 @@ export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchC
 
         const data = await response.json()
         savedId = data.blogPost?.id || ''
+        savedTable = 'blog_posts'
+        
+        if (!savedId) {
+          throw new Error('保存成功但未返回 ID')
+        }
       } else if (task.templateId === 'compare-page') {
         // 保存到 compare_pages 表
         const response = await fetch('/api/admin/compare-pages', {
@@ -252,9 +409,16 @@ export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchC
 
         const data = await response.json()
         savedId = data.comparePage?.id || ''
+        savedTable = 'compare_pages'
+        
+        if (!savedId) {
+          throw new Error('保存成功但未返回 ID')
+        }
+      } else {
+        throw new Error(`不支持的模板类型: ${task.templateId}`)
       }
 
-      return savedId
+      return { id: savedId, table: savedTable, slug }
     } catch (error) {
       throw error
     }
@@ -307,25 +471,36 @@ export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchC
       try {
         const result = await processTask(task)
         
-        // 更新任务状态为完成
+        // 更新任务状态为完成（记录使用的模型）
         setTasks((prev) => {
           const updated = [...prev]
-          updated[i] = { ...updated[i], status: 'completed', result }
+          updated[i] = { ...updated[i], status: 'completed', result, model: 'gemini-2.5-flash' }
           return updated
         })
 
         // 如果开启自动保存，保存到数据库
         if (autoSave) {
           try {
-            const savedId = await saveToDatabase(task, result)
+            const saveResult = await saveToDatabase(task, result)
             setTasks((prev) => {
               const updated = [...prev]
-              updated[i] = { ...updated[i], status: 'saved', savedId }
+              updated[i] = { 
+                ...updated[i], 
+                status: 'saved', 
+                savedId: saveResult.id,
+                savedTable: saveResult.table,
+                savedSlug: saveResult.slug
+              }
               return updated
             })
           } catch (saveError) {
             console.error('保存失败:', saveError)
-            // 保存失败不影响任务状态，仍然标记为完成
+            const errorMessage = saveError instanceof Error ? saveError.message : '未知错误'
+            setTasks((prev) => {
+              const updated = [...prev]
+              updated[i] = { ...updated[i], error: `保存失败: ${errorMessage}` }
+              return updated
+            })
           }
         }
 
@@ -439,7 +614,7 @@ export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchC
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 CSV 数据（第一行为表头）
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -461,7 +636,24 @@ export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchC
                   onClick={() => setCsvInput(csvExample)}
                   disabled={isProcessing}
                 >
-                  使用示例
+                  📋 使用示例（5条）
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCsvInput(generateRandomCSV(50))}
+                  disabled={isProcessing}
+                  className="bg-energy-water text-white hover:bg-energy-water/90"
+                >
+                  ✨ 快速生成 50 条
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCsvInput(generateRandomCSV(100))}
+                  disabled={isProcessing}
+                >
+                  🚀 快速生成 100 条
                 </Button>
               </div>
             </div>
