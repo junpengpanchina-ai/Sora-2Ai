@@ -48,6 +48,43 @@ const getRelatedUseCases = cache(async (excludeId: string, useCaseType: string, 
   return data as Pick<UseCaseRow, 'id' | 'slug' | 'title' | 'description' | 'use_case_type'>[]
 })
 
+// 获取属于这个使用场景的长尾词页面
+const getRelatedKeywords = cache(async (seoKeywords: string[], useCaseType: string, limit = 12) => {
+  if (!seoKeywords || seoKeywords.length === 0) {
+    return []
+  }
+
+  const supabase = await createSupabaseServerClient()
+  
+  // 通过关键词匹配长尾词
+  // 构建 OR 查询条件：匹配 keyword 字段包含任何 SEO 关键词
+  const orConditions = seoKeywords
+    .slice(0, 5) // 限制最多 5 个关键词，避免查询过于复杂
+    .map(kw => `keyword.ilike.%${kw.toLowerCase()}%`)
+    .join(',')
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from('long_tail_keywords')
+    .select('id, keyword, page_slug, title, h1, meta_description')
+    .eq('status', 'published')
+    .or(orConditions)
+    .limit(limit)
+
+  if (error || !data) {
+    return []
+  }
+
+  return data as Array<{
+    id: string
+    keyword: string
+    page_slug: string
+    title: string | null
+    h1: string | null
+    meta_description: string | null
+  }>
+})
+
 // 获取所有已发布的使用场景 slugs（用于静态生成）
 export async function generateStaticParams() {
   // 在静态生成时使用 service client，不需要 cookies
@@ -124,6 +161,13 @@ export default async function UseCasePage({ params }: { params: { slug: string }
     useCase.id,
     useCase.use_case_type,
     6
+  )
+
+  // 获取属于这个使用场景的长尾词页面
+  const relatedKeywords = await getRelatedKeywords(
+    useCase.seo_keywords || [],
+    useCase.use_case_type,
+    12
   )
 
   // Structured Data
@@ -250,6 +294,36 @@ export default async function UseCasePage({ params }: { params: { slug: string }
 
             {/* Sidebar */}
             <div className="space-y-6">
+              {/* Related Keywords (Long-tail Keywords) */}
+              {relatedKeywords.length > 0 && (
+                <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
+                  <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+                    Related Keywords
+                  </h3>
+                  <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                    Explore specific search terms related to this use case:
+                  </p>
+                  <div className="space-y-2">
+                    {relatedKeywords.map((keyword) => (
+                      <Link
+                        key={keyword.id}
+                        href={`/keywords/${keyword.page_slug}`}
+                        className="block rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm transition hover:border-energy-water hover:bg-white dark:border-gray-700 dark:bg-gray-800/60 dark:hover:bg-gray-700"
+                      >
+                        <h4 className="font-medium text-gray-900 dark:text-white">
+                          {keyword.h1 || keyword.title || keyword.keyword}
+                        </h4>
+                        {keyword.meta_description && (
+                          <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                            {keyword.meta_description}
+                          </p>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Related Use Cases */}
               {relatedUseCases.length > 0 && (
                 <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
