@@ -40,6 +40,7 @@ export async function GET(request: Request) {
   try {
     const adminUser = await validateAdminSession()
     if (!adminUser) {
+      console.error('[use-cases GET] 未授权访问')
       return NextResponse.json({ error: '未授权，请先登录' }, { status: 401 })
     }
 
@@ -51,7 +52,8 @@ export async function GET(request: Request) {
     const statusFilter = searchParams.get('status')?.toLowerCase()
     const limit = Math.min(Number(searchParams.get('limit')) || 200, 500)
 
-    let query = supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query = (supabase as any)
       .from('use_cases')
       .select('*')
       .order('updated_at', { ascending: false })
@@ -69,6 +71,7 @@ export async function GET(request: Request) {
 
     const { data, error } = await query
     if (error) {
+      console.error('[use-cases GET] Supabase 查询错误:', error)
       throw error
     }
 
@@ -92,11 +95,14 @@ export async function GET(request: Request) {
       count: filteredUseCases.length,
     })
   } catch (error) {
-    console.error('获取使用场景失败:', error)
+    console.error('[use-cases GET] 获取使用场景失败:', error)
+    const errorMessage = error instanceof Error ? error.message : '未知错误'
+    const errorStack = error instanceof Error ? error.stack : undefined
+    console.error('[use-cases GET] 错误堆栈:', errorStack)
     return NextResponse.json(
       {
         error: '获取使用场景失败',
-        details: error instanceof Error ? error.message : '未知错误',
+        details: errorMessage,
       },
       { status: 500 }
     )

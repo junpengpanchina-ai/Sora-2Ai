@@ -47,7 +47,8 @@ export async function GET(request: Request) {
     const statusFilter = searchParams.get('status')?.toLowerCase()
     const limit = Math.min(Number(searchParams.get('limit')) || 200, 500)
 
-    let query = supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query = (supabase as any)
       .from('compare_pages')
       .select('*')
       .order('updated_at', { ascending: false })
