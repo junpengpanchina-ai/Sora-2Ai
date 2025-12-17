@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Textarea } from '@/components/ui'
 import { SEO_CONTENT_TEMPLATES, renderTemplate } from '@/lib/prompts/seo-content-templates'
+import { generateSlugFromText } from '@/lib/utils/slug'
 
 interface AdminBatchContentGeneratorProps {
   onShowBanner: (type: 'success' | 'error', text: string) => void
@@ -12,9 +13,10 @@ interface BatchTask {
   id: string
   templateId: string
   params: Record<string, string>
-  status: 'pending' | 'processing' | 'completed' | 'failed'
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'saved'
   result?: string
   error?: string
+  savedId?: string // 保存到数据库后的 ID
 }
 
 export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchContentGeneratorProps) {
@@ -23,6 +25,7 @@ export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchC
   const [tasks, setTasks] = useState<BatchTask[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingIndex, setProcessingIndex] = useState(-1)
+  const [autoSave, setAutoSave] = useState(true) // 默认开启自动保存
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // CSV 示例
@@ -103,6 +106,161 @@ export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchC
   }
 
   /**
+   * 从内容中提取 H1 标题
+   */
+  const extractH1 = (content: string): string => {
+    const h1Match = content.match(/^#\s+(.+)$/m) || content.match(/<h1[^>]*>(.+?)<\/h1>/i)
+    if (h1Match) {
+      return h1Match[1].trim().replace(/<[^>]+>/g, '')
+    }
+    return ''
+  }
+
+  /**
+   * 从内容中提取第一段作为描述
+   */
+  const extractDescription = (content: string, maxLength: number = 200): string => {
+    // 移除 markdown 标题和 HTML 标签
+    const text = content
+      .replace(/^#+\s+.+$/gm, '')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\n+/g, ' ')
+      .trim()
+    
+    // 取第一段
+    const firstParagraph = text.split(/\n\n/)[0] || text
+    if (firstParagraph.length <= maxLength) {
+      return firstParagraph
+    }
+    return firstParagraph.substring(0, maxLength) + '...'
+  }
+
+  /**
+   * 自动保存到数据库
+   */
+  const saveToDatabase = async (task: BatchTask, content: string): Promise<string> => {
+    try {
+      const h1 = extractH1(content) || task.params.scene || task.params.keyword || task.params.title || 'Untitled'
+      const title = task.params.title || task.params.scene || task.params.keyword || h1
+      const description = extractDescription(content)
+      const slug = generateSlugFromText(task.params.keyword || task.params.scene || task.params.title || h1)
+
+      let savedId = ''
+
+      // 根据模板类型保存到不同的表
+      if (task.templateId === 'use-case') {
+        // 保存到 use_cases 表
+        const response = await fetch('/api/admin/use-cases', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            slug,
+            title,
+            h1,
+            description,
+            content,
+            use_case_type: task.params.industry === 'marketing' ? 'marketing' 
+              : task.params.industry === 'social-media' ? 'social-media'
+              : task.params.industry === 'youtube' ? 'youtube'
+              : task.params.industry === 'tiktok' ? 'tiktok'
+              : task.params.industry === 'product-demo' ? 'product-demo'
+              : task.params.industry === 'ads' ? 'ads'
+              : task.params.industry === 'education' ? 'education'
+              : 'other', // 默认类型
+            is_published: true,
+            seo_keywords: task.params.keyword ? [task.params.keyword] : [],
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || `保存失败: HTTP ${response.status}`)
+        }
+
+        const data = await response.json()
+        savedId = data.useCase?.id || ''
+      } else if (task.templateId === 'long-tail-keyword') {
+        // 保存到 long_tail_keywords 表
+        const response = await fetch('/api/admin/keywords', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            keyword: task.params.keyword || title,
+            intent: 'information',
+            page_slug: slug,
+            title,
+            h1,
+            meta_description: description,
+            intro_paragraph: extractDescription(content, 500),
+            status: 'published',
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || `保存失败: HTTP ${response.status}`)
+        }
+
+        const data = await response.json()
+        savedId = data.keyword?.id || ''
+      } else if (task.templateId === 'blog-post') {
+        // 保存到 blog_posts 表
+        const response = await fetch('/api/admin/blog-posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            slug,
+            title,
+            description,
+            h1,
+            content,
+            is_published: true,
+            published_at: new Date().toISOString(),
+            seo_keywords: task.params.keyword ? [task.params.keyword] : [],
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || `保存失败: HTTP ${response.status}`)
+        }
+
+        const data = await response.json()
+        savedId = data.blogPost?.id || ''
+      } else if (task.templateId === 'compare-page') {
+        // 保存到 compare_pages 表
+        const response = await fetch('/api/admin/compare-pages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            slug,
+            title,
+            h1,
+            description,
+            content,
+            tool_a_name: task.params.tool_a || 'OpenAI Sora',
+            tool_b_name: task.params.tool_b || '',
+            is_published: true,
+            seo_keywords: task.params.keyword ? [task.params.keyword] : [],
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || `保存失败: HTTP ${response.status}`)
+        }
+
+        const data = await response.json()
+        savedId = data.comparePage?.id || ''
+      }
+
+      return savedId
+    } catch (error) {
+      throw error
+    }
+  }
+
+  /**
    * 批量生成
    */
   const handleBatchGenerate = async () => {
@@ -155,6 +313,21 @@ export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchC
           updated[i] = { ...updated[i], status: 'completed', result }
           return updated
         })
+
+        // 如果开启自动保存，保存到数据库
+        if (autoSave) {
+          try {
+            const savedId = await saveToDatabase(task, result)
+            setTasks((prev) => {
+              const updated = [...prev]
+              updated[i] = { ...updated[i], status: 'saved', savedId }
+              return updated
+            })
+          } catch (saveError) {
+            console.error('保存失败:', saveError)
+            // 保存失败不影响任务状态，仍然标记为完成
+          }
+        }
 
         // 添加延迟，避免 API 限流
         if (i < newTasks.length - 1) {
@@ -305,6 +478,21 @@ export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchC
             </p>
           </div>
 
+          {/* 自动保存开关 */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="auto-save"
+              checked={autoSave}
+              onChange={(e) => setAutoSave(e.target.checked)}
+              disabled={isProcessing}
+              className="h-4 w-4 rounded border-gray-300 text-energy-water focus:ring-energy-water"
+            />
+            <label htmlFor="auto-save" className="text-sm text-gray-700 dark:text-gray-300">
+              自动保存到数据库（生成后自动保存到对应的使用场景/长尾词/博客等模块）
+            </label>
+          </div>
+
           {/* 操作按钮 */}
           <div className="flex gap-2">
             <Button
@@ -328,7 +516,14 @@ export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchC
         <Card>
           <CardHeader>
             <CardTitle>
-              生成任务 ({tasks.filter((t) => t.status === 'completed').length}/{tasks.length} 完成)
+              生成任务 (
+              {tasks.filter((t) => t.status === 'saved' || t.status === 'completed').length}/{tasks.length} 完成
+              {autoSave && tasks.filter((t) => t.status === 'saved').length > 0 && (
+                <span className="ml-2 text-sm font-normal text-green-600 dark:text-green-400">
+                  ({tasks.filter((t) => t.status === 'saved').length} 已保存)
+                </span>
+              )}
+              )
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -337,7 +532,9 @@ export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchC
                 <div
                   key={task.id}
                   className={`rounded-lg border p-3 ${
-                    task.status === 'completed'
+                    task.status === 'saved'
+                      ? 'border-green-300 bg-green-100 dark:border-green-700 dark:bg-green-900/30'
+                      : task.status === 'completed'
                       ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
                       : task.status === 'failed'
                       ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
@@ -354,7 +551,9 @@ export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchC
                         </span>
                         <span
                           className={`rounded-full px-2 py-0.5 text-xs ${
-                            task.status === 'completed'
+                            task.status === 'saved'
+                              ? 'bg-green-200 text-green-900 dark:bg-green-800 dark:text-green-100'
+                              : task.status === 'completed'
                               ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                               : task.status === 'failed'
                               ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
@@ -363,7 +562,9 @@ export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchC
                               : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
                           }`}
                         >
-                          {task.status === 'completed'
+                          {task.status === 'saved'
+                            ? '✓ 已保存'
+                            : task.status === 'completed'
                             ? '✓ 完成'
                             : task.status === 'failed'
                             ? '✗ 失败'
