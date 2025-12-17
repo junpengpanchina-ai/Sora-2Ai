@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from '@/components/ui'
+import TextRecognitionArea from '@/components/admin/TextRecognitionArea'
+import { parseBlogText } from '@/lib/text-recognition/blog'
 
 interface AdminBlogManagerProps {
   onShowBanner: (type: 'success' | 'error', text: string) => void
@@ -125,6 +127,8 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
 
   const [newBlogForm, setNewBlogForm] = useState<BlogFormState>(DEFAULT_FORM_STATE)
   const [creating, setCreating] = useState(false)
+  const [textRecognitionInput, setTextRecognitionInput] = useState('')
+  const [isRecognizing, setIsRecognizing] = useState(false)
 
   const [editingBlogId, setEditingBlogId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<BlogFormState>(DEFAULT_FORM_STATE)
@@ -168,6 +172,57 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
   useEffect(() => {
     fetchBlogs()
   }, [fetchBlogs])
+
+  /**
+   * 执行文本识别和填充
+   */
+  const performTextRecognition = useCallback(async (text: string) => {
+    if (!text.trim()) {
+      return
+    }
+
+    setIsRecognizing(true)
+    try {
+      const parsed = parseBlogText(text)
+      
+      // 更新表单字段
+      setNewBlogForm((prev) => {
+        const updated: BlogFormState = { ...prev }
+        
+        if (parsed.slug) updated.slug = parsed.slug
+        if (parsed.title) updated.title = parsed.title
+        if (parsed.description) updated.description = parsed.description
+        if (parsed.h1) updated.h1 = parsed.h1
+        if (parsed.content) updated.content = parsed.content
+        if (parsed.published_at) updated.published_at = parsed.published_at
+        if (parsed.isPublished !== undefined) updated.isPublished = parsed.isPublished
+        if (parsed.related_posts && parsed.related_posts.length > 0) {
+          updated.related_posts = parsed.related_posts.join(', ')
+        }
+        if (parsed.seo_keywords && parsed.seo_keywords.length > 0) {
+          updated.seo_keywords = parsed.seo_keywords.join(', ')
+        }
+        
+        return updated
+      })
+      
+      // 统计识别到的字段数量
+      const recognizedFields = Object.keys(parsed).filter((key) => {
+        const value = parsed[key as keyof typeof parsed]
+        if (Array.isArray(value)) {
+          return value.length > 0
+        }
+        return value !== undefined && value !== null && value !== ''
+      }).length
+      
+      onShowBanner('success', `成功识别并填充了 ${recognizedFields} 个字段`)
+    } catch (err) {
+      console.error('Text recognition failed:', err)
+      onShowBanner('error', err instanceof Error ? err.message : '文本识别失败')
+    } finally {
+      setIsRecognizing(false)
+    }
+  }, [onShowBanner])
 
   const filteredBlogs = useMemo(() => {
     const text = search.trim().toLowerCase()
@@ -365,6 +420,15 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
         </CardHeader>
         <CardContent>
           <form onSubmit={handleCreateBlog} className="space-y-4">
+            {/* 文本识别区域 */}
+            <TextRecognitionArea
+              textInput={textRecognitionInput}
+              onTextInputChange={setTextRecognitionInput}
+              onRecognize={performTextRecognition}
+              isRecognizing={isRecognizing}
+              onShowBanner={onShowBanner}
+            />
+            
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Slug *</label>

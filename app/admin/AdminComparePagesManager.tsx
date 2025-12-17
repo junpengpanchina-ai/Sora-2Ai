@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from '@/components/ui'
+import TextRecognitionArea from '@/components/admin/TextRecognitionArea'
+import { parseComparePageText } from '@/lib/text-recognition/compare-page'
 
 interface AdminComparePagesManagerProps {
   onShowBanner: (type: 'success' | 'error', text: string) => void
@@ -133,6 +135,8 @@ export default function AdminComparePagesManager({ onShowBanner }: AdminCompareP
 
   const [newComparePageForm, setNewComparePageForm] = useState<ComparePageFormState>(DEFAULT_FORM_STATE)
   const [creating, setCreating] = useState(false)
+  const [textRecognitionInput, setTextRecognitionInput] = useState('')
+  const [isRecognizing, setIsRecognizing] = useState(false)
 
   const [editingComparePageId, setEditingComparePageId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<ComparePageFormState>(DEFAULT_FORM_STATE)
@@ -180,6 +184,57 @@ export default function AdminComparePagesManager({ onShowBanner }: AdminCompareP
   useEffect(() => {
     fetchComparePages()
   }, [fetchComparePages])
+
+  /**
+   * 执行文本识别和填充
+   */
+  const performTextRecognition = useCallback(async (text: string) => {
+    if (!text.trim()) {
+      return
+    }
+
+    setIsRecognizing(true)
+    try {
+      const parsed = parseComparePageText(text)
+      
+      // 更新表单字段
+      setNewComparePageForm((prev) => {
+        const updated: ComparePageFormState = { ...prev }
+        
+        if (parsed.slug) updated.slug = parsed.slug
+        if (parsed.title) updated.title = parsed.title
+        if (parsed.h1) updated.h1 = parsed.h1
+        if (parsed.description) updated.description = parsed.description
+        if (parsed.content) updated.content = parsed.content
+        if (parsed.tool_a_name) updated.tool_a_name = parsed.tool_a_name
+        if (parsed.tool_b_name) updated.tool_b_name = parsed.tool_b_name
+        if (parsed.comparison_points) updated.comparison_points = parsed.comparison_points
+        if (parsed.winner) updated.winner = parsed.winner
+        if (parsed.seo_keywords && parsed.seo_keywords.length > 0) {
+          updated.seo_keywords = parsed.seo_keywords.join(', ')
+        }
+        if (parsed.isPublished !== undefined) updated.isPublished = parsed.isPublished
+        
+        return updated
+      })
+      
+      // 统计识别到的字段数量
+      const recognizedFields = Object.keys(parsed).filter((key) => {
+        const value = parsed[key as keyof typeof parsed]
+        if (Array.isArray(value)) {
+          return value.length > 0
+        }
+        return value !== undefined && value !== null && value !== ''
+      }).length
+      
+      onShowBanner('success', `成功识别并填充了 ${recognizedFields} 个字段`)
+    } catch (err) {
+      console.error('Text recognition failed:', err)
+      onShowBanner('error', err instanceof Error ? err.message : '文本识别失败')
+    } finally {
+      setIsRecognizing(false)
+    }
+  }, [onShowBanner])
 
   const filteredComparePages = useMemo(() => {
     const text = search.trim().toLowerCase()
@@ -560,6 +615,15 @@ export default function AdminComparePagesManager({ onShowBanner }: AdminCompareP
         </CardHeader>
         <CardContent>
           <form onSubmit={handleCreateComparePage} className="space-y-4">
+            {/* 文本识别区域 */}
+            <TextRecognitionArea
+              textInput={textRecognitionInput}
+              onTextInputChange={setTextRecognitionInput}
+              onRecognize={performTextRecognition}
+              isRecognizing={isRecognizing}
+              onShowBanner={onShowBanner}
+            />
+            
             <div className="grid gap-4 md:grid-cols-2">
               <Input
                 placeholder="Slug *"
