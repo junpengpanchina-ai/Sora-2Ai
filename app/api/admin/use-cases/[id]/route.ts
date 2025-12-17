@@ -140,7 +140,8 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     const { id } = await params
     const supabase = await createServiceClient()
 
-    const { error } = await supabase.from('use_cases').delete().eq('id', id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any).from('use_cases').delete().eq('id', id)
 
     if (error) {
       throw error
