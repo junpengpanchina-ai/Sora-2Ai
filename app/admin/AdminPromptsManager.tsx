@@ -10,6 +10,8 @@ import {
   type PromptIntent,
   type PromptLocale,
 } from '@/lib/prompts/schema'
+import TextRecognitionArea from '@/components/admin/TextRecognitionArea'
+import { parsePromptText } from '@/lib/text-recognition/prompt'
 
 interface AdminPromptsManagerProps {
   onShowBanner: (type: 'success' | 'error', text: string) => void
@@ -156,6 +158,8 @@ export default function AdminPromptsManager({ onShowBanner }: AdminPromptsManage
 
   const [newPromptForm, setNewPromptForm] = useState<PromptFormState>(DEFAULT_FORM_STATE)
   const [creating, setCreating] = useState(false)
+  const [textRecognitionInput, setTextRecognitionInput] = useState('')
+  const [isRecognizing, setIsRecognizing] = useState(false)
 
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<PromptFormState>(DEFAULT_FORM_STATE)
@@ -199,6 +203,61 @@ export default function AdminPromptsManager({ onShowBanner }: AdminPromptsManage
   useEffect(() => {
     fetchPrompts()
   }, [fetchPrompts])
+
+  /**
+   * 执行文本识别和填充
+   */
+  const performTextRecognition = useCallback(async (text: string) => {
+    if (!text.trim()) {
+      return
+    }
+
+    setIsRecognizing(true)
+    try {
+      const parsed = parsePromptText(text)
+      
+      // 更新表单字段
+      setNewPromptForm((prev) => {
+        const updated: PromptFormState = { ...prev }
+        
+        if (parsed.title) updated.title = parsed.title
+        if (parsed.description) updated.description = parsed.description
+        if (parsed.prompt) updated.prompt = parsed.prompt
+        if (parsed.category && PROMPT_CATEGORIES.includes(parsed.category as PromptCategory)) {
+          updated.category = parsed.category as PromptCategory
+        }
+        if (parsed.tags && parsed.tags.length > 0) {
+          updated.tags = parsed.tags.join(', ')
+        }
+        if (parsed.difficulty && PROMPT_INTENTS.includes(parsed.difficulty as PromptIntent)) {
+          updated.difficulty = parsed.difficulty as PromptIntent
+        }
+        if (parsed.example) updated.example = parsed.example
+        if (parsed.locale && PROMPT_LOCALES.includes(parsed.locale as PromptLocale)) {
+          updated.locale = parsed.locale as PromptLocale
+        }
+        if (parsed.isPublished !== undefined) updated.isPublished = parsed.isPublished
+        
+        return updated
+      })
+      
+      // 统计识别到的字段数量
+      const recognizedFields = Object.keys(parsed).filter((key) => {
+        const value = parsed[key as keyof typeof parsed]
+        if (Array.isArray(value)) {
+          return value.length > 0
+        }
+        return value !== undefined && value !== null && value !== ''
+      }).length
+      
+      onShowBanner('success', `成功识别并填充了 ${recognizedFields} 个字段`)
+    } catch (err) {
+      console.error('Text recognition failed:', err)
+      onShowBanner('error', err instanceof Error ? err.message : '文本识别失败')
+    } finally {
+      setIsRecognizing(false)
+    }
+  }, [onShowBanner])
 
   const filteredPrompts = useMemo(() => {
     const text = search.trim().toLowerCase()
@@ -394,6 +453,15 @@ export default function AdminPromptsManager({ onShowBanner }: AdminPromptsManage
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={handleCreatePrompt}>
+            {/* 文本识别区域 */}
+            <TextRecognitionArea
+              textInput={textRecognitionInput}
+              onTextInputChange={setTextRecognitionInput}
+              onRecognize={performTextRecognition}
+              isRecognizing={isRecognizing}
+              onShowBanner={onShowBanner}
+            />
+            
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
