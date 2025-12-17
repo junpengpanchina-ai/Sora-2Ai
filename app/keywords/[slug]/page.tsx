@@ -148,6 +148,7 @@ const getRelatedUseCases = cache(async (keyword: string): Promise<Array<{
     .slice(0, 6)
     .map((uc: { seo_keywords: unknown }) => {
       // 移除 seo_keywords 字段，只返回需要的字段
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { seo_keywords, ...rest } = uc
       return rest
     })
