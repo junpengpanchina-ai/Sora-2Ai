@@ -200,6 +200,7 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
   }, [search, typeFilter, statusFilter])
 
   useEffect(() => {
+    console.log('开始获取使用场景列表...')
     fetchUseCases()
   }, [fetchUseCases])
 
@@ -447,6 +448,11 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
       setDeletingId(null)
     }
   }
+
+  // 调试：组件已加载
+  useEffect(() => {
+    console.log('AdminUseCasesManager 组件已加载')
+  }, [])
 
   return (
     <div className="space-y-6">
