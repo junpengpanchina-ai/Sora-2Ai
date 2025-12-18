@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input } from '@/components/ui'
 import { INDUSTRIES_100 } from '@/lib/data/industries-100'
 import { generateSlugFromText } from '@/lib/utils/slug'
+import { checkContentQuality } from '@/lib/utils/content-quality'
 
 interface IndustrySceneBatchGeneratorProps {
   onShowBanner: (type: 'success' | 'error' | 'info', text: string) => void
@@ -51,16 +52,20 @@ Industry: ${industry}
 
 Requirements:
 - ${scenesPerIndustry} use cases
-- Each use case = 300–500 characters
+- Each use case = 300–500 characters (detailed scenario description)
 - Must be specific, not generic
 - Must be real-world scenarios where AI video creation is actually needed
-- Focus on situations, tasks, workflows, and problems solved
+- Each use case should describe:
+  1. The specific scenario/situation
+  2. The pain point or challenge
+  3. Why AI video is suitable for this scenario
+  4. A brief example prompt idea
 - Format as a clean JSON array: 
 [
-  {"id": 1, "use_case": "xxx"},
-  {"id": 2, "use_case": "xxx"},
+  {"id": 1, "use_case": "Detailed 300-500 character description including scenario, pain point, why AI video, and example prompt"},
+  {"id": 2, "use_case": "..."},
   ...
-  {"id": ${scenesPerIndustry}, "use_case": "xxx"}
+  {"id": ${scenesPerIndustry}, "use_case": "..."}
 ]
 Do not include explanations. Output only the JSON.`
 
@@ -127,32 +132,79 @@ Do not include explanations. Output only the JSON.`
     const h1 = `AI Video Generation for ${scene.use_case} in ${industry}`
     const description = `Learn how to use AI video generation for ${scene.use_case} in the ${industry} industry. Create professional videos with Sora2.`
 
-    // 生成简短内容（后续可以扩展为完整页面）
+    // 生成完整内容（符合业务规格：300-500字，包含场景痛点、为什么用AI视频、示例prompt）
+    // 从场景描述中提取关键信息
+    const sceneDescription = scene.use_case
+    
+    // 生成符合规格的完整内容
     const content = `# ${h1}
 
 ## Introduction
 
-${scene.use_case} is a common need in the ${industry} industry. AI video generation can help create professional, engaging videos quickly and cost-effectively.
+${sceneDescription}
 
-## Why AI Video for ${scene.use_case}?
+## Why AI Video is Perfect for This Scenario
 
-AI video generation offers several advantages for ${scene.use_case} in ${industry}:
+AI video generation offers several key advantages for ${scene.use_case} in the ${industry} industry:
 
-- Fast production: Create videos in minutes instead of days
-- Cost-effective: No need for expensive video production teams
-- Consistent quality: AI ensures professional output every time
-- Scalable: Generate multiple variations easily
+- **Fast Production**: Create professional videos in minutes instead of days or weeks
+- **Cost-Effective**: No need for expensive video production teams, equipment, or locations
+- **Consistent Quality**: AI ensures professional output every time, maintaining brand consistency
+- **Scalable**: Generate multiple variations easily for A/B testing or different markets
+- **Flexible**: Quickly adapt videos for different platforms (YouTube, TikTok, Instagram, etc.)
 
 ## How to Use Sora2 for ${scene.use_case}
 
-1. **Create your prompt**: Describe your ${scene.use_case} video needs
-2. **Choose settings**: Select aspect ratio and duration
-3. **Generate**: Let AI create your video
-4. **Download**: Get your professional video ready to use
+### Step 1: Create Your Video Prompt
 
-## Get Started
+Describe your ${scene.use_case} video needs in detail. Be specific about:
+- The scene or setting
+- The mood or tone
+- Key elements or actions
+- Style preferences (realistic, cinematic, animated, etc.)
 
-Start creating ${scene.use_case} videos for ${industry} today with Sora2 AI video generation platform.`
+### Step 2: Choose Video Settings
+
+Select your preferred aspect ratio:
+- **16:9** for YouTube, websites, presentations
+- **9:16** for TikTok, Instagram Stories, Shorts
+- **1:1** for Instagram posts, Facebook
+
+Choose video duration based on your platform requirements.
+
+### Step 3: Generate Your Video
+
+Click generate and wait a few moments. Sora2's AI will create your professional video with high-quality visuals and smooth transitions.
+
+### Step 4: Download and Use
+
+Once generated, download your video and use it immediately in your ${industry} marketing, training, or content strategy.
+
+## Example Prompt for ${scene.use_case}
+
+Here's an example prompt you can use with Sora2:
+
+\`\`\`
+[Example prompt based on the use case - will be generated based on scene description]
+\`\`\`
+
+## Get Started Today
+
+Start creating professional ${scene.use_case} videos for ${industry} today with Sora2 AI video generation platform. No technical skills required, no expensive equipment needed - just describe what you want, and AI will create it for you.`
+
+    // 自动质量检查
+    const qualityCheck = checkContentQuality({
+      title,
+      h1,
+      description,
+      content,
+      seo_keywords: [scene.use_case, industry, `${industry} AI video`],
+    })
+
+    // 根据质量检查结果设置状态
+    // 如果通过检查且分数 >= 70，自动批准；否则标记为待审核
+    const qualityStatus = qualityCheck.passed && qualityCheck.score >= 70 ? 'approved' : 'pending'
+    const isPublished = qualityStatus === 'approved' // 只有审核通过的内容才自动发布
 
     const response = await fetch('/api/admin/use-cases', {
       method: 'POST',
@@ -165,8 +217,11 @@ Start creating ${scene.use_case} videos for ${industry} today with Sora2 AI vide
         content,
         use_case_type: useCaseType,
         industry,
-        is_published: true,
+        is_published: isPublished,
         seo_keywords: [scene.use_case, industry, `${industry} AI video`],
+        quality_status: qualityStatus,
+        quality_score: qualityCheck.score,
+        quality_issues: qualityCheck.issues,
       }),
     })
 
