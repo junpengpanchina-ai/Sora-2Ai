@@ -575,6 +575,12 @@ export interface Database {
           related_use_case_ids: string[]
           seo_keywords: string[]
           is_published: boolean
+          quality_status: 'pending' | 'approved' | 'rejected' | 'needs_review' | null
+          quality_issues: string[] | null
+          quality_score: number | null
+          quality_notes: string | null
+          reviewed_by_admin_id: string | null
+          reviewed_at: string | null
           created_by_admin_id: string | null
           created_at: string
           updated_at: string
@@ -592,6 +598,12 @@ export interface Database {
           related_use_case_ids?: string[]
           seo_keywords?: string[]
           is_published?: boolean
+          quality_status?: 'pending' | 'approved' | 'rejected' | 'needs_review' | null
+          quality_issues?: string[] | null
+          quality_score?: number | null
+          quality_notes?: string | null
+          reviewed_by_admin_id?: string | null
+          reviewed_at?: string | null
           created_by_admin_id?: string | null
           created_at?: string
           updated_at?: string
@@ -609,6 +621,12 @@ export interface Database {
           related_use_case_ids?: string[]
           seo_keywords?: string[]
           is_published?: boolean
+          quality_status?: 'pending' | 'approved' | 'rejected' | 'needs_review' | null
+          quality_issues?: string[] | null
+          quality_score?: number | null
+          quality_notes?: string | null
+          reviewed_by_admin_id?: string | null
+          reviewed_at?: string | null
           created_by_admin_id?: string | null
           created_at?: string
           updated_at?: string

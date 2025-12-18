@@ -25,6 +25,12 @@ interface UseCaseRecord {
   related_use_case_ids: string[]
   seo_keywords: string[]
   is_published: boolean
+  quality_status: 'pending' | 'approved' | 'rejected' | 'needs_review' | null
+  quality_issues: string[] | null
+  quality_score: number | null
+  quality_notes: string | null
+  reviewed_by_admin_id: string | null
+  reviewed_at: string | null
   created_at: string
   updated_at: string
 }
@@ -115,6 +121,14 @@ function normalizeUseCaseRecord(item: unknown): UseCaseRecord | null {
       ? record.seo_keywords.filter((k): k is string => typeof k === 'string')
       : [],
     is_published: typeof record.is_published === 'boolean' ? record.is_published : true,
+    quality_status: typeof record.quality_status === 'string' && ['pending', 'approved', 'rejected', 'needs_review'].includes(record.quality_status)
+      ? record.quality_status as 'pending' | 'approved' | 'rejected' | 'needs_review'
+      : null,
+    quality_issues: Array.isArray(record.quality_issues) ? record.quality_issues.map(String) : null,
+    quality_score: typeof record.quality_score === 'number' ? record.quality_score : null,
+    quality_notes: typeof record.quality_notes === 'string' ? record.quality_notes : null,
+    reviewed_by_admin_id: typeof record.reviewed_by_admin_id === 'string' ? record.reviewed_by_admin_id : null,
+    reviewed_at: typeof record.reviewed_at === 'string' ? record.reviewed_at : null,
     created_at: typeof record.created_at === 'string' ? record.created_at : new Date().toISOString(),
     updated_at: typeof record.updated_at === 'string' ? record.updated_at : new Date().toISOString(),
   }
@@ -153,6 +167,8 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [industryFilter, setIndustryFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all')
+  const [qualityFilter, setQualityFilter] = useState<string>('all')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   
   // 从 URL 参数获取要编辑的 ID
   const editIdFromUrl = searchParams?.get('edit') || null
@@ -175,6 +191,7 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
       if (typeFilter !== 'all') params.append('type', typeFilter)
       if (industryFilter !== 'all' && industryFilter !== '') params.append('industry', industryFilter)
       if (statusFilter !== 'all') params.append('status', statusFilter)
+      if (qualityFilter !== 'all') params.append('quality_status', qualityFilter)
       if (search.trim()) params.append('search', search.trim())
 
       const response = await fetch(`/api/admin/use-cases?${params.toString()}`)
@@ -205,7 +222,7 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
     } finally {
       setLoading(false)
     }
-  }, [search, typeFilter, industryFilter, statusFilter])
+  }, [search, typeFilter, industryFilter, statusFilter, qualityFilter])
 
   useEffect(() => {
     console.log('开始获取使用场景列表...')
@@ -480,11 +497,40 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
 
       <Card>
         <CardHeader>
-          <CardTitle>使用场景管理</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>使用场景管理</CardTitle>
+            <Button
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/admin/use-cases/export-csv')
+                  if (!response.ok) {
+                    throw new Error('导出失败')
+                  }
+                  const blob = await response.blob()
+                  const url = window.URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `use-cases-export-${new Date().toISOString().split('T')[0]}.csv`
+                  document.body.appendChild(a)
+                  a.click()
+                  window.URL.revokeObjectURL(url)
+                  document.body.removeChild(a)
+                  onShowBanner('success', 'CSV 导出成功')
+                } catch (error) {
+                  console.error('导出失败:', error)
+                  onShowBanner('error', '导出失败，请重试')
+                }
+              }}
+              variant="outline"
+              className="text-sm"
+            >
+              📥 导出 CSV
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Filters */}
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-5">
             <Input
               placeholder="搜索 slug、标题、描述..."
               value={search}
@@ -534,7 +580,95 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
               <option value="published">已发布</option>
               <option value="draft">草稿</option>
             </select>
+            <select
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
+              value={qualityFilter}
+              onChange={(e) => setQualityFilter(e.target.value)}
+            >
+              <option value="all">所有质量状态</option>
+              <option value="null">未检查</option>
+              <option value="pending">待审核</option>
+              <option value="approved">已批准</option>
+              <option value="rejected">已拒绝</option>
+              <option value="needs_review">需要审核</option>
+            </select>
           </div>
+
+          {/* 批量审核操作 */}
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-4 rounded-lg border border-energy-water bg-energy-water/10 p-4">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                已选择 {selectedIds.size} 项
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('/api/admin/use-cases/batch-review', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          ids: Array.from(selectedIds),
+                          action: 'approve',
+                        }),
+                      })
+                      const data = await response.json()
+                      if (response.ok) {
+                        onShowBanner('success', data.message || '批量批准成功')
+                        setSelectedIds(new Set())
+                        fetchUseCases()
+                      } else {
+                        onShowBanner('error', data.error || '批量批准失败')
+                      }
+                    } catch (error) {
+                      console.error('批量批准失败:', error)
+                      onShowBanner('error', '批量批准失败')
+                    }
+                  }}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  ✅ 批量批准
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('/api/admin/use-cases/batch-review', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          ids: Array.from(selectedIds),
+                          action: 'reject',
+                        }),
+                      })
+                      const data = await response.json()
+                      if (response.ok) {
+                        onShowBanner('success', data.message || '批量拒绝成功')
+                        setSelectedIds(new Set())
+                        fetchUseCases()
+                      } else {
+                        onShowBanner('error', data.error || '批量拒绝失败')
+                      }
+                    } catch (error) {
+                      console.error('批量拒绝失败:', error)
+                      onShowBanner('error', '批量拒绝失败')
+                    }
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  ❌ 批量拒绝
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSelectedIds(new Set())}
+                >
+                  取消选择
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* List */}
           {loading ? (
@@ -667,30 +801,83 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
                     className={isHighlighted ? 'border-energy-water bg-energy-water/10 ring-2 ring-energy-water' : ''}
                   >
                     <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold">{useCase.title}</h3>
-                            <Badge
-                              className={
-                                STATUS_BADGES[useCase.is_published ? 'published' : 'draft'].className
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3 flex-1">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(useCase.id)}
+                            onChange={(e) => {
+                              const newSet = new Set(selectedIds)
+                              if (e.target.checked) {
+                                newSet.add(useCase.id)
+                              } else {
+                                newSet.delete(useCase.id)
                               }
-                            >
-                              {STATUS_BADGES[useCase.is_published ? 'published' : 'draft'].label}
-                            </Badge>
-                            <Badge variant="default">{useCase.use_case_type}</Badge>
-                            {useCase.industry && (
-                              <Badge variant="secondary" className="text-xs">
-                                {useCase.industry}
+                              setSelectedIds(newSet)
+                            }}
+                            className="mt-1 h-4 w-4 rounded border-gray-300 text-energy-water focus:ring-energy-water"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-semibold">{useCase.title}</h3>
+                              <Badge
+                                className={
+                                  STATUS_BADGES[useCase.is_published ? 'published' : 'draft'].className
+                                }
+                              >
+                                {STATUS_BADGES[useCase.is_published ? 'published' : 'draft'].label}
                               </Badge>
+                              <Badge variant="default">{useCase.use_case_type}</Badge>
+                              {useCase.industry && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {useCase.industry}
+                                </Badge>
+                              )}
+                              {/* 质量状态标签 */}
+                              {useCase.quality_status && (
+                                <Badge
+                                  className={
+                                    useCase.quality_status === 'approved'
+                                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                      : useCase.quality_status === 'rejected'
+                                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                        : useCase.quality_status === 'pending'
+                                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                          : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                  }
+                                >
+                                  {useCase.quality_status === 'approved' ? '✅ 已批准' :
+                                   useCase.quality_status === 'rejected' ? '❌ 已拒绝' :
+                                   useCase.quality_status === 'pending' ? '⏳ 待审核' :
+                                   '🔍 需要审核'}
+                                </Badge>
+                              )}
+                              {useCase.quality_score !== null && (
+                                <Badge
+                                  className={
+                                    useCase.quality_score >= 80
+                                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                      : useCase.quality_score >= 60
+                                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                  }
+                                >
+                                  质量: {useCase.quality_score}
+                                </Badge>
+                              )}
+                            </div>
+                            {useCase.quality_issues && useCase.quality_issues.length > 0 && (
+                              <div className="mt-2 text-xs text-red-600 dark:text-red-400">
+                                ⚠️ 质量问题: {useCase.quality_issues.join(', ')}
+                              </div>
                             )}
-                          </div>
                           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                             Slug: {useCase.slug}
                           </p>
                           <p className="mt-1 text-sm text-gray-500 dark:text-gray-500">
                             {useCase.description}
                           </p>
+                          </div>
                         </div>
                         <div className="flex gap-2">
                           <a

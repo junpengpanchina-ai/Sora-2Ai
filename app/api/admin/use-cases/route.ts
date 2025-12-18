@@ -51,6 +51,7 @@ export async function GET(request: Request) {
     const typeFilter = searchParams.get('type')?.toLowerCase()
     const industryFilter = searchParams.get('industry')?.trim() ?? null
     const statusFilter = searchParams.get('status')?.toLowerCase()
+    const qualityFilter = searchParams.get('quality_status')?.toLowerCase()
     const limit = Math.min(Number(searchParams.get('limit')) || 200, 500)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -72,6 +73,14 @@ export async function GET(request: Request) {
       query = query.eq('is_published', true)
     } else if (statusFilter === 'draft') {
       query = query.eq('is_published', false)
+    }
+
+    if (qualityFilter && qualityFilter !== 'all') {
+      if (qualityFilter === 'null' || qualityFilter === 'none') {
+        query = query.is('quality_status', null)
+      } else if (['pending', 'approved', 'rejected', 'needs_review'].includes(qualityFilter)) {
+        query = query.eq('quality_status', qualityFilter)
+      }
     }
 
     const { data, error } = await query
@@ -167,6 +176,15 @@ export async function POST(request: Request) {
     const relatedUseCaseIds = parseArrayInput(payload.related_use_case_ids)
     const seoKeywords = parseArrayInput(payload.seo_keywords)
     const industry = typeof payload.industry === 'string' && payload.industry.trim() ? payload.industry.trim() : null
+    
+    // 质量相关字段
+    const qualityStatus = typeof payload.quality_status === 'string' 
+      ? (['pending', 'approved', 'rejected', 'needs_review'].includes(payload.quality_status) ? payload.quality_status : 'pending')
+      : 'pending'
+    const qualityIssues = parseArrayInput(payload.quality_issues)
+    const qualityScore = typeof payload.quality_score === 'number' 
+      ? Math.max(0, Math.min(100, payload.quality_score))
+      : null
 
     const supabase = await createServiceClient()
 
@@ -211,6 +229,9 @@ export async function POST(request: Request) {
       related_use_case_ids: relatedUseCaseIds,
       seo_keywords: seoKeywords,
       is_published: isPublished,
+      quality_status: qualityStatus as 'pending' | 'approved' | 'rejected' | 'needs_review' | null,
+      quality_issues: qualityIssues.length > 0 ? qualityIssues : null,
+      quality_score: qualityScore,
       created_by_admin_id: adminUser.id,
     }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getBaseUrl } from '@/lib/utils/url'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
+import { INDUSTRIES_100 } from '@/lib/data/industries-100'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -96,6 +97,12 @@ async function getDynamicPaths() {
         paths.push({ path: `/keywords/${keyword.page_slug}`, priority: '0.6' })
       })
     }
+
+    // Industry pages (100 industries)
+    INDUSTRIES_100.forEach((industry) => {
+      const slug = industry.toLowerCase().replace(/\s+/g, '-').replace(/&/g, 'and')
+      paths.push({ path: `/industries/${slug}`, priority: '0.8' })
+    })
   } catch (error) {
     console.error('Error fetching dynamic paths for sitemap:', error)
   }
