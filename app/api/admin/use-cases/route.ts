@@ -170,8 +170,37 @@ export async function POST(request: Request) {
 
     const supabase = await createServiceClient()
 
+    // 确保 slug 唯一性：如果已存在，自动添加后缀
+    let finalSlug = slug
+    let attempt = 0
+    const maxAttempts = 100 // 防止无限循环
+    
+    while (attempt < maxAttempts) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: existing, error: checkError } = await (supabase as any)
+        .from('use_cases')
+        .select('slug')
+        .eq('slug', finalSlug)
+        .limit(1)
+        .maybeSingle()
+      
+      // 如果查询出错或找到记录，说明 slug 已存在
+      if (checkError || existing) {
+        // slug 已存在，添加后缀
+        attempt++
+        finalSlug = `${slug}-${attempt}`
+      } else {
+        // slug 不存在，可以使用
+        break
+      }
+    }
+    
+    if (attempt >= maxAttempts) {
+      throw new Error(`无法生成唯一的 slug，已尝试 ${maxAttempts} 次`)
+    }
+
     const insertPayload: Database['public']['Tables']['use_cases']['Insert'] = {
-      slug,
+      slug: finalSlug,
       title,
       h1,
       description,
@@ -203,6 +232,12 @@ export async function POST(request: Request) {
           content: insertPayload.content?.substring(0, 100) + '...',
         },
       })
+      
+      // 如果是唯一约束违反（slug 冲突），提供更友好的错误信息
+      if (error.code === '23505') {
+        throw new Error(`Slug "${finalSlug}" 已存在，系统已尝试自动生成唯一 slug，但仍失败。请检查数据库或稍后重试。`)
+      }
+      
       throw error
     }
 

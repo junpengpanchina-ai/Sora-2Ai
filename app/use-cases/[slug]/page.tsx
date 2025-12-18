@@ -6,6 +6,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { cache } from 'react'
 import type { Database } from '@/types/database'
 import UseCaseToolEmbed from '../UseCaseToolEmbed'
+import { parseMarkdownSections, markdownToHtml } from '@/lib/utils/markdown-parser'
 
 type UseCaseRow = Database['public']['Tables']['use_cases']['Row']
 
@@ -266,6 +267,9 @@ export default async function UseCasePage({ params }: { params: { slug: string }
   // 提取主关键词用于工具嵌入
   const mainKeyword = useCase.seo_keywords?.[0] || useCase.title
 
+  // 解析 Markdown 内容，按照 H2 标题分割
+  const contentSections = parseMarkdownSections(useCase.content)
+
   return (
     <>
       <script
@@ -309,14 +313,63 @@ export default async function UseCasePage({ params }: { params: { slug: string }
           <div className="grid gap-10 lg:grid-cols-3">
             {/* Left Column - Main Content */}
             <div className="lg:col-span-2 space-y-10">
-              {/* Overview Section */}
-              <section className="rounded-2xl bg-white p-6 shadow-sm dark:bg-gray-900/60">
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Overview</h2>
-                <div 
-                  className="mt-3 prose prose-lg max-w-none text-gray-600 leading-relaxed dark:prose-invert dark:text-gray-300"
-                  dangerouslySetInnerHTML={{ __html: useCase.content }}
-                />
-              </section>
+              {/* 动态渲染每个 H2 部分 */}
+              {contentSections.length > 0 ? (
+                contentSections.map((section, sectionIndex) => (
+                  <section
+                    key={`section-${sectionIndex}`}
+                    className="rounded-2xl bg-white p-6 shadow-sm dark:bg-gray-900/60"
+                  >
+                    <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+                      {section.title}
+                    </h2>
+                    
+                    {/* 如果有 H3 子部分，显示为带编号的步骤（类似长尾词页面） */}
+                    {section.subsections && section.subsections.length > 0 ? (
+                      <div className="mt-6 space-y-4">
+                        {section.subsections.map((subsection, subIndex) => (
+                          <div
+                            key={`subsection-${sectionIndex}-${subIndex}`}
+                            className="flex items-start gap-4 rounded-xl border border-gray-100 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-800/60"
+                          >
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-energy-water/10 text-sm font-semibold text-energy-water flex-shrink-0">
+                              {subIndex + 1}
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                                {subsection.title}
+                              </h3>
+                              {subsection.content && (
+                                <div
+                                  className="mt-1 text-sm text-gray-600 dark:text-gray-300 prose prose-sm max-w-none dark:prose-invert"
+                                  dangerouslySetInnerHTML={{ __html: markdownToHtml(subsection.content) }}
+                                />
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      /* 如果没有子部分，直接显示内容 */
+                      section.content && (
+                        <div
+                          className="mt-3 prose prose-lg max-w-none text-gray-600 leading-relaxed dark:prose-invert dark:text-gray-300"
+                          dangerouslySetInnerHTML={{ __html: markdownToHtml(section.content) }}
+                        />
+                      )
+                    )}
+                  </section>
+                ))
+              ) : (
+                /* 如果没有解析到部分，显示原始内容（向后兼容） */
+                <section className="rounded-2xl bg-white p-6 shadow-sm dark:bg-gray-900/60">
+                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Overview</h2>
+                  <div
+                    className="mt-3 prose prose-lg max-w-none text-gray-600 leading-relaxed dark:prose-invert dark:text-gray-300"
+                    dangerouslySetInnerHTML={{ __html: markdownToHtml(useCase.content) }}
+                  />
+                </section>
+              )}
 
               {/* SEO Content Section (hidden but indexed) */}
               <section className="sr-only">

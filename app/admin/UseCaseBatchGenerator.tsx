@@ -322,7 +322,9 @@ Please output high-quality SEO content in English that is specifically tailored 
       throw new Error('保存成功但未返回 ID，请检查 API 响应')
     }
 
-    return { id: data.useCase.id, slug, title: data.useCase.title || title }
+    // 使用 API 返回的最终 slug（可能已经添加了后缀以确保唯一性）
+    const finalSlug = data.useCase.slug || slug
+    return { id: data.useCase.id, slug: finalSlug, title: data.useCase.title || title }
   }
 
   // 批量生成
