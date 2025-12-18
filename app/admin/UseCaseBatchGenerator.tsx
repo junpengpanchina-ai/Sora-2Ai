@@ -301,6 +301,7 @@ Please output high-quality SEO content in English that is specifically tailored 
         description,
         content,
         use_case_type: task.useCaseType,
+        industry: task.industry || null, // 同步行业信息
         is_published: true,
         seo_keywords: [task.keyword],
       }),
@@ -436,6 +437,11 @@ Please output high-quality SEO content in English that is specifically tailored 
       onShowBanner('success', `批量生成已终止：已完成 ${savedCount}/${newTasks.length} 个任务`)
     } else {
       onShowBanner('success', `批量生成完成：${savedCount}/${newTasks.length} 已保存`)
+    }
+    
+    // 无论是否终止，只要有保存成功的任务，就刷新列表
+    if (savedCount > 0) {
+      console.log(`批量生成完成，刷新列表（已保存 ${savedCount} 个）`)
       onGenerated() // 刷新列表
     }
   }

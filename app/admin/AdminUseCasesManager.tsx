@@ -19,6 +19,7 @@ interface UseCaseRecord {
   description: string
   content: string
   use_case_type: 'marketing' | 'social-media' | 'youtube' | 'tiktok' | 'product-demo' | 'ads' | 'education' | 'other'
+  industry: string | null
   featured_prompt_ids: string[]
   related_use_case_ids: string[]
   seo_keywords: string[]
@@ -34,6 +35,7 @@ type UseCaseFormState = {
   description: string
   content: string
   use_case_type: string
+  industry: string
   featured_prompt_ids: string
   related_use_case_ids: string
   seo_keywords: string
@@ -47,6 +49,7 @@ const DEFAULT_FORM_STATE: UseCaseFormState = {
   description: '',
   content: '',
   use_case_type: 'marketing',
+  industry: '',
   featured_prompt_ids: '',
   related_use_case_ids: '',
   seo_keywords: '',
@@ -100,6 +103,7 @@ function normalizeUseCaseRecord(item: unknown): UseCaseRecord | null {
     description,
     content,
     use_case_type: (record.use_case_type as UseCaseRecord['use_case_type']) || 'other',
+    industry: typeof record.industry === 'string' ? record.industry : null,
     featured_prompt_ids: Array.isArray(record.featured_prompt_ids)
       ? record.featured_prompt_ids.filter((p): p is string => typeof p === 'string')
       : [],
@@ -123,6 +127,7 @@ function buildFormStateFromUseCase(useCase: UseCaseRecord): UseCaseFormState {
     description: useCase.description,
     content: useCase.content,
     use_case_type: useCase.use_case_type,
+    industry: useCase.industry || '',
     featured_prompt_ids: useCase.featured_prompt_ids.join(', '),
     related_use_case_ids: useCase.related_use_case_ids.join(', '),
     seo_keywords: useCase.seo_keywords.join(', '),
@@ -145,6 +150,7 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
 
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [industryFilter, setIndustryFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all')
   
   // 从 URL 参数获取要编辑的 ID
@@ -166,6 +172,7 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
     try {
       const params = new URLSearchParams()
       if (typeFilter !== 'all') params.append('type', typeFilter)
+      if (industryFilter !== 'all' && industryFilter !== '') params.append('industry', industryFilter)
       if (statusFilter !== 'all') params.append('status', statusFilter)
       if (search.trim()) params.append('search', search.trim())
 
@@ -197,7 +204,7 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
     } finally {
       setLoading(false)
     }
-  }, [search, typeFilter, statusFilter])
+  }, [search, typeFilter, industryFilter, statusFilter])
 
   useEffect(() => {
     console.log('开始获取使用场景列表...')
@@ -278,6 +285,11 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
     const text = search.trim().toLowerCase()
     return useCases.filter((useCase) => {
       const matchesType = typeFilter === 'all' || useCase.use_case_type === typeFilter
+      const matchesIndustry = 
+        industryFilter === 'all' || 
+        industryFilter === '' || 
+        (industryFilter === 'null' && !useCase.industry) ||
+        useCase.industry === industryFilter
       const matchesStatus =
         statusFilter === 'all' ||
         (statusFilter === 'published' ? useCase.is_published : !useCase.is_published)
@@ -287,9 +299,9 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
         useCase.title.toLowerCase().includes(text) ||
         useCase.description.toLowerCase().includes(text) ||
         useCase.h1.toLowerCase().includes(text)
-      return matchesType && matchesStatus && matchesSearch
+      return matchesType && matchesIndustry && matchesStatus && matchesSearch
     })
-  }, [useCases, search, typeFilter, statusFilter])
+  }, [useCases, search, typeFilter, industryFilter, statusFilter])
 
   const handleCreateUseCase = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -322,6 +334,7 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
           description: newUseCaseForm.description.trim(),
           content: newUseCaseForm.content.trim(),
           use_case_type: newUseCaseForm.use_case_type,
+          industry: newUseCaseForm.industry.trim() || null,
           featured_prompt_ids: parseArrayInput(newUseCaseForm.featured_prompt_ids),
           related_use_case_ids: parseArrayInput(newUseCaseForm.related_use_case_ids),
           seo_keywords: parseArrayInput(newUseCaseForm.seo_keywords),
@@ -382,6 +395,7 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
           description: editForm.description.trim(),
           content: editForm.content.trim(),
           use_case_type: editForm.use_case_type,
+          industry: editForm.industry.trim() || null,
           featured_prompt_ids: parseArrayInput(editForm.featured_prompt_ids),
           related_use_case_ids: parseArrayInput(editForm.related_use_case_ids),
           seo_keywords: parseArrayInput(editForm.seo_keywords),
@@ -465,7 +479,7 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Filters */}
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <Input
               placeholder="搜索 slug、标题、描述..."
               value={search}
@@ -482,6 +496,29 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
                   {type.label}
                 </option>
               ))}
+            </select>
+            <select
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
+              value={industryFilter}
+              onChange={(e) => setIndustryFilter(e.target.value)}
+            >
+              <option value="all">所有行业</option>
+              <option value="">不限制行业</option>
+              <option value="Fitness & Sports">Fitness & Sports</option>
+              <option value="E-commerce & Retail">E-commerce & Retail</option>
+              <option value="Education & Training">Education & Training</option>
+              <option value="Marketing & Advertising">Marketing & Advertising</option>
+              <option value="Social Media">Social Media</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Real Estate">Real Estate</option>
+              <option value="Food & Beverage">Food & Beverage</option>
+              <option value="Travel & Tourism">Travel & Tourism</option>
+              <option value="Fashion & Beauty">Fashion & Beauty</option>
+              <option value="Technology">Technology</option>
+              <option value="Healthcare">Healthcare</option>
+              <option value="Finance">Finance</option>
+              <option value="Automotive">Automotive</option>
+              <option value="Gaming">Gaming</option>
             </select>
             <select
               className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
@@ -538,6 +575,28 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
                                 {type.label}
                               </option>
                             ))}
+                          </select>
+                          <select
+                            className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
+                            value={editForm.industry}
+                            onChange={(e) => setEditForm({ ...editForm, industry: e.target.value })}
+                          >
+                            <option value="">不限制行业</option>
+                            <option value="Fitness & Sports">Fitness & Sports</option>
+                            <option value="E-commerce & Retail">E-commerce & Retail</option>
+                            <option value="Education & Training">Education & Training</option>
+                            <option value="Marketing & Advertising">Marketing & Advertising</option>
+                            <option value="Social Media">Social Media</option>
+                            <option value="Entertainment">Entertainment</option>
+                            <option value="Real Estate">Real Estate</option>
+                            <option value="Food & Beverage">Food & Beverage</option>
+                            <option value="Travel & Tourism">Travel & Tourism</option>
+                            <option value="Fashion & Beauty">Fashion & Beauty</option>
+                            <option value="Technology">Technology</option>
+                            <option value="Healthcare">Healthcare</option>
+                            <option value="Finance">Finance</option>
+                            <option value="Automotive">Automotive</option>
+                            <option value="Gaming">Gaming</option>
                           </select>
                         </div>
                         <Textarea
@@ -615,6 +674,11 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
                               {STATUS_BADGES[useCase.is_published ? 'published' : 'draft'].label}
                             </Badge>
                             <Badge variant="default">{useCase.use_case_type}</Badge>
+                            {useCase.industry && (
+                              <Badge variant="secondary" className="text-xs">
+                                {useCase.industry}
+                              </Badge>
+                            )}
                           </div>
                           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                             Slug: {useCase.slug}
