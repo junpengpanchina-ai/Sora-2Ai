@@ -116,7 +116,7 @@ interface CreditAdjustment {
   latest_credits: number | null
 }
 
-type BannerState = { type: 'success' | 'error'; text: string } | null
+type BannerState = { type: 'success' | 'error' | 'info'; text: string } | null
 
 const ISSUE_STATUS_LABELS: Record<AfterSalesIssue['status'], string> = {
   open: '待处理',
@@ -296,7 +296,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
 
   const supabaseClient = useMemo(() => createSupabaseClient(), [])
 
-  const showBanner = useCallback((type: 'success' | 'error', text: string) => {
+  const showBanner = useCallback((type: 'success' | 'error' | 'info', text: string) => {
     setBanner({ type, text })
     if (bannerTimeoutRef.current) {
       clearTimeout(bannerTimeoutRef.current)
@@ -1082,7 +1082,9 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
             className={`mb-6 rounded-lg border px-4 py-3 text-sm ${
               banner.type === 'success'
                 ? 'border-green-200 bg-green-50 text-green-700'
-                : 'border-red-200 bg-red-50 text-red-700'
+                : banner.type === 'info'
+                  ? 'border-blue-200 bg-blue-50 text-blue-700'
+                  : 'border-red-200 bg-red-50 text-red-700'
             }`}
           >
             {banner.text}

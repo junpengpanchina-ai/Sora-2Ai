@@ -6,9 +6,10 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Textare
 import TextRecognitionArea from '@/components/admin/TextRecognitionArea'
 import { parseUseCaseText } from '@/lib/text-recognition/use-case'
 import UseCaseBatchGenerator from './UseCaseBatchGenerator'
+import IndustrySceneBatchGenerator from './IndustrySceneBatchGenerator'
 
 interface AdminUseCasesManagerProps {
-  onShowBanner: (type: 'success' | 'error', text: string) => void
+  onShowBanner: (type: 'success' | 'error' | 'info', text: string) => void
 }
 
 interface UseCaseRecord {
@@ -471,6 +472,10 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
   return (
     <div className="space-y-6">
       {/* 批量生成组件 */}
+      {/* 行业场景词批量生成器（10,000 条内容计划） */}
+      <IndustrySceneBatchGenerator onShowBanner={onShowBanner} onGenerated={fetchUseCases} />
+      
+      {/* 基于热搜词的批量生成器 */}
       <UseCaseBatchGenerator onShowBanner={onShowBanner} onGenerated={fetchUseCases} />
 
       <Card>
