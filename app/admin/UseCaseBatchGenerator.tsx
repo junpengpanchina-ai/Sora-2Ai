@@ -412,8 +412,11 @@ Please output high-quality SEO content in English that is specifically tailored 
           })
         }
 
+        // 对于大规模生成（>50条），减少延迟以提高效率
+        // 小规模生成保持 1 秒延迟，大规模生成减少到 500ms
         if (i < newTasks.length - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 1000))
+          const delay = newTasks.length > 50 ? 500 : 1000
+          await new Promise((resolve) => setTimeout(resolve, delay))
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : '未知错误'
@@ -513,14 +516,63 @@ Please output high-quality SEO content in English that is specifically tailored 
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               生成数量
             </label>
-            <Input
-              type="number"
-              min="1"
-              max="50"
-              value={count}
-              onChange={(e) => setCount(Math.min(50, Math.max(1, parseInt(e.target.value) || 10)))}
-              disabled={isProcessing}
-            />
+            <div className="space-y-2">
+              <Input
+                type="number"
+                min="1"
+                max="1000"
+                value={count}
+                onChange={(e) => setCount(Math.min(1000, Math.max(1, parseInt(e.target.value) || 10)))}
+                disabled={isProcessing}
+              />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCount(10)}
+                  disabled={isProcessing}
+                  className="rounded border border-gray-300 bg-white px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+                >
+                  10条
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCount(50)}
+                  disabled={isProcessing}
+                  className="rounded border border-gray-300 bg-white px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+                >
+                  50条
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCount(100)}
+                  disabled={isProcessing}
+                  className="rounded border border-gray-300 bg-white px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+                >
+                  100条
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCount(500)}
+                  disabled={isProcessing}
+                  className="rounded border border-gray-300 bg-white px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+                >
+                  500条
+                </button>
+              </div>
+              {/* 成本估算 */}
+              <div className="rounded-lg bg-green-50 p-2 text-xs dark:bg-green-900/20">
+                <div className="font-medium text-green-800 dark:text-green-200">
+                  💰 成本估算
+                </div>
+                <div className="mt-1 text-green-700 dark:text-green-300">
+                  <div>生成 {count} 条 ≈ {Math.ceil(count / 10) * 26} 积分</div>
+                  <div>≈ ¥{((Math.ceil(count / 10) * 26 * 0.00008).toFixed(4))} 元</div>
+                  <div className="mt-1 text-green-600 dark:text-green-400">
+                    (每 10 条成本约 ¥0.002，可放心大规模生成)
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -596,7 +648,7 @@ Please output high-quality SEO content in English that is specifically tailored 
           </div>
           <div className="mt-2 flex items-center justify-between">
             <p className="text-xs text-gray-500">
-              已选择 {selectedKeywords.length} 个关键词（将生成前 {count} 个）
+              已选择 {selectedKeywords.length} 个关键词（将生成前 {Math.min(count, selectedKeywords.length)} 个）
             </p>
             {trendingKeywords.length > 0 && (
               <button
