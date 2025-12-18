@@ -1,159 +1,141 @@
-# 登录问题排查指南
+# 管理员后台点击无反应 - 排查指南
 
-## 🔍 常见登录失败原因
+## ✅ 已验证正常的部分
 
-### 1. Supabase Google Provider 未正确配置
+1. **环境变量配置** ✓
+   - `NEXT_PUBLIC_SUPABASE_URL` 已设置
+   - `SUPABASE_SERVICE_ROLE_KEY` 已设置（格式正确）
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` 已设置
 
-**症状**: 点击登录后没有反应，或显示 "OAuth 配置错误"
+2. **数据库连接** ✓
+   - 数据库连接正常
+   - `use_cases` 表存在且结构正确
 
-**检查步骤**:
-1. 访问 [Supabase Dashboard](https://supabase.com/dashboard)
-2. 选择项目 "Sora AI Platform"
-3. 进入 **Authentication** > **Providers**
-4. 确认 **Google** provider 已启用（开关打开）
-5. 检查 Client ID 和 Client Secret 是否正确填写
-6. 确认已点击 **Save** 保存
+## 🔍 排查步骤
 
-**解决方案**:
-- 如果未启用，点击启用
-- 如果凭据错误，重新填写：
-  - Client ID: `222103705593-0v1ntpdj5lvlmgj7tokoaq101rm5kq5o.apps.googleusercontent.com`
-  - Client Secret: `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`
-- 保存后等待几秒钟让配置生效
+### 步骤 1: 检查浏览器控制台
 
-### 2. Google Cloud Console 重定向 URI 配置错误
+1. 打开管理员后台页面
+2. 按 `F12` 打开开发者工具
+3. 切换到 **Console** 标签页
+4. 点击"使用场景"菜单
+5. 查看是否有：
+   - ✅ 看到 `切换标签页: use-cases` 日志 → 点击事件正常
+   - ❌ 看到红色错误信息 → 记录错误内容
 
-**症状**: 显示 "redirect_uri_mismatch" 错误
+### 步骤 2: 检查网络请求
 
-**检查步骤**:
-1. 访问 [Google Cloud Console](https://console.cloud.google.com/)
-2. 进入 **APIs & Services** > **Credentials**
-3. 点击您的 OAuth 2.0 客户端 ID
-4. 检查 **Authorized redirect URIs** 列表
+1. 在开发者工具中切换到 **Network** 标签页
+2. 点击"使用场景"菜单
+3. 查找 `/api/admin/use-cases` 请求
+4. 检查请求状态：
+   - **200** = 成功
+   - **401** = 未登录，需要重新登录
+   - **500** = 服务器错误，查看响应内容
 
-**必须包含的 URI**:
-```
-http://localhost:3000/api/auth/callback
-https://hgzpzsiafycwlqrkzbis.supabase.co/auth/v1/callback
-```
+### 步骤 3: 检查 React 组件渲染
 
-**解决方案**:
-- 如果缺少任何一个，点击 **+ ADD URI** 添加
-- 确保 URI 完全匹配（包括协议 http/https）
-- 点击 **Save** 保存
-- 等待几分钟让更改生效
+在浏览器控制台运行：
 
-### 3. 环境变量未正确加载
-
-**症状**: 连接 Supabase 失败
-
-**检查步骤**:
-```bash
-npm run check-env
+```javascript
+// 检查当前 activeTab 状态
+// 打开 React DevTools，查看 AdminClient 组件的 activeTab 值
 ```
 
-**解决方案**:
-- 确认 `.env.local` 文件存在
-- 确认文件中的值正确
-- 重启开发服务器：`npm run dev`
+### 步骤 4: 手动测试 API
 
-### 4. 代码错误或网络问题
+在浏览器控制台运行：
 
-**症状**: 其他未知错误
+```javascript
+// 测试使用场景 API
+fetch('/api/admin/use-cases')
+  .then(r => r.json())
+  .then(data => {
+    console.log('API 响应:', data)
+    if (data.error) {
+      console.error('❌ API 错误:', data.error)
+    } else {
+      console.log('✅ API 正常，找到', data.useCases?.length || 0, '条记录')
+    }
+  })
+  .catch(err => console.error('❌ 请求失败:', err))
+```
 
-**检查步骤**:
-1. 打开浏览器开发者工具（F12）
-2. 查看 **Console** 标签页的错误信息
-3. 查看 **Network** 标签页的请求状态
-4. 查看开发服务器的终端输出
-
-**解决方案**:
-- 根据错误信息定位问题
-- 检查网络连接
-- 检查 Supabase 项目状态
-
-## 🛠️ 调试步骤
-
-### 步骤 1: 检查 Supabase 配置
+### 步骤 5: 检查服务器是否运行
 
 ```bash
-# 测试 Supabase 连接
-npm run test:supabase
+# 检查 Next.js 开发服务器是否运行
+curl http://localhost:3000/api/debug/test-db-connection
+
+# 如果返回 JSON，说明服务器正常
+# 如果连接失败，需要启动服务器：
+npm run dev
 ```
 
-应该显示所有测试通过。
+## 🐛 常见问题及解决方案
 
-### 步骤 2: 检查环境变量
+### 问题 1: 点击菜单没有反应
+
+**可能原因：**
+- JavaScript 错误阻止了事件处理
+- React 状态更新失败
+- 组件未正确渲染
+
+**解决方案：**
+1. 检查浏览器控制台是否有错误
+2. 尝试刷新页面（`Cmd+R` 或 `Ctrl+R`）
+3. 清除浏览器缓存后重试
+
+### 问题 2: API 返回 401 错误
+
+**原因：** 登录会话已过期
+
+**解决方案：**
+1. 访问 `/admin/login` 重新登录
+2. 登录后重试
+
+### 问题 3: API 返回 500 错误
+
+**原因：** 服务器端错误
+
+**解决方案：**
+1. 查看服务器日志（终端输出）
+2. 检查 `.env.local` 中的环境变量
+3. 运行诊断脚本：`node scripts/test-use-cases-table.js`
+
+### 问题 4: 页面显示空白
+
+**原因：** 组件渲染错误
+
+**解决方案：**
+1. 检查浏览器控制台的错误信息
+2. 尝试访问诊断页面：`/admin/debug`
+3. 检查是否有 JavaScript 语法错误
+
+## 🛠️ 快速修复命令
 
 ```bash
-# 检查环境变量配置
-npm run check-env
+# 1. 重启开发服务器
+# 按 Ctrl+C 停止服务器，然后：
+npm run dev
+
+# 2. 检查数据库连接
+node scripts/test-use-cases-table.js
+
+# 3. 检查构建是否有错误
+npm run build
+
+# 4. 清除 Next.js 缓存
+rm -rf .next
+npm run dev
 ```
 
-应该显示所有必需变量已配置。
+## 📞 需要更多帮助？
 
-### 步骤 3: 查看详细错误
+如果以上步骤都无法解决问题，请提供：
 
-1. 打开浏览器开发者工具（F12）
-2. 访问登录页面
-3. 点击登录按钮
-4. 查看 Console 和 Network 标签页的错误信息
+1. **浏览器控制台的完整错误信息**（截图或复制文本）
+2. **Network 标签页中的 API 请求详情**（状态码、响应内容）
+3. **服务器终端的错误日志**（如果有）
 
-### 步骤 4: 检查 Supabase 日志
-
-1. 访问 [Supabase Dashboard](https://supabase.com/dashboard)
-2. 进入 **Logs** > **Auth Logs**
-3. 查看最近的认证尝试记录
-4. 查找错误信息
-
-## 📋 快速检查清单
-
-- [ ] Supabase 项目状态为 "Active"
-- [ ] Google Provider 已启用
-- [ ] Google Provider 的 Client ID 和 Secret 已正确填写
-- [ ] Google Cloud Console 中的重定向 URI 已添加
-- [ ] `.env.local` 文件存在且配置正确
-- [ ] 开发服务器正在运行
-- [ ] 浏览器控制台没有错误
-- [ ] 网络连接正常
-
-## 🔧 重置配置
-
-如果问题持续，可以尝试重置：
-
-1. **重新配置 Supabase Google Provider**:
-   - 在 Supabase 中禁用 Google Provider
-   - 等待几秒钟
-   - 重新启用并填写凭据
-   - 保存
-
-2. **清除浏览器缓存**:
-   - 清除浏览器缓存和 Cookie
-   - 或使用隐私模式测试
-
-3. **重启开发服务器**:
-   ```bash
-   # 停止服务器 (Ctrl+C)
-   # 重新启动
-   npm run dev
-   ```
-
-## 📞 获取帮助
-
-如果以上步骤都无法解决问题，请提供以下信息：
-
-1. 浏览器控制台的错误信息
-2. 开发服务器的终端输出
-3. Supabase Dashboard 中的 Auth Logs
-4. 具体的错误消息
-
-## ✅ 验证成功标志
-
-登录成功时应该看到：
-
-1. ✅ 点击登录按钮后跳转到 Google 授权页面
-2. ✅ 授权后自动返回应用
-3. ✅ 显示用户信息（头像、名称、邮箱）
-4. ✅ Supabase `users` 表中有用户记录
-5. ✅ 可以正常退出登录
-
+这些信息可以帮助快速定位问题。
