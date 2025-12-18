@@ -27,35 +27,36 @@ interface BatchTask {
   savedTitle?: string
 }
 
-// 行业列表（与产品高度匹配）
+// 行业列表（与 AI 视频生成高度匹配）
 const INDUSTRIES = [
-  'Fitness & Sports',
-  'E-commerce & Retail',
-  'Education & Training',
-  'Marketing & Advertising',
-  'Social Media',
-  'Entertainment',
-  'Real Estate',
-  'Food & Beverage',
-  'Travel & Tourism',
-  'Fashion & Beauty',
-  'Technology',
-  'Healthcare',
-  'Finance',
-  'Automotive',
-  'Gaming',
+  { value: '', label: '所有行业', note: '不限制行业' },
+  { value: 'Fitness & Sports', label: 'Fitness & Sports', note: '健身运动 - 适合健身教程、运动视频' },
+  { value: 'E-commerce & Retail', label: 'E-commerce & Retail', note: '电商零售 - 适合产品展示、购物视频' },
+  { value: 'Education & Training', label: 'Education & Training', note: '教育培训 - 适合课程讲解、知识科普' },
+  { value: 'Marketing & Advertising', label: 'Marketing & Advertising', note: '营销广告 - 适合品牌宣传、广告创意' },
+  { value: 'Social Media', label: 'Social Media', note: '社交媒体 - 适合短视频、内容创作' },
+  { value: 'Entertainment', label: 'Entertainment', note: '娱乐内容 - 适合娱乐视频、创意内容' },
+  { value: 'Real Estate', label: 'Real Estate', note: '房地产 - 适合房产展示、虚拟看房' },
+  { value: 'Food & Beverage', label: 'Food & Beverage', note: '餐饮美食 - 适合美食展示、烹饪教程' },
+  { value: 'Travel & Tourism', label: 'Travel & Tourism', note: '旅游出行 - 适合旅游宣传、景点介绍' },
+  { value: 'Fashion & Beauty', label: 'Fashion & Beauty', note: '时尚美妆 - 适合穿搭展示、美妆教程' },
+  { value: 'Technology', label: 'Technology', note: '科技产品 - 适合产品演示、技术讲解' },
+  { value: 'Healthcare', label: 'Healthcare', note: '医疗健康 - 适合健康科普、医疗宣传' },
+  { value: 'Finance', label: 'Finance', note: '金融理财 - 适合金融科普、理财教育' },
+  { value: 'Automotive', label: 'Automotive', note: '汽车交通 - 适合汽车展示、驾驶场景' },
+  { value: 'Gaming', label: 'Gaming', note: '游戏娱乐 - 适合游戏宣传、游戏内容' },
 ]
 
-// 使用场景类型（类目）
+// 使用场景类型（类目）- AI 视频生成核心场景
 const USE_CASE_TYPES = [
-  { value: 'marketing', label: 'Marketing' },
-  { value: 'social-media', label: 'Social Media' },
-  { value: 'youtube', label: 'YouTube' },
-  { value: 'tiktok', label: 'TikTok' },
-  { value: 'product-demo', label: 'Product Demo' },
-  { value: 'ads', label: 'Advertising' },
-  { value: 'education', label: 'Education' },
-  { value: 'other', label: 'Other' },
+  { value: 'marketing', label: 'Marketing', note: '营销视频 - 品牌宣传、产品推广、广告创意' },
+  { value: 'social-media', label: 'Social Media', note: '社交媒体 - 短视频、内容创作、用户互动' },
+  { value: 'youtube', label: 'YouTube', note: 'YouTube 视频 - 长视频、教程、Vlog' },
+  { value: 'tiktok', label: 'TikTok', note: 'TikTok 视频 - 短视频、热门内容、趋势视频' },
+  { value: 'product-demo', label: 'Product Demo', note: '产品演示 - 产品展示、功能演示、使用教程' },
+  { value: 'ads', label: 'Advertising', note: '广告视频 - 商业广告、宣传片、促销视频' },
+  { value: 'education', label: 'Education', note: '教育视频 - 课程讲解、知识科普、培训视频' },
+  { value: 'other', label: 'Other', note: '其他场景 - 自定义用途' },
 ]
 
 export default function UseCaseBatchGenerator({ onShowBanner, onGenerated }: UseCaseBatchGeneratorProps) {
@@ -357,39 +358,50 @@ Please output high-quality SEO content in English.`
         <div className="grid gap-4 md:grid-cols-3">
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              使用场景类型（类目）
+              使用场景类型（类目）<span className="text-xs text-gray-500 ml-1">- AI 视频生成核心场景</span>
             </label>
             <select
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
               value={selectedUseCaseType}
               onChange={(e) => setSelectedUseCaseType(e.target.value)}
               disabled={isProcessing}
+              title={USE_CASE_TYPES.find((t) => t.value === selectedUseCaseType)?.note}
             >
               {USE_CASE_TYPES.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
+                <option key={type.value} value={type.value} title={type.note}>
+                  {type.label} - {type.note}
                 </option>
               ))}
             </select>
+            {USE_CASE_TYPES.find((t) => t.value === selectedUseCaseType)?.note && (
+              <p className="mt-1 text-xs text-gray-500">
+                {USE_CASE_TYPES.find((t) => t.value === selectedUseCaseType)?.note}
+              </p>
+            )}
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              行业（可选）
+              行业（可选）<span className="text-xs text-gray-500 ml-1">- 适用于 AI 视频生成</span>
             </label>
             <select
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
               value={selectedIndustry}
               onChange={(e) => setSelectedIndustry(e.target.value)}
               disabled={isProcessing}
+              title={INDUSTRIES.find((i) => i.value === selectedIndustry)?.note}
             >
-              <option value="">所有行业</option>
               {INDUSTRIES.map((industry) => (
-                <option key={industry} value={industry}>
-                  {industry}
+                <option key={industry.value} value={industry.value} title={industry.note}>
+                  {industry.label} {industry.note ? `- ${industry.note}` : ''}
                 </option>
               ))}
             </select>
+            {INDUSTRIES.find((i) => i.value === selectedIndustry)?.note && (
+              <p className="mt-1 text-xs text-gray-500">
+                {INDUSTRIES.find((i) => i.value === selectedIndustry)?.note}
+              </p>
+            )}
           </div>
 
           <div>
@@ -456,15 +468,29 @@ Please output high-quality SEO content in English.`
               onClick={handleBatchGenerate}
               disabled={selectedKeywords.length === 0}
               className="flex-1"
+              title="开始批量生成 AI 视频使用场景内容"
             >
               🚀 开始批量生成
             </Button>
           ) : (
-            <Button onClick={handleStop} variant="danger" className="flex-1">
-              ⏹️ 终止生成
+            <Button 
+              onClick={handleStop} 
+              variant="danger" 
+              className="flex-1"
+              title="点击可随时终止批量生成，已完成的任务会继续保存"
+            >
+              ⏹️ 暂停/终止生成
             </Button>
           )}
         </div>
+        {isProcessing && (
+          <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3 text-sm text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-200">
+            <p className="font-medium">⚠️ 批量生成进行中</p>
+            <p className="mt-1 text-xs">
+              正在生成 AI 视频使用场景内容，您可以随时点击&ldquo;暂停/终止生成&rdquo;按钮停止。已完成的任务会自动保存到数据库。
+            </p>
+          </div>
+        )}
 
         {/* 任务列表 */}
         {tasks.length > 0 && (
