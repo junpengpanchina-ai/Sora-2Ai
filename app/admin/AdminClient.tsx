@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   Card,
   CardHeader,
@@ -235,7 +236,10 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
   const [issues, setIssues] = useState<AfterSalesIssue[]>([])
   const [issueStatusCounts, setIssueStatusCounts] = useState<Record<string, number>>({})
   const [creditAdjustments, setCreditAdjustments] = useState<CreditAdjustment[]>([])
-  const [activeTab, setActiveTab] = useState<
+  const searchParams = useSearchParams()
+  const tabFromUrl = searchParams?.get('tab') || 'overview'
+  
+  type TabType =
     | 'overview'
     | 'recharges'
     | 'consumption'
@@ -250,7 +254,17 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     | 'use-cases'
     | 'compare-pages'
     | 'batch-generator'
-  >('overview')
+  
+  const [activeTab, setActiveTab] = useState<TabType>(
+    (tabFromUrl as TabType) || 'overview'
+  )
+  
+  // 如果 URL 中有 tab 参数，更新 activeTab
+  useEffect(() => {
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl as TabType)
+    }
+  }, [tabFromUrl, activeTab])
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [issuesLoading, setIssuesLoading] = useState(true)
   const [adjustmentsLoading, setAdjustmentsLoading] = useState(true)

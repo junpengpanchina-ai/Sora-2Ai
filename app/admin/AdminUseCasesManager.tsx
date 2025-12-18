@@ -1,9 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from '@/components/ui'
 import TextRecognitionArea from '@/components/admin/TextRecognitionArea'
 import { parseUseCaseText } from '@/lib/text-recognition/use-case'
+import UseCaseBatchGenerator from './UseCaseBatchGenerator'
 
 interface AdminUseCasesManagerProps {
   onShowBanner: (type: 'success' | 'error', text: string) => void
@@ -136,6 +138,7 @@ function parseArrayInput(input: string): string[] {
 }
 
 export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesManagerProps) {
+  const searchParams = useSearchParams()
   const [useCases, setUseCases] = useState<UseCaseRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -143,6 +146,9 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all')
+  
+  // 从 URL 参数获取要编辑的 ID
+  const editIdFromUrl = searchParams?.get('edit') || null
 
   const [newUseCaseForm, setNewUseCaseForm] = useState<UseCaseFormState>(DEFAULT_FORM_STATE)
   const [creating, setCreating] = useState(false)
@@ -196,6 +202,22 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
   useEffect(() => {
     fetchUseCases()
   }, [fetchUseCases])
+
+  // 如果 URL 中有 edit 参数，自动打开编辑
+  useEffect(() => {
+    if (editIdFromUrl && useCases.length > 0 && !editingUseCaseId) {
+      const useCaseToEdit = useCases.find((uc) => uc.id === editIdFromUrl)
+      if (useCaseToEdit) {
+        handleStartEdit(useCaseToEdit)
+        // 滚动到编辑表单
+        setTimeout(() => {
+          const editForm = document.getElementById(`edit-form-${editIdFromUrl}`)
+          editForm?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }, 300)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editIdFromUrl, useCases])
 
   /**
    * 执行文本识别和填充
@@ -428,6 +450,9 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
 
   return (
     <div className="space-y-6">
+      {/* 批量生成组件 */}
+      <UseCaseBatchGenerator onShowBanner={onShowBanner} onGenerated={fetchUseCases} />
+
       <Card>
         <CardHeader>
           <CardTitle>使用场景管理</CardTitle>
@@ -475,10 +500,11 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
               {filteredUseCases.map((useCase) => {
                 const isEditing = editingUseCaseId === useCase.id
                 const isDeleting = deletingId === useCase.id
+                const isHighlighted = editIdFromUrl === useCase.id
 
                 if (isEditing) {
                   return (
-                    <Card key={useCase.id} className="border-blue-300">
+                    <Card key={useCase.id} id={`edit-form-${useCase.id}`} className="border-blue-300">
                       <CardContent className="space-y-4 p-4">
                         <div className="grid gap-4 md:grid-cols-2">
                           <Input
@@ -565,7 +591,11 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
                 }
 
                 return (
-                  <Card key={useCase.id}>
+                  <Card 
+                    key={useCase.id} 
+                    id={`use-case-${useCase.id}`}
+                    className={isHighlighted ? 'border-energy-water bg-energy-water/10 ring-2 ring-energy-water' : ''}
+                  >
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -588,8 +618,16 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
                           </p>
                         </div>
                         <div className="flex gap-2">
+                          <a
+                            href={`/use-cases/${useCase.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                          >
+                            👁️ 查看
+                          </a>
                           <Button onClick={() => handleStartEdit(useCase)} size="sm" variant="secondary">
-                            编辑
+                            ✏️ 编辑
                           </Button>
                           <Button
                             onClick={() => handleDeleteUseCase(useCase.id)}

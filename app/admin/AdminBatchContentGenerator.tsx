@@ -20,6 +20,7 @@ interface BatchTask {
   savedTable?: string // 保存到哪个表
   savedSlug?: string // 保存后的 slug
   model?: string // 使用的模型
+  showContent?: boolean // 是否显示内容预览
 }
 
 export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchContentGeneratorProps) {
@@ -29,6 +30,7 @@ export default function AdminBatchContentGenerator({ onShowBanner }: AdminBatchC
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingIndex, setProcessingIndex] = useState(-1)
   const [autoSave, setAutoSave] = useState(true) // 默认开启自动保存
+  const [shouldStop, setShouldStop] = useState(false) // 终止标志
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // 预设数据池
@@ -216,11 +218,30 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
   /**
    * 从内容中提取 H1 标题
    */
-  const extractH1 = (content: string): string => {
+  const extractH1 = (content: string, fallback?: string): string => {
+    // 先尝试提取 H1
     const h1Match = content.match(/^#\s+(.+)$/m) || content.match(/<h1[^>]*>(.+?)<\/h1>/i)
     if (h1Match) {
       return h1Match[1].trim().replace(/<[^>]+>/g, '')
     }
+    
+    // 如果没有 H1，尝试从 H2 提取（降级处理）
+    const h2Match = content.match(/^##\s+(.+)$/m) || content.match(/<h2[^>]*>(.+?)<\/h2>/i)
+    if (h2Match) {
+      return h2Match[1].trim().replace(/<[^>]+>/g, '')
+    }
+    
+    // 如果还是没有，使用 fallback 或从内容第一行提取
+    if (fallback) {
+      return fallback
+    }
+    
+    // 尝试从内容第一行提取标题（去除 markdown 格式）
+    const firstLine = content.split('\n')[0]?.trim() || ''
+    if (firstLine && !firstLine.startsWith('#')) {
+      return firstLine.substring(0, 100) // 限制长度
+    }
+    
     return ''
   }
 
@@ -277,10 +298,16 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
     }
 
     try {
-      const h1 = extractH1(content) || task.params.scene || task.params.keyword || task.params.title || 'Untitled'
+      // 优先使用参数中的值作为 fallback
+      const fallbackTitle = task.params.title || task.params.scene || task.params.keyword || 'Untitled'
+      const h1 = extractH1(content, fallbackTitle) || fallbackTitle
       const title = task.params.title || task.params.scene || task.params.keyword || h1
       const description = extractDescription(content)
       const slug = generateSlugFromText(task.params.keyword || task.params.scene || task.params.title || h1)
+
+      if (!h1 || h1.trim() === '') {
+        throw new Error('无法提取 H1 标题，请确保生成的内容包含标题')
+      }
 
       if (!slug) {
         throw new Error('无法生成有效的 slug')
@@ -455,9 +482,25 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
 
     setTasks(newTasks)
     setIsProcessing(true)
+    setShouldStop(false) // 重置终止标志
 
     // 逐个处理任务
     for (let i = 0; i < newTasks.length; i++) {
+      // 检查是否应该停止
+      if (shouldStop) {
+        setTasks((prev) => {
+          const updated = [...prev]
+          // 将未处理的任务标记为已取消
+          for (let j = i; j < updated.length; j++) {
+            if (updated[j].status === 'pending') {
+              updated[j] = { ...updated[j], status: 'failed', error: '已取消' }
+            }
+          }
+          return updated
+        })
+        break
+      }
+
       const task = newTasks[i]
       setProcessingIndex(i)
 
@@ -522,7 +565,22 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
 
     setIsProcessing(false)
     setProcessingIndex(-1)
-    onShowBanner('success', `批量生成完成：${newTasks.filter((t) => t.status === 'completed').length}/${newTasks.length} 成功`)
+    setShouldStop(false)
+    
+    const completedCount = newTasks.filter((t) => t.status === 'completed' || t.status === 'saved').length
+    if (shouldStop) {
+      onShowBanner('success', `批量生成已终止：已完成 ${completedCount}/${newTasks.length} 个任务`)
+    } else {
+      onShowBanner('success', `批量生成完成：${completedCount}/${newTasks.length} 成功`)
+    }
+  }
+
+  /**
+   * 终止批量生成
+   */
+  const handleStop = () => {
+    setShouldStop(true)
+    onShowBanner('success', '正在停止批量生成，请稍候...')
   }
 
   /**
@@ -687,13 +745,23 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
 
           {/* 操作按钮 */}
           <div className="flex gap-2">
-            <Button
-              onClick={handleBatchGenerate}
-              disabled={isProcessing || !csvInput.trim()}
-              className="flex-1"
-            >
-              {isProcessing ? `生成中... (${processingIndex + 1}/${tasks.length})` : '🚀 开始批量生成'}
-            </Button>
+            {!isProcessing ? (
+              <Button
+                onClick={handleBatchGenerate}
+                disabled={!csvInput.trim()}
+                className="flex-1"
+              >
+                🚀 开始批量生成
+              </Button>
+            ) : (
+              <Button
+                onClick={handleStop}
+                variant="danger"
+                className="flex-1"
+              >
+                ⏹️ 终止生成
+              </Button>
+            )}
             {tasks.length > 0 && (
               <Button variant="secondary" onClick={handleExport} disabled={isProcessing}>
                 📥 导出结果
@@ -713,6 +781,11 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
               {autoSave && tasks.filter((t) => t.status === 'saved').length > 0 && (
                 <span className="ml-2 text-sm font-normal text-green-600 dark:text-green-400">
                   ({tasks.filter((t) => t.status === 'saved').length} 已保存)
+                </span>
+              )}
+              {isProcessing && processingIndex >= 0 && (
+                <span className="ml-2 text-sm font-normal text-blue-600 dark:text-blue-400">
+                  (正在处理: {processingIndex + 1}/{tasks.length})
                 </span>
               )}
               )
@@ -777,24 +850,75 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
                         </div>
                       )}
                     </div>
-                    {task.result && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          navigator.clipboard.writeText(task.result || '')
-                          onShowBanner('success', '内容已复制到剪贴板')
-                        }}
-                      >
-                        复制
-                      </Button>
-                    )}
+                    <div className="flex gap-2">
+                      {task.result && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const updated = [...tasks]
+                              updated[index] = { ...updated[index], showContent: !updated[index].showContent }
+                              setTasks(updated)
+                            }}
+                          >
+                            {task.showContent ? '👁️ 隐藏内容' : '👁️ 查看内容'}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              navigator.clipboard.writeText(task.result || '')
+                              onShowBanner('success', '内容已复制到剪贴板')
+                            }}
+                          >
+                            📋 复制
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
+                  {/* 内容预览 */}
                   {task.result && (
-                    <div className="mt-2 max-h-32 overflow-y-auto rounded border border-gray-200 bg-white p-2 text-xs dark:border-gray-700 dark:bg-gray-800">
-                      <pre className="whitespace-pre-wrap text-gray-700 dark:text-gray-300">
-                        {task.result.substring(0, 200)}...
-                      </pre>
+                    <div className="mt-3">
+                      {task.showContent ? (
+                        <div className="max-h-96 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 text-sm dark:border-gray-700 dark:bg-gray-800">
+                          <div className="mb-2 flex items-center justify-between">
+                            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                              生成的内容预览（完整）
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-500">
+                              {task.result.length} 字符
+                            </span>
+                          </div>
+                          <pre className="whitespace-pre-wrap break-words text-gray-700 dark:text-gray-300">
+                            {task.result}
+                          </pre>
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs dark:border-gray-700 dark:bg-gray-800/50">
+                          <div className="mb-1 flex items-center justify-between">
+                            <span className="text-gray-600 dark:text-gray-400">内容预览（前200字符）</span>
+                            <span className="text-gray-500 dark:text-gray-500">
+                              {task.result.length} 字符
+                            </span>
+                          </div>
+                          <pre className="whitespace-pre-wrap break-words text-gray-700 dark:text-gray-300">
+                            {task.result.substring(0, 200)}
+                            {task.result.length > 200 && '...'}
+                          </pre>
+                          <button
+                            onClick={() => {
+                              const updated = [...tasks]
+                              updated[index] = { ...updated[index], showContent: true }
+                              setTasks(updated)
+                            }}
+                            className="mt-2 text-xs text-energy-water hover:underline"
+                          >
+                            点击展开查看完整内容 →
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

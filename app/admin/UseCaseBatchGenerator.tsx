@@ -1,0 +1,559 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, Button, Input } from '@/components/ui'
+import { generateSlugFromText } from '@/lib/utils/slug'
+
+interface UseCaseBatchGeneratorProps {
+  onShowBanner: (type: 'success' | 'error', text: string) => void
+  onGenerated: () => void // 生成完成后刷新列表
+}
+
+interface TrendingKeyword {
+  title: string
+  formattedTraffic: string
+}
+
+interface BatchTask {
+  id: string
+  keyword: string
+  useCaseType: string
+  industry: string
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'saved'
+  result?: string
+  error?: string
+  savedId?: string
+  savedSlug?: string
+  savedTitle?: string
+}
+
+// 行业列表（与产品高度匹配）
+const INDUSTRIES = [
+  'Fitness & Sports',
+  'E-commerce & Retail',
+  'Education & Training',
+  'Marketing & Advertising',
+  'Social Media',
+  'Entertainment',
+  'Real Estate',
+  'Food & Beverage',
+  'Travel & Tourism',
+  'Fashion & Beauty',
+  'Technology',
+  'Healthcare',
+  'Finance',
+  'Automotive',
+  'Gaming',
+]
+
+// 使用场景类型（类目）
+const USE_CASE_TYPES = [
+  { value: 'marketing', label: 'Marketing' },
+  { value: 'social-media', label: 'Social Media' },
+  { value: 'youtube', label: 'YouTube' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'product-demo', label: 'Product Demo' },
+  { value: 'ads', label: 'Advertising' },
+  { value: 'education', label: 'Education' },
+  { value: 'other', label: 'Other' },
+]
+
+export default function UseCaseBatchGenerator({ onShowBanner, onGenerated }: UseCaseBatchGeneratorProps) {
+  const [trendingKeywords, setTrendingKeywords] = useState<TrendingKeyword[]>([])
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([])
+  const [selectedUseCaseType, setSelectedUseCaseType] = useState<string>('marketing')
+  const [selectedIndustry, setSelectedIndustry] = useState<string>('')
+  const [count, setCount] = useState<number>(10)
+  const [tasks, setTasks] = useState<BatchTask[]>([])
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [processingIndex, setProcessingIndex] = useState(-1)
+  const [shouldStop, setShouldStop] = useState(false)
+
+  // 获取热搜词
+  useEffect(() => {
+    const fetchTrends = async () => {
+      try {
+        const response = await fetch('/api/trends?geo=US')
+        const data = await response.json()
+        if (data.success && Array.isArray(data.trends)) {
+          // 过滤出与 AI 视频相关的热搜词
+          const aiVideoKeywords = data.trends.filter((trend: TrendingKeyword) => {
+            const title = trend.title.toLowerCase()
+            return (
+              title.includes('ai') ||
+              title.includes('video') ||
+              title.includes('generator') ||
+              title.includes('sora') ||
+              title.includes('text to video') ||
+              title.includes('video ai')
+            )
+          })
+          setTrendingKeywords(aiVideoKeywords.length > 0 ? aiVideoKeywords : data.trends.slice(0, 20))
+        }
+      } catch (error) {
+        console.error('Failed to fetch trends:', error)
+      }
+    }
+    fetchTrends()
+  }, [])
+
+  // 处理单个任务
+  const processTask = async (task: BatchTask): Promise<string> => {
+    // 构建与产品高度匹配的 Prompt
+    const systemPrompt = `You are a professional SEO content writer for Sora2, an AI video generation platform. Generate high-quality, product-focused use case content that highlights Sora2's capabilities. All output must be in English.`
+
+    const userPrompt = `Generate a use case page for Sora2 AI video generation platform.
+
+【Product Features (Must Highlight)】
+- Text-to-video generation: Convert text prompts into high-quality videos
+- Image-to-video generation: Transform static images into dynamic videos
+- Multiple video styles: Realistic, cinematic, animated, commercial, educational
+- Supports various formats: 9:16 (vertical), 16:9 (horizontal)
+- Fast generation: Create videos in minutes
+- No watermark: Professional quality output
+- Cost-effective: Affordable pricing for creators and businesses
+
+【Parameters】
+Use Case Keyword: ${task.keyword}
+Industry: ${task.industry || 'General'}
+Use Case Type: ${task.useCaseType}
+
+【Content Requirements】
+- Content must be highly relevant to Sora2's actual features
+- Emphasize how Sora2 solves real problems in this industry
+- Include specific use cases that Sora2 can handle
+- Use natural, engaging language
+- Each paragraph: 60-120 words
+- All content in English
+
+【Content Structure】
+H1: AI Video Generation for [${task.keyword}] - Sora2 Use Case
+H2: Introduction to this use case (explain what it is and why it matters)
+H2: Why Sora2 is perfect for ${task.keyword} (3-5 specific reasons related to Sora2 features)
+H2: How to use Sora2 for ${task.keyword} (step-by-step guide)
+    H3: Step 1: Create your text prompt
+    H3: Step 2: Choose video style and format
+    H3: Step 3: Generate and download
+H2: Real-world examples with Sora2 (specific scenarios)
+H2: Benefits of using Sora2 for ${task.keyword} (cost, speed, quality advantages)
+H2: Frequently Asked Questions (3-5 questions)
+H2: Get started with Sora2 (call-to-action)
+
+IMPORTANT: 
+- You MUST start with an H1 heading (single #)
+- Focus on Sora2's actual capabilities
+- Make it clear this is about Sora2 platform
+- Include actionable steps users can take
+
+Please output high-quality SEO content in English.`
+
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gemini-2.5-flash',
+        stream: false,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error || `HTTP ${response.status}`)
+    }
+
+    const data = await response.json()
+    if (data.success && data.data) {
+      const content = data.data.choices?.[0]?.message?.content || ''
+      if (!content) {
+        throw new Error('生成的内容为空')
+      }
+      return content
+    }
+
+    throw new Error(data.error || '生成失败')
+  }
+
+  // 提取 H1
+  const extractH1 = (content: string, fallback: string): string => {
+    const h1Match = content.match(/^#\s+(.+)$/m) || content.match(/<h1[^>]*>(.+?)<\/h1>/i)
+    if (h1Match) {
+      return h1Match[1].trim().replace(/<[^>]+>/g, '')
+    }
+    const h2Match = content.match(/^##\s+(.+)$/m)
+    if (h2Match) {
+      return h2Match[1].trim().replace(/<[^>]+>/g, '')
+    }
+    return fallback
+  }
+
+  // 提取描述
+  const extractDescription = (content: string, maxLength: number = 200): string => {
+    const text = content
+      .replace(/^#+\s+.+$/gm, '')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\n+/g, ' ')
+      .trim()
+    const firstParagraph = text.split(/\n\n/)[0] || text
+    if (firstParagraph.length <= maxLength) {
+      return firstParagraph
+    }
+    return firstParagraph.substring(0, maxLength) + '...'
+  }
+
+  // 保存到数据库
+  const saveToDatabase = async (task: BatchTask, content: string): Promise<{ id: string; slug: string; title: string }> => {
+    const h1 = extractH1(content, task.keyword)
+    const title = task.keyword
+    const description = extractDescription(content)
+    const slug = generateSlugFromText(task.keyword)
+
+    if (!h1 || h1.trim() === '') {
+      throw new Error('无法提取 H1 标题')
+    }
+
+    const response = await fetch('/api/admin/use-cases', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        slug,
+        title,
+        h1,
+        description,
+        content,
+        use_case_type: task.useCaseType,
+        is_published: true,
+        seo_keywords: [task.keyword],
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error || `保存失败: HTTP ${response.status}`)
+    }
+
+    const data = await response.json()
+    if (!data.useCase?.id) {
+      throw new Error('保存成功但未返回 ID')
+    }
+
+    return { id: data.useCase.id, slug, title: data.useCase.title || title }
+  }
+
+  // 批量生成
+  const handleBatchGenerate = async () => {
+    if (selectedKeywords.length === 0) {
+      onShowBanner('error', '请至少选择一个热搜关键词')
+      return
+    }
+
+    const newTasks: BatchTask[] = selectedKeywords.slice(0, count).map((keyword, index) => ({
+      id: `task-${Date.now()}-${index}`,
+      keyword,
+      useCaseType: selectedUseCaseType,
+      industry: selectedIndustry,
+      status: 'pending' as const,
+    }))
+
+    setTasks(newTasks)
+    setIsProcessing(true)
+    setShouldStop(false)
+
+    for (let i = 0; i < newTasks.length; i++) {
+      if (shouldStop) {
+        setTasks((prev) => {
+          const updated = [...prev]
+          for (let j = i; j < updated.length; j++) {
+            if (updated[j].status === 'pending') {
+              updated[j] = { ...updated[j], status: 'failed', error: '已取消' }
+            }
+          }
+          return updated
+        })
+        break
+      }
+
+      const task = newTasks[i]
+      setProcessingIndex(i)
+
+      setTasks((prev) => {
+        const updated = [...prev]
+        updated[i] = { ...updated[i], status: 'processing' }
+        return updated
+      })
+
+      try {
+        const result = await processTask(task)
+        setTasks((prev) => {
+          const updated = [...prev]
+          updated[i] = { ...updated[i], status: 'completed', result }
+          return updated
+        })
+
+        // 自动保存
+        try {
+          const saveResult = await saveToDatabase(task, result)
+          setTasks((prev) => {
+            const updated = [...prev]
+            updated[i] = {
+              ...updated[i],
+              status: 'saved',
+              savedId: saveResult.id,
+              savedSlug: saveResult.slug,
+              savedTitle: saveResult.title,
+            }
+            return updated
+          })
+        } catch (saveError) {
+          const errorMessage = saveError instanceof Error ? saveError.message : '未知错误'
+          setTasks((prev) => {
+            const updated = [...prev]
+            updated[i] = { ...updated[i], error: `保存失败: ${errorMessage}` }
+            return updated
+          })
+        }
+
+        if (i < newTasks.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : '未知错误'
+        setTasks((prev) => {
+          const updated = [...prev]
+          updated[i] = { ...updated[i], status: 'failed', error: errorMessage }
+          return updated
+        })
+      }
+    }
+
+    setIsProcessing(false)
+    setProcessingIndex(-1)
+    setShouldStop(false)
+
+    const savedCount = newTasks.filter((t) => t.status === 'saved').length
+    if (shouldStop) {
+      onShowBanner('success', `批量生成已终止：已完成 ${savedCount}/${newTasks.length} 个任务`)
+    } else {
+      onShowBanner('success', `批量生成完成：${savedCount}/${newTasks.length} 已保存`)
+      onGenerated() // 刷新列表
+    }
+  }
+
+  const handleStop = () => {
+    setShouldStop(true)
+    onShowBanner('success', '正在停止批量生成，请稍候...')
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>批量生成使用场景（基于热搜词）</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* 配置选项 */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              使用场景类型（类目）
+            </label>
+            <select
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+              value={selectedUseCaseType}
+              onChange={(e) => setSelectedUseCaseType(e.target.value)}
+              disabled={isProcessing}
+            >
+              {USE_CASE_TYPES.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              行业（可选）
+            </label>
+            <select
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+              value={selectedIndustry}
+              onChange={(e) => setSelectedIndustry(e.target.value)}
+              disabled={isProcessing}
+            >
+              <option value="">所有行业</option>
+              {INDUSTRIES.map((industry) => (
+                <option key={industry} value={industry}>
+                  {industry}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              生成数量
+            </label>
+            <Input
+              type="number"
+              min="1"
+              max="50"
+              value={count}
+              onChange={(e) => setCount(Math.min(50, Math.max(1, parseInt(e.target.value) || 10)))}
+              disabled={isProcessing}
+            />
+          </div>
+        </div>
+
+        {/* 热搜词选择 */}
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            选择热搜关键词（已过滤 AI 视频相关）
+          </label>
+          <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+            {trendingKeywords.length === 0 ? (
+              <p className="text-sm text-gray-500">正在加载热搜词...</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {trendingKeywords.map((trend) => (
+                  <button
+                    key={trend.title}
+                    type="button"
+                    onClick={() => {
+                      setSelectedKeywords((prev) =>
+                        prev.includes(trend.title)
+                          ? prev.filter((k) => k !== trend.title)
+                          : [...prev, trend.title]
+                      )
+                    }}
+                    disabled={isProcessing}
+                    className={`rounded-lg border px-3 py-1.5 text-sm transition ${
+                      selectedKeywords.includes(trend.title)
+                        ? 'border-energy-water bg-energy-water text-white'
+                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200'
+                    }`}
+                  >
+                    {trend.title}
+                    {trend.formattedTraffic && (
+                      <span className="ml-1 text-xs opacity-75">({trend.formattedTraffic})</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            已选择 {selectedKeywords.length} 个关键词（将生成前 {count} 个）
+          </p>
+        </div>
+
+        {/* 操作按钮 */}
+        <div className="flex gap-2">
+          {!isProcessing ? (
+            <Button
+              onClick={handleBatchGenerate}
+              disabled={selectedKeywords.length === 0}
+              className="flex-1"
+            >
+              🚀 开始批量生成
+            </Button>
+          ) : (
+            <Button onClick={handleStop} variant="danger" className="flex-1">
+              ⏹️ 终止生成
+            </Button>
+          )}
+        </div>
+
+        {/* 任务列表 */}
+        {tasks.length > 0 && (
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              生成进度 ({tasks.filter((t) => t.status === 'saved' || t.status === 'completed').length}/{tasks.length})
+              {isProcessing && processingIndex >= 0 && (
+                <span className="ml-2 text-blue-600 dark:text-blue-400">
+                  (正在处理: {processingIndex + 1}/{tasks.length})
+                </span>
+              )}
+            </div>
+            {tasks.map((task) => (
+              <div
+                key={task.id}
+                className={`rounded-lg border p-2 text-xs ${
+                  task.status === 'saved'
+                    ? 'border-green-300 bg-green-100 dark:border-green-700 dark:bg-green-900/30'
+                    : task.status === 'completed'
+                    ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
+                    : task.status === 'failed'
+                    ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
+                    : task.status === 'processing'
+                    ? 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'
+                    : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">{task.keyword}</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs ${
+                      task.status === 'saved'
+                        ? 'bg-green-200 text-green-900 dark:bg-green-800 dark:text-green-100'
+                        : task.status === 'completed'
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                        : task.status === 'failed'
+                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                        : task.status === 'processing'
+                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                        : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                    }`}
+                  >
+                    {task.status === 'saved'
+                      ? '✓ 已保存'
+                      : task.status === 'completed'
+                      ? '✓ 完成'
+                      : task.status === 'failed'
+                      ? '✗ 失败'
+                      : task.status === 'processing'
+                      ? '⏳ 处理中'
+                      : '⏸ 等待'}
+                  </span>
+                </div>
+                {task.error && (
+                  <div className="mt-1 text-xs text-red-600 dark:text-red-400">{task.error}</div>
+                )}
+                {task.status === 'saved' && task.savedId && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <a
+                      href={`/use-cases/${task.savedSlug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded bg-energy-water px-2 py-1 text-xs text-white hover:bg-energy-water/90"
+                    >
+                      👁️ 查看页面
+                    </a>
+                    <button
+                      onClick={() => {
+                        // 跳转到管理页面并自动定位到该记录
+                        window.location.href = `/admin?tab=use-cases&edit=${task.savedId}`
+                      }}
+                      className="rounded bg-blue-500 px-2 py-1 text-xs text-white hover:bg-blue-600"
+                    >
+                      ✏️ 编辑
+                    </button>
+                    <a
+                      href={`/admin?tab=use-cases`}
+                      className="rounded bg-gray-500 px-2 py-1 text-xs text-white hover:bg-gray-600"
+                    >
+                      📋 管理列表
+                    </a>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+

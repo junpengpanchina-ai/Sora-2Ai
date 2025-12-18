@@ -49,12 +49,15 @@ Target Keyword: {{keyword}}
 Video Style: {{style}}
 
 【Content Structure】
+H1: [Main title based on the use case, e.g., "AI Video Generation for {{scene}}"]
 H2: Introduction to this use case (explain what it is)
 H2: Why AI video is suitable for this scenario (3-5 points)
 H2: What Sora2 can do in this scenario (3-6 sub-scenarios with H3 headings)
 H2: Video generation examples (text-to-video examples)
 H2: Frequently Asked Questions (3-5 questions about this scenario)
 H2: Target Audience / Applicable Industries
+
+IMPORTANT: You MUST start with an H1 heading (single #). The H1 should be the main title of the page.
 
 Please output high-quality SEO content in English.`,
   },
