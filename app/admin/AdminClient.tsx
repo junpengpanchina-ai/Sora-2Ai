@@ -265,6 +265,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
       console.log('从 URL 更新 activeTab:', tabFromUrl)
       setActiveTab(tabFromUrl as TabType)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabFromUrl])
   
   // 调试：监听 activeTab 变化
