@@ -292,7 +292,40 @@ export async function createChatCompletion(
 
   if (!response.ok) {
     const errorText = await response.text()
-    throw new Error(`Grsai Chat API 错误: ${response.status} - ${errorText}`)
+    console.error('[Grsai Chat API] 请求失败:', {
+      status: response.status,
+      statusText: response.statusText,
+      url: `${host}/v1/chat/completions`,
+      errorText,
+      model: params.model,
+      messagesCount: params.messages.length,
+    })
+    
+    let errorMessage = `Grsai Chat API 错误: ${response.status}`
+    try {
+      const errorJson = JSON.parse(errorText)
+      if (errorJson.error?.message) {
+        errorMessage += ` - ${errorJson.error.message}`
+      } else if (errorJson.message) {
+        errorMessage += ` - ${errorJson.message}`
+      } else {
+        errorMessage += ` - ${errorText.substring(0, 200)}`
+      }
+    } catch {
+      errorMessage += ` - ${errorText.substring(0, 200)}`
+    }
+    
+    if (response.status === 401) {
+      errorMessage += ' (提示: 请检查 GRSAI_API_KEY 是否正确配置)'
+    } else if (response.status === 403) {
+      errorMessage += ' (提示: API Key 可能没有权限或已过期)'
+    } else if (response.status === 429) {
+      errorMessage += ' (提示: API 请求频率过高，请稍后重试)'
+    } else if (response.status === 500 || response.status === 502 || response.status === 503) {
+      errorMessage += ' (提示: API 服务暂时不可用，请稍后重试)'
+    }
+    
+    throw new Error(errorMessage)
   }
 
   return await response.json() as ChatCompletionResponse

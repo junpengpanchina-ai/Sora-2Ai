@@ -231,15 +231,26 @@ Please output high-quality SEO content in English that is specifically tailored 
     }
 
     const data = await response.json()
+    console.log('Chat API 响应:', { 
+      success: data.success, 
+      hasData: !!data.data,
+      hasChoices: !!data.data?.choices,
+      choicesLength: data.data?.choices?.length,
+      error: data.error 
+    })
+    
     if (data.success && data.data) {
       const content = data.data.choices?.[0]?.message?.content || ''
       if (!content) {
-        throw new Error('生成的内容为空')
+        console.error('生成的内容为空，完整响应:', JSON.stringify(data, null, 2))
+        throw new Error('生成的内容为空，请重试')
       }
+      console.log('成功生成内容，长度:', content.length)
       return content
     }
 
-    throw new Error(data.error || '生成失败')
+    console.error('Chat API 返回错误:', data)
+    throw new Error(data.error || data.details || '生成失败，请检查 API 配置')
   }
 
   // 提取 H1
@@ -297,12 +308,17 @@ Please output high-quality SEO content in English that is specifically tailored 
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.error || `保存失败: HTTP ${response.status}`)
+      console.error('保存失败，响应状态:', response.status, '错误数据:', errorData)
+      const errorMsg = errorData.error || errorData.details || `保存失败: HTTP ${response.status}`
+      throw new Error(errorMsg)
     }
 
     const data = await response.json()
+    console.log('保存响应:', { hasUseCase: !!data.useCase, hasId: !!data.useCase?.id })
+    
     if (!data.useCase?.id) {
-      throw new Error('保存成功但未返回 ID')
+      console.error('保存成功但未返回 ID，完整响应:', JSON.stringify(data, null, 2))
+      throw new Error('保存成功但未返回 ID，请检查 API 响应')
     }
 
     return { id: data.useCase.id, slug, title: data.useCase.title || title }
@@ -381,9 +397,14 @@ Please output high-quality SEO content in English that is specifically tailored 
           })
         } catch (saveError) {
           const errorMessage = saveError instanceof Error ? saveError.message : '未知错误'
+          console.error(`[任务 ${i + 1}] 保存失败:`, {
+            task: task.keyword,
+            error: errorMessage,
+            errorStack: saveError instanceof Error ? saveError.stack : undefined,
+          })
           setTasks((prev) => {
             const updated = [...prev]
-            updated[i] = { ...updated[i], error: `保存失败: ${errorMessage}` }
+            updated[i] = { ...updated[i], error: `保存失败: ${errorMessage}`, status: 'failed' }
             return updated
           })
         }
@@ -393,6 +414,11 @@ Please output high-quality SEO content in English that is specifically tailored 
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : '未知错误'
+        console.error(`[任务 ${i + 1}] 生成失败:`, {
+          task: task.keyword,
+          error: errorMessage,
+          errorStack: error instanceof Error ? error.stack : undefined,
+        })
         setTasks((prev) => {
           const updated = [...prev]
           updated[i] = { ...updated[i], status: 'failed', error: errorMessage }
