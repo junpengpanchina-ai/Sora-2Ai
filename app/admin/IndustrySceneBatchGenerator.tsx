@@ -95,49 +95,125 @@ Do not include explanations. Output only the JSON.`
         throw new Error('生成的内容为空')
       }
 
-      // 解析 JSON
+      // 解析 JSON - 使用更强大的解析逻辑
       try {
         // 移除可能的 markdown 代码块标记
-        const jsonContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-        const scenes = JSON.parse(jsonContent) as SceneItem[]
+        let jsonContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+        
+        // 尝试提取 JSON 数组部分（从第一个 [ 到最后一个 ]）
+        const firstBracket = jsonContent.indexOf('[')
+        const lastBracket = jsonContent.lastIndexOf(']')
+        
+        if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+          jsonContent = jsonContent.substring(firstBracket, lastBracket + 1)
+        }
+        
+        // 尝试修复常见的 JSON 格式错误
+        // 1. 修复未终止的字符串（在最后一个引号后添加引号）
+        const openQuotes = (jsonContent.match(/"/g) || []).length
+        if (openQuotes % 2 !== 0) {
+          // 字符串未终止，尝试修复
+          const lastQuoteIndex = jsonContent.lastIndexOf('"')
+          if (lastQuoteIndex !== -1) {
+            // 检查是否在字符串中间
+            const beforeLastQuote = jsonContent.substring(0, lastQuoteIndex)
+            const escapedQuotes = (beforeLastQuote.match(/\\"/g) || []).length
+            if (escapedQuotes % 2 === 0) {
+              // 未终止的字符串，添加结束引号
+              jsonContent = jsonContent + '"'
+            }
+          }
+        }
+        
+        // 2. 修复缺少的逗号（在 } 和 { 之间）
+        jsonContent = jsonContent.replace(/}\s*{/g, '},{')
+        
+        // 3. 修复缺少的逗号（在 } 和 " 之间）
+        jsonContent = jsonContent.replace(/}\s*"/g, '},"')
+        
+        // 4. 移除尾部的未完成对象
+        let bracketCount = 0
+        let lastValidIndex = jsonContent.length - 1
+        for (let i = 0; i < jsonContent.length; i++) {
+          if (jsonContent[i] === '[') bracketCount++
+          if (jsonContent[i] === ']') bracketCount--
+          if (bracketCount === 0 && jsonContent[i] === ']') {
+            lastValidIndex = i
+            break
+          }
+        }
+        jsonContent = jsonContent.substring(0, lastValidIndex + 1)
+        
+        // 尝试解析
+        let scenes = JSON.parse(jsonContent) as SceneItem[]
+        
+        // 如果解析成功但数组为空或长度不足，尝试从原始内容中提取
+        if (!Array.isArray(scenes) || scenes.length < scenesPerIndustry * 0.5) {
+          // 尝试使用正则表达式提取 use_case 字段
+          const useCaseMatches = content.match(/"use_case"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/g)
+          if (useCaseMatches && useCaseMatches.length > 0) {
+            scenes = useCaseMatches.map((match: string, index: number) => {
+              const valueMatch = match.match(/"use_case"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/)
+              const useCase = valueMatch ? valueMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n') : ''
+              return {
+                id: index + 1,
+                use_case: useCase || `Use case ${index + 1} for ${industry}`,
+              }
+            })
+          }
+        }
         
         if (!Array.isArray(scenes) || scenes.length === 0) {
           throw new Error('解析的场景词数组为空')
         }
 
+        // 确保每个场景词都有有效的 use_case
+        scenes = scenes.filter((scene) => scene.use_case && scene.use_case.trim().length > 50)
+        
+        if (scenes.length === 0) {
+          throw new Error('过滤后的场景词数组为空')
+        }
+
         return scenes
       } catch (parseError) {
         console.error('解析 JSON 失败:', parseError)
-        console.error('原始内容:', content.substring(0, 500))
-        throw new Error('无法解析生成的 JSON 数据')
+        console.error('原始内容长度:', content.length)
+        console.error('原始内容前 1000 字符:', content.substring(0, 1000))
+        console.error('原始内容后 500 字符:', content.substring(Math.max(0, content.length - 500)))
+        throw new Error(`无法解析生成的 JSON 数据: ${parseError instanceof Error ? parseError.message : '未知错误'}`)
       }
     }
 
     throw new Error('API 响应格式错误')
   }
 
-  // 保存单个场景词到数据库
+  // 保存单个场景词到数据库（带重试机制）
   const saveSceneToDatabase = async (
     industry: string,
-    scene: SceneItem
+    scene: SceneItem,
+    retryCount = 0
   ): Promise<{ id: string; slug: string }> => {
-    // 从场景词中提取关键词作为标题
-    const title = scene.use_case.length > 100 
-      ? scene.use_case.substring(0, 100) + '...'
-      : scene.use_case
-    
-    const slug = generateSlugFromText(`${industry}-${scene.use_case}`)
-    
-    // 生成 H1 和描述
-    const h1 = `AI Video Generation for ${scene.use_case} in ${industry}`
-    const description = `Learn how to use AI video generation for ${scene.use_case} in the ${industry} industry. Create professional videos with Sora2.`
+    const maxRetries = 3
+    const retryDelay = 1000 * (retryCount + 1) // 递增延迟：1s, 2s, 3s
 
-    // 生成完整内容（符合业务规格：300-500字，包含场景痛点、为什么用AI视频、示例prompt）
-    // 从场景描述中提取关键信息
-    const sceneDescription = scene.use_case
-    
-    // 生成符合规格的完整内容
-    const content = `# ${h1}
+    try {
+      // 从场景词中提取关键词作为标题
+      const title = scene.use_case.length > 100 
+        ? scene.use_case.substring(0, 100) + '...'
+        : scene.use_case
+      
+      const slug = generateSlugFromText(`${industry}-${scene.use_case}`)
+      
+      // 生成 H1 和描述
+      const h1 = `AI Video Generation for ${scene.use_case} in ${industry}`
+      const description = `Learn how to use AI video generation for ${scene.use_case} in the ${industry} industry. Create professional videos with Sora2.`
+
+      // 生成完整内容（符合业务规格：300-500字，包含场景痛点、为什么用AI视频、示例prompt）
+      // 从场景描述中提取关键信息
+      const sceneDescription = scene.use_case
+      
+      // 生成符合规格的完整内容
+      const content = `# ${h1}
 
 ## Introduction
 
@@ -192,50 +268,70 @@ Here's an example prompt you can use with Sora2:
 
 Start creating professional ${scene.use_case} videos for ${industry} today with Sora2 AI video generation platform. No technical skills required, no expensive equipment needed - just describe what you want, and AI will create it for you.`
 
-    // 自动质量检查
-    const qualityCheck = checkContentQuality({
-      title,
-      h1,
-      description,
-      content,
-      seo_keywords: [scene.use_case, industry, `${industry} AI video`],
-    })
-
-    // 根据质量检查结果设置状态
-    // 如果通过检查且分数 >= 70，自动批准；否则标记为待审核
-    const qualityStatus = qualityCheck.passed && qualityCheck.score >= 70 ? 'approved' : 'pending'
-    const isPublished = qualityStatus === 'approved' // 只有审核通过的内容才自动发布
-
-    const response = await fetch('/api/admin/use-cases', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        slug,
+      // 自动质量检查
+      const qualityCheck = checkContentQuality({
         title,
         h1,
         description,
         content,
-        use_case_type: useCaseType,
-        industry,
-        is_published: isPublished,
         seo_keywords: [scene.use_case, industry, `${industry} AI video`],
-        quality_status: qualityStatus,
-        quality_score: qualityCheck.score,
-        quality_issues: qualityCheck.issues,
-      }),
-    })
+      })
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.error || errorData.details || `保存失败: HTTP ${response.status}`)
+      // 根据质量检查结果设置状态
+      // 如果通过检查且分数 >= 70，自动批准；否则标记为待审核
+      const qualityStatus = qualityCheck.passed && qualityCheck.score >= 70 ? 'approved' : 'pending'
+      const isPublished = qualityStatus === 'approved' // 只有审核通过的内容才自动发布
+
+      const response = await fetch('/api/admin/use-cases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slug,
+          title,
+          h1,
+          description,
+          content,
+          use_case_type: useCaseType,
+          industry,
+          is_published: isPublished,
+          seo_keywords: [scene.use_case, industry, `${industry} AI video`],
+          quality_status: qualityStatus,
+          quality_score: qualityCheck.score,
+          quality_issues: qualityCheck.issues,
+        }),
+      })
+
+      if (!response.ok) {
+        // 如果是网络错误或连接关闭，尝试重试
+        if ((response.status === 0 || response.status >= 500) && retryCount < maxRetries) {
+          console.warn(`[${industry}] 保存场景词失败，${retryDelay}ms 后重试 (${retryCount + 1}/${maxRetries})...`)
+          await new Promise((resolve) => setTimeout(resolve, retryDelay))
+          return saveSceneToDatabase(industry, scene, retryCount + 1)
+        }
+        
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || errorData.details || `保存失败: HTTP ${response.status}`)
+      }
+
+      const result = await response.json()
+      if (!result.useCase?.id) {
+        throw new Error('保存成功但未返回 ID')
+      }
+
+      return { id: result.useCase.id, slug: result.useCase.slug || slug }
+    } catch (error) {
+      // 如果是网络错误，尝试重试
+      if (
+        (error instanceof TypeError && error.message.includes('fetch')) &&
+        retryCount < maxRetries
+      ) {
+        console.warn(`[${industry}] 网络错误，${retryDelay}ms 后重试 (${retryCount + 1}/${maxRetries})...`)
+        await new Promise((resolve) => setTimeout(resolve, retryDelay))
+        return saveSceneToDatabase(industry, scene, retryCount + 1)
+      }
+      
+      throw error
     }
-
-    const result = await response.json()
-    if (!result.useCase?.id) {
-      throw new Error('保存成功但未返回 ID')
-    }
-
-    return { id: result.useCase.id, slug: result.useCase.slug || slug }
   }
 
   // 批量生成
@@ -290,8 +386,9 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
           return updated
         })
 
-        // 批量保存场景词
+        // 批量保存场景词（增加延迟和错误处理）
         let savedCount = 0
+        let failedCount = 0
         for (let j = 0; j < scenes.length; j++) {
           if (shouldStop) break
 
@@ -304,19 +401,35 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
             if ((j + 1) % 10 === 0 || j === scenes.length - 1) {
               setTasks((prev) => {
                 const updated = [...prev]
-                updated[i] = { ...updated[i], savedCount }
+                updated[i] = { ...updated[i], savedCount, error: failedCount > 0 ? `${failedCount} 条保存失败` : undefined }
                 return updated
               })
             }
 
-            // 延迟以避免过载
+            // 增加延迟以避免过载（根据保存进度动态调整）
             if (j < scenes.length - 1) {
-              await new Promise((resolve) => setTimeout(resolve, 200))
+              // 前 10 条：500ms，之后：300ms
+              const delay = j < 10 ? 500 : 300
+              await new Promise((resolve) => setTimeout(resolve, delay))
             }
           } catch (saveError) {
-            console.error(`[${task.industry}] 保存场景词 ${j + 1} 失败:`, saveError)
+            failedCount++
+            const errorMessage = saveError instanceof Error ? saveError.message : '未知错误'
+            console.error(`[${task.industry}] 保存场景词 ${j + 1} 失败:`, errorMessage)
+            
+            // 如果是严重的网络错误，增加延迟
+            if (errorMessage.includes('fetch') || errorMessage.includes('CONNECTION')) {
+              console.warn(`[${task.industry}] 检测到网络错误，等待 2 秒后继续...`)
+              await new Promise((resolve) => setTimeout(resolve, 2000))
+            }
+            
             // 继续保存下一个
           }
+        }
+        
+        // 更新最终状态
+        if (failedCount > 0) {
+          console.warn(`[${task.industry}] 完成：成功 ${savedCount} 条，失败 ${failedCount} 条`)
         }
 
         setTasks((prev) => {
