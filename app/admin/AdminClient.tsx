@@ -1008,11 +1008,13 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                 ].map((tab) => (
                   <button
                     key={tab.value}
-                    onClick={() =>
+                    type="button"
+                    onClick={() => {
+                      console.log('切换标签页:', tab.value)
                       setActiveTab(
                         tab.value as typeof activeTab
                       )
-                    }
+                    }}
                     className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                       activeTab === tab.value
                         ? 'bg-energy-water text-white'
