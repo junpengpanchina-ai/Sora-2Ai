@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getBaseUrl } from '@/lib/utils/url'
-import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { cache } from 'react'
 import type { Database } from '@/types/database'
@@ -12,7 +11,8 @@ type UseCaseRow = Database['public']['Tables']['use_cases']['Row']
 // 从数据库获取使用场景
 const getUseCaseBySlug = cache(async (slug: string) => {
   try {
-    const supabase = await createSupabaseServerClient()
+    // 使用 service client 避免 cookies，支持静态生成
+    const supabase = await createServiceClient()
     
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
@@ -51,7 +51,8 @@ const getUseCaseBySlug = cache(async (slug: string) => {
 // 获取相关使用场景
 const getRelatedUseCases = cache(async (excludeId: string, useCaseType: string, limit = 6) => {
   try {
-    const supabase = await createSupabaseServerClient()
+    // 使用 service client 避免 cookies，支持静态生成
+    const supabase = await createServiceClient()
     
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
@@ -90,7 +91,8 @@ const getRelatedKeywords = cache(async (seoKeywords: string[], useCaseType: stri
   }
 
   try {
-    const supabase = await createSupabaseServerClient()
+    // 使用 service client 避免 cookies，支持静态生成
+    const supabase = await createServiceClient()
     
     // 通过关键词匹配长尾词
     // 构建 OR 查询条件：匹配 keyword 字段包含任何 SEO 关键词
