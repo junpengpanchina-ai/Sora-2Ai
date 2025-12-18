@@ -570,6 +570,7 @@ export interface Database {
           description: string
           content: string
           use_case_type: 'marketing' | 'social-media' | 'youtube' | 'tiktok' | 'product-demo' | 'ads' | 'education' | 'other'
+          industry: string | null
           featured_prompt_ids: string[]
           related_use_case_ids: string[]
           seo_keywords: string[]
@@ -586,6 +587,7 @@ export interface Database {
           description: string
           content: string
           use_case_type: 'marketing' | 'social-media' | 'youtube' | 'tiktok' | 'product-demo' | 'ads' | 'education' | 'other'
+          industry?: string | null
           featured_prompt_ids?: string[]
           related_use_case_ids?: string[]
           seo_keywords?: string[]
@@ -602,6 +604,7 @@ export interface Database {
           description?: string
           content?: string
           use_case_type?: 'marketing' | 'social-media' | 'youtube' | 'tiktok' | 'product-demo' | 'ads' | 'education' | 'other'
+          industry?: string | null
           featured_prompt_ids?: string[]
           related_use_case_ids?: string[]
           seo_keywords?: string[]

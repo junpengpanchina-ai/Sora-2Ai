@@ -81,6 +81,10 @@ export async function PUT(request: Request, { params }: RouteParams) {
       updatePayload.use_case_type = payload.use_case_type.toLowerCase()
     }
 
+    if (payload.industry !== undefined) {
+      updatePayload.industry = typeof payload.industry === 'string' && payload.industry.trim() ? payload.industry.trim() : null
+    }
+
     if (typeof payload.isPublished === 'boolean' || typeof payload.is_published === 'boolean') {
       updatePayload.is_published =
         typeof payload.isPublished === 'boolean' ? payload.isPublished : payload.is_published

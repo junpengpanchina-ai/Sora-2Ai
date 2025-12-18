@@ -5,6 +5,7 @@ import { getBaseUrl } from '@/lib/utils/url'
 import { createServiceClient } from '@/lib/supabase/service'
 import { cache } from 'react'
 import type { Database } from '@/types/database'
+import UseCaseToolEmbed from '../UseCaseToolEmbed'
 
 type UseCaseRow = Database['public']['Tables']['use_cases']['Row']
 
@@ -262,6 +263,9 @@ export default async function UseCasePage({ params }: { params: { slug: string }
     articleBody: useCase.content,
   }
 
+  // 提取主关键词用于工具嵌入
+  const mainKeyword = useCase.seo_keywords?.[0] || useCase.title
+
   return (
     <>
       <script
@@ -269,84 +273,52 @@ export default async function UseCasePage({ params }: { params: { slug: string }
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
       
-      <div className="min-h-screen bg-slate-50 py-12 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-        <div className="mx-auto max-w-6xl px-6">
-          {/* Breadcrumb */}
-          <nav className="mb-6 text-sm text-gray-600 dark:text-gray-400">
-            <Link href="/" className="hover:text-energy-water">Home</Link>
-            <span className="mx-2">/</span>
-            <Link href="/use-cases" className="hover:text-energy-water">Use Cases</Link>
-            <span className="mx-2">/</span>
-            <span className="text-gray-900 dark:text-gray-100">{useCase.title}</span>
-          </nav>
+      <div className="bg-slate-50 dark:bg-gray-950">
+        {/* Hero Section - 参考关键词页面的深色渐变头部 */}
+        <div className="relative overflow-hidden border-b border-white/20 bg-gradient-to-br from-[#050b18] via-[#09122C] to-[#050b18]">
+          <div className="cosmic-space absolute inset-0 opacity-60" aria-hidden="true" />
+          <div className="cosmic-glow absolute inset-0 opacity-50" aria-hidden="true" />
+          <div className="relative z-10 mx-auto max-w-6xl px-6 py-16 text-white">
+            <div className="flex flex-wrap items-center gap-3 text-sm uppercase tracking-[0.2em] text-energy-water">
+              <span>Use Case</span>
+              <span className="text-white/50">/</span>
+              <span>{USE_CASE_TYPE_LABELS[useCase.use_case_type] || useCase.use_case_type}</span>
+            </div>
+            <h1 className="mt-6 text-3xl font-bold leading-tight text-white sm:text-4xl lg:text-5xl">
+              {useCase.h1 || useCase.title}
+            </h1>
+            {useCase.description && (
+              <p className="mt-4 max-w-3xl text-lg text-blue-100/80">{useCase.description}</p>
+            )}
+            <div className="mt-6 flex flex-wrap gap-3 text-xs text-white/70">
+              <span className="rounded-full border border-white/30 px-3 py-1">Use Case: {useCase.title}</span>
+              <span className="rounded-full border border-white/30 px-3 py-1">
+                Type: {USE_CASE_TYPE_LABELS[useCase.use_case_type] || useCase.use_case_type}
+              </span>
+              {useCase.seo_keywords && useCase.seo_keywords.length > 0 && (
+                <span className="rounded-full border border-white/30 px-3 py-1">
+                  Keywords: {useCase.seo_keywords.slice(0, 2).join(', ')}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
 
-          <div className="grid gap-8 lg:grid-cols-3">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Header */}
-              <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
-                <div className="mb-4">
-                  <span className="rounded-full bg-energy-water/10 px-3 py-1 text-xs font-medium text-energy-water">
-                    {USE_CASE_TYPE_LABELS[useCase.use_case_type] || useCase.use_case_type}
-                  </span>
-                </div>
-                
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {useCase.h1 || useCase.title}
-                </h1>
-                
-                <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
-                  {useCase.description}
-                </p>
-              </div>
-
-              {/* Content */}
-              <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
+        {/* Main Content */}
+        <main className="mx-auto max-w-6xl px-6 py-12 lg:py-16">
+          <div className="grid gap-10 lg:grid-cols-3">
+            {/* Left Column - Main Content */}
+            <div className="lg:col-span-2 space-y-10">
+              {/* Overview Section */}
+              <section className="rounded-2xl bg-white p-6 shadow-sm dark:bg-gray-900/60">
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Overview</h2>
                 <div 
-                  className="prose prose-lg max-w-none dark:prose-invert"
+                  className="mt-3 prose prose-lg max-w-none text-gray-600 leading-relaxed dark:prose-invert dark:text-gray-300"
                   dangerouslySetInnerHTML={{ __html: useCase.content }}
                 />
-              </div>
+              </section>
 
-              {/* CTA Section */}
-              <div className="rounded-2xl border border-energy-water/20 bg-gradient-to-br from-energy-water/5 to-energy-water/10 p-8 dark:from-energy-water/10 dark:to-energy-water/20">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Ready to Create {useCase.title} Videos?
-                </h2>
-                <p className="mt-2 text-gray-600 dark:text-gray-300">
-                  Start using our AI video generator to create professional {useCase.title.toLowerCase()} content. 
-                  No credit card required, 30 free credits to get started.
-                </p>
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <Link
-                    href="/video"
-                    className="inline-flex items-center rounded-lg bg-energy-water px-6 py-3 font-medium text-white transition hover:bg-energy-water-deep"
-                  >
-                    Start Creating Videos
-                    <svg
-                      className="ml-2 h-5 w-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13 7l5 5m0 0l-5 5m5-5H6"
-                      />
-                    </svg>
-                  </Link>
-                  <Link
-                    href="/prompts"
-                    className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-6 py-3 font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                  >
-                    Browse Prompts
-                  </Link>
-                </div>
-              </div>
-
-              {/* SEO Content Section */}
+              {/* SEO Content Section (hidden but indexed) */}
               <section className="sr-only">
                 <h2>How to Use AI Video Generation for {useCase.title}</h2>
                 <p>
@@ -362,50 +334,57 @@ export default async function UseCasePage({ params }: { params: { slug: string }
               </section>
             </div>
 
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Related Keywords (Long-tail Keywords) */}
-              {relatedKeywords.length > 0 && (
-                <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
-                  <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-                    Related Keywords
-                  </h3>
-                  <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                    Explore specific search terms related to this use case:
-                  </p>
-                  <div className="space-y-2">
-                    {relatedKeywords.map((keyword) => (
-                      <Link
-                        key={keyword.id}
-                        href={`/keywords/${keyword.page_slug}`}
-                        className="block rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm transition hover:border-energy-water hover:bg-white dark:border-gray-700 dark:bg-gray-800/60 dark:hover:bg-gray-700"
-                      >
-                        <h4 className="font-medium text-gray-900 dark:text-white">
-                          {keyword.h1 || keyword.title || keyword.keyword}
-                        </h4>
-                        {keyword.meta_description && (
-                          <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
-                            {keyword.meta_description}
-                          </p>
-                        )}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
+            {/* Right Column - Sidebar */}
+            <div className="space-y-8">
+              {/* Video Generator Tool Embed */}
+              <UseCaseToolEmbed defaultPrompt={mainKeyword} useCaseTitle={useCase.title} />
+
+              {/* Key Points */}
+              <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Key Points</h3>
+                <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-gray-600 dark:text-gray-300">
+                  <li>Title / H1 / Meta Description naturally include {useCase.title}</li>
+                  <li>Body text explains the use case scenario for {USE_CASE_TYPE_LABELS[useCase.use_case_type] || useCase.use_case_type}</li>
+                  <li>Content provides genuine guidance, avoiding keyword stuffing</li>
+                  <li>Right panel directly connects to Sora2Ai video generator</li>
+                </ul>
+              </section>
+
+              {/* More Tools */}
+              <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">More Tools</h3>
+                <ul className="mt-3 space-y-2 text-sm text-energy-water">
+                  <li>
+                    <Link href="/" className="hover:underline">
+                      Back to Sora2Ai Homepage
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/prompts" className="hover:underline">
+                      View Prompt Library
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/video" className="hover:underline">
+                      Go to Video Generator
+                    </Link>
+                  </li>
+                </ul>
+              </section>
 
               {/* Related Use Cases */}
               {relatedUseCases.length > 0 && (
-                <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
-                  <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-                    Related Use Cases
-                  </h3>
-                  <div className="space-y-3">
+                <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70">
+                  <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">Related Use Cases</h3>
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    Explore similar use cases for {useCase.title}:
+                  </p>
+                  <div className="mt-4 space-y-3">
                     {relatedUseCases.map((related) => (
                       <Link
                         key={related.id}
                         href={`/use-cases/${related.slug}`}
-                        className="block rounded-lg border border-gray-200 bg-gray-50 p-4 transition hover:border-energy-water hover:bg-white dark:border-gray-700 dark:bg-gray-800/60 dark:hover:bg-gray-700"
+                        className="block rounded-xl border border-gray-200 bg-gray-50 p-4 transition hover:border-energy-water hover:bg-white dark:border-gray-700 dark:bg-gray-800/60 dark:hover:bg-gray-700"
                       >
                         <h4 className="font-medium text-gray-900 dark:text-white">
                           {related.title}
@@ -418,52 +397,57 @@ export default async function UseCasePage({ params }: { params: { slug: string }
                       </Link>
                     ))}
                   </div>
-                </div>
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <Link
+                      href="/use-cases"
+                      className="text-sm text-energy-water hover:underline font-medium"
+                    >
+                      View all use cases →
+                    </Link>
+                  </div>
+                </section>
               )}
 
-              {/* Quick Links */}
-              <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
-                <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-                  Quick Links
-                </h3>
-                <ul className="space-y-2 text-sm">
-                  <li>
+              {/* Related Keywords */}
+              {relatedKeywords.length > 0 && (
+                <section 
+                  className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70 flex flex-col"
+                >
+                  <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">Related Keywords</h3>
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    Explore specific search terms related to this use case:
+                  </p>
+                  <div className="mt-4 grid gap-3 flex-1">
+                    {relatedKeywords.map((keyword) => (
+                      <Link
+                        key={keyword.id}
+                        href={`/keywords/${keyword.page_slug}`}
+                        className="flex flex-col rounded-xl border border-transparent bg-gray-50 p-3 text-sm text-gray-700 transition hover:border-energy-water hover:bg-white dark:bg-gray-800/60 dark:text-gray-200"
+                      >
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {keyword.h1 || keyword.title || keyword.keyword}
+                        </span>
+                        {keyword.meta_description && (
+                          <span className="mt-1 text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+                            {keyword.meta_description}
+                          </span>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                     <Link
-                      href="/sora-alternative"
-                      className="text-energy-water hover:underline"
+                      href="/keywords"
+                      className="text-sm text-energy-water hover:underline font-medium"
                     >
-                      Best Sora Alternatives
+                      Want to learn more? View all keywords →
                     </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/text-to-video-ai"
-                      className="text-energy-water hover:underline"
-                    >
-                      Text to Video AI Tools
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/prompts"
-                      className="text-energy-water hover:underline"
-                    >
-                      Prompt Library
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/video"
-                      className="text-energy-water hover:underline"
-                    >
-                      Video Generator
-                    </Link>
-                  </li>
-                </ul>
-              </div>
+                  </div>
+                </section>
+              )}
             </div>
           </div>
-        </div>
+        </main>
       </div>
     </>
     )

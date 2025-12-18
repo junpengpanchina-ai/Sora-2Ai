@@ -49,6 +49,7 @@ export async function GET(request: Request) {
 
     const searchQuery = searchParams.get('search')?.trim() ?? ''
     const typeFilter = searchParams.get('type')?.toLowerCase()
+    const industryFilter = searchParams.get('industry')?.trim() ?? null
     const statusFilter = searchParams.get('status')?.toLowerCase()
     const limit = Math.min(Number(searchParams.get('limit')) || 200, 500)
 
@@ -61,6 +62,10 @@ export async function GET(request: Request) {
 
     if (typeFilter && isUseCaseType(typeFilter)) {
       query = query.eq('use_case_type', typeFilter)
+    }
+
+    if (industryFilter && industryFilter !== 'all' && industryFilter !== '') {
+      query = query.eq('industry', industryFilter)
     }
 
     if (statusFilter === 'published') {
@@ -161,6 +166,7 @@ export async function POST(request: Request) {
     const featuredPromptIds = parseArrayInput(payload.featured_prompt_ids)
     const relatedUseCaseIds = parseArrayInput(payload.related_use_case_ids)
     const seoKeywords = parseArrayInput(payload.seo_keywords)
+    const industry = typeof payload.industry === 'string' && payload.industry.trim() ? payload.industry.trim() : null
 
     const supabase = await createServiceClient()
 
@@ -171,6 +177,7 @@ export async function POST(request: Request) {
       description,
       content,
       use_case_type: useCaseType,
+      industry,
       featured_prompt_ids: featuredPromptIds,
       related_use_case_ids: relatedUseCaseIds,
       seo_keywords: seoKeywords,
