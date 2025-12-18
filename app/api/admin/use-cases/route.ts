@@ -186,23 +186,49 @@ export async function POST(request: Request) {
       .single()
 
     if (error) {
+      console.error('[use-cases POST] Supabase 插入错误:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        insertPayload: {
+          ...insertPayload,
+          content: insertPayload.content?.substring(0, 100) + '...',
+        },
+      })
       throw error
     }
 
     if (!data) {
+      console.error('[use-cases POST] 插入成功但未返回数据')
       throw new Error('创建使用场景失败：未返回数据')
     }
 
+    console.log('[use-cases POST] 成功创建使用场景:', { id: data.id, slug: data.slug, title: data.title })
     return NextResponse.json({
       success: true,
       useCase: data,
     })
   } catch (error) {
-    console.error('创建使用场景失败:', error)
+    console.error('[use-cases POST] 创建使用场景失败:', error)
+    const errorMessage = error instanceof Error ? error.message : '未知错误'
+    const errorStack = error instanceof Error ? error.stack : undefined
+    const errorDetails = error && typeof error === 'object' && 'details' in error ? error.details : undefined
+    const errorCode = error && typeof error === 'object' && 'code' in error ? error.code : undefined
+    
+    console.error('[use-cases POST] 错误详情:', {
+      message: errorMessage,
+      code: errorCode,
+      details: errorDetails,
+      stack: errorStack,
+    })
+    
     return NextResponse.json(
       {
         error: '创建使用场景失败',
-        details: error instanceof Error ? error.message : '未知错误',
+        details: errorMessage,
+        code: errorCode,
+        hint: error && typeof error === 'object' && 'hint' in error ? error.hint : undefined,
       },
       { status: 500 }
     )

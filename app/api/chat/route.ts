@@ -70,8 +70,14 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('GRSAI Chat API 错误:', error)
     const errorMessage = error instanceof Error ? error.message : '未知错误'
+    const errorStack = error instanceof Error ? error.stack : undefined
+    console.error('错误堆栈:', errorStack)
     return NextResponse.json(
-      { success: false, error: errorMessage },
+      { 
+        success: false, 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? errorStack : undefined
+      },
       { status: 500 }
     )
   }
