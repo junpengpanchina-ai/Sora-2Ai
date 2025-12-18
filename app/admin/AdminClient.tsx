@@ -262,9 +262,15 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
   // 如果 URL 中有 tab 参数，更新 activeTab
   useEffect(() => {
     if (tabFromUrl && tabFromUrl !== activeTab) {
+      console.log('从 URL 更新 activeTab:', tabFromUrl)
       setActiveTab(tabFromUrl as TabType)
     }
-  }, [tabFromUrl, activeTab])
+  }, [tabFromUrl])
+  
+  // 调试：监听 activeTab 变化
+  useEffect(() => {
+    console.log('activeTab 已更新为:', activeTab)
+  }, [activeTab])
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [issuesLoading, setIssuesLoading] = useState(true)
   const [adjustmentsLoading, setAdjustmentsLoading] = useState(true)
@@ -1933,7 +1939,14 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
             {activeTab === 'prompts' && <AdminPromptsManager onShowBanner={showBanner} />}
             {activeTab === 'keywords' && <AdminKeywordsManager onShowBanner={showBanner} />}
             {activeTab === 'blog' && <AdminBlogManager onShowBanner={showBanner} />}
-            {activeTab === 'use-cases' && <AdminUseCasesManager onShowBanner={showBanner} />}
+            {activeTab === 'use-cases' && (() => {
+              console.log('渲染 AdminUseCasesManager 组件')
+              return (
+                <div>
+                  <AdminUseCasesManager onShowBanner={showBanner} />
+                </div>
+              )
+            })()}
             {activeTab === 'compare-pages' && <AdminComparePagesManager onShowBanner={showBanner} />}
             {activeTab === 'batch-generator' && <AdminBatchContentGenerator onShowBanner={showBanner} />}
             {activeTab === 'grsai-chat' && <AdminGrsaiChatManager onShowBanner={showBanner} />}
