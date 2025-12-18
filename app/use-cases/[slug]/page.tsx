@@ -11,41 +11,76 @@ type UseCaseRow = Database['public']['Tables']['use_cases']['Row']
 
 // 从数据库获取使用场景
 const getUseCaseBySlug = cache(async (slug: string) => {
-  const supabase = await createSupabaseServerClient()
-  
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('use_cases')
-    .select('*')
-    .eq('slug', slug)
-    .eq('is_published', true)
-    .maybeSingle()
+  try {
+    const supabase = await createSupabaseServerClient()
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('use_cases')
+      .select('*')
+      .eq('slug', slug)
+      .eq('is_published', true)
+      .maybeSingle()
 
-  if (error || !data) {
+    if (error) {
+      console.error('[getUseCaseBySlug] 查询错误:', {
+        slug,
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      })
+      return null
+    }
+
+    if (!data) {
+      console.warn('[getUseCaseBySlug] 未找到使用场景:', slug)
+      return null
+    }
+
+    return data as UseCaseRow
+  } catch (error) {
+    console.error('[getUseCaseBySlug] 异常:', {
+      slug,
+      error: error instanceof Error ? error.message : '未知错误',
+    })
     return null
   }
-
-  return data as UseCaseRow
 })
 
 // 获取相关使用场景
 const getRelatedUseCases = cache(async (excludeId: string, useCaseType: string, limit = 6) => {
-  const supabase = await createSupabaseServerClient()
-  
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('use_cases')
-    .select('id, slug, title, description, use_case_type')
-    .eq('is_published', true)
-    .eq('use_case_type', useCaseType)
-    .neq('id', excludeId)
-    .limit(limit)
+  try {
+    const supabase = await createSupabaseServerClient()
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('use_cases')
+      .select('id, slug, title, description, use_case_type')
+      .eq('is_published', true)
+      .eq('use_case_type', useCaseType)
+      .neq('id', excludeId)
+      .limit(limit)
 
-  if (error || !data) {
+    if (error) {
+      console.error('[getRelatedUseCases] 查询错误:', {
+        excludeId,
+        useCaseType,
+        error: error.message,
+        code: error.code,
+      })
+      return []
+    }
+
+    if (!data || !Array.isArray(data)) {
+      return []
+    }
+
+    return data as Pick<UseCaseRow, 'id' | 'slug' | 'title' | 'description' | 'use_case_type'>[]
+  } catch (error) {
+    console.error('[getRelatedUseCases] 异常:', error)
     return []
   }
-
-  return data as Pick<UseCaseRow, 'id' | 'slug' | 'title' | 'description' | 'use_case_type'>[]
 })
 
 // 获取属于这个使用场景的长尾词页面
@@ -54,35 +89,55 @@ const getRelatedKeywords = cache(async (seoKeywords: string[], useCaseType: stri
     return []
   }
 
-  const supabase = await createSupabaseServerClient()
-  
-  // 通过关键词匹配长尾词
-  // 构建 OR 查询条件：匹配 keyword 字段包含任何 SEO 关键词
-  const orConditions = seoKeywords
-    .slice(0, 5) // 限制最多 5 个关键词，避免查询过于复杂
-    .map(kw => `keyword.ilike.%${kw.toLowerCase()}%`)
-    .join(',')
+  try {
+    const supabase = await createSupabaseServerClient()
+    
+    // 通过关键词匹配长尾词
+    // 构建 OR 查询条件：匹配 keyword 字段包含任何 SEO 关键词
+    // Supabase OR 查询格式：field.ilike.value,field2.ilike.value2
+    const orConditions = seoKeywords
+      .slice(0, 5) // 限制最多 5 个关键词，避免查询过于复杂
+      .map(kw => `keyword.ilike.%${kw.toLowerCase().trim()}%`)
+      .join(',')
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('long_tail_keywords')
-    .select('id, keyword, page_slug, title, h1, meta_description')
-    .eq('status', 'published')
-    .or(orConditions)
-    .limit(limit)
+    if (!orConditions) {
+      return []
+    }
 
-  if (error || !data) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('long_tail_keywords')
+      .select('id, keyword, page_slug, title, h1, meta_description')
+      .eq('status', 'published')
+      .or(orConditions)
+      .limit(limit)
+
+    if (error) {
+      console.error('[getRelatedKeywords] 查询错误:', {
+        error: error.message,
+        code: error.code,
+        seoKeywords: seoKeywords.slice(0, 5),
+        orConditions,
+      })
+      return []
+    }
+
+    if (!data || !Array.isArray(data)) {
+      return []
+    }
+
+    return data as Array<{
+      id: string
+      keyword: string
+      page_slug: string
+      title: string | null
+      h1: string | null
+      meta_description: string | null
+    }>
+  } catch (error) {
+    console.error('[getRelatedKeywords] 异常:', error)
     return []
   }
-
-  return data as Array<{
-    id: string
-    keyword: string
-    page_slug: string
-    title: string | null
-    h1: string | null
-    meta_description: string | null
-  }>
 })
 
 // 获取所有已发布的使用场景 slugs（用于静态生成）
@@ -151,26 +206,39 @@ const USE_CASE_TYPE_LABELS: Record<string, string> = {
 }
 
 export default async function UseCasePage({ params }: { params: { slug: string } }) {
-  const useCase = await getUseCaseBySlug(params.slug)
-  
-  if (!useCase) {
-    notFound()
-  }
+  try {
+    const useCase = await getUseCaseBySlug(params.slug)
+    
+    if (!useCase) {
+      console.warn('[UseCasePage] 使用场景不存在:', params.slug)
+      notFound()
+    }
 
-  const relatedUseCases = await getRelatedUseCases(
-    useCase.id,
-    useCase.use_case_type,
-    6
-  )
+    // 并行获取相关数据，即使失败也不影响主页面渲染
+    const [relatedUseCasesResult, relatedKeywordsResult] = await Promise.allSettled([
+      getRelatedUseCases(
+        useCase.id,
+        useCase.use_case_type,
+        6
+      ),
+      getRelatedKeywords(
+        useCase.seo_keywords || [],
+        useCase.use_case_type,
+        12
+      ),
+    ])
 
-  // 获取属于这个使用场景的长尾词页面
-  const relatedKeywords = await getRelatedKeywords(
-    useCase.seo_keywords || [],
-    useCase.use_case_type,
-    12
-  )
+    const relatedUseCases = relatedUseCasesResult.status === 'fulfilled' ? relatedUseCasesResult.value : []
+    const relatedKeywords = relatedKeywordsResult.status === 'fulfilled' ? relatedKeywordsResult.value : []
 
-  // Structured Data
+    if (relatedUseCasesResult.status === 'rejected') {
+      console.error('[UseCasePage] 获取相关使用场景失败:', relatedUseCasesResult.reason)
+    }
+    if (relatedKeywordsResult.status === 'rejected') {
+      console.error('[UseCasePage] 获取相关关键词失败:', relatedKeywordsResult.reason)
+    }
+
+    // Structured Data
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'Article',
@@ -396,6 +464,15 @@ export default async function UseCasePage({ params }: { params: { slug: string }
         </div>
       </div>
     </>
-  )
+    )
+  } catch (error) {
+    console.error('[UseCasePage] 页面渲染异常:', {
+      slug: params.slug,
+      error: error instanceof Error ? error.message : '未知错误',
+      stack: error instanceof Error ? error.stack : undefined,
+    })
+    // 如果发生错误，返回 404 而不是 500
+    notFound()
+  }
 }
 
