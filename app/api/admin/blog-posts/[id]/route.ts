@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { cookies } from 'next/headers'
 
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 async function verifyAdmin() {
   const cookieStore = await cookies()
   const adminToken = cookieStore.get('admin_token')?.value

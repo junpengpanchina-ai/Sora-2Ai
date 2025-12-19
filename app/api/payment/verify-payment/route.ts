@@ -4,6 +4,11 @@ import { createClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe'
 import { NextRequest, NextResponse } from 'next/server'
 
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 /**
  * Verify payment status by actively querying Stripe API
  * This endpoint can be called to manually verify pending payments

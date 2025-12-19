@@ -5,6 +5,11 @@ import { getOrCreateUser } from '@/lib/user'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // Payment Link configuration
 const PAYMENT_LINKS: Record<string, { amount: number; currency: string; credits: number; name: string; videos: number; description: string }> = {
   // $39 plan: 50 videos = 500 credits (10 credits/video)

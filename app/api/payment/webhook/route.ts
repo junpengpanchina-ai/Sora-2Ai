@@ -11,7 +11,14 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 // Webhook signature secret (obtained from Stripe Dashboard)
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
+// Lazy access to avoid build-time errors
+function getWebhookSecret(): string {
+  const secret = process.env.STRIPE_WEBHOOK_SECRET
+  if (!secret) {
+    throw new Error('STRIPE_WEBHOOK_SECRET is not set')
+  }
+  return secret
+}
 
 // Credits exchange rate
 const CREDITS_PER_USD = 100 // 1 USD = 100 credits
@@ -31,6 +38,7 @@ export async function POST(request: NextRequest) {
 
     // 验证 Webhook 签名
     const stripe = getStripe()
+    const webhookSecret = getWebhookSecret()
     let event: Stripe.Event
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret)

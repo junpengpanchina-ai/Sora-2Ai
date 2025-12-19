@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic'
 export const revalidate = 60 // 缓存60秒
 
 // GET - 获取激活的支付计划（公开访问）

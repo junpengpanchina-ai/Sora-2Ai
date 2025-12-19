@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 /**
  * API route to log client-side errors to server logs
  * This allows Vercel to see errors that occur in the browser

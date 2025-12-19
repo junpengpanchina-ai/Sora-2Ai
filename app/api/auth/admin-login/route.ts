@@ -3,6 +3,10 @@ import { randomUUID, createHash } from 'crypto'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 // 24小时
 
 // Rate limiting: 5 attempts per 15 minutes per IP

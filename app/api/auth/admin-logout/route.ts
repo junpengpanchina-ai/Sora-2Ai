@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { createHash } from 'crypto'
 import { cookies } from 'next/headers'
 
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic'
 function hashToken(token: string) {
   return createHash('sha256').update(token).digest('hex')
 }

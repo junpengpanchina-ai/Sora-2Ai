@@ -5,6 +5,10 @@ import {
   type ChatCompletionRequest,
 } from '@/lib/grsai/client'
 
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 /**
  * POST /api/chat
  * 调用 GRSAI Chat API（公开接口，用于文案生成）

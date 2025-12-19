@@ -2,12 +2,29 @@ import { NextRequest, NextResponse } from 'next/server'
 import { validateAdminSession } from '@/lib/admin-auth'
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 
-const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || '2776117bb412e09a1d30cbe886cd3935'
-const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID || ''
-const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY || ''
-const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || 'sora2'
-const R2_S3_ENDPOINT = process.env.R2_S3_ENDPOINT || `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
-const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-2868c824f92441499577980a0b61114c.r2.dev'
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+// Lazy access to environment variables to avoid build-time errors
+function getR2Config() {
+  const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || '2776117bb412e09a1d30cbe886cd3935'
+  const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID || ''
+  const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY || ''
+  const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || 'sora2'
+  const R2_S3_ENDPOINT = process.env.R2_S3_ENDPOINT || `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+  const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-2868c824f92441499577980a0b61114c.r2.dev'
+  
+  return {
+    R2_ACCOUNT_ID,
+    R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY,
+    R2_BUCKET_NAME,
+    R2_S3_ENDPOINT,
+    R2_PUBLIC_URL,
+  }
+}
 
 /**
  * 获取正确的Secret Access Key（处理64字符十六进制格式）
@@ -40,7 +57,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
+    const config = getR2Config()
+    if (!config.R2_ACCESS_KEY_ID || !config.R2_SECRET_ACCESS_KEY) {
       return NextResponse.json(
         { error: 'R2凭证未配置，无法上传文件' },
         { status: 500 }
@@ -80,25 +98,25 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(arrayBuffer)
 
     // 处理Secret Access Key（64字符 → 32字符）
-    const validSecretKey = getValidSecretAccessKey(R2_SECRET_ACCESS_KEY)
+    const validSecretKey = getValidSecretAccessKey(config.R2_SECRET_ACCESS_KEY)
     
     console.log('[R2 Upload] 密钥处理:', {
-      originalLength: R2_SECRET_ACCESS_KEY.length,
+      originalLength: config.R2_SECRET_ACCESS_KEY.length,
       validLength: validSecretKey.length,
     })
     
     // 创建S3客户端并上传
     const s3Client = new S3Client({
       region: 'auto',
-      endpoint: R2_S3_ENDPOINT,
+      endpoint: config.R2_S3_ENDPOINT,
       credentials: {
-        accessKeyId: R2_ACCESS_KEY_ID.trim(),
+        accessKeyId: config.R2_ACCESS_KEY_ID.trim(),
         secretAccessKey: validSecretKey,
       },
     })
 
     const command = new PutObjectCommand({
-      Bucket: R2_BUCKET_NAME,
+      Bucket: config.R2_BUCKET_NAME,
       Key: fileKey,
       Body: buffer,
       ContentType: fileType,
@@ -107,7 +125,7 @@ export async function POST(request: NextRequest) {
     await s3Client.send(command)
 
     // 返回文件信息
-    const publicUrl = `${R2_PUBLIC_URL}/${fileKey}`
+    const publicUrl = `${config.R2_PUBLIC_URL}/${fileKey}`
 
     return NextResponse.json({
       success: true,

@@ -3,6 +3,9 @@ import type { Database } from '@/types/database'
 import { createServiceClient } from '@/lib/supabase/service'
 import { validateAdminSession } from '@/lib/admin-auth'
 
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic'
 type IssueUpdate = Database['public']['Tables']['after_sales_issues']['Update']
 type IssueRow = Database['public']['Tables']['after_sales_issues']['Row']
 
