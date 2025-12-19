@@ -97,47 +97,77 @@ const getRelatedKeywords = cache(async (seoKeywords: string[], useCaseType: stri
     const supabase = await createServiceClient()
     
     // 通过关键词匹配长尾词
-    // 构建 OR 查询条件：匹配 keyword 字段包含任何 SEO 关键词
-    // Supabase OR 查询格式：field.ilike.value,field2.ilike.value2
-    const orConditions = seoKeywords
+    // 清理和转义关键词，避免 PostgreSQL 查询错误
+    const cleanKeywords = seoKeywords
       .slice(0, 5) // 限制最多 5 个关键词，避免查询过于复杂
-      .map(kw => `keyword.ilike.%${kw.toLowerCase().trim()}%`)
-      .join(',')
-
-    if (!orConditions) {
-      return []
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
-      .from('long_tail_keywords')
-      .select('id, keyword, page_slug, title, h1, meta_description')
-      .eq('status', 'published')
-      .or(orConditions)
-      .limit(limit)
-
-    if (error) {
-      console.error('[getRelatedKeywords] 查询错误:', {
-        error: error.message,
-        code: error.code,
-        seoKeywords: seoKeywords.slice(0, 5),
-        orConditions,
+      .map(kw => {
+        // 清理关键词：移除特殊字符，只保留字母、数字和空格
+        const cleaned = kw
+          .toLowerCase()
+          .trim()
+          .replace(/[%'"]/g, '') // 移除 PostgreSQL 特殊字符
+          .replace(/[^a-z0-9\s-]/g, ' ') // 只保留字母、数字、空格和连字符
+          .replace(/\s+/g, ' ') // 合并多个空格
+          .trim()
+        
+        // 只保留有意义的关键词（至少 3 个字符）
+        return cleaned.length >= 3 ? cleaned : null
       })
+      .filter((kw): kw is string => kw !== null && kw.length > 0)
+      .slice(0, 3) // 进一步限制到 3 个关键词，避免查询过于复杂
+
+    if (cleanKeywords.length === 0) {
       return []
     }
 
-    if (!data || !Array.isArray(data)) {
-      return []
-    }
-
-    return data as Array<{
+    // 使用更安全的查询方式：逐个查询并合并结果
+    // 这样可以避免复杂的 OR 查询导致的解析错误
+    const allResults: Array<{
       id: string
       keyword: string
       page_slug: string
       title: string | null
       h1: string | null
       meta_description: string | null
-    }>
+    }> = []
+    const seenIds = new Set<string>()
+
+    for (const keyword of cleanKeywords) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data, error } = await (supabase as any)
+          .from('long_tail_keywords')
+          .select('id, keyword, page_slug, title, h1, meta_description')
+          .eq('status', 'published')
+          .ilike('keyword', `%${keyword}%`)
+          .limit(limit)
+
+        if (!error && data && Array.isArray(data)) {
+          for (const item of data) {
+            if (!seenIds.has(item.id)) {
+              seenIds.add(item.id)
+              allResults.push(item)
+              if (allResults.length >= limit) {
+                break
+              }
+            }
+          }
+        }
+
+        if (allResults.length >= limit) {
+          break
+        }
+      } catch (err) {
+        console.warn('[getRelatedKeywords] 单个关键词查询失败:', {
+          keyword,
+          error: err instanceof Error ? err.message : '未知错误',
+        })
+        // 继续处理下一个关键词
+      }
+    }
+
+    // 返回去重后的结果
+    return allResults.slice(0, limit)
   } catch (error) {
     console.error('[getRelatedKeywords] 异常:', error)
     return []
@@ -146,22 +176,48 @@ const getRelatedKeywords = cache(async (seoKeywords: string[], useCaseType: stri
 
 // 获取所有已发布的使用场景 slugs（用于静态生成）
 export async function generateStaticParams() {
-  // 在静态生成时使用 service client，不需要 cookies
-  const supabase = await createServiceClient()
-  
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('use_cases')
-    .select('slug')
-    .eq('is_published', true)
+  try {
+    // 在静态生成时使用 service client，不需要 cookies
+    const supabase = await createServiceClient()
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('use_cases')
+      .select('slug')
+      .eq('is_published', true)
+      .not('slug', 'is', null) // 确保 slug 不为 null
+      .neq('slug', '') // 确保 slug 不为空字符串
 
-  if (error || !data) {
+    if (error) {
+      console.error('[generateStaticParams] 查询错误:', error)
+      return []
+    }
+
+    if (!data || !Array.isArray(data)) {
+      return []
+    }
+
+    // 过滤掉无效的 slug，并确保类型安全
+    // 文件系统限制：大多数系统限制文件名在 255 字符以内
+    // 考虑到路径前缀，我们限制 slug 在 100 字符以内
+    const MAX_SLUG_LENGTH = 100
+    
+    return data
+      .filter((item: { slug: string | null }) => {
+        if (!item.slug || typeof item.slug !== 'string') {
+          return false
+        }
+        const trimmed = item.slug.trim()
+        // 过滤掉空字符串和过长的 slug
+        return trimmed.length > 0 && trimmed.length <= MAX_SLUG_LENGTH
+      })
+      .map((item: { slug: string }) => ({
+        slug: item.slug.trim(),
+      }))
+  } catch (error) {
+    console.error('[generateStaticParams] 异常:', error)
     return []
   }
-
-  return data.map((item: { slug: string }) => ({
-    slug: item.slug,
-  }))
 }
 
 export async function generateMetadata({ 
@@ -211,6 +267,17 @@ const USE_CASE_TYPE_LABELS: Record<string, string> = {
 
 export default async function UseCasePage({ params }: { params: { slug: string } }) {
   try {
+    // 检查 slug 长度，如果太长则直接返回 404
+    // 文件系统限制：大多数系统限制文件名在 255 字符以内
+    const MAX_SLUG_LENGTH = 100
+    if (!params.slug || params.slug.length > MAX_SLUG_LENGTH) {
+      console.warn('[UseCasePage] Slug 过长或无效:', {
+        slug: params.slug,
+        length: params.slug?.length,
+      })
+      notFound()
+    }
+
     const useCase = await getUseCaseBySlug(params.slug)
     
     if (!useCase) {
@@ -218,16 +285,21 @@ export default async function UseCasePage({ params }: { params: { slug: string }
       notFound()
     }
 
+    // 确保 seo_keywords 是有效的数组
+    const seoKeywords = Array.isArray(useCase.seo_keywords) 
+      ? useCase.seo_keywords.filter((k): k is string => typeof k === 'string' && k.trim().length > 0)
+      : []
+
     // 并行获取相关数据，即使失败也不影响主页面渲染
     const [relatedUseCasesResult, relatedKeywordsResult] = await Promise.allSettled([
       getRelatedUseCases(
         useCase.id,
-        useCase.use_case_type,
+        useCase.use_case_type || 'other',
         6
       ),
       getRelatedKeywords(
-        useCase.seo_keywords || [],
-        useCase.use_case_type,
+        seoKeywords,
+        useCase.use_case_type || 'other',
         12
       ),
     ])
@@ -260,7 +332,9 @@ export default async function UseCasePage({ params }: { params: { slug: string }
         url: `${getBaseUrl()}/icon.svg`,
       },
     },
-    keywords: useCase.seo_keywords?.join(', ') || '',
+    keywords: Array.isArray(useCase.seo_keywords) 
+      ? useCase.seo_keywords.filter((k): k is string => typeof k === 'string').join(', ')
+      : '',
     articleBody: useCase.content,
   }
 
@@ -335,9 +409,12 @@ export default async function UseCasePage({ params }: { params: { slug: string }
               <span className="rounded-full border border-white/30 px-3 py-1">
                 Type: {USE_CASE_TYPE_LABELS[useCase.use_case_type] || useCase.use_case_type}
               </span>
-              {useCase.seo_keywords && useCase.seo_keywords.length > 0 && (
+              {Array.isArray(useCase.seo_keywords) && useCase.seo_keywords.length > 0 && (
                 <span className="rounded-full border border-white/30 px-3 py-1">
-                  Keywords: {useCase.seo_keywords.slice(0, 2).join(', ')}
+                  Keywords: {useCase.seo_keywords
+                    .filter((k): k is string => typeof k === 'string')
+                    .slice(0, 2)
+                    .join(', ')}
                 </span>
               )}
             </div>
