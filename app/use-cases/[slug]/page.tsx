@@ -419,11 +419,11 @@ export default async function UseCasePage({ params }: { params: { slug: string }
               <span className="text-white/50">/</span>
               <span>{USE_CASE_TYPE_LABELS[useCase.use_case_type] || useCase.use_case_type}</span>
             </div>
-            <h1 className="mt-6 text-3xl font-bold leading-tight text-white sm:text-4xl lg:text-5xl">
+            <h1 className="mt-6 text-2xl font-bold leading-tight text-white sm:text-3xl lg:text-4xl">
               {useCase.h1 || useCase.title}
             </h1>
             {useCase.description && (
-              <p className="mt-4 max-w-3xl text-lg text-blue-100/80">{useCase.description}</p>
+              <p className="mt-4 max-w-3xl text-base text-blue-100/80 sm:text-lg">{useCase.description}</p>
             )}
             
             {/* 醒目的视频生成 CTA 按钮 */}
@@ -468,7 +468,7 @@ export default async function UseCasePage({ params }: { params: { slug: string }
                     key={`section-${sectionIndex}`}
                     className="rounded-2xl bg-white p-6 shadow-sm dark:bg-gray-900/60"
                   >
-                    <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white sm:text-2xl">
                       {section.title}
                     </h2>
                     
@@ -489,7 +489,7 @@ export default async function UseCasePage({ params }: { params: { slug: string }
                               </h3>
                               {subsection.content && (
                                 <div
-                                  className="mt-1 text-sm text-gray-600 dark:text-gray-300 prose prose-sm max-w-none dark:prose-invert"
+                                  className="mt-1 text-sm leading-relaxed text-gray-600 dark:text-gray-300 prose prose-sm max-w-none dark:prose-invert"
                                   dangerouslySetInnerHTML={{ __html: markdownToHtml(subsection.content) }}
                                 />
                               )}
@@ -501,7 +501,7 @@ export default async function UseCasePage({ params }: { params: { slug: string }
                       /* 如果没有子部分，直接显示内容 */
                       section.content && (
                         <div
-                          className="mt-3 prose prose-lg max-w-none text-gray-600 leading-relaxed dark:prose-invert dark:text-gray-300"
+                          className="mt-3 prose prose-base max-w-none text-gray-600 leading-relaxed dark:prose-invert dark:text-gray-300"
                           dangerouslySetInnerHTML={{ __html: markdownToHtml(section.content) }}
                         />
                       )
@@ -511,7 +511,7 @@ export default async function UseCasePage({ params }: { params: { slug: string }
               ) : (
                 /* 如果没有解析到部分，显示原始内容（向后兼容） */
                 <section className="rounded-2xl bg-white p-6 shadow-sm dark:bg-gray-900/60">
-                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Overview</h2>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white sm:text-2xl">Overview</h2>
                   <div
                     className="mt-3 prose prose-lg max-w-none text-gray-600 leading-relaxed dark:prose-invert dark:text-gray-300"
                     dangerouslySetInnerHTML={{ __html: markdownToHtml(useCase.content) }}
@@ -578,7 +578,7 @@ export default async function UseCasePage({ params }: { params: { slug: string }
               {/* Related Use Cases */}
               {relatedUseCases.length > 0 && (
                 <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70">
-                  <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">Related Use Cases</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white sm:text-2xl">Related Use Cases</h3>
                   <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                     Explore similar use cases for {useCase.title}:
                   </p>
@@ -616,7 +616,7 @@ export default async function UseCasePage({ params }: { params: { slug: string }
                 <section 
                   className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70 flex flex-col"
                 >
-                  <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">Related Keywords</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white sm:text-2xl">Related Keywords</h3>
                   <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                     Explore specific search terms related to this use case:
                   </p>
