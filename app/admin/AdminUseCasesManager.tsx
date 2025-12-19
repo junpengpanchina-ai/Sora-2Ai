@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from '@/components/ui'
 import TextRecognitionArea from '@/components/admin/TextRecognitionArea'
@@ -168,6 +168,9 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all')
   const [qualityFilter, setQualityFilter] = useState<string>('all')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(50)
+  const [totalCount, setTotalCount] = useState(0)
   
   // 从 URL 参数获取要编辑的 ID
   const editIdFromUrl = searchParams?.get('edit') || null
@@ -192,6 +195,11 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
       if (statusFilter !== 'all') params.append('status', statusFilter)
       if (qualityFilter !== 'all') params.append('quality_status', qualityFilter)
       if (search.trim()) params.append('search', search.trim())
+      
+      // 添加分页参数
+      const offset = (currentPage - 1) * itemsPerPage
+      params.append('limit', itemsPerPage.toString())
+      params.append('offset', offset.toString())
 
       const response = await fetch(`/api/admin/use-cases?${params.toString()}`)
       const payload = await response.json().catch(() => ({}))
@@ -214,19 +222,26 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
         .filter((item: UseCaseRecord | null): item is UseCaseRecord => Boolean(item))
 
       setUseCases(normalized)
+      setTotalCount(typeof payload.totalCount === 'number' ? payload.totalCount : normalized.length)
     } catch (err) {
       console.error('获取使用场景列表失败:', err)
       setError(err instanceof Error ? err.message : '获取使用场景列表失败')
       setUseCases([])
+      setTotalCount(0)
     } finally {
       setLoading(false)
     }
-  }, [search, typeFilter, industryFilter, statusFilter, qualityFilter])
+  }, [search, typeFilter, industryFilter, statusFilter, qualityFilter, currentPage, itemsPerPage])
 
   useEffect(() => {
     console.log('开始获取使用场景列表...')
     fetchUseCases()
   }, [fetchUseCases])
+
+  // 当筛选条件改变时，重置到第一页
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, typeFilter, industryFilter, statusFilter, qualityFilter])
 
   // 如果 URL 中有 edit 参数，自动打开编辑
   useEffect(() => {
@@ -298,27 +313,8 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
     }
   }, [onShowBanner])
 
-  const filteredUseCases = useMemo(() => {
-    const text = search.trim().toLowerCase()
-    return useCases.filter((useCase) => {
-      const matchesType = typeFilter === 'all' || useCase.use_case_type === typeFilter
-      const matchesIndustry = 
-        industryFilter === 'all' || 
-        industryFilter === '' || 
-        (industryFilter === 'null' && !useCase.industry) ||
-        useCase.industry === industryFilter
-      const matchesStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'published' ? useCase.is_published : !useCase.is_published)
-      const matchesSearch =
-        text === '' ||
-        useCase.slug.toLowerCase().includes(text) ||
-        useCase.title.toLowerCase().includes(text) ||
-        useCase.description.toLowerCase().includes(text) ||
-        useCase.h1.toLowerCase().includes(text)
-      return matchesType && matchesIndustry && matchesStatus && matchesSearch
-    })
-  }, [useCases, search, typeFilter, industryFilter, statusFilter])
+  // 计算总页数
+  const totalPages = Math.ceil(totalCount / itemsPerPage)
 
   const handleCreateUseCase = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -683,16 +679,88 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
             </div>
           )}
 
+          {/* Pagination Controls - Top */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600 dark:text-gray-400">每页显示:</span>
+              <select
+                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800"
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value))
+                  setCurrentPage(1)
+                }}
+              >
+                <option value="10">10</option>
+                <option value="30">30</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="500">500</option>
+                <option value="1000">1000</option>
+              </select>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                共 {totalCount} 条，第 {currentPage} / {totalPages || 1} 页
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1 || loading}
+              >
+                首页
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1 || loading}
+              >
+                上一页
+              </Button>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                第 <input
+                  type="number"
+                  min="1"
+                  max={totalPages || 1}
+                  value={currentPage}
+                  onChange={(e) => {
+                    const page = Math.max(1, Math.min(totalPages || 1, Number(e.target.value) || 1))
+                    setCurrentPage(page)
+                  }}
+                  className="w-16 rounded border border-gray-300 px-2 py-1 text-center text-sm dark:border-gray-700 dark:bg-gray-800"
+                /> 页
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages || 1, prev + 1))}
+                disabled={currentPage >= (totalPages || 1) || loading}
+              >
+                下一页
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setCurrentPage(totalPages || 1)}
+                disabled={currentPage >= (totalPages || 1) || loading}
+              >
+                末页
+              </Button>
+            </div>
+          </div>
+
           {/* List */}
           {loading ? (
             <div className="py-8 text-center text-gray-500">加载中...</div>
           ) : error ? (
             <div className="py-8 text-center text-red-500">{error}</div>
-          ) : filteredUseCases.length === 0 ? (
+          ) : useCases.length === 0 ? (
             <div className="py-8 text-center text-gray-500">暂无使用场景</div>
           ) : (
             <div className="space-y-2">
-              {filteredUseCases.map((useCase) => {
+              {useCases.map((useCase) => {
                 const isEditing = editingUseCaseId === useCase.id
                 const isDeleting = deletingId === useCase.id
                 const isHighlighted = editIdFromUrl === useCase.id
@@ -918,6 +986,80 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
                   </Card>
                 )
               })}
+            </div>
+          )}
+
+          {/* Pagination Controls - Bottom */}
+          {!loading && !error && useCases.length > 0 && (
+            <div className="flex items-center justify-between gap-4 pt-4 border-t">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600 dark:text-gray-400">每页显示:</span>
+                <select
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800"
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value))
+                    setCurrentPage(1)
+                  }}
+                >
+                  <option value="10">10</option>
+                  <option value="30">30</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                  <option value="500">500</option>
+                  <option value="1000">1000</option>
+                </select>
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  共 {totalCount} 条，第 {currentPage} / {totalPages || 1} 页
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                >
+                  首页
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  上一页
+                </Button>
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  第 <input
+                    type="number"
+                    min="1"
+                    max={totalPages || 1}
+                    value={currentPage}
+                    onChange={(e) => {
+                      const page = Math.max(1, Math.min(totalPages || 1, Number(e.target.value) || 1))
+                      setCurrentPage(page)
+                    }}
+                    className="w-16 rounded border border-gray-300 px-2 py-1 text-center text-sm dark:border-gray-700 dark:bg-gray-800"
+                  /> 页
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages || 1, prev + 1))}
+                  disabled={currentPage >= (totalPages || 1)}
+                >
+                  下一页
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCurrentPage(totalPages || 1)}
+                  disabled={currentPage >= (totalPages || 1)}
+                >
+                  末页
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

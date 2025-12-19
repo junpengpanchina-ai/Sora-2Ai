@@ -33,6 +33,7 @@ export const SEO_CONTENT_TEMPLATES: PromptTemplate[] = [
 - Text-to-video generation
 - Image-to-video generation
 - Multiple styles (realistic, anime, commercial, educational)
+- Video duration: 10 seconds or 15 seconds (NOT 2 minutes or longer)
 - Can generate product videos, marketing videos, educational content, TikTok videos, etc.
 
 【Content Requirements】
@@ -41,6 +42,7 @@ export const SEO_CONTENT_TEMPLATES: PromptTemplate[] = [
 - Each paragraph should be 60-120 words
 - Fixed structure with H2/H3 headings
 - All content must be in English
+- IMPORTANT: When mentioning video duration, ALWAYS use "10 seconds" or "15 seconds". NEVER mention "2 minutes", "1 minute", or any duration longer than 15 seconds.
 
 【Parameters】
 Use Case: {{scene}}
@@ -83,6 +85,7 @@ Industry: {{industry}}
 - Total length: 400-700 words (suitable for long-tail keyword pages)
 - Friendly, readable, informative
 - All content must be in English
+- IMPORTANT: When mentioning video duration, ALWAYS use "10 seconds" or "15 seconds". NEVER mention "2 minutes", "1 minute", or any duration longer than 15 seconds.
 
 【Page Structure】
 H1: What is {{keyword}}?
@@ -120,6 +123,7 @@ Related Scenario: {{scene}}
 - Word count: 1500-2500 words
 - Fixed H2/H3 structure as below
 - All content must be in English
+- IMPORTANT: When mentioning video duration, ALWAYS use "10 seconds" or "15 seconds". NEVER mention "2 minutes", "1 minute", or any duration longer than 15 seconds.
 
 【Article Structure Template】
 H1: {{title}}
@@ -155,6 +159,7 @@ Keyword: {{keyword}}
 - Combine with the practical value of AI video
 - List real application scenarios (avoid generic statements)
 - All content must be in English
+- IMPORTANT: When mentioning video duration, ALWAYS use "10 seconds" or "15 seconds". NEVER mention "2 minutes", "1 minute", or any duration longer than 15 seconds.
 
 【Structure】
 H1: Applications of AI Video in the {{industry}} Industry
@@ -191,6 +196,7 @@ Target Keyword: {{keyword}}
 - Use real comparison points
 - Clear structure, easy to read
 - All content must be in English
+- IMPORTANT: When mentioning video duration, ALWAYS use "10 seconds" or "15 seconds". NEVER mention "2 minutes", "1 minute", or any duration longer than 15 seconds.
 
 【Structure】
 H1: {{tool_a}} vs {{tool_b}}: Which AI Video Generator is Better?

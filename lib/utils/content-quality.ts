@@ -22,6 +22,8 @@ export type QualityIssue =
   | 'low_readability'
   | 'keyword_stuffing'
   | 'incomplete_structure'
+  | 'content_mismatch'
+  | 'incorrect_video_duration'
 
 /**
  * 检查内容质量
@@ -127,6 +129,66 @@ export function checkContentQuality(content: {
       warnings.push('部分段落过长，可能影响可读性')
       score -= 5
     }
+
+    // 8. 检查视频时长是否正确（应该是 10 秒或 15 秒，不能是 2 分钟等）
+    const incorrectDurationPatterns = [
+      /\b2\s*分钟?\b/i,
+      /\b1\s*分钟?\b/i,
+      /\b3\s*分钟?\b/i,
+      /\b4\s*分钟?\b/i,
+      /\b5\s*分钟?\b/i,
+      /\b\d+\s*分钟?\b/i, // 任何分钟数
+      /\b2\s*minute/i,
+      /\b\d+\s*minute/i, // 任何分钟数（英文）
+    ]
+    
+    const hasIncorrectDuration = incorrectDurationPatterns.some(pattern => 
+      pattern.test(contentLower) && !contentLower.includes('10 second') && !contentLower.includes('15 second')
+    )
+    
+    if (hasIncorrectDuration) {
+      issues.push('incorrect_video_duration')
+      score -= 20
+      warnings.push('内容中提到了错误的视频时长（应该是 10 秒或 15 秒，不是分钟）')
+    }
+
+    // 7. 检查内容一致性（内容是否与标题/描述匹配）
+    const contentLower = content.content.toLowerCase()
+    const titleLower = (content.title || '').toLowerCase()
+    const descriptionLower = (content.description || '').toLowerCase()
+    const h1Lower = (content.h1 || '').toLowerCase()
+    
+    // 提取标题和描述中的关键名词（长度 >= 3 的单词）
+    const extractKeyTerms = (text: string): string[] => {
+      // 移除常见停用词和标点
+      const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'as', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'how', 'what', 'when', 'where', 'why', 'which', 'who', 'whom', 'whose', 'ai', 'video', 'generation', 'create', 'generate', 'use', 'using', 'used'])
+      
+      return text
+        .split(/\s+/)
+        .map(word => word.replace(/[^\w]/g, '').toLowerCase())
+        .filter(word => word.length >= 3 && !stopWords.has(word))
+    }
+    
+    const titleTerms = extractKeyTerms(titleLower)
+    const descriptionTerms = extractKeyTerms(descriptionLower)
+    const h1Terms = extractKeyTerms(h1Lower)
+    const allKeyTerms = [...new Set([...titleTerms, ...descriptionTerms, ...h1Terms])]
+    
+    // 检查内容中是否包含关键主题词
+    if (allKeyTerms.length > 0) {
+      const matchedTerms = allKeyTerms.filter(term => contentLower.includes(term))
+      const matchRatio = matchedTerms.length / allKeyTerms.length
+      
+      // 如果匹配率低于 30%，认为内容不匹配
+      if (matchRatio < 0.3) {
+        issues.push('content_mismatch')
+        score -= 25
+        warnings.push(`内容与标题/描述不匹配（仅匹配 ${Math.round(matchRatio * 100)}% 的关键词）`)
+      } else if (matchRatio < 0.5) {
+        warnings.push(`内容与标题/描述匹配度较低（仅匹配 ${Math.round(matchRatio * 100)}% 的关键词）`)
+        score -= 10
+      }
+    }
   }
 
   // 确保分数在 0-100 范围内
@@ -156,6 +218,8 @@ export function getQualityIssueLabel(issue: QualityIssue): string {
     low_readability: '可读性差',
     keyword_stuffing: '关键词堆砌',
     incomplete_structure: '结构不完整',
+    content_mismatch: '内容与标题/描述不匹配',
+    incorrect_video_duration: '视频时长错误（应该是 10 秒或 15 秒）',
   }
   return labels[issue] || issue
 }

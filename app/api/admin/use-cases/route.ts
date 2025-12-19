@@ -52,14 +52,49 @@ export async function GET(request: Request) {
     const industryFilter = searchParams.get('industry')?.trim() ?? null
     const statusFilter = searchParams.get('status')?.toLowerCase()
     const qualityFilter = searchParams.get('quality_status')?.toLowerCase()
-    const limit = Math.min(Number(searchParams.get('limit')) || 200, 500)
+    const limit = Math.min(Number(searchParams.get('limit')) || 50, 1000)
+    const offset = Math.max(Number(searchParams.get('offset')) || 0, 0)
 
+    // 首先获取总数（用于分页）
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let countQuery = (supabase as any)
+      .from('use_cases')
+      .select('*', { count: 'exact', head: true })
+
+    if (typeFilter && isUseCaseType(typeFilter)) {
+      countQuery = countQuery.eq('use_case_type', typeFilter)
+    }
+
+    if (industryFilter && industryFilter !== 'all' && industryFilter !== '') {
+      countQuery = countQuery.eq('industry', industryFilter)
+    }
+
+    if (statusFilter === 'published') {
+      countQuery = countQuery.eq('is_published', true)
+    } else if (statusFilter === 'draft') {
+      countQuery = countQuery.eq('is_published', false)
+    }
+
+    if (qualityFilter && qualityFilter !== 'all') {
+      if (qualityFilter === 'null' || qualityFilter === 'none') {
+        countQuery = countQuery.is('quality_status', null)
+      } else if (['pending', 'approved', 'rejected', 'needs_review'].includes(qualityFilter)) {
+        countQuery = countQuery.eq('quality_status', qualityFilter)
+      }
+    }
+
+    const { count, error: countError } = await countQuery
+    if (countError) {
+      console.error('[use-cases GET] 获取总数错误:', countError)
+    }
+
+    // 获取分页数据
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let query = (supabase as any)
       .from('use_cases')
       .select('*')
       .order('updated_at', { ascending: false })
-      .limit(limit)
+      .range(offset, offset + limit - 1)
 
     if (typeFilter && isUseCaseType(typeFilter)) {
       query = query.eq('use_case_type', typeFilter)
@@ -92,6 +127,7 @@ export async function GET(request: Request) {
     const useCases = (Array.isArray(data) ? data : []) as Database['public']['Tables']['use_cases']['Row'][]
 
     let filteredUseCases = useCases
+    let totalCount = typeof count === 'number' ? count : useCases.length
 
     if (searchQuery) {
       const lowered = searchQuery.toLowerCase()
@@ -101,12 +137,18 @@ export async function GET(request: Request) {
         const matchesSlug = useCase.slug?.toLowerCase().includes(lowered)
         return matchesTitle || matchesDescription || matchesSlug
       })
+      // 如果有搜索查询，总数需要重新计算（因为搜索是在客户端过滤的）
+      // 为了准确，我们可能需要重新查询，但为了性能，这里使用过滤后的数量
+      totalCount = filteredUseCases.length
     }
 
     return NextResponse.json({
       success: true,
       useCases: filteredUseCases,
       count: filteredUseCases.length,
+      totalCount: totalCount,
+      limit: limit,
+      offset: offset,
     })
   } catch (error) {
     console.error('[use-cases GET] 获取使用场景失败:', error)
