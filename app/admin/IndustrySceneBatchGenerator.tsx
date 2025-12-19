@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input } from '@/components/ui'
 import { INDUSTRIES_100 } from '@/lib/data/industries-100'
 import { generateSlugFromText } from '@/lib/utils/slug'
@@ -42,7 +42,14 @@ export default function IndustrySceneBatchGenerator({
   const [tasks, setTasks] = useState<IndustryTask[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingIndex, setProcessingIndex] = useState(-1)
-  const [shouldStop, setShouldStop] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
+  // 使用 useRef 来在闭包中正确访问状态
+  const shouldStopRef = useRef(false)
+  const isPausedRef = useRef(false)
+  const useCaseTypeRef = useRef(useCaseType)
+  
+  // 同步 useCaseType 到 ref
+  useCaseTypeRef.current = useCaseType
 
   // 生成行业场景词（一次生成 100 条）
   const generateIndustryScenes = async (industry: string): Promise<SceneItem[]> => {
@@ -379,7 +386,7 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
           h1,
           description,
           content,
-          use_case_type: useCaseType,
+          use_case_type: useCaseTypeRef.current,
           industry,
           is_published: isPublished,
           seo_keywords: [scene.use_case, industry, `${industry} AI video`],
@@ -393,7 +400,7 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
     if (retryCount === 0) {
       console.log(`[${industry}] 保存场景词成功:`, {
         slug,
-        use_case_type: useCaseType,
+        use_case_type: useCaseTypeRef.current,
         industry,
         title: title.substring(0, 50),
       })
@@ -463,12 +470,32 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
 
     setTasks(newTasks)
     setIsProcessing(true)
-    setShouldStop(false)
+    shouldStopRef.current = false
+    isPausedRef.current = false
+    setIsPaused(false)
 
     let totalSaved = 0
 
     for (let i = 0; i < newTasks.length; i++) {
-      if (shouldStop) {
+      if (shouldStopRef.current) {
+        setTasks((prev) => {
+          const updated = [...prev]
+          for (let j = i; j < updated.length; j++) {
+            if (updated[j].status === 'pending') {
+              updated[j] = { ...updated[j], status: 'failed', error: '已取消' }
+            }
+          }
+          return updated
+        })
+        break
+      }
+
+      // 检查是否暂停
+      while (isPausedRef.current && !shouldStopRef.current) {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+      
+      if (shouldStopRef.current) {
         setTasks((prev) => {
           const updated = [...prev]
           for (let j = i; j < updated.length; j++) {
@@ -520,7 +547,14 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
         let savedCount = 0
         let failedCount = 0
         for (let j = 0; j < scenes.length; j++) {
-          if (shouldStop) break
+          if (shouldStopRef.current) break
+
+          // 检查是否暂停
+          while (isPausedRef.current && !shouldStopRef.current) {
+            await new Promise((resolve) => setTimeout(resolve, 100))
+          }
+          
+          if (shouldStopRef.current) break
 
           try {
             await saveSceneToDatabase(task.industry, scenes[j])
@@ -615,9 +649,11 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
 
     setIsProcessing(false)
     setProcessingIndex(-1)
-    setShouldStop(false)
+    shouldStopRef.current = false
+    isPausedRef.current = false
+    setIsPaused(false)
 
-    if (shouldStop) {
+    if (shouldStopRef.current) {
       onShowBanner('info', `批量生成已终止：已保存 ${totalSaved} 条场景词`)
     } else {
       onShowBanner('success', `批量生成完成：已保存 ${totalSaved} 条场景词（使用场景类型：${useCaseType}）`)
@@ -633,8 +669,24 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
     }
   }
 
+  const handlePause = () => {
+    if (isPausedRef.current) {
+      // 恢复
+      isPausedRef.current = false
+      setIsPaused(false)
+      onShowBanner('info', '批量生成已恢复')
+    } else {
+      // 暂停
+      isPausedRef.current = true
+      setIsPaused(true)
+      onShowBanner('info', '批量生成已暂停，点击"恢复"继续')
+    }
+  }
+
   const handleStop = () => {
-    setShouldStop(true)
+    shouldStopRef.current = true
+    isPausedRef.current = false
+    setIsPaused(false)
     onShowBanner('info', '正在停止批量生成，请稍候...')
   }
 
@@ -786,9 +838,21 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
               开始批量生成 ({selectedIndustries.length} 个行业 × {scenesPerIndustry} 条 = {costInfo.totalScenes} 条)
             </Button>
           ) : (
-            <Button onClick={handleStop} variant="danger">
-              暂停/终止生成
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={handlePause} 
+                variant={isPaused ? "secondary" : "outline"}
+                className={isPaused ? "bg-yellow-500 hover:bg-yellow-600 text-white" : ""}
+              >
+                {isPaused ? '▶️ 恢复生成' : '⏸️ 暂停生成'}
+              </Button>
+              <Button 
+                onClick={handleStop} 
+                variant="danger"
+              >
+                ⏹️ 终止生成
+              </Button>
+            </div>
           )}
         </div>
 
