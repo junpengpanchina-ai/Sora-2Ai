@@ -3,6 +3,10 @@ import type { Database } from '@/types/database'
 import { createServiceClient } from '@/lib/supabase/service'
 import { validateAdminSession } from '@/lib/admin-auth'
 
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 type VideoTaskRow = Database['public']['Tables']['video_tasks']['Row']
 type VideoTaskUpdate = Database['public']['Tables']['video_tasks']['Update']
 

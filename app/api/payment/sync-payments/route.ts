@@ -5,6 +5,11 @@ import { getOrCreateUser } from '@/lib/user'
 import { getStripe } from '@/lib/stripe'
 import { NextResponse } from 'next/server'
 
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // Credits exchange rate
 const CREDITS_PER_USD = 100 // 1 USD = 100 credits
 

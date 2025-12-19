@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { validateAdminSession } from '@/lib/admin-auth'
 import { listR2Files } from '@/lib/r2/client'
 
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 // GET - 获取R2文件列表（管理员专用）

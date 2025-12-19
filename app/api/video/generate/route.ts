@@ -9,6 +9,10 @@ import { validateOrigin } from '@/lib/csrf'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // Request parameter validation schema
 const generateVideoSchema = z.object({
   prompt: z.string().min(1, 'Prompt cannot be empty'),

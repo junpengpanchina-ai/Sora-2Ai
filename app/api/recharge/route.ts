@@ -6,6 +6,11 @@ import { getStripe } from '@/lib/stripe'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // 充值请求参数验证
 const rechargeSchema = z.object({
   amount: z.number().min(0.01, '充值金额必须大于0.01元'),

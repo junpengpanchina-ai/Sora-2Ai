@@ -6,6 +6,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import type { Database } from '@/types/database'
 
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // Webhook callback data validation schema
 const webhookCallbackSchema = z.object({
   id: z.string(),

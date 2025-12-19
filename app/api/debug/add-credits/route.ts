@@ -6,6 +6,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import type { Database } from '@/types/database'
 
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic'
 type UserCreditsRow = Pick<Database['public']['Tables']['users']['Row'], 'credits'>
 
 // 仅在开发环境允许
