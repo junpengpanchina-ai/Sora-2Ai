@@ -31,6 +31,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: '缺少 messages 参数或为空' }, { status: 400 })
     }
 
+    // 检查 API Key 是否配置
+    if (!process.env.GRSAI_API_KEY) {
+      console.error('[Chat API] GRSAI_API_KEY 未配置')
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'API Key 未配置',
+          details: '请检查环境变量 GRSAI_API_KEY 是否已设置'
+        },
+        { status: 500 }
+      )
+    }
+
+    // 检查请求体大小（避免请求过大）
+    const requestBodySize = JSON.stringify({ model, stream, messages, ...otherParams }).length
+    if (requestBodySize > 100000) { // 100KB
+      console.warn('[Chat API] 请求体过大:', {
+        size: requestBodySize,
+        model,
+        messagesCount: messages.length,
+      })
+    }
+
     // 构建请求参数
     const chatParams: ChatCompletionRequest = {
       model,
@@ -69,17 +92,60 @@ export async function POST(request: NextRequest) {
     }
 
     // 非流式响应
-    const response = await createChatCompletion(chatParams)
-    return NextResponse.json({ success: true, data: response })
+    console.log('[Chat API] 调用 createChatCompletion:', {
+      model: chatParams.model,
+      stream: chatParams.stream,
+      messagesCount: chatParams.messages.length,
+      totalPromptLength: messages.reduce((sum, msg) => sum + (msg.content?.length || 0), 0),
+      hasApiKey: !!process.env.GRSAI_API_KEY,
+    })
+    
+    try {
+      const response = await createChatCompletion(chatParams)
+      console.log('[Chat API] 调用成功:', {
+        model: chatParams.model,
+        hasChoices: !!response.choices,
+        choicesCount: response.choices?.length || 0,
+      })
+      
+      return NextResponse.json({ success: true, data: response })
+    } catch (apiError) {
+      // 捕获 createChatCompletion 的错误，提供更详细的日志
+      console.error('[Chat API] createChatCompletion 调用失败:', {
+        error: apiError instanceof Error ? apiError.message : String(apiError),
+        stack: apiError instanceof Error ? apiError.stack : undefined,
+        model: chatParams.model,
+        messagesCount: chatParams.messages.length,
+      })
+      // 重新抛出错误，让外层 catch 处理
+      throw apiError
+    }
   } catch (error) {
-    console.error('GRSAI Chat API 错误:', error)
+    console.error('[Chat API] GRSAI Chat API 错误:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+    })
+    
     const errorMessage = error instanceof Error ? error.message : '未知错误'
     const errorStack = error instanceof Error ? error.stack : undefined
-    console.error('错误堆栈:', errorStack)
+    
+    // 提供更详细的错误信息
+    let errorDetails = errorMessage
+    if (error instanceof Error) {
+      if (error.message.includes('GRSAI_API_KEY')) {
+        errorDetails = 'API Key 未配置或无效，请检查环境变量 GRSAI_API_KEY'
+      } else if (error.message.includes('超时')) {
+        errorDetails = 'API 请求超时，请稍后重试'
+      } else if (error.message.includes('连接失败')) {
+        errorDetails = '无法连接到 API 服务，请检查网络连接'
+      }
+    }
+    
     return NextResponse.json(
       { 
         success: false, 
-        error: errorMessage,
+        error: errorDetails,
         details: process.env.NODE_ENV === 'development' ? errorStack : undefined
       },
       { status: 500 }

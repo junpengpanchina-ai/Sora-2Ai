@@ -431,9 +431,11 @@ export async function createChatCompletion(
     })
     
     // 如果是服务器错误（5xx）且还有重试次数，进行重试
+    // 对于500错误，使用更长的延迟（可能是服务端临时问题）
     if ((response.status >= 500 && response.status < 600) && retryCount < MAX_RETRIES) {
-      console.warn(`[Grsai Chat API] 服务器错误 ${response.status}，${RETRY_DELAY}ms 后重试...`)
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
+      const serverErrorDelay = response.status === 500 ? RETRY_DELAY * 2 : RETRY_DELAY // 500错误延迟加倍
+      console.warn(`[Grsai Chat API] 服务器错误 ${response.status}（可能是临时性问题），${serverErrorDelay}ms 后重试 (${retryCount + 1}/${MAX_RETRIES})...`)
+      await new Promise(resolve => setTimeout(resolve, serverErrorDelay))
       return createChatCompletion(params, retryCount + 1)
     }
     
