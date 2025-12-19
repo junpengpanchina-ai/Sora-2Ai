@@ -453,37 +453,72 @@ Here's an example prompt you can use with Sora2 to generate a **10-second or 15-
 Start creating professional ${scene.use_case} videos for ${industry} today with Sora2 AI video generation platform. No technical skills required, no expensive equipment needed - just describe what you want, and AI will create it for you.`
 
       // 自动质量检查
-      const qualityCheck = checkContentQuality({
-        title,
-        h1,
-        description,
-        content,
-        seo_keywords: [scene.use_case, industry, `${industry} AI video`],
-      })
+      let qualityCheck
+      try {
+        console.log(`[${industry}] 开始质量检查...`, {
+          titleLength: title?.length || 0,
+          h1Length: h1?.length || 0,
+          descriptionLength: description?.length || 0,
+          contentLength: content?.length || 0,
+        })
+        qualityCheck = checkContentQuality({
+          title,
+          h1,
+          description,
+          content,
+          seo_keywords: [scene.use_case, industry, `${industry} AI video`],
+        })
+        console.log(`[${industry}] 质量检查完成:`, {
+          score: qualityCheck.score,
+          issues: qualityCheck.issues,
+          passed: qualityCheck.passed,
+        })
+      } catch (qualityError) {
+        console.error(`[${industry}] 质量检查失败:`, qualityError)
+        // 如果质量检查失败，使用默认值
+        qualityCheck = {
+          passed: false,
+          score: 50,
+          issues: ['quality_check_error'],
+          warnings: [],
+        }
+      }
 
       // 根据质量检查结果设置状态
       // 如果通过检查且分数 >= 70，自动批准；否则标记为待审核
       const qualityStatus = qualityCheck.passed && qualityCheck.score >= 70 ? 'approved' : 'pending'
       const isPublished = qualityStatus === 'approved' // 只有审核通过的内容才自动发布
 
-      const response = await fetch('/api/admin/use-cases', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          slug,
-          title,
-          h1,
-          description,
-          content,
-          use_case_type: useCaseTypeRef.current,
-          industry,
-          is_published: isPublished,
-          seo_keywords: [scene.use_case, industry, `${industry} AI video`],
+      // 准备请求数据
+      const requestData = {
+        slug,
+        title,
+        h1,
+        description,
+        content,
+        use_case_type: useCaseTypeRef.current,
+        industry,
+        is_published: isPublished,
+        seo_keywords: [scene.use_case, industry, `${industry} AI video`],
         quality_status: qualityStatus,
         quality_score: qualityCheck.score,
         quality_issues: qualityCheck.issues,
-      }),
-    })
+      }
+      
+      console.log(`[${industry}] 发送保存请求:`, {
+        slug: slug.substring(0, 50),
+        titleLength: title?.length || 0,
+        contentLength: content?.length || 0,
+        useCaseType: useCaseTypeRef.current,
+        qualityStatus,
+        qualityScore: qualityCheck.score,
+      })
+      
+      const response = await fetch('/api/admin/use-cases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestData),
+      })
     
     // 调试日志：确认保存的数据
     if (retryCount === 0) {

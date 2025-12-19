@@ -35,9 +35,10 @@ export function checkContentQuality(content: {
   content?: string
   seo_keywords?: string[]
 }): QualityCheckResult {
-  const issues: string[] = []
-  const warnings: string[] = []
-  let score = 100
+  try {
+    const issues: string[] = []
+    const warnings: string[] = []
+    let score = 100
 
   // 1. 检查 H1
   if (!content.h1 || content.h1.trim().length === 0) {
@@ -130,33 +131,49 @@ export function checkContentQuality(content: {
       score -= 5
     }
 
+    // 7. 检查内容一致性（内容是否与标题/描述匹配）
+    // 先定义这些变量，因为后面的检查会用到
+    // 添加安全检查，确保 content.content 存在
+    const contentLower = (content.content || '').toLowerCase()
+    const titleLower = (content.title || '').toLowerCase()
+    const descriptionLower = (content.description || '').toLowerCase()
+    const h1Lower = (content.h1 || '').toLowerCase()
+
     // 8. 检查视频时长是否正确（应该是 10 秒或 15 秒，不能是 2 分钟等）
-    const incorrectDurationPatterns = [
-      /\b2\s*分钟?\b/i,
-      /\b1\s*分钟?\b/i,
-      /\b3\s*分钟?\b/i,
-      /\b4\s*分钟?\b/i,
-      /\b5\s*分钟?\b/i,
-      /\b\d+\s*分钟?\b/i, // 任何分钟数
-      /\b2\s*minute/i,
-      /\b\d+\s*minute/i, // 任何分钟数（英文）
-    ]
-    
-    const hasIncorrectDuration = incorrectDurationPatterns.some(pattern => 
-      pattern.test(contentLower) && !contentLower.includes('10 second') && !contentLower.includes('15 second')
-    )
+    // 只有在 contentLower 存在时才检查
+    let hasIncorrectDuration = false
+    if (contentLower) {
+      const incorrectDurationPatterns = [
+        /\b2\s*分钟?\b/i,
+        /\b1\s*分钟?\b/i,
+        /\b3\s*分钟?\b/i,
+        /\b4\s*分钟?\b/i,
+        /\b5\s*分钟?\b/i,
+        /\b\d+\s*分钟?\b/i, // 任何分钟数
+        /\b2\s*minute/i,
+        /\b\d+\s*minute/i, // 任何分钟数（英文）
+      ]
+      
+      try {
+        hasIncorrectDuration = incorrectDurationPatterns.some(pattern => {
+          try {
+            return pattern.test(contentLower) && !contentLower.includes('10 second') && !contentLower.includes('15 second')
+          } catch (patternError) {
+            console.error('[checkContentQuality] 正则表达式测试失败:', patternError, 'pattern:', pattern)
+            return false
+          }
+        })
+      } catch (someError) {
+        console.error('[checkContentQuality] Array.some 执行失败:', someError)
+        hasIncorrectDuration = false
+      }
+    }
     
     if (hasIncorrectDuration) {
       issues.push('incorrect_video_duration')
       score -= 20
       warnings.push('内容中提到了错误的视频时长（应该是 10 秒或 15 秒，不是分钟）')
     }
-
-    // 7. 检查内容一致性（内容是否与标题/描述匹配）
-    const contentLower = content.content.toLowerCase()
-    const titleLower = (content.title || '').toLowerCase()
-    const descriptionLower = (content.description || '').toLowerCase()
-    const h1Lower = (content.h1 || '').toLowerCase()
     
     // 提取标题和描述中的关键名词（长度 >= 3 的单词）
     const extractKeyTerms = (text: string): string[] => {
@@ -191,14 +208,32 @@ export function checkContentQuality(content: {
     }
   }
 
-  // 确保分数在 0-100 范围内
-  score = Math.max(0, Math.min(100, score))
+    // 确保分数在 0-100 范围内
+    score = Math.max(0, Math.min(100, score))
 
-  return {
-    passed: issues.length === 0 && score >= 60,
-    score,
-    issues,
-    warnings,
+    return {
+      passed: issues.length === 0 && score >= 60,
+      score,
+      issues,
+      warnings,
+    }
+  } catch (error) {
+    console.error('[checkContentQuality] 质量检查过程中发生错误:', error)
+    console.error('[checkContentQuality] 错误堆栈:', error instanceof Error ? error.stack : 'No stack trace')
+    console.error('[checkContentQuality] 输入内容:', {
+      titleLength: content.title?.length || 0,
+      h1Length: content.h1?.length || 0,
+      descriptionLength: content.description?.length || 0,
+      contentLength: content.content?.length || 0,
+      keywordsCount: content.seo_keywords?.length || 0,
+    })
+    // 返回一个安全的默认值
+    return {
+      passed: false,
+      score: 0,
+      issues: ['quality_check_error'],
+      warnings: [`质量检查失败: ${error instanceof Error ? error.message : String(error)}`],
+    }
   }
 }
 
