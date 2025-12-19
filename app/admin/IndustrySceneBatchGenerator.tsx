@@ -283,7 +283,12 @@ Do not include explanations. Output only the JSON.`
         ? scene.use_case.substring(0, 100) + '...'
         : scene.use_case
       
-      const slug = generateSlugFromText(`${industry}-${scene.use_case}`)
+      // 生成 slug，确保不会太长
+      // 使用场景描述的前 80 个字符，加上行业名称
+      const sceneText = scene.use_case.length > 80 
+        ? scene.use_case.substring(0, 80) 
+        : scene.use_case
+      const slug = generateSlugFromText(`${industry}-${sceneText}`)
       
       // 生成 H1 和描述
       const h1 = `AI Video Generation for ${scene.use_case} in ${industry}`
