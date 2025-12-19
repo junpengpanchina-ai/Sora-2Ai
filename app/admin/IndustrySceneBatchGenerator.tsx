@@ -51,16 +51,117 @@ export default function IndustrySceneBatchGenerator({
   // 同步 useCaseType 到 ref
   useCaseTypeRef.current = useCaseType
 
+  // 解析场景词内容（提取 JSON 数组）
+  const parseScenesFromContent = (content: string): SceneItem[] => {
+    try {
+      // 移除可能的 markdown 代码块标记
+      let jsonContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      
+      // 尝试提取 JSON 数组部分（从第一个 [ 到最后一个 ]）
+      const firstBracket = jsonContent.indexOf('[')
+      const lastBracket = jsonContent.lastIndexOf(']')
+      
+      if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+        jsonContent = jsonContent.substring(firstBracket, lastBracket + 1)
+      }
+      
+      // 更强大的 JSON 修复逻辑
+      // 1. 修复未终止的字符串 - 找到最后一个未配对的引号并修复
+      let fixedContent = jsonContent
+      let inString = false
+      let escapeNext = false
+      let lastValidIndex = fixedContent.length - 1
+      
+      for (let i = 0; i < fixedContent.length; i++) {
+        if (escapeNext) {
+          escapeNext = false
+          continue
+        }
+        
+        if (fixedContent[i] === '\\') {
+          escapeNext = true
+          continue
+        }
+        
+        if (fixedContent[i] === '"') {
+          inString = !inString
+        }
+        
+        // 如果遇到 } 或 ] 且不在字符串中，检查是否完整
+        if (!inString) {
+          if (fixedContent[i] === '}' || fixedContent[i] === ']') {
+            // 检查前面的内容是否完整
+            const before = fixedContent.substring(0, i + 1)
+            try {
+              JSON.parse(before)
+              lastValidIndex = i
+            } catch {
+              // 如果解析失败，尝试修复
+            }
+          }
+        }
+      }
+      
+      // 如果字符串未终止，修复它
+      if (inString) {
+        fixedContent = fixedContent.substring(0, lastValidIndex + 1) + ']'
+      } else {
+        fixedContent = fixedContent.substring(0, lastValidIndex + 1)
+      }
+      
+      // 尝试修复常见的 JSON 错误
+      // 修复缺失的逗号
+      fixedContent = fixedContent.replace(/}\s*{/g, '},{')
+      fixedContent = fixedContent.replace(/]\s*\[/g, '],[')
+      
+      // 尝试解析
+      const parsed = JSON.parse(fixedContent) as SceneItem[]
+      
+      if (!Array.isArray(parsed)) {
+        throw new Error('解析结果不是数组')
+      }
+      
+      return parsed.filter((item) => item && typeof item.use_case === 'string' && item.use_case.trim().length > 0)
+    } catch (parseError) {
+      console.error('JSON 解析失败，尝试正则表达式提取:', parseError)
+      
+      // 如果 JSON 解析失败，尝试使用正则表达式提取
+      try {
+        const matches = content.match(/"use_case"\s*:\s*"([^"]+)"/g) || []
+        if (matches.length > 0) {
+          console.log(`使用正则表达式提取了 ${matches.length} 个场景词`)
+          return matches.map((match, index) => {
+            const useCase = match.match(/"use_case"\s*:\s*"([^"]+)"/)?.[1] || ''
+            return {
+              id: index + 1,
+              use_case: useCase.replace(/\\"/g, '"').replace(/\\n/g, '\n'),
+            }
+          })
+        }
+      } catch (fallbackError) {
+        console.error('正则表达式提取也失败:', fallbackError)
+      }
+      
+      throw new Error(`无法解析生成的 JSON 数据: ${parseError instanceof Error ? parseError.message : '未知错误'}`)
+    }
+  }
+
   // 生成行业场景词（一次生成 100 条）
   const generateIndustryScenes = async (industry: string): Promise<SceneItem[]> => {
     const systemPrompt = `You are an SEO expert specializing in AI video generation use cases. Generate highly specific, practical, real-world use cases for AI video generation. All output must be in English.`
 
-    const userPrompt = `Generate ${scenesPerIndustry} highly specific, practical, real-world use cases for AI video generation for the following industry:
+    // 如果生成数量太多，分批生成（每次最多 50 条）
+    const batchSize = Math.min(scenesPerIndustry, 50)
+    const batches = Math.ceil(scenesPerIndustry / batchSize)
+    
+    console.log(`[${industry}] 将分 ${batches} 批生成，每批 ${batchSize} 条`)
+
+    const userPrompt = `Generate ${batchSize} highly specific, practical, real-world use cases for AI video generation for the following industry:
 
 Industry: ${industry}
 
 Requirements:
-- ${scenesPerIndustry} use cases
+- ${batchSize} use cases
 - Each use case = 300–500 characters (detailed scenario description)
 - Must be specific, not generic
 - Must be real-world scenarios where AI video creation is actually needed
@@ -74,26 +175,152 @@ Requirements:
   {"id": 1, "use_case": "Detailed 300-500 character description including scenario, pain point, why AI video, and example prompt"},
   {"id": 2, "use_case": "..."},
   ...
-  {"id": ${scenesPerIndustry}, "use_case": "..."}
+  {"id": ${batchSize}, "use_case": "..."}
 ]
 Do not include explanations. Output only the JSON.`
+
+    const promptSize = (systemPrompt + userPrompt).length
+    console.log(`[${industry}] Prompt 大小: ${promptSize} 字符`)
+    
+    if (promptSize > 50000) {
+      console.warn(`[${industry}] Prompt 过大 (${promptSize} 字符)，可能导致 API 错误`)
+    }
+
+    // 如果数量超过 50，分批生成
+    if (scenesPerIndustry > 50) {
+      const allScenes: SceneItem[] = []
+      for (let batch = 0; batch < batches; batch++) {
+        const currentBatchSize = batch === batches - 1 
+          ? scenesPerIndustry - (batch * batchSize) 
+          : batchSize
+        
+        const batchUserPrompt = `Generate ${currentBatchSize} highly specific, practical, real-world use cases for AI video generation for the following industry:
+
+Industry: ${industry}
+
+Requirements:
+- ${currentBatchSize} use cases
+- Each use case = 300–500 characters (detailed scenario description)
+- Must be specific, not generic
+- Must be real-world scenarios where AI video creation is actually needed
+- Each use case should describe:
+  1. The specific scenario/situation
+  2. The pain point or challenge
+  3. Why AI video is suitable for this scenario
+  4. A brief example prompt idea
+- Format as a clean JSON array: 
+[
+  {"id": 1, "use_case": "Detailed 300-500 character description including scenario, pain point, why AI video, and example prompt"},
+  {"id": 2, "use_case": "..."},
+  ...
+  {"id": ${currentBatchSize}, "use_case": "..."}
+]
+Do not include explanations. Output only the JSON.`
+
+        console.log(`[${industry}] 生成第 ${batch + 1}/${batches} 批 (${currentBatchSize} 条)...`)
+        
+        const requestBody = {
+          model: 'gemini-2.5-flash',
+          stream: false,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: batchUserPrompt },
+          ],
+        }
+
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        })
+
+        if (!response.ok) {
+          let errorData: { error?: string; message?: string; details?: string } = {}
+          try {
+            const text = await response.text()
+            errorData = text ? JSON.parse(text) : {}
+          } catch (e) {
+            console.error(`[${industry}] 解析错误响应失败:`, e)
+          }
+          
+          console.error(`[${industry}] API 请求失败 (批次 ${batch + 1}):`, {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData.error || errorData.message || '未知错误',
+            details: errorData.details,
+          })
+          
+          throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        
+        if (data.success && data.data) {
+          const content = data.data.choices?.[0]?.message?.content || ''
+          if (!content) {
+            throw new Error('生成的内容为空')
+          }
+
+          // 解析 JSON
+          const batchScenes = parseScenesFromContent(content)
+          // 调整 ID 以保持连续性
+          batchScenes.forEach((scene, idx) => {
+            scene.id = batch * batchSize + idx + 1
+          })
+          allScenes.push(...batchScenes)
+          
+          // 批次之间稍作延迟
+          if (batch < batches - 1) {
+            await new Promise((resolve) => setTimeout(resolve, 1000))
+          }
+        } else {
+          throw new Error('API 响应格式错误')
+        }
+      }
+      
+      return allScenes
+    }
+
+    // 单批生成（50 条或更少）
+    const requestBody = {
+      model: 'gemini-2.5-flash',
+      stream: false,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+    }
+
+    console.log(`[${industry}] 发送 API 请求:`, {
+      model: requestBody.model,
+      messagesCount: requestBody.messages.length,
+      systemPromptLength: systemPrompt.length,
+      userPromptLength: userPrompt.length,
+    })
 
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'gemini-2.5-flash',
-        stream: false,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.error || `HTTP ${response.status}`)
+      let errorData: { error?: string; message?: string; details?: string } = {}
+      try {
+        const text = await response.text()
+        errorData = text ? JSON.parse(text) : {}
+      } catch (e) {
+        console.error(`[${industry}] 解析错误响应失败:`, e)
+      }
+      
+      console.error(`[${industry}] API 请求失败:`, {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData.error || errorData.message || '未知错误',
+        details: errorData.details,
+      })
+      
+      throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`)
     }
 
     const data = await response.json()
@@ -104,171 +331,33 @@ Do not include explanations. Output only the JSON.`
         throw new Error('生成的内容为空')
       }
 
-      // 解析 JSON - 使用更强大的解析逻辑
+      // 使用统一的解析函数
       try {
-        // 移除可能的 markdown 代码块标记
-        let jsonContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-        
-        // 尝试提取 JSON 数组部分（从第一个 [ 到最后一个 ]）
-        const firstBracket = jsonContent.indexOf('[')
-        const lastBracket = jsonContent.lastIndexOf(']')
-        
-        if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
-          jsonContent = jsonContent.substring(firstBracket, lastBracket + 1)
-        }
-        
-        // 更强大的 JSON 修复逻辑
-        // 1. 修复未终止的字符串 - 找到最后一个未配对的引号并修复
-        let fixedContent = jsonContent
-        let inString = false
-        let escapeNext = false
-        let lastValidIndex = fixedContent.length - 1
-        
-        for (let i = 0; i < fixedContent.length; i++) {
-          if (escapeNext) {
-            escapeNext = false
-            continue
-          }
-          
-          if (fixedContent[i] === '\\') {
-            escapeNext = true
-            continue
-          }
-          
-          if (fixedContent[i] === '"') {
-            inString = !inString
-          }
-          
-          // 如果遇到 } 或 ] 且不在字符串中，检查是否完整
-          if (!inString) {
-            if (fixedContent[i] === '}' || fixedContent[i] === ']') {
-              // 检查前面的内容是否完整
-              const before = fixedContent.substring(0, i + 1)
-              try {
-                // 尝试解析到当前位置
-                JSON.parse(before)
-                lastValidIndex = i
-              } catch {
-                // 如果解析失败，说明前面的内容不完整，截断到这里
-                break
-              }
-            }
-          }
-        }
-        
-        // 如果字符串未终止，修复它
-        if (inString) {
-          // 找到最后一个引号的位置
-          const lastQuoteIndex = fixedContent.lastIndexOf('"')
-          if (lastQuoteIndex > 0) {
-            // 检查这个引号是否被转义
-            let escapeCount = 0
-            for (let i = lastQuoteIndex - 1; i >= 0 && fixedContent[i] === '\\'; i--) {
-              escapeCount++
-            }
-            // 如果转义次数是偶数，说明这个引号是字符串的开始，需要添加结束引号
-            if (escapeCount % 2 === 0) {
-              fixedContent = fixedContent.substring(0, lastValidIndex + 1)
-              // 尝试找到最后一个对象的结束位置
-              const lastBrace = fixedContent.lastIndexOf('}')
-              if (lastBrace !== -1) {
-                fixedContent = fixedContent.substring(0, lastBrace + 1)
-                // 如果是在数组中，添加 ]
-                if (fixedContent.includes('[')) {
-                  fixedContent = fixedContent + ']'
-                }
-              }
-            }
-          }
-        } else {
-          fixedContent = fixedContent.substring(0, lastValidIndex + 1)
-        }
-        
-        // 2. 修复缺少的逗号
-        fixedContent = fixedContent.replace(/}\s*{/g, '},{')
-        fixedContent = fixedContent.replace(/}\s*"/g, '},"')
-        fixedContent = fixedContent.replace(/]\s*{/g, '],{')
-        
-        // 3. 确保数组结构完整
-        if (!fixedContent.endsWith(']')) {
-          // 尝试找到最后一个完整的对象
-          const lastCompleteObject = fixedContent.lastIndexOf('}')
-          if (lastCompleteObject !== -1) {
-            fixedContent = fixedContent.substring(0, lastCompleteObject + 1) + ']'
-          }
-        }
-        
-        // 4. 尝试解析修复后的 JSON
-        let scenes: SceneItem[] = []
-        try {
-          scenes = JSON.parse(fixedContent) as SceneItem[]
-        } catch {
-          // 如果仍然失败，使用正则表达式提取
-          const useCasePattern = /"use_case"\s*:\s*"((?:[^"\\]|\\.)*)"/g
-          const matches: string[] = []
-          let match
-          while ((match = useCasePattern.exec(jsonContent)) !== null) {
-            matches.push(match[1].replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\/g, ''))
-          }
-          
-          if (matches.length > 0) {
-            scenes = matches.map((useCase, index) => ({
-              id: index + 1,
-              use_case: useCase,
-            }))
-          } else {
-            throw new Error('无法从内容中提取场景词')
-          }
-        }
+        const scenes = parseScenesFromContent(content)
         
         // 验证和过滤场景词
-        if (!Array.isArray(scenes)) {
-          throw new Error('解析结果不是数组')
+        if (!Array.isArray(scenes) || scenes.length === 0) {
+          throw new Error('解析后的场景词数组为空')
         }
         
         // 确保每个场景词都有有效的 use_case
-        scenes = scenes
+        const validScenes = scenes
           .filter((scene) => scene && scene.use_case && scene.use_case.trim().length > 50)
           .slice(0, scenesPerIndustry) // 限制数量
         
-        if (scenes.length === 0) {
+        if (validScenes.length === 0) {
           throw new Error('过滤后的场景词数组为空')
         }
 
-        return scenes
+        return validScenes
       } catch (parseError) {
-        console.error('解析 JSON 失败:', parseError)
-        console.error('原始内容长度:', content.length)
-        console.error('原始内容前 2000 字符:', content.substring(0, 2000))
-        console.error('原始内容后 1000 字符:', content.substring(Math.max(0, content.length - 1000)))
-        
-        // 最后尝试：使用正则表达式提取所有可能的 use_case
-        try {
-          const useCasePattern = /"use_case"\s*:\s*"((?:[^"\\]|\\.)*)"/g
-          const matches: string[] = []
-          let match
-          while ((match = useCasePattern.exec(content)) !== null) {
-            const useCase = match[1]
-              .replace(/\\"/g, '"')
-              .replace(/\\n/g, '\n')
-              .replace(/\\\\/g, '\\')
-            if (useCase.length > 50) {
-              matches.push(useCase)
-            }
-          }
-          
-          if (matches.length > 0) {
-            console.log(`使用正则表达式提取了 ${matches.length} 个场景词`)
-            return matches.map((useCase, index) => ({
-              id: index + 1,
-              use_case: useCase,
-            }))
-          }
-        } catch (fallbackError) {
-          console.error('正则表达式提取也失败:', fallbackError)
-        }
-        
-        throw new Error(`无法解析生成的 JSON 数据: ${parseError instanceof Error ? parseError.message : '未知错误'}`)
+        console.error(`[${industry}] 解析场景词失败:`, {
+          error: parseError instanceof Error ? parseError.message : String(parseError),
+          contentLength: content.length,
+          contentPreview: content.substring(0, 500),
+        })
+        // parseScenesFromContent 已经包含了所有解析逻辑，如果失败就直接抛出
+        throw parseError
       }
     }
 
@@ -529,11 +618,41 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
             break // 成功，退出重试循环
           } catch (genError) {
             generationRetries++
+            const errorMessage = genError instanceof Error ? genError.message : '未知错误'
+            const isServerError = errorMessage.includes('500') || errorMessage.includes('服务器错误')
+            
+            console.error(`[${task.industry}] 生成场景词失败:`, {
+              error: errorMessage,
+              attempt: generationRetries,
+              maxRetries: maxGenerationRetries,
+              isServerError,
+            })
+            
             if (generationRetries > maxGenerationRetries) {
-              throw genError // 超过重试次数，抛出错误
+              // 超过重试次数，更新任务状态并抛出错误
+              const friendlyError = isServerError 
+                ? 'API 服务暂时不可用，请稍后重试'
+                : `生成失败: ${errorMessage}`
+              
+              setTasks((prev) => {
+                const updated = [...prev]
+                updated[i] = { 
+                  ...updated[i], 
+                  status: 'failed', 
+                  error: friendlyError
+                }
+                return updated
+              })
+              throw genError
             }
-            console.warn(`[${task.industry}] 生成场景词失败，${2000 * generationRetries}ms 后重试 (${generationRetries}/${maxGenerationRetries})...`)
-            await new Promise((resolve) => setTimeout(resolve, 2000 * generationRetries))
+            
+            // 如果是服务器错误，使用更长的延迟
+            const retryDelay = isServerError 
+              ? 5000 * generationRetries // 服务器错误：5秒、10秒、15秒
+              : 2000 * generationRetries // 其他错误：2秒、4秒、6秒
+            
+            console.warn(`[${task.industry}] 生成场景词失败，${retryDelay}ms 后重试 (${generationRetries}/${maxGenerationRetries})...`)
+            await new Promise((resolve) => setTimeout(resolve, retryDelay))
           }
         }
         
@@ -638,12 +757,29 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : '未知错误'
-        console.error(`[${task.industry}] 生成失败:`, errorMessage)
+        console.error(`[${task.industry}] 处理失败:`, {
+          error: errorMessage,
+          stack: error instanceof Error ? error.stack : undefined,
+        })
+        
+        // 提供更友好的错误信息
+        let friendlyError = errorMessage
+        if (errorMessage.includes('API Key')) {
+          friendlyError = 'API Key 未配置，请检查环境变量'
+        } else if (errorMessage.includes('超时')) {
+          friendlyError = '请求超时，请稍后重试'
+        } else if (errorMessage.includes('连接失败') || errorMessage.includes('500')) {
+          friendlyError = 'API 服务暂时不可用，请稍后重试'
+        }
+        
         setTasks((prev) => {
           const updated = [...prev]
-          updated[i] = { ...updated[i], status: 'failed', error: errorMessage }
+          updated[i] = { ...updated[i], status: 'failed', error: friendlyError }
           return updated
         })
+        
+        // 显示错误提示
+        onShowBanner('error', `[${task.industry}] ${friendlyError}`)
       }
     }
 
