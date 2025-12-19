@@ -65,36 +65,100 @@ export interface GrsaiResultResponse {
 }
 
 /**
- * 创建 Sora-2 视频生成任务
+ * 创建 Sora-2 视频生成任务（带重试机制）
  */
 export async function createSoraVideoTask(
-  params: SoraVideoRequest
+  params: SoraVideoRequest,
+  retryCount = 0
 ): Promise<SoraVideoResponse | GrsaiTaskIdResponse> {
+  const MAX_RETRIES = 3
+  const RETRY_DELAY = 1000 * (retryCount + 1) // 递增延迟：1s, 2s, 3s
+  const TIMEOUT = 60000 // 60秒超时（增加超时时间）
+  
   const apiKey = getGrsaiApiKey()
   const host = getGrsaiHost()
   
   // Log request details for debugging (without sensitive info)
-  console.log('[Grsai API] Creating video task:', {
-    host,
-    model: params.model,
-    aspectRatio: params.aspectRatio,
-    duration: params.duration,
-    size: params.size,
-    hasPrompt: !!params.prompt,
-    promptLength: params.prompt?.length,
-    hasUrl: !!params.url,
-    webHook: params.webHook ? (params.webHook === '-1' ? 'polling' : 'webhook') : 'none',
-    apiKeyPrefix: apiKey.substring(0, 10) + '...',
-  })
+  if (retryCount === 0) {
+    console.log('[Grsai API] Creating video task:', {
+      host,
+      model: params.model,
+      aspectRatio: params.aspectRatio,
+      duration: params.duration,
+      size: params.size,
+      hasPrompt: !!params.prompt,
+      promptLength: params.prompt?.length,
+      hasUrl: !!params.url,
+      webHook: params.webHook ? (params.webHook === '-1' ? 'polling' : 'webhook') : 'none',
+      apiKeyPrefix: apiKey.substring(0, 10) + '...',
+    })
+  } else {
+    console.log(`[Grsai API] Retrying video task (attempt ${retryCount + 1}/${MAX_RETRIES}):`, {
+      host,
+      retryCount,
+      delay: RETRY_DELAY,
+    })
+  }
   
-  const response = await fetch(`${host}/v1/video/sora-video`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(params),
-  })
+  // 添加超时控制（60秒）
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT)
+
+  let response: Response
+  try {
+    response = await fetch(`${host}/v1/video/sora-video`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(params),
+      signal: controller.signal,
+      // 添加 keepalive 选项，保持连接
+      keepalive: true,
+    })
+    clearTimeout(timeoutId)
+  } catch (fetchError) {
+    clearTimeout(timeoutId)
+    
+    // 如果是网络错误且还有重试次数，进行重试
+    const isNetworkError = fetchError instanceof Error && (
+      fetchError.name === 'AbortError' ||
+      fetchError.message.includes('fetch failed') ||
+      fetchError.message.includes('ECONNREFUSED') ||
+      fetchError.message.includes('ENOTFOUND') ||
+      fetchError.message.includes('getaddrinfo') ||
+      fetchError.message.includes('ECONNRESET') ||
+      fetchError.message.includes('socket hang up')
+    )
+    
+    if (isNetworkError && retryCount < MAX_RETRIES) {
+      console.warn(`[Grsai API] Network error detected, retrying in ${RETRY_DELAY}ms...`, {
+        error: fetchError instanceof Error ? fetchError.message : String(fetchError),
+        retryCount: retryCount + 1,
+        maxRetries: MAX_RETRIES,
+      })
+      
+      // 等待后重试
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
+      return createSoraVideoTask(params, retryCount + 1)
+    }
+    
+    // 处理网络错误（不再重试）
+    if (fetchError instanceof Error) {
+      if (fetchError.name === 'AbortError') {
+        throw new Error(`Grsai API 请求超时（${TIMEOUT / 1000}秒），请检查网络连接或稍后重试`)
+      } else if (fetchError.message.includes('fetch failed') || fetchError.message.includes('ECONNREFUSED')) {
+        throw new Error('Grsai API 连接失败，请检查网络连接或 API 服务是否可用')
+      } else if (fetchError.message.includes('ENOTFOUND') || fetchError.message.includes('getaddrinfo')) {
+        throw new Error('Grsai API 域名解析失败，请检查网络连接')
+      } else if (fetchError.message.includes('ECONNRESET') || fetchError.message.includes('socket hang up')) {
+        throw new Error('Grsai API 连接被重置，可能是网络不稳定，请稍后重试')
+      }
+    }
+    
+    throw new Error(`Grsai API 请求失败: ${fetchError instanceof Error ? fetchError.message : '未知错误'}`)
+  }
 
   if (!response.ok) {
     const errorText = await response.text()
@@ -274,21 +338,85 @@ export interface ChatCompletionResponse {
 }
 
 /**
- * 调用 GRSAI Chat API（非流式）
+ * 调用 GRSAI Chat API（非流式，带重试机制）
  */
 export async function createChatCompletion(
-  params: ChatCompletionRequest
+  params: ChatCompletionRequest,
+  retryCount = 0
 ): Promise<ChatCompletionResponse> {
+  const MAX_RETRIES = 3
+  const RETRY_DELAY = 1000 * (retryCount + 1) // 递增延迟：1s, 2s, 3s
+  const TIMEOUT = 60000 // 60秒超时
+  
   const apiKey = getGrsaiApiKey()
   const host = getGrsaiChatHost()
-  const response = await fetch(`${host}/v1/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(params),
-  })
+  
+  if (retryCount > 0) {
+    console.log(`[Grsai Chat API] 重试请求 (尝试 ${retryCount + 1}/${MAX_RETRIES}):`, {
+      host,
+      model: params.model,
+      retryCount,
+      delay: RETRY_DELAY,
+    })
+  }
+  
+  // 添加超时控制
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT)
+
+  let response: Response
+  try {
+    response = await fetch(`${host}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(params),
+      signal: controller.signal,
+      keepalive: true,
+    })
+    clearTimeout(timeoutId)
+  } catch (fetchError) {
+    clearTimeout(timeoutId)
+    
+    // 如果是网络错误且还有重试次数，进行重试
+    const isNetworkError = fetchError instanceof Error && (
+      fetchError.name === 'AbortError' ||
+      fetchError.message.includes('fetch failed') ||
+      fetchError.message.includes('ECONNREFUSED') ||
+      fetchError.message.includes('ENOTFOUND') ||
+      fetchError.message.includes('getaddrinfo') ||
+      fetchError.message.includes('ECONNRESET') ||
+      fetchError.message.includes('socket hang up')
+    )
+    
+    if (isNetworkError && retryCount < MAX_RETRIES) {
+      console.warn(`[Grsai Chat API] 网络错误，${RETRY_DELAY}ms 后重试...`, {
+        error: fetchError instanceof Error ? fetchError.message : String(fetchError),
+        retryCount: retryCount + 1,
+        maxRetries: MAX_RETRIES,
+      })
+      
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
+      return createChatCompletion(params, retryCount + 1)
+    }
+    
+    // 处理网络错误（不再重试）
+    if (fetchError instanceof Error) {
+      if (fetchError.name === 'AbortError') {
+        throw new Error(`Grsai Chat API 请求超时（${TIMEOUT / 1000}秒），请检查网络连接或稍后重试`)
+      } else if (fetchError.message.includes('fetch failed') || fetchError.message.includes('ECONNREFUSED')) {
+        throw new Error('Grsai Chat API 连接失败，请检查网络连接或 API 服务是否可用')
+      } else if (fetchError.message.includes('ENOTFOUND') || fetchError.message.includes('getaddrinfo')) {
+        throw new Error('Grsai Chat API 域名解析失败，请检查网络连接')
+      } else if (fetchError.message.includes('ECONNRESET') || fetchError.message.includes('socket hang up')) {
+        throw new Error('Grsai Chat API 连接被重置，可能是网络不稳定，请稍后重试')
+      }
+    }
+    
+    throw new Error(`Grsai Chat API 请求失败: ${fetchError instanceof Error ? fetchError.message : '未知错误'}`)
+  }
 
   if (!response.ok) {
     const errorText = await response.text()
@@ -299,7 +427,15 @@ export async function createChatCompletion(
       errorText,
       model: params.model,
       messagesCount: params.messages.length,
+      retryCount,
     })
+    
+    // 如果是服务器错误（5xx）且还有重试次数，进行重试
+    if ((response.status >= 500 && response.status < 600) && retryCount < MAX_RETRIES) {
+      console.warn(`[Grsai Chat API] 服务器错误 ${response.status}，${RETRY_DELAY}ms 后重试...`)
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
+      return createChatCompletion(params, retryCount + 1)
+    }
     
     let errorMessage = `Grsai Chat API 错误: ${response.status}`
     try {
@@ -332,25 +468,100 @@ export async function createChatCompletion(
 }
 
 /**
- * 调用 GRSAI Chat API（流式）
+ * 调用 GRSAI Chat API（流式，带重试机制）
  * 返回一个异步生成器，用于处理流式响应
  */
 export async function* createChatCompletionStream(
-  params: ChatCompletionRequest
+  params: ChatCompletionRequest,
+  retryCount = 0
 ): AsyncGenerator<ChatCompletionResponse, void, unknown> {
+  const MAX_RETRIES = 3
+  const RETRY_DELAY = 1000 * (retryCount + 1) // 递增延迟：1s, 2s, 3s
+  const TIMEOUT = 60000 // 60秒超时
+  
   const apiKey = getGrsaiApiKey()
   const host = getGrsaiChatHost()
-  const response = await fetch(`${host}/v1/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({ ...params, stream: true }),
-  })
+  
+  if (retryCount > 0) {
+    console.log(`[Grsai Chat API Stream] 重试请求 (尝试 ${retryCount + 1}/${MAX_RETRIES}):`, {
+      host,
+      model: params.model,
+      retryCount,
+      delay: RETRY_DELAY,
+    })
+  }
+  
+  // 添加超时控制
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT)
+
+  let response: Response
+  try {
+    response = await fetch(`${host}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ ...params, stream: true }),
+      signal: controller.signal,
+      keepalive: true,
+    })
+    clearTimeout(timeoutId)
+  } catch (fetchError) {
+    clearTimeout(timeoutId)
+    
+    // 如果是网络错误且还有重试次数，进行重试
+    const isNetworkError = fetchError instanceof Error && (
+      fetchError.name === 'AbortError' ||
+      fetchError.message.includes('fetch failed') ||
+      fetchError.message.includes('ECONNREFUSED') ||
+      fetchError.message.includes('ENOTFOUND') ||
+      fetchError.message.includes('getaddrinfo') ||
+      fetchError.message.includes('ECONNRESET') ||
+      fetchError.message.includes('socket hang up')
+    )
+    
+    if (isNetworkError && retryCount < MAX_RETRIES) {
+      console.warn(`[Grsai Chat API Stream] 网络错误，${RETRY_DELAY}ms 后重试...`, {
+        error: fetchError instanceof Error ? fetchError.message : String(fetchError),
+        retryCount: retryCount + 1,
+        maxRetries: MAX_RETRIES,
+      })
+      
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
+      // 递归重试
+      yield* createChatCompletionStream(params, retryCount + 1)
+      return
+    }
+    
+    // 处理网络错误（不再重试）
+    if (fetchError instanceof Error) {
+      if (fetchError.name === 'AbortError') {
+        throw new Error(`Grsai Chat API 流式请求超时（${TIMEOUT / 1000}秒），请检查网络连接或稍后重试`)
+      } else if (fetchError.message.includes('fetch failed') || fetchError.message.includes('ECONNREFUSED')) {
+        throw new Error('Grsai Chat API 连接失败，请检查网络连接或 API 服务是否可用')
+      } else if (fetchError.message.includes('ENOTFOUND') || fetchError.message.includes('getaddrinfo')) {
+        throw new Error('Grsai Chat API 域名解析失败，请检查网络连接')
+      } else if (fetchError.message.includes('ECONNRESET') || fetchError.message.includes('socket hang up')) {
+        throw new Error('Grsai Chat API 连接被重置，可能是网络不稳定，请稍后重试')
+      }
+    }
+    
+    throw new Error(`Grsai Chat API 流式请求失败: ${fetchError instanceof Error ? fetchError.message : '未知错误'}`)
+  }
 
   if (!response.ok) {
     const errorText = await response.text()
+    
+    // 如果是服务器错误（5xx）且还有重试次数，进行重试
+    if ((response.status >= 500 && response.status < 600) && retryCount < MAX_RETRIES) {
+      console.warn(`[Grsai Chat API Stream] 服务器错误 ${response.status}，${RETRY_DELAY}ms 后重试...`)
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
+      yield* createChatCompletionStream(params, retryCount + 1)
+      return
+    }
+    
     throw new Error(`Grsai Chat API 错误: ${response.status} - ${errorText}`)
   }
 

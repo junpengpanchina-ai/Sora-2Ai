@@ -9,6 +9,7 @@ import { checkContentQuality } from '@/lib/utils/content-quality'
 interface IndustrySceneBatchGeneratorProps {
   onShowBanner: (type: 'success' | 'error' | 'info', text: string) => void
   onGenerated: () => void
+  onFilterChange?: (type: string, industry: string) => void
 }
 
 interface SceneItem {
@@ -33,6 +34,7 @@ interface IndustryTask {
 export default function IndustrySceneBatchGenerator({
   onShowBanner,
   onGenerated,
+  onFilterChange,
 }: IndustrySceneBatchGeneratorProps) {
   const [selectedIndustries, setSelectedIndustries] = useState<string[]>([])
   const [scenesPerIndustry, setScenesPerIndustry] = useState<number>(100)
@@ -295,11 +297,21 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
           industry,
           is_published: isPublished,
           seo_keywords: [scene.use_case, industry, `${industry} AI video`],
-          quality_status: qualityStatus,
-          quality_score: qualityCheck.score,
-          quality_issues: qualityCheck.issues,
-        }),
+        quality_status: qualityStatus,
+        quality_score: qualityCheck.score,
+        quality_issues: qualityCheck.issues,
+      }),
+    })
+    
+    // 调试日志：确认保存的数据
+    if (retryCount === 0) {
+      console.log(`[${industry}] 保存场景词成功:`, {
+        slug,
+        use_case_type: useCaseType,
+        industry,
+        title: title.substring(0, 50),
       })
+    }
 
       if (!response.ok) {
         // 如果是网络错误或连接关闭，尝试重试
@@ -460,8 +472,16 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
     if (shouldStop) {
       onShowBanner('info', `批量生成已终止：已保存 ${totalSaved} 条场景词`)
     } else {
-      onShowBanner('success', `批量生成完成：已保存 ${totalSaved} 条场景词`)
-      onGenerated()
+      onShowBanner('success', `批量生成完成：已保存 ${totalSaved} 条场景词（使用场景类型：${useCaseType}）`)
+      // 延迟一下再刷新，确保数据库已保存
+      setTimeout(() => {
+        onGenerated()
+        // 如果有筛选回调，自动应用生成时选择的筛选条件
+        if (onFilterChange && selectedIndustries.length > 0) {
+          // 应用使用场景类型筛选
+          onFilterChange(useCaseType, selectedIndustries[0]) // 使用第一个行业作为默认筛选
+        }
+      }, 500)
     }
   }
 

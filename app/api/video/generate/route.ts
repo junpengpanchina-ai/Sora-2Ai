@@ -193,6 +193,15 @@ export async function POST(request: NextRequest) {
         userFriendlyError = 'API 请求频率过高，请稍后重试。'
       } else if (errorMessage.includes('500') || errorMessage.includes('502') || errorMessage.includes('503')) {
         userFriendlyError = 'API 服务暂时不可用，请稍后重试。'
+      } else if (
+        errorMessage.includes('fetch failed') ||
+        errorMessage.includes('连接失败') ||
+        errorMessage.includes('连接被重置') ||
+        errorMessage.includes('ECONNRESET') ||
+        errorMessage.includes('socket hang up') ||
+        errorMessage.includes('请求超时')
+      ) {
+        userFriendlyError = '网络连接问题，系统已自动重试。如果问题持续，请检查网络连接或稍后重试。'
       }
       
       return NextResponse.json(

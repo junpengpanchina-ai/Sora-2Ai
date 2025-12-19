@@ -264,8 +264,30 @@ export default async function UseCasePage({ params }: { params: { slug: string }
     articleBody: useCase.content,
   }
 
-  // 提取主关键词用于工具嵌入
-  const mainKeyword = useCase.seo_keywords?.[0] || useCase.title
+  // 从使用场景中提取简洁的默认 prompt（用于视频生成）
+  // 只提取核心关键词，生成简洁的提示词（50-100字符）
+  const getDefaultPrompt = (): string => {
+    // 优先使用标题，生成简洁的提示词
+    const title = useCase.title.toLowerCase()
+    
+    // 从标题中提取核心关键词（移除常见词汇）
+    const keywords = title
+      .replace(/\b(ai|video|generation|for|how|to|use|create|make|generate)\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+    
+    // 如果有关键词，生成简洁的提示词
+    if (keywords && keywords.length > 5) {
+      // 限制在80字符以内，简洁明了
+      const shortKeywords = keywords.length > 50 ? keywords.substring(0, 50) + '...' : keywords
+      return `Create a professional ${shortKeywords} video with high-quality visuals and smooth transitions`
+    }
+    
+    // 如果标题太短，使用通用格式
+    return `Create a professional ${title} video with engaging visuals`
+  }
+
+  const defaultPrompt = getDefaultPrompt()
 
   // 解析 Markdown 内容，按照 H2 标题分割
   const contentSections = parseMarkdownSections(useCase.content)
@@ -294,6 +316,20 @@ export default async function UseCasePage({ params }: { params: { slug: string }
             {useCase.description && (
               <p className="mt-4 max-w-3xl text-lg text-blue-100/80">{useCase.description}</p>
             )}
+            
+            {/* 醒目的视频生成 CTA 按钮 */}
+            <div className="mt-6">
+              <a
+                href="#video-generator"
+                className="inline-flex items-center gap-2 rounded-full bg-energy-water px-6 py-3 text-base font-semibold text-white shadow-lg transition hover:bg-energy-water-deep hover:shadow-xl"
+              >
+                <span>🎬</span>
+                <span>Generate Video Now</span>
+                <span>→</span>
+              </a>
+              <p className="mt-2 text-sm text-blue-100/70">Free to try • No credit card required</p>
+            </div>
+            
             <div className="mt-6 flex flex-wrap gap-3 text-xs text-white/70">
               <span className="rounded-full border border-white/30 px-3 py-1">Use Case: {useCase.title}</span>
               <span className="rounded-full border border-white/30 px-3 py-1">
@@ -390,7 +426,9 @@ export default async function UseCasePage({ params }: { params: { slug: string }
             {/* Right Column - Sidebar */}
             <div className="space-y-8">
               {/* Video Generator Tool Embed */}
-              <UseCaseToolEmbed defaultPrompt={mainKeyword} useCaseTitle={useCase.title} />
+              <div id="video-generator" className="scroll-mt-20">
+                <UseCaseToolEmbed defaultPrompt={defaultPrompt} useCaseTitle={useCase.title} />
+              </div>
 
               {/* Key Points */}
               <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70">

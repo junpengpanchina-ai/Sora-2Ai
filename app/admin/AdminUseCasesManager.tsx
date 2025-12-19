@@ -5,7 +5,6 @@ import { useSearchParams } from 'next/navigation'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from '@/components/ui'
 import TextRecognitionArea from '@/components/admin/TextRecognitionArea'
 import { parseUseCaseText } from '@/lib/text-recognition/use-case'
-import UseCaseBatchGenerator from './UseCaseBatchGenerator'
 import IndustrySceneBatchGenerator from './IndustrySceneBatchGenerator'
 
 interface AdminUseCasesManagerProps {
@@ -490,10 +489,24 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
     <div className="space-y-6">
       {/* 批量生成组件 */}
       {/* 行业场景词批量生成器（10,000 条内容计划） */}
-      <IndustrySceneBatchGenerator onShowBanner={onShowBanner} onGenerated={fetchUseCases} />
-      
-      {/* 基于热搜词的批量生成器 */}
-      <UseCaseBatchGenerator onShowBanner={onShowBanner} onGenerated={fetchUseCases} />
+      <IndustrySceneBatchGenerator 
+        onShowBanner={onShowBanner} 
+        onGenerated={fetchUseCases}
+        onFilterChange={(type, industry) => {
+          // 批量生成后，自动应用筛选条件
+          console.log('批量生成完成，自动应用筛选条件:', { type, industry })
+          setTypeFilter(type)
+          if (industry) {
+            setIndustryFilter(industry)
+          }
+          // 由于 fetchUseCases 依赖于 typeFilter 和 industryFilter，
+          // 设置这些值后会自动触发重新获取
+          // 但为了确保立即刷新，我们也手动调用一次
+          setTimeout(() => {
+            fetchUseCases()
+          }, 200)
+        }}
+      />
 
       <Card>
         <CardHeader>
