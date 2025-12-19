@@ -13,20 +13,28 @@ type UseCaseRow = Database['public']['Tables']['use_cases']['Row']
 // 从数据库获取使用场景
 const getUseCaseBySlug = cache(async (slug: string) => {
   try {
-    // 使用 service client 避免 cookies，支持静态生成
+    // 验证 slug 基本有效性（不为空）
+    if (!slug || typeof slug !== 'string' || slug.trim().length === 0) {
+      console.warn('[getUseCaseBySlug] 无效的 slug:', slug)
+      return null
+    }
+
+    const trimmedSlug = slug.trim()
+
+    // 使用 service client 避免 cookies，支持静态生成和动态渲染
     const supabase = await createServiceClient()
     
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
       .from('use_cases')
       .select('*')
-      .eq('slug', slug)
+      .eq('slug', trimmedSlug)
       .eq('is_published', true)
       .maybeSingle()
 
     if (error) {
       console.error('[getUseCaseBySlug] 查询错误:', {
-        slug,
+        slug: trimmedSlug,
         error: error.message,
         code: error.code,
         details: error.details,
@@ -36,11 +44,34 @@ const getUseCaseBySlug = cache(async (slug: string) => {
     }
 
     if (!data) {
-      console.warn('[getUseCaseBySlug] 未找到使用场景:', slug)
+      console.warn('[getUseCaseBySlug] 未找到使用场景:', trimmedSlug)
       return null
     }
 
-    return data as UseCaseRow
+    // 验证必要字段
+    const useCase = data as UseCaseRow
+    if (!useCase.slug || !useCase.title || !useCase.content) {
+      console.warn('[getUseCaseBySlug] 使用场景数据不完整:', {
+        slug: trimmedSlug,
+        hasSlug: !!useCase.slug,
+        hasTitle: !!useCase.title,
+        hasContent: !!useCase.content,
+      })
+      return null
+    }
+
+    // 确保数组字段是有效的数组
+    if (useCase.seo_keywords && !Array.isArray(useCase.seo_keywords)) {
+      useCase.seo_keywords = []
+    }
+    if (useCase.featured_prompt_ids && !Array.isArray(useCase.featured_prompt_ids)) {
+      useCase.featured_prompt_ids = []
+    }
+    if (useCase.related_use_case_ids && !Array.isArray(useCase.related_use_case_ids)) {
+      useCase.related_use_case_ids = []
+    }
+
+    return useCase
   } catch (error) {
     console.error('[getUseCaseBySlug] 异常:', {
       slug,
@@ -254,6 +285,10 @@ export async function generateMetadata({
 
 export const revalidate = 3600 // Revalidate every hour
 
+// 允许动态渲染未在 generateStaticParams 中的 slug
+// 这样过长的 slug 可以动态渲染，而不是返回 404
+export const dynamicParams = true
+
 const USE_CASE_TYPE_LABELS: Record<string, string> = {
   marketing: 'Marketing',
   'social-media': 'Social Media',
@@ -267,18 +302,18 @@ const USE_CASE_TYPE_LABELS: Record<string, string> = {
 
 export default async function UseCasePage({ params }: { params: { slug: string } }) {
   try {
-    // 检查 slug 长度，如果太长则直接返回 404
-    // 文件系统限制：大多数系统限制文件名在 255 字符以内
-    const MAX_SLUG_LENGTH = 100
-    if (!params.slug || params.slug.length > MAX_SLUG_LENGTH) {
-      console.warn('[UseCasePage] Slug 过长或无效:', {
-        slug: params.slug,
-        length: params.slug?.length,
-      })
+    // 验证 slug 基本有效性（不为空）
+    if (!params.slug || typeof params.slug !== 'string' || params.slug.trim().length === 0) {
+      console.warn('[UseCasePage] Slug 无效:', params.slug)
       notFound()
     }
 
-    const useCase = await getUseCaseBySlug(params.slug)
+    // 注意：我们不再检查 slug 长度，因为：
+    // 1. 过长的 slug 不会被静态生成（在 generateStaticParams 中过滤）
+    // 2. 但可以通过动态渲染访问（dynamicParams = true）
+    // 3. 如果数据库中确实存在这个 use case，应该允许访问
+
+    const useCase = await getUseCaseBySlug(params.slug.trim())
     
     if (!useCase) {
       console.warn('[UseCasePage] 使用场景不存在:', params.slug)
