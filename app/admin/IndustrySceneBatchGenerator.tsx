@@ -110,67 +110,119 @@ Do not include explanations. Output only the JSON.`
           jsonContent = jsonContent.substring(firstBracket, lastBracket + 1)
         }
         
-        // 尝试修复常见的 JSON 格式错误
-        // 1. 修复未终止的字符串（在最后一个引号后添加引号）
-        const openQuotes = (jsonContent.match(/"/g) || []).length
-        if (openQuotes % 2 !== 0) {
-          // 字符串未终止，尝试修复
-          const lastQuoteIndex = jsonContent.lastIndexOf('"')
-          if (lastQuoteIndex !== -1) {
-            // 检查是否在字符串中间
-            const beforeLastQuote = jsonContent.substring(0, lastQuoteIndex)
-            const escapedQuotes = (beforeLastQuote.match(/\\"/g) || []).length
-            if (escapedQuotes % 2 === 0) {
-              // 未终止的字符串，添加结束引号
-              jsonContent = jsonContent + '"'
+        // 更强大的 JSON 修复逻辑
+        // 1. 修复未终止的字符串 - 找到最后一个未配对的引号并修复
+        let fixedContent = jsonContent
+        let inString = false
+        let escapeNext = false
+        let lastValidIndex = fixedContent.length - 1
+        
+        for (let i = 0; i < fixedContent.length; i++) {
+          if (escapeNext) {
+            escapeNext = false
+            continue
+          }
+          
+          if (fixedContent[i] === '\\') {
+            escapeNext = true
+            continue
+          }
+          
+          if (fixedContent[i] === '"') {
+            inString = !inString
+          }
+          
+          // 如果遇到 } 或 ] 且不在字符串中，检查是否完整
+          if (!inString) {
+            if (fixedContent[i] === '}' || fixedContent[i] === ']') {
+              // 检查前面的内容是否完整
+              const before = fixedContent.substring(0, i + 1)
+              try {
+                // 尝试解析到当前位置
+                JSON.parse(before)
+                lastValidIndex = i
+              } catch {
+                // 如果解析失败，说明前面的内容不完整，截断到这里
+                break
+              }
             }
           }
         }
         
-        // 2. 修复缺少的逗号（在 } 和 { 之间）
-        jsonContent = jsonContent.replace(/}\s*{/g, '},{')
-        
-        // 3. 修复缺少的逗号（在 } 和 " 之间）
-        jsonContent = jsonContent.replace(/}\s*"/g, '},"')
-        
-        // 4. 移除尾部的未完成对象
-        let bracketCount = 0
-        let lastValidIndex = jsonContent.length - 1
-        for (let i = 0; i < jsonContent.length; i++) {
-          if (jsonContent[i] === '[') bracketCount++
-          if (jsonContent[i] === ']') bracketCount--
-          if (bracketCount === 0 && jsonContent[i] === ']') {
-            lastValidIndex = i
-            break
-          }
-        }
-        jsonContent = jsonContent.substring(0, lastValidIndex + 1)
-        
-        // 尝试解析
-        let scenes = JSON.parse(jsonContent) as SceneItem[]
-        
-        // 如果解析成功但数组为空或长度不足，尝试从原始内容中提取
-        if (!Array.isArray(scenes) || scenes.length < scenesPerIndustry * 0.5) {
-          // 尝试使用正则表达式提取 use_case 字段
-          const useCaseMatches = content.match(/"use_case"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/g)
-          if (useCaseMatches && useCaseMatches.length > 0) {
-            scenes = useCaseMatches.map((match: string, index: number) => {
-              const valueMatch = match.match(/"use_case"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/)
-              const useCase = valueMatch ? valueMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n') : ''
-              return {
-                id: index + 1,
-                use_case: useCase || `Use case ${index + 1} for ${industry}`,
+        // 如果字符串未终止，修复它
+        if (inString) {
+          // 找到最后一个引号的位置
+          const lastQuoteIndex = fixedContent.lastIndexOf('"')
+          if (lastQuoteIndex > 0) {
+            // 检查这个引号是否被转义
+            let escapeCount = 0
+            for (let i = lastQuoteIndex - 1; i >= 0 && fixedContent[i] === '\\'; i--) {
+              escapeCount++
+            }
+            // 如果转义次数是偶数，说明这个引号是字符串的开始，需要添加结束引号
+            if (escapeCount % 2 === 0) {
+              fixedContent = fixedContent.substring(0, lastValidIndex + 1)
+              // 尝试找到最后一个对象的结束位置
+              const lastBrace = fixedContent.lastIndexOf('}')
+              if (lastBrace !== -1) {
+                fixedContent = fixedContent.substring(0, lastBrace + 1)
+                // 如果是在数组中，添加 ]
+                if (fixedContent.includes('[')) {
+                  fixedContent = fixedContent + ']'
+                }
               }
-            })
+            }
+          }
+        } else {
+          fixedContent = fixedContent.substring(0, lastValidIndex + 1)
+        }
+        
+        // 2. 修复缺少的逗号
+        fixedContent = fixedContent.replace(/}\s*{/g, '},{')
+        fixedContent = fixedContent.replace(/}\s*"/g, '},"')
+        fixedContent = fixedContent.replace(/]\s*{/g, '],{')
+        
+        // 3. 确保数组结构完整
+        if (!fixedContent.endsWith(']')) {
+          // 尝试找到最后一个完整的对象
+          const lastCompleteObject = fixedContent.lastIndexOf('}')
+          if (lastCompleteObject !== -1) {
+            fixedContent = fixedContent.substring(0, lastCompleteObject + 1) + ']'
           }
         }
         
-        if (!Array.isArray(scenes) || scenes.length === 0) {
-          throw new Error('解析的场景词数组为空')
+        // 4. 尝试解析修复后的 JSON
+        let scenes: SceneItem[] = []
+        try {
+          scenes = JSON.parse(fixedContent) as SceneItem[]
+        } catch {
+          // 如果仍然失败，使用正则表达式提取
+          const useCasePattern = /"use_case"\s*:\s*"((?:[^"\\]|\\.)*)"/g
+          const matches: string[] = []
+          let match
+          while ((match = useCasePattern.exec(jsonContent)) !== null) {
+            matches.push(match[1].replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\/g, ''))
+          }
+          
+          if (matches.length > 0) {
+            scenes = matches.map((useCase, index) => ({
+              id: index + 1,
+              use_case: useCase,
+            }))
+          } else {
+            throw new Error('无法从内容中提取场景词')
+          }
         }
-
+        
+        // 验证和过滤场景词
+        if (!Array.isArray(scenes)) {
+          throw new Error('解析结果不是数组')
+        }
+        
         // 确保每个场景词都有有效的 use_case
-        scenes = scenes.filter((scene) => scene.use_case && scene.use_case.trim().length > 50)
+        scenes = scenes
+          .filter((scene) => scene && scene.use_case && scene.use_case.trim().length > 50)
+          .slice(0, scenesPerIndustry) // 限制数量
         
         if (scenes.length === 0) {
           throw new Error('过滤后的场景词数组为空')
@@ -180,8 +232,35 @@ Do not include explanations. Output only the JSON.`
       } catch (parseError) {
         console.error('解析 JSON 失败:', parseError)
         console.error('原始内容长度:', content.length)
-        console.error('原始内容前 1000 字符:', content.substring(0, 1000))
-        console.error('原始内容后 500 字符:', content.substring(Math.max(0, content.length - 500)))
+        console.error('原始内容前 2000 字符:', content.substring(0, 2000))
+        console.error('原始内容后 1000 字符:', content.substring(Math.max(0, content.length - 1000)))
+        
+        // 最后尝试：使用正则表达式提取所有可能的 use_case
+        try {
+          const useCasePattern = /"use_case"\s*:\s*"((?:[^"\\]|\\.)*)"/g
+          const matches: string[] = []
+          let match
+          while ((match = useCasePattern.exec(content)) !== null) {
+            const useCase = match[1]
+              .replace(/\\"/g, '"')
+              .replace(/\\n/g, '\n')
+              .replace(/\\\\/g, '\\')
+            if (useCase.length > 50) {
+              matches.push(useCase)
+            }
+          }
+          
+          if (matches.length > 0) {
+            console.log(`使用正则表达式提取了 ${matches.length} 个场景词`)
+            return matches.map((useCase, index) => ({
+              id: index + 1,
+              use_case: useCase,
+            }))
+          }
+        } catch (fallbackError) {
+          console.error('正则表达式提取也失败:', fallbackError)
+        }
+        
         throw new Error(`无法解析生成的 JSON 数据: ${parseError instanceof Error ? parseError.message : '未知错误'}`)
       }
     }
@@ -316,7 +395,7 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
       if (!response.ok) {
         // 如果是网络错误或连接关闭，尝试重试
         if ((response.status === 0 || response.status >= 500) && retryCount < maxRetries) {
-          console.warn(`[${industry}] 保存场景词失败，${retryDelay}ms 后重试 (${retryCount + 1}/${maxRetries})...`)
+          console.warn(`[${industry}] 保存场景词失败 (HTTP ${response.status})，${retryDelay}ms 后重试 (${retryCount + 1}/${maxRetries})...`)
           await new Promise((resolve) => setTimeout(resolve, retryDelay))
           return saveSceneToDatabase(industry, scene, retryCount + 1)
         }
@@ -332,16 +411,32 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
 
       return { id: result.useCase.id, slug: result.useCase.slug || slug }
     } catch (error) {
-      // 如果是网络错误，尝试重试
-      if (
-        (error instanceof TypeError && error.message.includes('fetch')) &&
-        retryCount < maxRetries
-      ) {
-        console.warn(`[${industry}] 网络错误，${retryDelay}ms 后重试 (${retryCount + 1}/${maxRetries})...`)
+      // 检测各种网络错误类型
+      const isNetworkError = 
+        (error instanceof TypeError && (
+          error.message.includes('fetch') ||
+          error.message.includes('Failed to fetch') ||
+          error.message.includes('network') ||
+          error.message.includes('CONNECTION') ||
+          error.message.includes('ERR_CONNECTION')
+        )) ||
+        (error instanceof Error && (
+          error.message.includes('ERR_CONNECTION_CLOSED') ||
+          error.message.includes('ERR_CONNECTION_REFUSED') ||
+          error.message.includes('ERR_CONNECTION_RESET') ||
+          error.message.includes('network') ||
+          error.message.includes('timeout')
+        ))
+      
+      // 如果是网络错误且未超过重试次数，进行重试
+      if (isNetworkError && retryCount < maxRetries) {
+        console.warn(`[${industry}] 网络错误 (${error instanceof Error ? error.message : '未知'})，${retryDelay}ms 后重试 (${retryCount + 1}/${maxRetries})...`)
         await new Promise((resolve) => setTimeout(resolve, retryDelay))
         return saveSceneToDatabase(industry, scene, retryCount + 1)
       }
       
+      // 如果不是网络错误或已超过重试次数，抛出错误
+      console.error(`[${industry}] 保存场景词最终失败:`, error)
       throw error
     }
   }
@@ -389,8 +484,24 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
       })
 
       try {
-        // 生成场景词
-        const scenes = await generateIndustryScenes(task.industry)
+        // 生成场景词（带重试机制）
+        let scenes: SceneItem[] = []
+        let generationRetries = 0
+        const maxGenerationRetries = 2
+        
+        while (generationRetries <= maxGenerationRetries) {
+          try {
+            scenes = await generateIndustryScenes(task.industry)
+            break // 成功，退出重试循环
+          } catch (genError) {
+            generationRetries++
+            if (generationRetries > maxGenerationRetries) {
+              throw genError // 超过重试次数，抛出错误
+            }
+            console.warn(`[${task.industry}] 生成场景词失败，${2000 * generationRetries}ms 后重试 (${generationRetries}/${maxGenerationRetries})...`)
+            await new Promise((resolve) => setTimeout(resolve, 2000 * generationRetries))
+          }
+        }
         
         setTasks((prev) => {
           const updated = [...prev]
@@ -420,8 +531,20 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
 
             // 增加延迟以避免过载（根据保存进度动态调整）
             if (j < scenes.length - 1) {
-              // 前 10 条：500ms，之后：300ms
-              const delay = j < 10 ? 500 : 300
+              // 前 10 条：800ms，10-50 条：500ms，之后：400ms
+              let delay = 400
+              if (j < 10) {
+                delay = 800
+              } else if (j < 50) {
+                delay = 500
+              }
+              
+              // 如果连续失败，增加延迟
+              if (failedCount > 0 && j % 5 === 0) {
+                delay = delay * 2
+                console.log(`[${task.industry}] 检测到失败，增加延迟至 ${delay}ms`)
+              }
+              
               await new Promise((resolve) => setTimeout(resolve, delay))
             }
           } catch (saveError) {
@@ -430,9 +553,25 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
             console.error(`[${task.industry}] 保存场景词 ${j + 1} 失败:`, errorMessage)
             
             // 如果是严重的网络错误，增加延迟
-            if (errorMessage.includes('fetch') || errorMessage.includes('CONNECTION')) {
-              console.warn(`[${task.industry}] 检测到网络错误，等待 2 秒后继续...`)
-              await new Promise((resolve) => setTimeout(resolve, 2000))
+            const isNetworkError = 
+              errorMessage.includes('fetch') || 
+              errorMessage.includes('CONNECTION') ||
+              errorMessage.includes('network') ||
+              errorMessage.includes('timeout')
+            
+            if (isNetworkError) {
+              const networkDelay = failedCount > 5 ? 5000 : 3000
+              console.warn(`[${task.industry}] 检测到网络错误，等待 ${networkDelay}ms 后继续...`)
+              await new Promise((resolve) => setTimeout(resolve, networkDelay))
+            } else {
+              // 非网络错误也稍作延迟
+              await new Promise((resolve) => setTimeout(resolve, 1000))
+            }
+            
+            // 如果失败率过高，暂停更长时间
+            if (failedCount > 10 && failedCount % 10 === 0) {
+              console.warn(`[${task.industry}] 失败率较高 (${failedCount}/${j + 1})，暂停 5 秒...`)
+              await new Promise((resolve) => setTimeout(resolve, 5000))
             }
             
             // 继续保存下一个
@@ -450,9 +589,11 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
           return updated
         })
 
-        // 行业之间的延迟
+        // 行业之间的延迟（给 API 更多时间恢复）
         if (i < newTasks.length - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 1000))
+          const industryDelay = failedCount > 0 ? 3000 : 2000
+          console.log(`[${task.industry}] 完成，等待 ${industryDelay}ms 后处理下一个行业...`)
+          await new Promise((resolve) => setTimeout(resolve, industryDelay))
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : '未知错误'
