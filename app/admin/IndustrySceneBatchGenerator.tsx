@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input } from '@/components/ui'
 import { INDUSTRIES_100 } from '@/lib/data/industries-100'
 import { generateSlugFromText } from '@/lib/utils/slug'
@@ -9,7 +9,7 @@ import { checkContentQuality } from '@/lib/utils/content-quality'
 interface IndustrySceneBatchGeneratorProps {
   onShowBanner: (type: 'success' | 'error' | 'info', text: string) => void
   onGenerated: () => void
-  onFilterChange?: (type: string, industry: string) => void
+  onFilterChange?: (type: string, industry: string) => void // 保留用于未来功能
 }
 
 interface SceneItem {
@@ -34,7 +34,8 @@ interface IndustryTask {
 export default function IndustrySceneBatchGenerator({
   onShowBanner,
   onGenerated,
-  onFilterChange,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onFilterChange, // 保留用于未来功能
 }: IndustrySceneBatchGeneratorProps) {
   const [selectedIndustries, setSelectedIndustries] = useState<string[]>([])
   const [scenesPerIndustry, setScenesPerIndustry] = useState<number>(100)
@@ -147,6 +148,8 @@ export default function IndustrySceneBatchGenerator({
   }
 
   // 生成行业场景词（一次生成 100 条）
+  // 已迁移到后台任务 API，保留用于参考
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const generateIndustryScenes = async (industry: string): Promise<SceneItem[]> => {
     const systemPrompt = `You are an SEO expert specializing in AI video generation use cases. Generate highly specific, practical, real-world use cases for AI video generation. All output must be in English.
 
@@ -370,6 +373,8 @@ Do not include explanations. Output only the JSON.`
   }
 
   // 保存单个场景词到数据库（带重试机制）
+  // 已迁移到后台任务 API，保留用于参考
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const saveSceneToDatabase = async (
     industry: string,
     scene: SceneItem,
@@ -584,286 +589,207 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
     }
   }
 
-  // 批量生成
+  // 批量生成（使用后台任务）
   const handleBatchGenerate = async () => {
     if (selectedIndustries.length === 0) {
       onShowBanner('error', '请至少选择一个行业')
       return
     }
 
-    const newTasks: IndustryTask[] = selectedIndustries.map((industry, index) => ({
-      id: `industry-task-${Date.now()}-${index}`,
-      industry,
-      status: 'pending' as const,
-    }))
-
-    setTasks(newTasks)
-    setIsProcessing(true)
-    shouldStopRef.current = false
-    isPausedRef.current = false
-    setIsPaused(false)
-
-    let totalSaved = 0
-
-    for (let i = 0; i < newTasks.length; i++) {
-      if (shouldStopRef.current) {
-        setTasks((prev) => {
-          const updated = [...prev]
-          for (let j = i; j < updated.length; j++) {
-            if (updated[j].status === 'pending') {
-              updated[j] = { ...updated[j], status: 'failed', error: '已取消' }
-            }
-          }
-          return updated
-        })
-        break
-      }
-
-      // 检查是否暂停
-      while (isPausedRef.current && !shouldStopRef.current) {
-        await new Promise((resolve) => setTimeout(resolve, 100))
-      }
-      
-      if (shouldStopRef.current) {
-        setTasks((prev) => {
-          const updated = [...prev]
-          for (let j = i; j < updated.length; j++) {
-            if (updated[j].status === 'pending') {
-              updated[j] = { ...updated[j], status: 'failed', error: '已取消' }
-            }
-          }
-          return updated
-        })
-        break
-      }
-
-      const task = newTasks[i]
-      setProcessingIndex(i)
-
-      setTasks((prev) => {
-        const updated = [...prev]
-        updated[i] = { ...updated[i], status: 'processing' }
-        return updated
+    try {
+      // 调用后台任务 API
+      const response = await fetch('/api/admin/batch-generation/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          industries: selectedIndustries,
+          scenesPerIndustry,
+          useCaseType: useCaseTypeRef.current,
+        }),
       })
 
-      try {
-        // 生成场景词（带重试机制）
-        let scenes: SceneItem[] = []
-        let generationRetries = 0
-        const maxGenerationRetries = 2
-        
-        while (generationRetries <= maxGenerationRetries) {
-          try {
-            scenes = await generateIndustryScenes(task.industry)
-            break // 成功，退出重试循环
-          } catch (genError) {
-            generationRetries++
-            const errorMessage = genError instanceof Error ? genError.message : '未知错误'
-            const isServerError = errorMessage.includes('500') || errorMessage.includes('服务器错误')
-            
-            console.error(`[${task.industry}] 生成场景词失败:`, {
-              error: errorMessage,
-              attempt: generationRetries,
-              maxRetries: maxGenerationRetries,
-              isServerError,
-            })
-            
-            if (generationRetries > maxGenerationRetries) {
-              // 超过重试次数，更新任务状态并抛出错误
-              const friendlyError = isServerError 
-                ? 'API 服务暂时不可用，请稍后重试'
-                : `生成失败: ${errorMessage}`
-              
-              setTasks((prev) => {
-                const updated = [...prev]
-                updated[i] = { 
-                  ...updated[i], 
-                  status: 'failed', 
-                  error: friendlyError
-                }
-                return updated
-              })
-              throw genError
-            }
-            
-            // 如果是服务器错误，使用更长的延迟
-            const retryDelay = isServerError 
-              ? 5000 * generationRetries // 服务器错误：5秒、10秒、15秒
-              : 2000 * generationRetries // 其他错误：2秒、4秒、6秒
-            
-            console.warn(`[${task.industry}] 生成场景词失败，${retryDelay}ms 后重试 (${generationRetries}/${maxGenerationRetries})...`)
-            await new Promise((resolve) => setTimeout(resolve, retryDelay))
-          }
-        }
-        
-        setTasks((prev) => {
-          const updated = [...prev]
-          updated[i] = { ...updated[i], status: 'completed', scenes }
-          return updated
-        })
+      const result = await response.json()
 
-        // 批量保存场景词（增加延迟和错误处理）
-        let savedCount = 0
-        let failedCount = 0
-        for (let j = 0; j < scenes.length; j++) {
-          if (shouldStopRef.current) break
-
-          // 检查是否暂停
-          while (isPausedRef.current && !shouldStopRef.current) {
-            await new Promise((resolve) => setTimeout(resolve, 100))
-          }
-          
-          if (shouldStopRef.current) break
-
-          try {
-            await saveSceneToDatabase(task.industry, scenes[j])
-            savedCount++
-            totalSaved++
-
-            // 每保存 10 条更新一次状态
-            if ((j + 1) % 10 === 0 || j === scenes.length - 1) {
-              setTasks((prev) => {
-                const updated = [...prev]
-                updated[i] = { ...updated[i], savedCount, error: failedCount > 0 ? `${failedCount} 条保存失败` : undefined }
-                return updated
-              })
-            }
-
-            // 增加延迟以避免过载（根据保存进度动态调整）
-            if (j < scenes.length - 1) {
-              // 前 10 条：800ms，10-50 条：500ms，之后：400ms
-              let delay = 400
-              if (j < 10) {
-                delay = 800
-              } else if (j < 50) {
-                delay = 500
-              }
-              
-              // 如果连续失败，增加延迟
-              if (failedCount > 0 && j % 5 === 0) {
-                delay = delay * 2
-                console.log(`[${task.industry}] 检测到失败，增加延迟至 ${delay}ms`)
-              }
-              
-              await new Promise((resolve) => setTimeout(resolve, delay))
-            }
-          } catch (saveError) {
-            failedCount++
-            const errorMessage = saveError instanceof Error ? saveError.message : '未知错误'
-            console.error(`[${task.industry}] 保存场景词 ${j + 1} 失败:`, errorMessage)
-            
-            // 如果是严重的网络错误，增加延迟
-            const isNetworkError = 
-              errorMessage.includes('fetch') || 
-              errorMessage.includes('CONNECTION') ||
-              errorMessage.includes('network') ||
-              errorMessage.includes('timeout')
-            
-            if (isNetworkError) {
-              const networkDelay = failedCount > 5 ? 5000 : 3000
-              console.warn(`[${task.industry}] 检测到网络错误，等待 ${networkDelay}ms 后继续...`)
-              await new Promise((resolve) => setTimeout(resolve, networkDelay))
-            } else {
-              // 非网络错误也稍作延迟
-              await new Promise((resolve) => setTimeout(resolve, 1000))
-            }
-            
-            // 如果失败率过高，暂停更长时间
-            if (failedCount > 10 && failedCount % 10 === 0) {
-              console.warn(`[${task.industry}] 失败率较高 (${failedCount}/${j + 1})，暂停 5 秒...`)
-              await new Promise((resolve) => setTimeout(resolve, 5000))
-            }
-            
-            // 继续保存下一个
-          }
-        }
-        
-        // 更新最终状态
-        if (failedCount > 0) {
-          console.warn(`[${task.industry}] 完成：成功 ${savedCount} 条，失败 ${failedCount} 条`)
-        }
-
-        setTasks((prev) => {
-          const updated = [...prev]
-          updated[i] = { ...updated[i], status: 'saved', savedCount }
-          return updated
-        })
-
-        // 行业之间的延迟（给 API 更多时间恢复）
-        if (i < newTasks.length - 1) {
-          const industryDelay = failedCount > 0 ? 3000 : 2000
-          console.log(`[${task.industry}] 完成，等待 ${industryDelay}ms 后处理下一个行业...`)
-          await new Promise((resolve) => setTimeout(resolve, industryDelay))
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : '未知错误'
-        console.error(`[${task.industry}] 处理失败:`, {
-          error: errorMessage,
-          stack: error instanceof Error ? error.stack : undefined,
-        })
-        
-        // 提供更友好的错误信息
-        let friendlyError = errorMessage
-        if (errorMessage.includes('API Key')) {
-          friendlyError = 'API Key 未配置，请检查环境变量'
-        } else if (errorMessage.includes('超时')) {
-          friendlyError = '请求超时，请稍后重试'
-        } else if (errorMessage.includes('连接失败') || errorMessage.includes('500')) {
-          friendlyError = 'API 服务暂时不可用，请稍后重试'
-        }
-        
-        setTasks((prev) => {
-          const updated = [...prev]
-          updated[i] = { ...updated[i], status: 'failed', error: friendlyError }
-          return updated
-        })
-        
-        // 显示错误提示
-        onShowBanner('error', `[${task.industry}] ${friendlyError}`)
+      if (!response.ok) {
+        throw new Error(result.error || '启动任务失败')
       }
-    }
 
-    setIsProcessing(false)
-    setProcessingIndex(-1)
-    shouldStopRef.current = false
-    isPausedRef.current = false
-    setIsPaused(false)
+      // 保存任务 ID 到 localStorage，以便页面刷新后能继续查看
+      if (result.task?.id) {
+        localStorage.setItem('lastBatchTaskId', result.task.id)
+      }
 
-    if (shouldStopRef.current) {
-      onShowBanner('info', `批量生成已终止：已保存 ${totalSaved} 条场景词`)
-    } else {
-      onShowBanner('success', `批量生成完成：已保存 ${totalSaved} 条场景词（使用场景类型：${useCaseType}）`)
-      // 延迟一下再刷新，确保数据库已保存
-      setTimeout(() => {
-        onGenerated()
-        // 如果有筛选回调，自动应用生成时选择的筛选条件
-        if (onFilterChange && selectedIndustries.length > 0) {
-          // 应用使用场景类型筛选
-          onFilterChange(useCaseType, selectedIndustries[0]) // 使用第一个行业作为默认筛选
-        }
-      }, 500)
-    }
-  }
+      // 转换为前端任务格式用于显示
+      const newTasks: IndustryTask[] = selectedIndustries.map((industry, index) => ({
+        id: `industry-task-${result.task.id}-${index}`,
+        industry,
+        status: 'pending' as const,
+      }))
 
-  const handlePause = () => {
-    if (isPausedRef.current) {
-      // 恢复
+      setTasks(newTasks)
+      setIsProcessing(true)
+      shouldStopRef.current = false
       isPausedRef.current = false
       setIsPaused(false)
-      onShowBanner('info', '批量生成已恢复')
-    } else {
-      // 暂停
-      isPausedRef.current = true
-      setIsPaused(true)
-      onShowBanner('info', '批量生成已暂停，点击"恢复"继续')
+
+      // 开始轮询任务状态
+      startPollingTaskStatus(result.task.id)
+
+      onShowBanner('success', `任务已启动！任务ID: ${result.task.id.substring(0, 8)}... 即使关闭页面，任务也会在后台继续运行。`)
+    } catch (error) {
+      console.error('启动任务失败:', error)
+      onShowBanner('error', error instanceof Error ? error.message : '启动任务失败')
     }
   }
 
-  const handleStop = () => {
-    shouldStopRef.current = true
-    isPausedRef.current = false
-    setIsPaused(false)
-    onShowBanner('info', '正在停止批量生成，请稍候...')
+  // 轮询任务状态
+  const startPollingTaskStatus = (taskId: string) => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/admin/batch-generation/status/${taskId}`)
+        const result = await response.json()
+
+        if (!response.ok) {
+          console.error('获取任务状态失败:', result.error)
+          clearInterval(pollInterval)
+          return
+        }
+
+        const task = result.task
+
+        // 更新进度
+        if (task.current_industry_index !== undefined && task.total_industries) {
+          setProcessingIndex(task.current_industry_index)
+          
+          // 更新任务状态
+          setTasks((prev) => {
+            const updated = [...prev]
+            for (let i = 0; i < task.current_industry_index && i < updated.length; i++) {
+              updated[i] = { ...updated[i], status: 'completed', savedCount: 100 }
+            }
+            if (task.current_industry_index < updated.length) {
+              updated[task.current_industry_index] = {
+                ...updated[task.current_industry_index],
+                status: 'processing',
+              }
+            }
+            return updated
+          })
+        }
+
+        // 如果任务完成或失败，停止轮询
+        if (['completed', 'failed', 'cancelled'].includes(task.status)) {
+          clearInterval(pollInterval)
+          setIsProcessing(false)
+          
+          if (task.status === 'completed') {
+            onShowBanner('success', `任务完成！共生成 ${task.total_scenes_saved} 条场景词`)
+            onGenerated()
+          } else if (task.status === 'failed') {
+            onShowBanner('error', `任务失败: ${task.error_message || '未知错误'}`)
+          }
+        }
+
+        // 更新暂停状态
+        if (task.status === 'paused') {
+          setIsPaused(true)
+          isPausedRef.current = true
+        } else if (task.status === 'processing') {
+          setIsPaused(false)
+          isPausedRef.current = false
+        }
+      } catch (error) {
+        console.error('轮询任务状态失败:', error)
+      }
+    }, 2000) // 每2秒轮询一次
+
+    // 页面卸载时清理
+    return () => clearInterval(pollInterval)
+  }
+
+  // 恢复之前的任务（页面刷新后）
+  useEffect(() => {
+    const lastTaskId = localStorage.getItem('lastBatchTaskId')
+    if (lastTaskId && !isProcessing) {
+      // 检查任务是否还在运行
+      fetch(`/api/admin/batch-generation/status/${lastTaskId}`)
+        .then((res) => res.json())
+        .then((result) => {
+          if (result.task && ['pending', 'processing', 'paused'].includes(result.task.status)) {
+            setIsProcessing(true)
+            startPollingTaskStatus(lastTaskId)
+            onShowBanner('info', `检测到正在运行的任务，已恢复监控`)
+          }
+        })
+        .catch(() => {
+          // 忽略错误
+        })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 暂停/恢复/终止任务（调用后台 API）
+  const handlePause = async () => {
+    const lastTaskId = localStorage.getItem('lastBatchTaskId')
+    if (!lastTaskId) {
+      onShowBanner('error', '未找到任务 ID')
+      return
+    }
+
+    try {
+      const action = isPaused ? 'resume' : 'pause'
+      const response = await fetch('/api/admin/batch-generation/control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          taskId: lastTaskId,
+          action,
+        }),
+      })
+
+      const result = await response.json()
+      if (!response.ok) {
+        throw new Error(result.error || '操作失败')
+      }
+
+      setIsPaused(!isPaused)
+      isPausedRef.current = !isPausedRef.current
+      onShowBanner('success', result.message || (action === 'pause' ? '任务已暂停' : '任务已恢复'))
+    } catch (error) {
+      console.error('操作任务失败:', error)
+      onShowBanner('error', error instanceof Error ? error.message : '操作失败')
+    }
+  }
+
+  const handleStop = async () => {
+    const lastTaskId = localStorage.getItem('lastBatchTaskId')
+    if (!lastTaskId) {
+      onShowBanner('error', '未找到任务 ID')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/admin/batch-generation/control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          taskId: lastTaskId,
+          action: 'cancel',
+        }),
+      })
+
+      const result = await response.json()
+      if (!response.ok) {
+        throw new Error(result.error || '操作失败')
+      }
+
+      setIsProcessing(false)
+      shouldStopRef.current = true
+      onShowBanner('success', result.message || '任务已终止')
+    } catch (error) {
+      console.error('终止任务失败:', error)
+      onShowBanner('error', error instanceof Error ? error.message : '终止失败')
+    }
   }
 
   // 计算成本

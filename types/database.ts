@@ -685,6 +685,74 @@ export interface Database {
           updated_at?: string
         }
       }
+      batch_generation_tasks: {
+        Row: {
+          id: string
+          admin_user_id: string | null
+          task_type: 'industry_scenes' | 'use_cases' | 'keywords' | 'blog_posts'
+          industries: string[]
+          scenes_per_industry: number | null
+          use_case_type: string | null
+          status: 'pending' | 'processing' | 'paused' | 'completed' | 'failed' | 'cancelled'
+          progress: number
+          current_industry_index: number
+          total_industries: number
+          total_scenes_generated: number
+          total_scenes_saved: number
+          error_message: string | null
+          last_error: string | null
+          created_at: string
+          updated_at: string
+          started_at: string | null
+          completed_at: string | null
+          should_stop: boolean
+          is_paused: boolean
+        }
+        Insert: {
+          id?: string
+          admin_user_id?: string | null
+          task_type?: 'industry_scenes' | 'use_cases' | 'keywords' | 'blog_posts'
+          industries?: string[]
+          scenes_per_industry?: number | null
+          use_case_type?: string | null
+          status?: 'pending' | 'processing' | 'paused' | 'completed' | 'failed' | 'cancelled'
+          progress?: number
+          current_industry_index?: number
+          total_industries?: number
+          total_scenes_generated?: number
+          total_scenes_saved?: number
+          error_message?: string | null
+          last_error?: string | null
+          created_at?: string
+          updated_at?: string
+          started_at?: string | null
+          completed_at?: string | null
+          should_stop?: boolean
+          is_paused?: boolean
+        }
+        Update: {
+          id?: string
+          admin_user_id?: string | null
+          task_type?: 'industry_scenes' | 'use_cases' | 'keywords' | 'blog_posts'
+          industries?: string[]
+          scenes_per_industry?: number | null
+          use_case_type?: string | null
+          status?: 'pending' | 'processing' | 'paused' | 'completed' | 'failed' | 'cancelled'
+          progress?: number
+          current_industry_index?: number
+          total_industries?: number
+          total_scenes_generated?: number
+          total_scenes_saved?: number
+          error_message?: string | null
+          last_error?: string | null
+          created_at?: string
+          updated_at?: string
+          started_at?: string | null
+          completed_at?: string | null
+          should_stop?: boolean
+          is_paused?: boolean
+        }
+      }
     }
     Functions: {
       admin_adjust_user_credits: {
