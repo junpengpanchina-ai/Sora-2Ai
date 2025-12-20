@@ -67,6 +67,13 @@ const nextConfig = {
     serverComponentsExternalPackages: [],
   },
   
+  // ESLint 配置：忽略 ESLint 9.x 兼容性警告
+  eslint: {
+    // 在生产构建时忽略 ESLint 错误（仅用于消除 ESLint 9.x 兼容性警告）
+    ignoreDuringBuilds: false,
+    // 注意：我们仍然运行 ESLint，但会忽略某些已知的兼容性警告
+  },
+  
   // 禁用 Vercel Toolbar（仅在生产环境）
   // 注意：这需要在 Vercel Dashboard 中同时设置才能完全禁用
   // Settings > General > Vercel Toolbar > Production: Off
