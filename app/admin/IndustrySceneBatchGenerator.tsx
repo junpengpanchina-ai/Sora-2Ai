@@ -740,61 +740,98 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
     return () => clearInterval(pollInterval)
   }
 
-  // 恢复之前的任务（页面刷新后）
+  // 恢复之前的任务（页面刷新后或新窗口打开）
   useEffect(() => {
-    const lastTaskId = localStorage.getItem('lastBatchTaskId')
-    if (lastTaskId && !isProcessing) {
-      // 检查任务是否还在运行
-      fetch(`/api/admin/batch-generation/status/${lastTaskId}`)
-        .then((res) => res.json())
-        .then((result) => {
-          if (result.task && ['pending', 'processing', 'paused'].includes(result.task.status)) {
-            const task = result.task
-            
-            // 恢复任务状态
-            setIsProcessing(true)
-            setProcessingIndex(task.current_industry_index || 0)
-            
-            // 恢复行业列表和任务列表
-            if (task.industries && Array.isArray(task.industries)) {
-              setSelectedIndustries(task.industries)
-              setScenesPerIndustry(task.scenes_per_industry || 100)
-              setUseCaseType(task.use_case_type || 'marketing')
-              
-              // 重建任务列表
-              const restoredTasks: IndustryTask[] = task.industries.map((industry: string, index: number) => {
-                const isCompleted = index < (task.current_industry_index || 0)
-                const isProcessing = index === (task.current_industry_index || 0)
-                
-                return {
-                  id: `${index}`,
-                  industry,
-                  status: isCompleted ? 'completed' : isProcessing ? 'processing' : 'pending',
-                  savedCount: isCompleted ? (task.scenes_per_industry || 100) : undefined,
-                }
-              })
-              
-              setTasks(restoredTasks)
-            }
-            
-            // 恢复暂停状态
-            if (task.status === 'paused') {
-              setIsPaused(true)
-              isPausedRef.current = true
-            }
-            
-            // 开始轮询
-            startPollingTaskStatus(lastTaskId)
-            onShowBanner('info', `检测到正在运行的任务，已恢复监控`)
-          } else if (result.task && ['completed', 'failed', 'cancelled'].includes(result.task.status)) {
-            // 如果任务已完成，清除 localStorage
+    const restoreTask = async () => {
+      const lastTaskId = localStorage.getItem('lastBatchTaskId')
+      console.log('[恢复任务] 检查 localStorage:', lastTaskId)
+      
+      if (!lastTaskId) {
+        console.log('[恢复任务] 没有找到任务 ID')
+        return
+      }
+      
+      // 即使 isProcessing 为 true，也尝试恢复（可能是新窗口）
+      try {
+        console.log('[恢复任务] 获取任务状态:', lastTaskId)
+        const response = await fetch(`/api/admin/batch-generation/status/${lastTaskId}`)
+        const result = await response.json()
+        
+        console.log('[恢复任务] 任务状态:', result)
+        
+        if (!response.ok) {
+          console.error('[恢复任务] API 错误:', result.error)
+          // 如果任务不存在，清除 localStorage
+          if (response.status === 404) {
             localStorage.removeItem('lastBatchTaskId')
           }
-        })
-        .catch(() => {
-          // 忽略错误
-        })
+          return
+        }
+        
+        if (result.task && ['pending', 'processing', 'paused'].includes(result.task.status)) {
+          const task = result.task
+          console.log('[恢复任务] 恢复任务:', task.id, '状态:', task.status)
+          
+          // 恢复任务状态
+          setIsProcessing(true)
+          setProcessingIndex(task.current_industry_index || 0)
+          
+          // 恢复行业列表和任务列表
+          if (task.industries && Array.isArray(task.industries)) {
+            setSelectedIndustries(task.industries)
+            setScenesPerIndustry(task.scenes_per_industry || 100)
+            setUseCaseType(task.use_case_type || 'marketing')
+            
+            // 重建任务列表
+            const restoredTasks: IndustryTask[] = task.industries.map((industry: string, index: number) => {
+              const isCompleted = index < (task.current_industry_index || 0)
+              const isProcessing = index === (task.current_industry_index || 0)
+              
+              return {
+                id: `${index}`,
+                industry,
+                status: isCompleted ? 'completed' : isProcessing ? 'processing' : 'pending',
+                savedCount: isCompleted ? (task.scenes_per_industry || 100) : undefined,
+              }
+            })
+            
+            setTasks(restoredTasks)
+            console.log('[恢复任务] 已恢复任务列表，共', restoredTasks.length, '个行业')
+          }
+          
+          // 恢复暂停状态
+          if (task.status === 'paused') {
+            setIsPaused(true)
+            isPausedRef.current = true
+          } else {
+            setIsPaused(false)
+            isPausedRef.current = false
+          }
+          
+          // 开始轮询
+          startPollingTaskStatus(lastTaskId)
+          onShowBanner('info', `检测到正在运行的任务，已恢复监控 (${task.current_industry_index || 0}/${task.total_industries || 0})`)
+        } else if (result.task && ['completed', 'failed', 'cancelled'].includes(result.task.status)) {
+          // 如果任务已完成，清除 localStorage
+          console.log('[恢复任务] 任务已完成，清除 localStorage')
+          localStorage.removeItem('lastBatchTaskId')
+          
+          if (result.task.status === 'completed') {
+            onShowBanner('success', `任务已完成！共生成 ${result.task.total_scenes_saved || 0} 条场景词`)
+          }
+        }
+      } catch (error) {
+        console.error('[恢复任务] 异常:', error)
+        // 不显示错误，避免干扰用户
+      }
     }
+    
+    // 延迟一点执行，确保组件完全加载
+    const timer = setTimeout(() => {
+      restoreTask()
+    }, 500)
+    
+    return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
