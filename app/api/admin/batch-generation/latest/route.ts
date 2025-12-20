@@ -7,40 +7,44 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 /**
- * GET /api/admin/batch-generation/status/[taskId]
- * 获取任务状态
+ * GET /api/admin/batch-generation/latest
+ * 获取当前用户最近运行的任务（用于恢复任务）
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { taskId: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
     const adminUser = await validateAdminSession()
     if (!adminUser) {
       return NextResponse.json({ error: '未授权，请先登录' }, { status: 401 })
     }
 
-    const { taskId } = params
     const supabase = await createServiceClient()
 
+    // 查询当前用户最近运行的任务（状态为 pending, processing, paused）
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: task, error } = await (supabase.from('batch_generation_tasks') as any)
+    const { data: tasks, error } = await (supabase.from('batch_generation_tasks') as any)
       .select('*')
-      .eq('id', taskId)
-      .single()
+      .eq('admin_user_id', adminUser.id)
+      .in('status', ['pending', 'processing', 'paused'])
+      .order('created_at', { ascending: false })
+      .limit(1)
 
-    if (error || !task) {
+    if (error) {
+      console.error('[batch-generation/latest] 查询失败:', error)
       return NextResponse.json(
-        { error: '任务不存在', details: error?.message },
-        { status: 404 }
+        { error: '查询任务失败', details: error.message },
+        { status: 500 }
       )
     }
 
-    // 检查权限（TypeScript 类型断言）
-    const taskData = task as Database['public']['Tables']['batch_generation_tasks']['Row']
-    if (taskData.admin_user_id !== adminUser.id && !adminUser.is_super_admin) {
-      return NextResponse.json({ error: '无权访问此任务' }, { status: 403 })
+    if (!tasks || tasks.length === 0) {
+      return NextResponse.json({
+        success: true,
+        task: null,
+        message: '没有找到正在运行的任务',
+      })
     }
+
+    const task = tasks[0] as Database['public']['Tables']['batch_generation_tasks']['Row']
 
     return NextResponse.json({
       success: true,
@@ -64,10 +68,10 @@ export async function GET(
       },
     })
   } catch (error) {
-    console.error('[batch-generation/status] 异常:', error)
+    console.error('[batch-generation/latest] 异常:', error)
     return NextResponse.json(
       {
-        error: '获取任务状态失败',
+        error: '获取任务失败',
         details: error instanceof Error ? error.message : '未知错误',
       },
       { status: 500 }
