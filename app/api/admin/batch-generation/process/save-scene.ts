@@ -1,5 +1,3 @@
-import { createServiceClient } from '@/lib/supabase/service'
-
 /**
  * 保存场景词到数据库（复用现有逻辑）
  */

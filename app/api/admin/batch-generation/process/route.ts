@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import type { Database } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -41,9 +40,43 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: '任务已取消' })
     }
 
-    // 检查是否暂停
+    // 检查是否暂停（如果暂停，等待恢复）
     if (task.is_paused) {
-      return NextResponse.json({ success: true, message: '任务已暂停' })
+      // 如果任务暂停，等待恢复（最多等待 5 秒，然后返回，让前端继续轮询）
+      let waitCount = 0
+      while (task.is_paused && waitCount < 5) {
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+        const { data: checkTask } = await tasksTable()
+          .select('is_paused, should_stop')
+          .eq('id', taskId)
+          .single()
+        
+        if (checkTask && !checkTask.is_paused) {
+          break
+        }
+        waitCount++
+      }
+      
+      // 如果仍然暂停，返回让前端继续轮询
+      const { data: finalCheck } = await tasksTable()
+        .select('is_paused')
+        .eq('id', taskId)
+        .single()
+      
+      if (finalCheck?.is_paused) {
+        return NextResponse.json({ success: true, message: '任务已暂停，等待恢复' })
+      }
+    }
+
+    // 更新状态为处理中（如果之前是 pending）
+    if (task.status === 'pending') {
+      await tasksTable()
+        .update({
+          status: 'processing',
+          started_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', taskId)
     }
 
     const industries = task.industries || []
@@ -118,28 +151,29 @@ export async function POST(request: NextRequest) {
         })
         .eq('id', taskId)
 
-      // 如果还有更多行业需要处理，递归调用自己
+      // 如果还有更多行业需要处理，链式调用下一个 API（不等待响应，避免超时）
       if (currentIndex + 1 < industries.length) {
-        // 使用 setTimeout 延迟调用，避免立即递归导致堆栈溢出
-        setTimeout(async () => {
-          try {
-            await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/admin/batch-generation/process`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ taskId }),
+        // 立即触发下一个 API 调用，但不等待响应（fire and forget）
+        // 这样当前函数可以快速返回，避免超过 Vercel 的 10 秒限制
+        const processUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/admin/batch-generation/process`
+        fetch(processUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ taskId }),
+        }).catch((error) => {
+          console.error(`[process] 链式调用失败:`, error)
+          // 如果链式调用失败，更新任务状态为失败
+          tasksTable()
+            .update({
+              status: 'failed',
+              error_message: error instanceof Error ? error.message : '链式调用失败',
+              updated_at: new Date().toISOString(),
             })
-          } catch (error) {
-            console.error(`[process] 递归调用失败:`, error)
-            // 如果递归调用失败，更新任务状态为失败
-            await tasksTable()
-              .update({
-                status: 'failed',
-                error_message: error instanceof Error ? error.message : '递归调用失败',
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', taskId)
-          }
-        }, 100) // 100ms 延迟
+            .eq('id', taskId)
+            .catch((updateError: unknown) => {
+              console.error(`[process] 更新任务状态失败:`, updateError)
+            })
+        })
       } else {
         // 所有行业处理完成
         await tasksTable()

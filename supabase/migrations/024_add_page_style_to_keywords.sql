@@ -17,3 +17,4 @@ ALTER TABLE long_tail_keywords
 COMMENT ON COLUMN long_tail_keywords.page_style IS '页面风格: default(默认风格), christmas(圣诞节风格，包含动态背景和背景音乐)';
 
 
+
