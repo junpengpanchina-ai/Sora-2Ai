@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { validateAdminSession } from '@/lib/admin-auth'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Database } from '@/types/database'
@@ -10,7 +10,7 @@ export const revalidate = 0
  * GET /api/admin/batch-generation/latest
  * 获取当前用户最近运行的任务（用于恢复任务）
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const adminUser = await validateAdminSession()
     if (!adminUser) {
