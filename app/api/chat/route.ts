@@ -92,11 +92,15 @@ export async function POST(request: NextRequest) {
     }
 
     // 非流式响应
+    const systemMessage = messages.find(m => m.role === 'system')
+    const userMessage = messages.find(m => m.role === 'user')
     console.log('[Chat API] 调用 createChatCompletion:', {
       model: chatParams.model,
       stream: chatParams.stream,
       messagesCount: chatParams.messages.length,
       totalPromptLength: messages.reduce((sum, msg) => sum + (msg.content?.length || 0), 0),
+      systemPromptPreview: systemMessage?.content?.substring(0, 200) || 'N/A',
+      userPromptPreview: userMessage?.content?.substring(0, 200) || 'N/A',
       hasApiKey: !!process.env.GRSAI_API_KEY,
     })
     

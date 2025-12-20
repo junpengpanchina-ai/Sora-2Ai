@@ -148,7 +148,9 @@ export default function IndustrySceneBatchGenerator({
 
   // 生成行业场景词（一次生成 100 条）
   const generateIndustryScenes = async (industry: string): Promise<SceneItem[]> => {
-    const systemPrompt = `You are an SEO expert specializing in AI video generation use cases. Generate highly specific, practical, real-world use cases for AI video generation. All output must be in English.`
+    const systemPrompt = `You are an SEO expert specializing in AI video generation use cases. Generate highly specific, practical, real-world use cases for AI video generation. All output must be in English.
+
+CRITICAL: The AI video platform ONLY supports 10-second or 15-second videos. NEVER mention any duration longer than 15 seconds (such as 20 seconds, 30 seconds, 45 seconds, 60 seconds, 1 minute, 2 minutes, etc.). When describing video examples, ALWAYS use "10 seconds" or "15 seconds" only.`
 
     // 如果生成数量太多，分批生成（每次最多 50 条）
     const batchSize = Math.min(scenesPerIndustry, 50)
@@ -170,9 +172,10 @@ Requirements:
   2. The pain point or challenge
   3. Why AI video is suitable for this scenario
   4. A brief example prompt idea
+- IMPORTANT: When mentioning video duration, ALWAYS use "10 seconds" or "15 seconds" ONLY. NEVER mention "20 seconds", "30 seconds", "45 seconds", "60 seconds", "1 minute", "2 minutes", or any duration longer than 15 seconds.
 - Format as a clean JSON array: 
 [
-  {"id": 1, "use_case": "Detailed 300-500 character description including scenario, pain point, why AI video, and example prompt"},
+  {"id": 1, "use_case": "Detailed 300-500 character description including scenario, pain point, why AI video, and example prompt (video duration: 10 seconds or 15 seconds ONLY)"},
   {"id": 2, "use_case": "..."},
   ...
   {"id": ${batchSize}, "use_case": "..."}
@@ -197,6 +200,8 @@ Do not include explanations. Output only the JSON.`
         const batchUserPrompt = `Generate ${currentBatchSize} highly specific, practical, real-world use cases for AI video generation for the following industry:
 
 Industry: ${industry}
+
+IMPORTANT: When mentioning video duration, ALWAYS use "10 seconds" or "15 seconds" ONLY. NEVER mention "20 seconds", "30 seconds", "45 seconds", "60 seconds", "1 minute", "2 minutes", or any duration longer than 15 seconds.
 
 Requirements:
 - ${currentBatchSize} use cases

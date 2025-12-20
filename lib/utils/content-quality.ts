@@ -139,30 +139,83 @@ export function checkContentQuality(content: {
     const descriptionLower = (content.description || '').toLowerCase()
     const h1Lower = (content.h1 || '').toLowerCase()
 
-    // 8. 检查视频时长是否正确（应该是 10 秒或 15 秒，不能是 2 分钟等）
+    // 8. 检查视频时长是否正确（应该是 10 秒或 15 秒，不能是 2 分钟、45秒、30秒等）
     // 只有在 contentLower 存在时才检查
     let hasIncorrectDuration = false
     if (contentLower) {
-      const incorrectDurationPatterns = [
-        /\b2\s*分钟?\b/i,
-        /\b1\s*分钟?\b/i,
-        /\b3\s*分钟?\b/i,
-        /\b4\s*分钟?\b/i,
-        /\b5\s*分钟?\b/i,
-        /\b\d+\s*分钟?\b/i, // 任何分钟数
-        /\b2\s*minute/i,
-        /\b\d+\s*minute/i, // 任何分钟数（英文）
-      ]
-      
+      // 检查不正确的视频时长
+      // 允许的时长：10秒、15秒
+      // 不允许：任何分钟数、20秒及以上（如30秒、45秒、60秒等）
       try {
-        hasIncorrectDuration = incorrectDurationPatterns.some(pattern => {
-          try {
-            return pattern.test(contentLower) && !contentLower.includes('10 second') && !contentLower.includes('15 second')
-          } catch (patternError) {
-            console.error('[checkContentQuality] 正则表达式测试失败:', patternError, 'pattern:', pattern)
-            return false
-          }
-        })
+        // 先检查是否有明确的错误时长
+        const explicitWrongPatterns = [
+          // 任何分钟数
+          /\b\d+\s*分钟?\b/i,
+          /\b\d+\s*minute/i,
+          // 常见的错误秒数（20秒及以上，排除10和15）
+          /\b(?:20|30|45|60|90|120)\s*秒?\b/i,
+          /\b(?:20|30|45|60|90|120)\s*second/i,
+          // 匹配20秒及以上的数字（但排除10和15）
+          /\b(?:[2-9][0-9]|[1-9]\d{2,})\s*秒?\b/i, // 20-99秒或100秒以上
+          /\b(?:[2-9][0-9]|[1-9]\d{2,})\s*second/i,
+        ]
+        
+        // 检查是否包含正确的时长
+        const hasCorrectDuration = 
+          contentLower.includes('10 second') || 
+          contentLower.includes('15 second') ||
+          contentLower.includes('10秒') ||
+          contentLower.includes('15秒')
+        
+        // 如果同时提到了正确的时长，需要更仔细地检查
+        // 例如："10秒或45秒"这种情况，45秒仍然是错误的
+        if (hasCorrectDuration) {
+          // 检查是否明确提到了错误的时长
+          const wrongDurations = [
+            /\b(?:20|30|45|60|90|120)\s*秒?\b/i,
+            /\b(?:20|30|45|60|90|120)\s*second/i,
+            /\b\d+\s*分钟?\b/i,
+            /\b\d+\s*minute/i,
+          ]
+          hasIncorrectDuration = wrongDurations.some(pattern => {
+            try {
+              return pattern.test(contentLower)
+            } catch {
+              return false
+            }
+          })
+        } else {
+          // 如果没有提到正确的时长，检查是否有任何错误的时长
+          hasIncorrectDuration = explicitWrongPatterns.some(pattern => {
+            try {
+              const matched = pattern.test(contentLower)
+              if (!matched) return false
+              
+              // 排除10秒和15秒的情况
+              // 检查匹配到的数字是否是10或15
+              const matches = contentLower.match(pattern)
+              if (matches) {
+                for (const match of matches) {
+                  const numMatch = match.match(/\d+/)
+                  if (numMatch) {
+                    const num = parseInt(numMatch[0])
+                    if (num === 10 || num === 15) {
+                      continue // 跳过10和15
+                    }
+                    // 如果是分钟数，或者秒数>=20，都是错误的
+                    if (match.includes('分钟') || match.includes('minute') || num >= 20) {
+                      return true
+                    }
+                  }
+                }
+              }
+              return false
+            } catch (patternError) {
+              console.error('[checkContentQuality] 正则表达式测试失败:', patternError, 'pattern:', pattern)
+              return false
+            }
+          })
+        }
       } catch (someError) {
         console.error('[checkContentQuality] Array.some 执行失败:', someError)
         hasIncorrectDuration = false
