@@ -663,16 +663,42 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
           
           // 更新任务状态
           setTasks((prev) => {
-            const updated = [...prev]
-            for (let i = 0; i < task.current_industry_index && i < updated.length; i++) {
-              updated[i] = { ...updated[i], status: 'completed', savedCount: 100 }
+            // 如果任务列表为空，尝试从任务信息重建
+            if (prev.length === 0 && task.industries && Array.isArray(task.industries)) {
+              return task.industries.map((industry: string, index: number) => {
+                const isCompleted = index < task.current_industry_index
+                const isProcessing = index === task.current_industry_index
+                
+                return {
+                  id: `${index}`,
+                  industry,
+                  status: isCompleted ? 'completed' : isProcessing ? 'processing' : 'pending',
+                  savedCount: isCompleted ? (task.scenes_per_industry || 100) : undefined,
+                }
+              })
             }
+            
+            // 更新现有任务列表
+            const updated = [...prev]
+            const scenesPerIndustry = task.scenes_per_industry || 100
+            
+            // 更新已完成的任务
+            for (let i = 0; i < task.current_industry_index && i < updated.length; i++) {
+              updated[i] = { 
+                ...updated[i], 
+                status: 'completed', 
+                savedCount: scenesPerIndustry 
+              }
+            }
+            
+            // 更新当前处理的任务
             if (task.current_industry_index < updated.length) {
               updated[task.current_industry_index] = {
                 ...updated[task.current_industry_index],
                 status: 'processing',
               }
             }
+            
             return updated
           })
         }
@@ -682,12 +708,19 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
           clearInterval(pollInterval)
           setIsProcessing(false)
           
+          // 更新所有任务状态为完成
           if (task.status === 'completed') {
-            onShowBanner('success', `任务完成！共生成 ${task.total_scenes_saved} 条场景词`)
+            setTasks((prev) => prev.map((t) => ({ ...t, status: 'completed' as const })))
+            onShowBanner('success', `任务完成！共生成 ${task.total_scenes_saved || 0} 条场景词`)
             onGenerated()
           } else if (task.status === 'failed') {
             onShowBanner('error', `任务失败: ${task.error_message || '未知错误'}`)
+          } else if (task.status === 'cancelled') {
+            onShowBanner('info', '任务已取消')
           }
+          
+          // 清除 localStorage（任务已完成或失败）
+          localStorage.removeItem('lastBatchTaskId')
         }
 
         // 更新暂停状态
@@ -716,9 +749,46 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
         .then((res) => res.json())
         .then((result) => {
           if (result.task && ['pending', 'processing', 'paused'].includes(result.task.status)) {
+            const task = result.task
+            
+            // 恢复任务状态
             setIsProcessing(true)
+            setProcessingIndex(task.current_industry_index || 0)
+            
+            // 恢复行业列表和任务列表
+            if (task.industries && Array.isArray(task.industries)) {
+              setSelectedIndustries(task.industries)
+              setScenesPerIndustry(task.scenes_per_industry || 100)
+              setUseCaseType(task.use_case_type || 'marketing')
+              
+              // 重建任务列表
+              const restoredTasks: IndustryTask[] = task.industries.map((industry: string, index: number) => {
+                const isCompleted = index < (task.current_industry_index || 0)
+                const isProcessing = index === (task.current_industry_index || 0)
+                
+                return {
+                  id: `${index}`,
+                  industry,
+                  status: isCompleted ? 'completed' : isProcessing ? 'processing' : 'pending',
+                  savedCount: isCompleted ? (task.scenes_per_industry || 100) : undefined,
+                }
+              })
+              
+              setTasks(restoredTasks)
+            }
+            
+            // 恢复暂停状态
+            if (task.status === 'paused') {
+              setIsPaused(true)
+              isPausedRef.current = true
+            }
+            
+            // 开始轮询
             startPollingTaskStatus(lastTaskId)
             onShowBanner('info', `检测到正在运行的任务，已恢复监控`)
+          } else if (result.task && ['completed', 'failed', 'cancelled'].includes(result.task.status)) {
+            // 如果任务已完成，清除 localStorage
+            localStorage.removeItem('lastBatchTaskId')
           }
         })
         .catch(() => {
@@ -785,6 +855,14 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
 
       setIsProcessing(false)
       shouldStopRef.current = true
+      
+      // 清除 localStorage
+      localStorage.removeItem('lastBatchTaskId')
+      
+      // 重置任务状态
+      setTasks([])
+      setProcessingIndex(-1)
+      
       onShowBanner('success', result.message || '任务已终止')
     } catch (error) {
       console.error('终止任务失败:', error)
