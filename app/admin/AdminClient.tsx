@@ -294,7 +294,19 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     relatedConsumptionId: '',
   })
 
-  const supabaseClient = useMemo(() => createSupabaseClient(), [])
+  // 只在浏览器环境中创建 Supabase 客户端
+  const supabaseClient = useMemo(() => {
+    if (typeof window === 'undefined') {
+      // 服务器端渲染时返回 null，避免错误
+      return null
+    }
+    try {
+      return createSupabaseClient()
+    } catch (error) {
+      console.error('[AdminClient] 创建 Supabase 客户端失败:', error)
+      return null
+    }
+  }, [])
 
   const showBanner = useCallback((type: 'success' | 'error' | 'info', text: string) => {
     setBanner({ type, text })
@@ -440,7 +452,12 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     }
   }, [autoRefresh, fetchData, fetchIssues, fetchAdjustments])
 
+  // 实时订阅数据库变化（只在浏览器环境中）
   useEffect(() => {
+    if (!supabaseClient || typeof window === 'undefined') {
+      return
+    }
+
     const channel = supabaseClient
       .channel('admin-dashboard')
       .on(
@@ -477,7 +494,9 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     })
 
     return () => {
-      supabaseClient.removeChannel(channel)
+      if (supabaseClient) {
+        supabaseClient.removeChannel(channel)
+      }
     }
   }, [supabaseClient, fetchData, fetchIssues, fetchAdjustments])
 
