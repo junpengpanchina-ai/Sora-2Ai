@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, Textarea } from '@/components/ui'
 
@@ -49,9 +49,15 @@ export default function UseCaseToolEmbed({ defaultPrompt = '', useCaseTitle = ''
   const [prompt, setPrompt] = useState(initialPrompt)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const isNavigatingRef = useRef(false)
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    
+    // Prevent double submission
+    if (isNavigatingRef.current || submitting) {
+      return
+    }
     
     const trimmedPrompt = prompt.trim()
     
@@ -73,16 +79,31 @@ export default function UseCaseToolEmbed({ defaultPrompt = '', useCaseTitle = ''
     
     setError(null)
     setSubmitting(true)
+    isNavigatingRef.current = true
     
     try {
       // 清理 prompt：移除多余的空格和换行
       const cleanedPrompt = trimmedPrompt.replace(/\s+/g, ' ').trim()
       const encoded = encodeURIComponent(cleanedPrompt)
-      router.push(`/video?prompt=${encoded}`)
+      
+      // Use a small delay to ensure the form submission is complete before navigation
+      // This helps avoid DOM manipulation conflicts during page transition
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // Use router.push with error handling
+      // Wrap in try-catch to handle any navigation errors gracefully
+      try {
+        router.push(`/video?prompt=${encoded}`)
+      } catch (navError) {
+        // If router.push fails, fallback to window.location
+        console.warn('[UseCaseToolEmbed] router.push failed, using window.location:', navError)
+        window.location.href = `/video?prompt=${encoded}`
+      }
     } catch (err) {
       console.error('[UseCaseToolEmbed] Error navigating to video page:', err)
       setError('Failed to navigate to video page. Please try again.')
       setSubmitting(false)
+      isNavigatingRef.current = false
     }
   }
 
