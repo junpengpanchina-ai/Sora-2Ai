@@ -106,16 +106,22 @@ export async function POST(request: NextRequest) {
       const { generateIndustryScenes } = await import('./generate-scenes')
       const { saveSceneToDatabase } = await import('./save-scene')
 
+      // 导入检测函数
+      const { isColdIndustry, needsProModel } = await import('./detect-cold-industry')
+      
       // 生成场景词
       console.log(`[${industry}] 开始生成 ${scenesPerIndustry} 条场景词...`)
+      console.log(`[${industry}] 检测行业类型: 冷门=${isColdIndustry(industry)}, 极端专业=${needsProModel(industry)}`)
+      
       const scenes = await generateIndustryScenes(industry, scenesPerIndustry, useCaseType)
       console.log(`[${industry}] 生成完成: 获得 ${scenes.length} 条场景词`)
       
       if (scenes.length === 0) {
         console.error(`[${industry}] ⚠️ 警告: 生成返回空数组！可能是 API 调用失败或 JSON 解析失败`)
+        console.error(`[${industry}] 建议: 检查 API 响应、JSON 解析逻辑，或考虑使用 gemini-3-flash（联网搜索）`)
         await tasksTable()
           .update({
-            last_error: `${industry}: 生成返回 0 条场景词，请检查 API 调用和日志`,
+            last_error: `${industry}: 生成返回 0 条场景词，可能行业太冷门或 API 调用失败，建议使用联网搜索模型`,
             updated_at: new Date().toISOString(),
           })
           .eq('id', taskId)
