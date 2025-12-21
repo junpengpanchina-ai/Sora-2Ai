@@ -68,7 +68,7 @@
 ```env
 # Grsai API 配置（必需）
 # 测试环境 API Key（仅用于开发测试）
-GRSAI_API_KEY=sk-bd625bca604243989a7018a67614c889
+GRSAI_API_KEY=sk-********************************
 
 # 生产环境：上线前替换为你的生产 API Key
 # GRSAI_API_KEY=your_production_api_key_here
@@ -81,7 +81,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 **重要提示**:
-- ✅ **测试环境**: 当前使用测试 API Key `sk-bd625bca604243989a7018a67614c889`（仅用于开发测试）
+- ✅ **测试环境**: 当前使用测试 API Key `sk-********************************`（仅用于开发测试）
 - ⚠️ **生产环境**: 上线前必须替换为你的生产 API Key（从 [https://grsai.com/](https://grsai.com/) 获取）
 - ⚠️ API Key 是钱包凭证，不要将 `.env.local` 文件提交到 Git
 - ✅ 详细配置说明请查看 [TEST_CONFIG.md](./TEST_CONFIG.md)
