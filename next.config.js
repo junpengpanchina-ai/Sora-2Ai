@@ -23,6 +23,11 @@ const nextConfig = {
         hostname: 'lh6.googleusercontent.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'pub-2868c824f92441499577980a0b61114c.r2.dev',
+        pathname: '/**',
+      },
     ],
   },
   
