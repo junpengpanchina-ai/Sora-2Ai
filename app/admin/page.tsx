@@ -2,6 +2,8 @@ import AdminClient from './AdminClient'
 import { validateAdminSession } from '@/lib/admin-auth'
 import { redirect } from 'next/navigation'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AdminPage() {
   try {
     const adminUser = await validateAdminSession()
