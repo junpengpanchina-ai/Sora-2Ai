@@ -48,10 +48,27 @@ export async function POST(request: NextRequest) {
       scenesPerIndustry,
       useCaseType,
       adminUserId: adminUser.id,
+      industries: industries?.slice(0, 5), // 只记录前5个，避免日志过长
     })
 
-    if (!Array.isArray(industries) || industries.length === 0) {
+    if (!Array.isArray(industries)) {
+      return NextResponse.json(
+        { error: 'industries 必须是数组', details: `收到类型: ${typeof industries}` },
+        { status: 400 }
+      )
+    }
+
+    if (industries.length === 0) {
       return NextResponse.json({ error: '请至少选择一个行业' }, { status: 400 })
+    }
+
+    // 验证数组中的每个元素都是字符串
+    const invalidIndustries = industries.filter((ind) => typeof ind !== 'string' || ind.trim().length === 0)
+    if (invalidIndustries.length > 0) {
+      return NextResponse.json(
+        { error: 'industries 数组包含无效值', details: `无效值数量: ${invalidIndustries.length}` },
+        { status: 400 }
+      )
     }
 
     let supabase
@@ -70,16 +87,19 @@ export async function POST(request: NextRequest) {
     }
 
     // 创建任务记录
+    // 确保 industries 是字符串数组格式（Supabase TEXT[] 需要）
+    const industriesArray = industries.map((ind: string) => String(ind).trim()).filter(Boolean)
+    
     // 使用类型断言修复 Supabase 类型推断问题
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const taskData = {
       admin_user_id: adminUser.id,
       task_type: 'industry_scenes',
-      industries,
+      industries: industriesArray, // 确保是字符串数组
       scenes_per_industry: scenesPerIndustry,
       use_case_type: useCaseType,
       status: 'pending',
-      total_industries: industries.length,
+      total_industries: industriesArray.length,
       started_at: new Date().toISOString(),
     }
 
@@ -87,6 +107,7 @@ export async function POST(request: NextRequest) {
       admin_user_id: taskData.admin_user_id,
       task_type: taskData.task_type,
       industries_count: taskData.industries.length,
+      industries_sample: taskData.industries.slice(0, 3), // 只记录前3个
       scenes_per_industry: taskData.scenes_per_industry,
       use_case_type: taskData.use_case_type,
     })
@@ -104,13 +125,17 @@ export async function POST(request: NextRequest) {
         message: createError?.message,
         details: createError?.details,
         hint: createError?.hint,
-        taskData,
+        taskData: {
+          ...taskData,
+          industries: taskData.industries.slice(0, 5), // 只记录前5个，避免日志过长
+        },
       })
       return NextResponse.json(
         { 
           error: '创建任务失败', 
           details: createError?.message || '未知错误',
           code: createError?.code,
+          hint: createError?.hint || '请检查数据库连接和表结构',
         },
         { status: 500 }
       )
