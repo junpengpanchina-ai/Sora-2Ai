@@ -310,6 +310,9 @@ export interface ChatCompletionRequest {
   top_p?: number
   frequency_penalty?: number
   presence_penalty?: number
+  tools?: Array<{
+    type: 'google_search_retrieval'
+  }>
 }
 
 export interface ChatCompletionChoice {
