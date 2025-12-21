@@ -12,12 +12,35 @@ export const revalidate = 0
  */
 export async function GET() {
   try {
-    const adminUser = await validateAdminSession()
+    let adminUser
+    try {
+      adminUser = await validateAdminSession()
+    } catch (error) {
+      console.error('[batch-generation/latest] 验证管理员会话失败:', error)
+      return NextResponse.json(
+        { error: '验证管理员会话失败', details: error instanceof Error ? error.message : '未知错误' },
+        { status: 500 }
+      )
+    }
+
     if (!adminUser) {
       return NextResponse.json({ error: '未授权，请先登录' }, { status: 401 })
     }
 
-    const supabase = await createServiceClient()
+    let supabase
+    try {
+      supabase = await createServiceClient()
+    } catch (error) {
+      console.error('[batch-generation/latest] 创建 Supabase 客户端失败:', error)
+      return NextResponse.json(
+        { 
+          error: '数据库连接失败', 
+          details: error instanceof Error ? error.message : '未知错误',
+          hint: '请检查 SUPABASE_SERVICE_ROLE_KEY 环境变量是否配置正确'
+        },
+        { status: 500 }
+      )
+    }
 
     // 查询当前用户最近运行的任务（状态为 pending, processing, paused）
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

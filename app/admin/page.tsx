@@ -3,11 +3,16 @@ import { validateAdminSession } from '@/lib/admin-auth'
 import { redirect } from 'next/navigation'
 
 export default async function AdminPage() {
-  const adminUser = await validateAdminSession()
+  try {
+    const adminUser = await validateAdminSession()
 
-  if (!adminUser) {
+    if (!adminUser) {
+      redirect('/admin/login')
+    }
+
+    return <AdminClient adminUser={adminUser} />
+  } catch (error) {
+    console.error('[admin/page] 验证管理员会话失败:', error)
     redirect('/admin/login')
   }
-
-  return <AdminClient adminUser={adminUser} />
 }
