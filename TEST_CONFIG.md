@@ -4,7 +4,7 @@
 
 **测试用 API Key**（仅用于开发测试）：
 ```
-sk-bd625bca604243989a7018a67614c889
+sk-********************************
 ```
 
 ⚠️ **注意**：这是测试用的 API Key，上线前需要替换为生产环境的 API Key。
@@ -21,7 +21,7 @@ NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Grsai API 配置（测试环境）
-GRSAI_API_KEY=sk-bd625bca604243989a7018a67614c889
+GRSAI_API_KEY=sk-********************************
 GRSAI_HOST=https://grsai.dakka.com.cn
 
 # 应用 URL（用于 Webhook 回调）

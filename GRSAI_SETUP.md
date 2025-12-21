@@ -7,7 +7,7 @@
 ```env
 # Grsai API 配置（必需）
 # 测试环境 API Key（仅用于开发测试）
-GRSAI_API_KEY=sk-bd625bca604243989a7018a67614c889
+GRSAI_API_KEY=sk-********************************
 
 # 生产环境：请从 https://grsai.com/ 获取你的生产 API Key
 # GRSAI_API_KEY=your_production_api_key_here
@@ -24,7 +24,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ### 环境变量说明
 
 - **GRSAI_API_KEY** (必需): Grsai API 密钥
-  - **测试环境**: 当前使用测试 API Key: `sk-bd625bca604243989a7018a67614c889`
+  - **测试环境**: 当前使用测试 API Key: `sk-********************************`
   - **生产环境**: 上线前请从 [https://grsai.com/](https://grsai.com/) 获取你的生产 API Key
   - **重要**: 这是钱包凭证，请妥善保管，不要提交到 GitHub
 - **GRSAI_HOST** (可选): Grsai API 主机地址
@@ -125,7 +125,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ## 价格说明
 
 - **积分消耗**: 1600/次
-- **价格**: ￥0.08~￥0.16/次
+- **价格**: ￥***~￥***/次
 - **说明**: OpenAI 最新发布的 Sora 模型 2.0，价格可能会有变动
 
 ## 注意事项
