@@ -164,7 +164,14 @@ export default function VideoPageClient() {
     if (promptParam) {
       // Next.js useSearchParams().get() already decodes the URL parameter
       // No need to call decodeURIComponent again, which would cause double-decoding and garbled text
-      setPrompt(promptParam)
+      
+      // 清理提示词：移除重复的前缀和多余空格
+      const cleanedPrompt = promptParam
+        .replace(/^create\s+a\s+professional\s+create\s+a\s+professional\s+/i, 'Create a professional ')
+        .replace(/\s+/g, ' ')
+        .trim()
+      
+      setPrompt(cleanedPrompt)
       hasReadPromptFromUrl.current = true
       
       // Clear the URL parameter after reading, but delay to avoid DOM conflicts during navigation
@@ -264,10 +271,18 @@ export default function VideoPageClient() {
             setPollingTaskId(null)
           }
         } else if (data.status === 'failed') {
+          // 获取更友好的错误信息
+          const errorMessage = data.error || data.details || 'Video generation failed'
+          const friendlyError = errorMessage.includes('system error') || errorMessage.includes('temporary')
+            ? 'The video generation service encountered a system error. This is usually temporary. Please try again in a few minutes. Your credits have been automatically refunded.'
+            : errorMessage
+          
           console.error('[VideoPage] ❌ Task failed during polling:', {
             taskId: pollingTaskId,
-            error: data.error,
+            error: errorMessage,
+            friendlyError,
             violationType: data.violation_type,
+            details: data.details,
             fullResponse: data,
           })
           
@@ -276,7 +291,7 @@ export default function VideoPageClient() {
               ...(prev ?? { task_id: pollingTaskId, prompt: currentPrompt }),
               task_id: pollingTaskId,
               status: 'failed',
-              error: data.error,
+              error: friendlyError,
               progress: data.progress ?? prev?.progress,
               prompt: prev?.prompt || currentPrompt,
               violationType: parseViolationType(data.violation_type),
@@ -308,8 +323,21 @@ export default function VideoPageClient() {
     setLoading(true)
 
     try {
+      // 清理提示词：移除重复的前缀和多余空格
+      const cleanedPrompt = prompt
+        .replace(/^create\s+a\s+professional\s+create\s+a\s+professional\s+/i, 'Create a professional ')
+        .replace(/\s+/g, ' ')
+        .trim()
+      
+      // 验证清理后的提示词
+      if (!cleanedPrompt || cleanedPrompt.length < 10) {
+        alert('Please enter a valid prompt (at least 10 characters)')
+        setLoading(false)
+        return
+      }
+      
       const requestBody = {
-        prompt,
+        prompt: cleanedPrompt,
         url: referenceUrl || undefined,
         aspectRatio,
         duration,
