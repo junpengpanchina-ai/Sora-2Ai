@@ -80,6 +80,7 @@ export default function VideoPageClient() {
   const [currentPrompt, setCurrentPrompt] = useState<string>('') // Save current prompt
   const [credits, setCredits] = useState<number | null>(null)
   const hasReadPromptFromUrl = useRef(false)
+  const isMountedRef = useRef(true)
   
   // Image upload states
   const [isDragging, setIsDragging] = useState(false)
@@ -94,6 +95,11 @@ export default function VideoPageClient() {
       return
     }
     setSupabase(createClient())
+    isMountedRef.current = true
+    
+    return () => {
+      isMountedRef.current = false
+    }
   }, [])
 
 
@@ -114,18 +120,24 @@ export default function VideoPageClient() {
 
   // Fetch credits
   useEffect(() => {
-    if (!supabase) {
+    if (!supabase || !isMountedRef.current) {
       return
     }
 
     async function fetchCredits() {
+      if (!isMountedRef.current) return
+      
       try {
         const response = await fetch('/api/stats', {
           headers: await getAuthHeaders(),
         })
+        
+        // Check again after async operation
+        if (!isMountedRef.current) return
+        
         if (response.ok) {
           const data = await response.json()
-          if (data.success && data.credits !== undefined) {
+          if (data.success && data.credits !== undefined && isMountedRef.current) {
             setCredits(data.credits)
           }
         }
@@ -134,13 +146,19 @@ export default function VideoPageClient() {
       }
     }
     fetchCredits()
-    const interval = setInterval(fetchCredits, 30000) // Refresh every 30 seconds
+    const interval = setInterval(() => {
+      if (isMountedRef.current) {
+        fetchCredits()
+      } else {
+        clearInterval(interval)
+      }
+    }, 30000) // Refresh every 30 seconds
     return () => clearInterval(interval)
   }, [getAuthHeaders, supabase])
 
   // Read prompt from URL query parameter (only once)
   useEffect(() => {
-    if (hasReadPromptFromUrl.current) return
+    if (hasReadPromptFromUrl.current || !isMountedRef.current) return
     
     const promptParam = searchParams.get('prompt')
     if (promptParam) {
@@ -148,24 +166,56 @@ export default function VideoPageClient() {
       // No need to call decodeURIComponent again, which would cause double-decoding and garbled text
       setPrompt(promptParam)
       hasReadPromptFromUrl.current = true
-      // Clear the URL parameter after reading
-      const newUrl = new URL(window.location.href)
-      newUrl.searchParams.delete('prompt')
-      router.replace(newUrl.pathname + newUrl.search, { scroll: false })
+      
+      // Clear the URL parameter after reading, but delay to avoid DOM conflicts during navigation
+      // Use setTimeout to ensure the component is fully mounted and React reconciliation is complete
+      const timeoutId = setTimeout(() => {
+        if (!isMountedRef.current) return
+        
+        try {
+          const newUrl = new URL(window.location.href)
+          newUrl.searchParams.delete('prompt')
+          // Use window.history.replaceState instead of router.replace to avoid React reconciliation conflicts
+          window.history.replaceState(
+            { ...window.history.state, as: newUrl.pathname + newUrl.search, url: newUrl.pathname + newUrl.search },
+            '',
+            newUrl.pathname + newUrl.search
+          )
+        } catch (error) {
+          // Silently fail if URL manipulation fails (e.g., during navigation)
+          console.debug('[VideoPage] Failed to update URL (safe to ignore):', error)
+        }
+      }, 100) // Small delay to ensure DOM is stable
+      
+      return () => {
+        clearTimeout(timeoutId)
+      }
     }
   }, [searchParams, router])
 
   // Poll task status
   useEffect(() => {
-    if (!pollingTaskId) return
+    if (!pollingTaskId || !isMountedRef.current) return
 
     const interval = setInterval(async () => {
+      // Check if component is still mounted before making updates
+      if (!isMountedRef.current) {
+        clearInterval(interval)
+        return
+      }
+      
       try {
         console.log('[VideoPage] 🔍 Polling task status:', { taskId: pollingTaskId })
         
         const response = await fetch(`/api/video/result/${pollingTaskId}`, {
           headers: await getAuthHeaders(),
         })
+        
+        // Check again after async operation
+        if (!isMountedRef.current) {
+          clearInterval(interval)
+          return
+        }
         
         console.log('[VideoPage] 📥 Polling response:', {
           taskId: pollingTaskId,
@@ -184,6 +234,12 @@ export default function VideoPageClient() {
           error: data.error,
           violationType: data.violation_type,
         })
+        
+        // Check again before state updates
+        if (!isMountedRef.current) {
+          clearInterval(interval)
+          return
+        }
         
         if (data.success) {
           setCurrentResult(prev => ({
@@ -215,16 +271,18 @@ export default function VideoPageClient() {
             fullResponse: data,
           })
           
-          setCurrentResult(prev => ({
-            ...(prev ?? { task_id: pollingTaskId, prompt: currentPrompt }),
-            task_id: pollingTaskId,
-            status: 'failed',
-            error: data.error,
-            progress: data.progress ?? prev?.progress,
-            prompt: prev?.prompt || currentPrompt,
-            violationType: parseViolationType(data.violation_type),
-          }))
-          setPollingTaskId(null)
+          if (isMountedRef.current) {
+            setCurrentResult(prev => ({
+              ...(prev ?? { task_id: pollingTaskId, prompt: currentPrompt }),
+              task_id: pollingTaskId,
+              status: 'failed',
+              error: data.error,
+              progress: data.progress ?? prev?.progress,
+              prompt: prev?.prompt || currentPrompt,
+              violationType: parseViolationType(data.violation_type),
+            }))
+            setPollingTaskId(null)
+          }
         }
       } catch (error) {
         console.error(`[VideoPage] ❌ Failed to poll task ${pollingTaskId}:`, {
@@ -232,7 +290,9 @@ export default function VideoPageClient() {
           stack: error instanceof Error ? error.stack : undefined,
           taskId: pollingTaskId,
         })
-        setPollingTaskId(null)
+        if (isMountedRef.current) {
+          setPollingTaskId(null)
+        }
       }
     }, 3000) // Poll every 3 seconds
 
