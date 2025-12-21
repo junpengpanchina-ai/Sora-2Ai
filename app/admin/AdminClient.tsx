@@ -489,7 +489,8 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
 
     channel.subscribe((status) => {
       if (status === 'CHANNEL_ERROR') {
-        console.error('订阅实时更新失败')
+        console.warn('订阅实时更新失败（不影响功能，将使用轮询方式更新）')
+        // 实时订阅失败不影响功能，系统会使用轮询方式更新数据
       }
     })
 

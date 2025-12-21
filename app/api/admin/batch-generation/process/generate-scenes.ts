@@ -86,44 +86,113 @@ Do not include explanations. Output only the JSON.`
           ],
         })
 
+        // 🔥 详细记录 API 响应，避免浪费积分
+        console.log(`[${industry}] 批次 ${batch + 1}: API 响应结构:`, {
+          hasChoices: !!response.choices,
+          choicesLength: response.choices?.length || 0,
+          firstChoice: response.choices?.[0] ? {
+            hasMessage: !!response.choices[0].message,
+            hasContent: !!response.choices[0].message?.content,
+            contentLength: response.choices[0].message?.content?.length || 0,
+            finishReason: response.choices[0].finish_reason,
+          } : null,
+        })
+        
         rawContent = response.choices?.[0]?.message?.content || ''
+        
         if (!rawContent) {
-          throw new Error('生成的内容为空')
+          console.error(`[${industry}] 批次 ${batch + 1}: ❌ API 返回空内容！完整响应:`, JSON.stringify(response, null, 2))
+          throw new Error('生成的内容为空 - API 返回了空内容，可能被过滤或拒绝')
         }
 
         console.log(`[${industry}] 批次 ${batch + 1}: 收到内容长度 ${rawContent.length} 字符`)
+        
+        // 🔥 记录原始内容的前 500 字符，用于调试
+        if (rawContent.length > 0) {
+          console.log(`[${industry}] 批次 ${batch + 1}: 原始内容预览（前500字符）:`, rawContent.substring(0, 500))
+        }
 
-        // 解析 JSON
+        // 解析 JSON - 增强的解析逻辑
         const jsonContent = rawContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+        
+        // 🔥 记录原始 JSON 内容（用于调试）
+        console.log(`[${industry}] 批次 ${batch + 1}: 开始解析 JSON，原始内容长度: ${jsonContent.length} 字符`)
+        console.log(`[${industry}] 批次 ${batch + 1}: JSON 内容前1000字符:`, jsonContent.substring(0, 1000))
         
         try {
           scenes = JSON.parse(jsonContent)
-          console.log(`[${industry}] 批次 ${batch + 1}: 成功解析 JSON，获得 ${scenes.length} 条场景词`)
+          console.log(`[${industry}] 批次 ${batch + 1}: ✅ 直接解析 JSON 成功，获得 ${scenes.length} 条场景词`)
         } catch (parseError) {
-          console.warn(`[${industry}] 批次 ${batch + 1}: JSON 解析失败，尝试修复...`, parseError)
+          console.warn(`[${industry}] 批次 ${batch + 1}: ⚠️ JSON 直接解析失败，尝试修复...`, parseError)
+          console.warn(`[${industry}] 批次 ${batch + 1}: 解析错误详情:`, parseError instanceof Error ? parseError.message : String(parseError))
+          
+          // 尝试提取 JSON 数组部分
           const jsonMatch = jsonContent.match(/\[[\s\S]*\]/)
           if (jsonMatch) {
             try {
               scenes = JSON.parse(jsonMatch[0])
-              console.log(`[${industry}] 批次 ${batch + 1}: JSON 修复成功，获得 ${scenes.length} 条场景词`)
+              console.log(`[${industry}] 批次 ${batch + 1}: ✅ JSON 修复成功（提取数组），获得 ${scenes.length} 条场景词`)
             } catch (retryError) {
-              console.error(`[${industry}] 批次 ${batch + 1}: JSON 修复失败`, retryError)
-              throw new Error('无法解析 JSON')
+              console.error(`[${industry}] 批次 ${batch + 1}: ❌ JSON 修复失败`, retryError)
+              console.error(`[${industry}] 批次 ${batch + 1}: 修复错误详情:`, retryError instanceof Error ? retryError.message : String(retryError))
+              console.error(`[${industry}] 批次 ${batch + 1}: 尝试解析的内容:`, jsonMatch[0].substring(0, 500))
+              throw new Error(`无法解析 JSON: ${retryError instanceof Error ? retryError.message : String(retryError)}`)
             }
           } else {
-            throw new Error('无法解析 JSON')
+            console.error(`[${industry}] 批次 ${batch + 1}: ❌ 无法找到 JSON 数组，原始内容:`, jsonContent.substring(0, 1000))
+            throw new Error('无法找到 JSON 数组，可能 API 返回的不是 JSON 格式')
           }
         }
 
+        // 🔥 检查解析后的场景词结构
+        if (!Array.isArray(scenes)) {
+          console.error(`[${industry}] 批次 ${batch + 1}: ❌ JSON 解析结果不是数组！类型: ${typeof scenes}, 值:`, scenes)
+          throw new Error('JSON 解析结果不是数组')
+        }
+        
+        console.log(`[${industry}] 批次 ${batch + 1}: JSON 解析成功，原始场景词数量: ${scenes.length}`)
+        
         // 调整 ID 并过滤
         scenes.forEach((scene, idx) => {
           scene.id = batch * batchSize + idx + 1
         })
         
-        const validScenes = scenes.filter(s => s && s.use_case && s.use_case.trim().length > 50)
-        const filteredCount = scenes.length - validScenes.length
+        // 🔥 详细记录过滤过程（降低过滤阈值，从 50 字符改为 30 字符，避免误过滤）
+        const beforeFilter = scenes.length
+        const MIN_LENGTH = 30 // 降低过滤阈值，避免误过滤有效内容
+        
+        // 先记录所有场景词的结构，用于调试
+        if (scenes.length > 0) {
+          console.log(`[${industry}] 批次 ${batch + 1}: 解析后的场景词示例（前3条）:`, scenes.slice(0, 3).map(s => ({
+            hasId: !!s.id,
+            hasUseCase: !!s.use_case,
+            useCaseLength: s.use_case?.length || 0,
+            useCasePreview: s.use_case?.substring(0, 100) || 'N/A',
+          })))
+        }
+        
+        const validScenes = scenes.filter(s => {
+          if (!s) {
+            console.warn(`[${industry}] 批次 ${batch + 1}: 发现 null/undefined 场景词`)
+            return false
+          }
+          if (!s.use_case) {
+            console.warn(`[${industry}] 批次 ${batch + 1}: 发现缺少 use_case 的场景词:`, JSON.stringify(s))
+            return false
+          }
+          const trimmedLength = s.use_case.trim().length
+          if (trimmedLength <= MIN_LENGTH) {
+            console.warn(`[${industry}] 批次 ${batch + 1}: 发现内容过短的场景词（${trimmedLength} 字符，阈值: ${MIN_LENGTH}）:`, s.use_case.substring(0, 150))
+            return false
+          }
+          return true
+        })
+        const filteredCount = beforeFilter - validScenes.length
+        
         if (filteredCount > 0) {
-          console.warn(`[${industry}] 批次 ${batch + 1}: 过滤掉 ${filteredCount} 条无效场景词`)
+          console.warn(`[${industry}] 批次 ${batch + 1}: ⚠️ 过滤掉 ${filteredCount} 条无效场景词（原始: ${beforeFilter} 条，有效: ${validScenes.length} 条，过滤阈值: ${MIN_LENGTH} 字符）`)
+        } else {
+          console.log(`[${industry}] 批次 ${batch + 1}: ✅ 所有 ${beforeFilter} 条场景词都通过过滤（阈值: ${MIN_LENGTH} 字符）`)
         }
         
         scenes = validScenes
@@ -131,9 +200,12 @@ Do not include explanations. Output only the JSON.`
         // 🔥 强制检查：如果返回空数组，立即触发 fallback（最高优先级）
         if (scenes.length === 0) {
           needsFallback = true
-          console.warn(`[${industry}] 批次 ${batch + 1}: ⚠️ gemini-2.5-flash 返回空数组，强制切换到 gemini-3-flash（联网搜索）`)
-          console.warn(`[${industry}] 批次 ${batch + 1}: 原始内容长度: ${rawContent.length} 字符`)
-          console.warn(`[${industry}] 批次 ${batch + 1}: JSON 内容预览: ${rawContent.substring(0, 200)}...`)
+          console.error(`[${industry}] 批次 ${batch + 1}: ⚠️⚠️⚠️ 严重问题：gemini-2.5-flash 返回空数组！`)
+          console.error(`[${industry}] 批次 ${batch + 1}: 原始内容长度: ${rawContent.length} 字符`)
+          console.error(`[${industry}] 批次 ${batch + 1}: JSON 解析前数量: ${beforeFilter} 条`)
+          console.error(`[${industry}] 批次 ${batch + 1}: 过滤后数量: ${validScenes.length} 条`)
+          console.error(`[${industry}] 批次 ${batch + 1}: JSON 内容预览（前500字符）:`, rawContent.substring(0, 500))
+          console.error(`[${industry}] 批次 ${batch + 1}: 将强制切换到 gemini-3-flash（联网搜索）以避免浪费积分`)
         } else {
           // 检查生成质量（触发方式 A 和 B）
           const qualityCheck = checkGenerationQuality(scenes, currentBatchSize, rawContent)
@@ -218,20 +290,71 @@ Do not include explanations. Output only the JSON.`
           }
         }
 
+        // 🔥 检查解析后的场景词结构
+        if (!Array.isArray(scenes)) {
+          console.error(`[${industry}] 批次 ${batch + 1}: ❌ gemini-3-pro JSON 解析结果不是数组！类型: ${typeof scenes}, 值:`, scenes)
+          throw new Error('gemini-3-pro JSON 解析结果不是数组')
+        }
+        
+        console.log(`[${industry}] 批次 ${batch + 1}: gemini-3-pro JSON 解析成功，原始场景词数量: ${scenes.length}`)
+        
         // 调整 ID 并过滤
         scenes.forEach((scene, idx) => {
           scene.id = batch * batchSize + idx + 1
         })
         
-        const validScenes = scenes.filter(s => s && s.use_case && s.use_case.trim().length > 50)
-        const filteredCount = scenes.length - validScenes.length
+        // 🔥 详细记录过滤过程（降低过滤阈值，从 50 字符改为 30 字符）
+        const beforeFilter = scenes.length
+        const MIN_LENGTH = 30 // 降低过滤阈值，避免误过滤有效内容
+        
+        // 先记录所有场景词的结构，用于调试
+        if (scenes.length > 0) {
+          console.log(`[${industry}] 批次 ${batch + 1}: gemini-3-pro 解析后的场景词示例（前3条）:`, scenes.slice(0, 3).map(s => ({
+            hasId: !!s.id,
+            hasUseCase: !!s.use_case,
+            useCaseLength: s.use_case?.length || 0,
+            useCasePreview: s.use_case?.substring(0, 100) || 'N/A',
+          })))
+        }
+        
+        const validScenes = scenes.filter(s => {
+          if (!s) {
+            console.warn(`[${industry}] 批次 ${batch + 1}: gemini-3-pro 发现 null/undefined 场景词`)
+            return false
+          }
+          if (!s.use_case) {
+            console.warn(`[${industry}] 批次 ${batch + 1}: gemini-3-pro 发现缺少 use_case 的场景词:`, JSON.stringify(s))
+            return false
+          }
+          const trimmedLength = s.use_case.trim().length
+          if (trimmedLength <= MIN_LENGTH) {
+            console.warn(`[${industry}] 批次 ${batch + 1}: gemini-3-pro 发现内容过短的场景词（${trimmedLength} 字符，阈值: ${MIN_LENGTH}）:`, s.use_case.substring(0, 150))
+            return false
+          }
+          return true
+        })
+        const filteredCount = beforeFilter - validScenes.length
+        
         if (filteredCount > 0) {
-          console.warn(`[${industry}] 批次 ${batch + 1}: gemini-3-pro 过滤掉 ${filteredCount} 条无效场景词`)
+          console.warn(`[${industry}] 批次 ${batch + 1}: ⚠️ gemini-3-pro 过滤掉 ${filteredCount} 条无效场景词（原始: ${beforeFilter} 条，有效: ${validScenes.length} 条，过滤阈值: ${MIN_LENGTH} 字符）`)
+        } else {
+          console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-3-pro 所有 ${beforeFilter} 条场景词都通过过滤（阈值: ${MIN_LENGTH} 字符）`)
         }
         
         scenes = validScenes
+        
+        // 🔥 最终检查：如果 3-pro 也返回空数组，这是极端情况
+        if (scenes.length === 0) {
+          console.error(`[${industry}] 批次 ${batch + 1}: ⚠️⚠️⚠️ 极端情况：gemini-3-pro 也返回空数组！`)
+          console.error(`[${industry}] 批次 ${batch + 1}: 原始内容长度: ${rawContent.length} 字符`)
+          console.error(`[${industry}] 批次 ${batch + 1}: JSON 解析前数量: ${beforeFilter} 条`)
+          console.error(`[${industry}] 批次 ${batch + 1}: 过滤后数量: ${validScenes.length} 条`)
+          console.error(`[${industry}] 批次 ${batch + 1}: 所有模型都失败，无法生成场景词`)
+          throw new Error('所有模型（2.5-flash、3-flash、3-pro）都返回空数组，无法生成场景词')
+        }
+        
         allScenes.push(...scenes)
-        console.log(`[${industry}] 批次 ${batch + 1}: gemini-3-pro 生成成功，添加 ${scenes.length} 条场景词，累计 ${allScenes.length} 条`)
+        console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-3-pro 生成成功，添加 ${scenes.length} 条场景词，累计 ${allScenes.length} 条`)
       } catch (error) {
         console.error(`[${industry}] 批次 ${batch + 1}: gemini-3-pro 也失败:`, error)
         // 如果 3-pro 也失败，抛出错误
@@ -255,12 +378,31 @@ Do not include explanations. Output only the JSON.`
           tools: [{ type: 'google_search_retrieval' }],
         })
 
+        // 🔥 详细记录 API 响应，避免浪费积分
+        console.log(`[${industry}] 批次 ${batch + 1}: gemini-3-flash API 响应结构:`, {
+          hasChoices: !!response.choices,
+          choicesLength: response.choices?.length || 0,
+          firstChoice: response.choices?.[0] ? {
+            hasMessage: !!response.choices[0].message,
+            hasContent: !!response.choices[0].message?.content,
+            contentLength: response.choices[0].message?.content?.length || 0,
+            finishReason: response.choices[0].finish_reason,
+          } : null,
+        })
+        
         rawContent = response.choices?.[0]?.message?.content || ''
+        
         if (!rawContent) {
-          throw new Error('gemini-3-flash 生成的内容为空')
+          console.error(`[${industry}] 批次 ${batch + 1}: ❌ gemini-3-flash API 返回空内容！完整响应:`, JSON.stringify(response, null, 2))
+          throw new Error('gemini-3-flash 生成的内容为空 - API 返回了空内容，可能被过滤或拒绝')
         }
 
         console.log(`[${industry}] 批次 ${batch + 1}: gemini-3-flash 收到内容长度 ${rawContent.length} 字符`)
+        
+        // 🔥 记录原始内容的前 500 字符，用于调试
+        if (rawContent.length > 0) {
+          console.log(`[${industry}] 批次 ${batch + 1}: gemini-3-flash 原始内容预览（前500字符）:`, rawContent.substring(0, 500))
+        }
 
         // 解析 JSON
         const jsonContent = rawContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
@@ -284,22 +426,51 @@ Do not include explanations. Output only the JSON.`
           }
         }
 
+        // 🔥 检查解析后的场景词结构
+        if (!Array.isArray(scenes)) {
+          console.error(`[${industry}] 批次 ${batch + 1}: ❌ gemini-3-flash JSON 解析结果不是数组！类型: ${typeof scenes}, 值:`, scenes)
+          throw new Error('gemini-3-flash JSON 解析结果不是数组')
+        }
+        
+        console.log(`[${industry}] 批次 ${batch + 1}: gemini-3-flash JSON 解析成功，原始场景词数量: ${scenes.length}`)
+        
         // 调整 ID 并过滤
         scenes.forEach((scene, idx) => {
           scene.id = batch * batchSize + idx + 1
         })
         
-        const validScenes = scenes.filter(s => s && s.use_case && s.use_case.trim().length > 50)
-        const filteredCount = scenes.length - validScenes.length
+        // 🔥 详细记录过滤过程
+        const beforeFilter = scenes.length
+        const validScenes = scenes.filter(s => {
+          if (!s) {
+            console.warn(`[${industry}] 批次 ${batch + 1}: gemini-3-flash 发现 null/undefined 场景词`)
+            return false
+          }
+          if (!s.use_case) {
+            console.warn(`[${industry}] 批次 ${batch + 1}: gemini-3-flash 发现缺少 use_case 的场景词:`, s)
+            return false
+          }
+          if (s.use_case.trim().length <= 50) {
+            console.warn(`[${industry}] 批次 ${batch + 1}: gemini-3-flash 发现内容过短的场景词（${s.use_case.trim().length} 字符）:`, s.use_case.substring(0, 100))
+            return false
+          }
+          return true
+        })
+        const filteredCount = beforeFilter - validScenes.length
+        
         if (filteredCount > 0) {
-          console.warn(`[${industry}] 批次 ${batch + 1}: gemini-3-flash 过滤掉 ${filteredCount} 条无效场景词`)
+          console.warn(`[${industry}] 批次 ${batch + 1}: ⚠️ gemini-3-flash 过滤掉 ${filteredCount} 条无效场景词（原始: ${beforeFilter} 条，有效: ${validScenes.length} 条）`)
         }
         
         scenes = validScenes
         
         // 🔥 再次强制检查：如果 3-flash 也返回空数组，需要切换到 3-pro
         if (scenes.length === 0) {
-          console.error(`[${industry}] 批次 ${batch + 1}: ⚠️ gemini-3-flash 也返回空数组，将切换到 gemini-3-pro（最高质量）`)
+          console.error(`[${industry}] 批次 ${batch + 1}: ⚠️⚠️⚠️ 严重问题：gemini-3-flash 也返回空数组！`)
+          console.error(`[${industry}] 批次 ${batch + 1}: 原始内容长度: ${rawContent.length} 字符`)
+          console.error(`[${industry}] 批次 ${batch + 1}: JSON 解析前数量: ${beforeFilter} 条`)
+          console.error(`[${industry}] 批次 ${batch + 1}: 过滤后数量: ${validScenes.length} 条`)
+          console.error(`[${industry}] 批次 ${batch + 1}: 将切换到 gemini-3-pro（最高质量）以避免浪费积分`)
           needsPro = true
           needsFallback = true
         } else {
@@ -323,32 +494,61 @@ Do not include explanations. Output only the JSON.`
             tools: [{ type: 'google_search_retrieval' }],
           })
 
+          // 🔥 详细记录 API 响应，避免浪费积分
+          console.log(`[${industry}] 批次 ${batch + 1}: gemini-3-pro API 响应结构:`, {
+            hasChoices: !!response.choices,
+            choicesLength: response.choices?.length || 0,
+            firstChoice: response.choices?.[0] ? {
+              hasMessage: !!response.choices[0].message,
+              hasContent: !!response.choices[0].message?.content,
+              contentLength: response.choices[0].message?.content?.length || 0,
+              finishReason: response.choices[0].finish_reason,
+            } : null,
+          })
+          
           rawContent = response.choices?.[0]?.message?.content || ''
+          
           if (!rawContent) {
-            throw new Error('gemini-3-pro 生成的内容为空')
+            console.error(`[${industry}] 批次 ${batch + 1}: ❌ gemini-3-pro API 返回空内容！完整响应:`, JSON.stringify(response, null, 2))
+            throw new Error('gemini-3-pro 生成的内容为空 - API 返回了空内容，可能被过滤或拒绝')
           }
 
           console.log(`[${industry}] 批次 ${batch + 1}: gemini-3-pro 收到内容长度 ${rawContent.length} 字符`)
+          
+          // 🔥 记录原始内容的前 500 字符，用于调试
+          if (rawContent.length > 0) {
+            console.log(`[${industry}] 批次 ${batch + 1}: gemini-3-pro 原始内容预览（前500字符）:`, rawContent.substring(0, 500))
+          }
 
-          // 解析 JSON
+          // 解析 JSON - 增强的解析逻辑
           const jsonContent = rawContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+          
+          // 🔥 记录原始 JSON 内容（用于调试）
+          console.log(`[${industry}] 批次 ${batch + 1}: gemini-3-pro 开始解析 JSON，原始内容长度: ${jsonContent.length} 字符`)
+          console.log(`[${industry}] 批次 ${batch + 1}: gemini-3-pro JSON 内容前1000字符:`, jsonContent.substring(0, 1000))
           
           try {
             scenes = JSON.parse(jsonContent)
-            console.log(`[${industry}] 批次 ${batch + 1}: gemini-3-pro 成功解析 JSON，获得 ${scenes.length} 条场景词`)
+            console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-3-pro 直接解析 JSON 成功，获得 ${scenes.length} 条场景词`)
           } catch (parseError) {
-            console.warn(`[${industry}] 批次 ${batch + 1}: gemini-3-pro JSON 解析失败，尝试修复...`, parseError)
+            console.warn(`[${industry}] 批次 ${batch + 1}: ⚠️ gemini-3-pro JSON 直接解析失败，尝试修复...`, parseError)
+            console.warn(`[${industry}] 批次 ${batch + 1}: gemini-3-pro 解析错误详情:`, parseError instanceof Error ? parseError.message : String(parseError))
+            
+            // 尝试提取 JSON 数组部分
             const jsonMatch = jsonContent.match(/\[[\s\S]*\]/)
             if (jsonMatch) {
               try {
                 scenes = JSON.parse(jsonMatch[0])
-                console.log(`[${industry}] 批次 ${batch + 1}: gemini-3-pro JSON 修复成功，获得 ${scenes.length} 条场景词`)
+                console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-3-pro JSON 修复成功（提取数组），获得 ${scenes.length} 条场景词`)
               } catch (retryError) {
-                console.error(`[${industry}] 批次 ${batch + 1}: gemini-3-pro JSON 修复失败`, retryError)
-                throw new Error('无法解析 JSON')
+                console.error(`[${industry}] 批次 ${batch + 1}: ❌ gemini-3-pro JSON 修复失败`, retryError)
+                console.error(`[${industry}] 批次 ${batch + 1}: gemini-3-pro 修复错误详情:`, retryError instanceof Error ? retryError.message : String(retryError))
+                console.error(`[${industry}] 批次 ${batch + 1}: gemini-3-pro 尝试解析的内容:`, jsonMatch[0].substring(0, 500))
+                throw new Error(`无法解析 JSON: ${retryError instanceof Error ? retryError.message : String(retryError)}`)
               }
             } else {
-              throw new Error('无法解析 JSON')
+              console.error(`[${industry}] 批次 ${batch + 1}: ❌ gemini-3-pro 无法找到 JSON 数组，原始内容:`, jsonContent.substring(0, 1000))
+              throw new Error('无法找到 JSON 数组，可能 API 返回的不是 JSON 格式')
             }
           }
 
@@ -381,4 +581,5 @@ Do not include explanations. Output only the JSON.`
 
   return allScenes.slice(0, scenesPerIndustry)
 }
+
 
