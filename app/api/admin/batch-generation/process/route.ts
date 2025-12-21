@@ -109,8 +109,11 @@ export async function POST(request: NextRequest) {
       // 生成场景词
       const scenes = await generateIndustryScenes(industry, scenesPerIndustry, useCaseType)
       
-      // 保存场景词
+      // 保存场景词（带重试机制和详细错误日志）
       let savedCount = 0
+      let failedCount = 0
+      const errors: string[] = []
+      
       for (let j = 0; j < scenes.length; j++) {
         const scene = scenes[j]
         
@@ -121,14 +124,39 @@ export async function POST(request: NextRequest) {
           .single()
         
         if (checkTask?.should_stop || checkTask?.status === 'cancelled') {
+          console.log(`[${industry}] 任务已停止，停止保存场景词`)
           break
         }
 
-        try {
-          await saveSceneToDatabase(industry, scene, useCaseType, supabase)
-          savedCount++
-        } catch (error) {
-          console.error(`[${industry}] 保存场景词 ${j + 1} 失败:`, error)
+        // 重试机制
+        let retryCount = 0
+        const maxRetries = 3
+        let saved = false
+        
+        while (retryCount <= maxRetries && !saved) {
+          try {
+            await saveSceneToDatabase(industry, scene, useCaseType, supabase)
+            savedCount++
+            saved = true
+            if (retryCount > 0) {
+              console.log(`[${industry}] 场景词 ${j + 1} 重试成功 (${retryCount}/${maxRetries})`)
+            }
+          } catch (error) {
+            retryCount++
+            const errorMessage = error instanceof Error ? error.message : String(error)
+            
+            if (retryCount > maxRetries) {
+              failedCount++
+              const fullError = `场景词 ${j + 1}: ${errorMessage}`
+              errors.push(fullError)
+              console.error(`[${industry}] 保存场景词 ${j + 1} 最终失败 (${retryCount}/${maxRetries}):`, errorMessage)
+            } else {
+              // 延迟后重试
+              const retryDelay = 1000 * retryCount
+              console.warn(`[${industry}] 保存场景词 ${j + 1} 失败，${retryDelay}ms 后重试 (${retryCount}/${maxRetries}):`, errorMessage)
+              await new Promise((resolve) => setTimeout(resolve, retryDelay))
+            }
+          }
         }
         
         // 避免请求过快
@@ -136,10 +164,32 @@ export async function POST(request: NextRequest) {
           const delay = j < 10 ? 200 : j < 50 ? 150 : 100
           await new Promise((resolve) => setTimeout(resolve, delay))
         }
+        
+        // 每保存 10 条更新一次进度（避免丢失进度）
+        if ((j + 1) % 10 === 0) {
+          await tasksTable()
+            .update({
+              total_scenes_saved: (task.total_scenes_saved || 0) + savedCount,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', taskId)
+        }
+      }
+      
+      // 记录保存结果
+      console.log(`[${industry}] 保存完成: 成功 ${savedCount} 条, 失败 ${failedCount} 条, 总计 ${scenes.length} 条`)
+      if (errors.length > 0 && errors.length <= 5) {
+        console.error(`[${industry}] 保存错误详情:`, errors)
+      } else if (errors.length > 5) {
+        console.error(`[${industry}] 保存错误详情 (前5条):`, errors.slice(0, 5))
       }
 
       // 更新进度
       const progress = Math.round(((currentIndex + 1) / industries.length) * 100)
+      const lastError = failedCount > 0 
+        ? `${industry}: ${failedCount} 条场景词保存失败${errors.length > 0 ? ` (${errors[0]})` : ''}`
+        : null
+      
       await tasksTable()
         .update({
           current_industry_index: currentIndex + 1,
@@ -147,9 +197,20 @@ export async function POST(request: NextRequest) {
           total_scenes_saved: (task.total_scenes_saved || 0) + savedCount,
           progress,
           updated_at: new Date().toISOString(),
-          last_error: null,
+          last_error: lastError,
         })
         .eq('id', taskId)
+      
+      // 如果保存失败太多，记录警告
+      if (savedCount === 0 && scenes.length > 0) {
+        console.error(`[${industry}] ⚠️ 警告: 所有场景词保存失败！`)
+        await tasksTable()
+          .update({
+            last_error: `${industry}: 所有 ${scenes.length} 条场景词保存失败，请检查数据库连接和错误日志`,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', taskId)
+      }
 
       // 如果还有更多行业需要处理，链式调用下一个 API（不等待响应，避免超时）
       if (currentIndex + 1 < industries.length) {

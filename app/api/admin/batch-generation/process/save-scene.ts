@@ -98,50 +98,80 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
   const isPublished = qualityStatus === 'approved'
 
   // 直接使用 Supabase 保存（避免 HTTP 调用）
-  const { error: insertError } = await supabase
-    .from('use_cases')
-    .insert({
-      slug,
-      title,
-      h1,
-      description,
-      content,
-      use_case_type: useCaseType,
-      industry,
-      is_published: isPublished,
-      seo_keywords: [scene.use_case, industry, `${industry} AI video`],
-      quality_status: qualityStatus,
-      quality_score: qualityCheck.score,
-      quality_issues: qualityCheck.issues,
-    })
+  // 添加详细的错误日志
+  try {
+    const { error: insertError } = await supabase
+      .from('use_cases')
+      .insert({
+        slug,
+        title,
+        h1,
+        description,
+        content,
+        use_case_type: useCaseType,
+        industry,
+        is_published: isPublished,
+        seo_keywords: [scene.use_case, industry, `${industry} AI video`],
+        quality_status: qualityStatus,
+        quality_score: qualityCheck.score,
+        quality_issues: qualityCheck.issues,
+      })
+      .select()
 
-  if (insertError) {
-    // 如果是重复 slug，尝试添加后缀
-    if (insertError.code === '23505') {
-      const newSlug = `${slug}-${Date.now()}`
-      const { error: retryError } = await supabase
-        .from('use_cases')
-        .insert({
-          slug: newSlug,
-          title,
-          h1,
-          description,
-          content,
-          use_case_type: useCaseType,
-          industry,
-          is_published: isPublished,
-          seo_keywords: [scene.use_case, industry, `${industry} AI video`],
-          quality_status: qualityStatus,
-          quality_score: qualityCheck.score,
-          quality_issues: qualityCheck.issues,
+    if (insertError) {
+      // 如果是重复 slug，尝试添加后缀
+      if (insertError.code === '23505') {
+        const newSlug = `${slug}-${Date.now()}`
+        const { error: retryError } = await supabase
+          .from('use_cases')
+          .insert({
+            slug: newSlug,
+            title,
+            h1,
+            description,
+            content,
+            use_case_type: useCaseType,
+            industry,
+            is_published: isPublished,
+            seo_keywords: [scene.use_case, industry, `${industry} AI video`],
+            quality_status: qualityStatus,
+            quality_score: qualityCheck.score,
+            quality_issues: qualityCheck.issues,
+          })
+        
+        if (retryError) {
+          console.error(`[${industry}] 保存失败 (重复slug重试失败):`, {
+            error: retryError.message,
+            code: retryError.code,
+            details: retryError.details,
+            hint: retryError.hint,
+            slug: newSlug,
+          })
+          throw new Error(`保存失败: ${retryError.message} (code: ${retryError.code})`)
+        }
+      } else {
+        console.error(`[${industry}] 保存失败:`, {
+          error: insertError.message,
+          code: insertError.code,
+          details: insertError.details,
+          hint: insertError.hint,
+          slug,
+          useCaseType,
         })
-      
-      if (retryError) {
-        throw new Error(`保存失败: ${retryError.message}`)
+        throw new Error(`保存失败: ${insertError.message} (code: ${insertError.code})`)
       }
-    } else {
-      throw new Error(`保存失败: ${insertError.message}`)
     }
+  } catch (error) {
+    // 记录更详细的错误信息
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    console.error(`[${industry}] 保存场景词异常:`, {
+      error: errorMessage,
+      sceneId: scene.id,
+      sceneLength: scene.use_case.length,
+      slug,
+      useCaseType,
+    })
+    throw error
   }
 }
 
