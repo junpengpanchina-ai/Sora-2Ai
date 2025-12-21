@@ -65,7 +65,12 @@ const nextConfig = {
   experimental: {
     // 优化服务器组件
     serverComponentsExternalPackages: [],
+    // 优化包导入
+    optimizePackageImports: ['@supabase/supabase-js', '@supabase/ssr'],
   },
+  
+  // 优化构建性能
+  swcMinify: true,
   
   // ESLint 配置：忽略 ESLint 9.x 兼容性警告
   eslint: {

@@ -211,6 +211,10 @@ export async function generateStaticParams() {
     // 在静态生成时使用 service client，不需要 cookies
     const supabase = await createServiceClient()
     
+    // 限制静态生成的数量，避免构建时间过长
+    // 只预生成最新的 500 个 use_cases，其余的动态渲染
+    const MAX_STATIC_PAGES = 500
+    
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
       .from('use_cases')
@@ -218,6 +222,8 @@ export async function generateStaticParams() {
       .eq('is_published', true)
       .not('slug', 'is', null) // 确保 slug 不为 null
       .neq('slug', '') // 确保 slug 不为空字符串
+      .order('created_at', { ascending: false }) // 按创建时间倒序，优先生成最新的
+      .limit(MAX_STATIC_PAGES) // 限制数量
 
     if (error) {
       console.error('[generateStaticParams] 查询错误:', error)
@@ -233,7 +239,7 @@ export async function generateStaticParams() {
     // 考虑到路径前缀，我们限制 slug 在 100 字符以内
     const MAX_SLUG_LENGTH = 100
     
-    return data
+    const filtered = data
       .filter((item: { slug: string | null }) => {
         if (!item.slug || typeof item.slug !== 'string') {
           return false
@@ -245,6 +251,10 @@ export async function generateStaticParams() {
       .map((item: { slug: string }) => ({
         slug: item.slug.trim(),
       }))
+    
+    console.log(`[generateStaticParams] 生成 ${filtered.length} 个静态页面（限制: ${MAX_STATIC_PAGES}）`)
+    
+    return filtered
   } catch (error) {
     console.error('[generateStaticParams] 异常:', error)
     return []
