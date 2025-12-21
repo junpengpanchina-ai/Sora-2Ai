@@ -107,7 +107,19 @@ export async function POST(request: NextRequest) {
       const { saveSceneToDatabase } = await import('./save-scene')
 
       // 生成场景词
+      console.log(`[${industry}] 开始生成 ${scenesPerIndustry} 条场景词...`)
       const scenes = await generateIndustryScenes(industry, scenesPerIndustry, useCaseType)
+      console.log(`[${industry}] 生成完成: 获得 ${scenes.length} 条场景词`)
+      
+      if (scenes.length === 0) {
+        console.error(`[${industry}] ⚠️ 警告: 生成返回空数组！可能是 API 调用失败或 JSON 解析失败`)
+        await tasksTable()
+          .update({
+            last_error: `${industry}: 生成返回 0 条场景词，请检查 API 调用和日志`,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', taskId)
+      }
       
       // 保存场景词（带重试机制和详细错误日志）
       let savedCount = 0
