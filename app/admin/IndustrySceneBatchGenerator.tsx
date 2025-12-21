@@ -608,10 +608,25 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
         }),
       })
 
-      const result = await response.json()
+      const result = await response.json().catch(() => ({
+        error: '无法解析服务器响应，可能是服务器错误',
+        details: '请检查 Vercel 日志或联系技术支持',
+      }))
 
       if (!response.ok) {
-        throw new Error(result.error || '启动任务失败')
+        // 构建详细的错误信息
+        let errorMsg = result.error || '启动任务失败'
+        
+        // 如果是数据库表不存在的错误
+        if (result.code === 'PGRST205' || result.message?.includes('batch_generation_tasks')) {
+          errorMsg = '数据库表不存在！请在 Supabase Dashboard 中执行迁移 SQL。详情请查看 DATABASE_MIGRATION_BATCH_GENERATION_TASKS.md'
+        } else if (result.details) {
+          errorMsg = `${errorMsg}: ${result.details}`
+        } else if (result.hint) {
+          errorMsg = `${errorMsg} (提示: ${result.hint})`
+        }
+        
+        throw new Error(errorMsg)
       }
 
       // 保存任务 ID 到 localStorage，以便页面刷新后能继续查看
@@ -638,7 +653,19 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
       onShowBanner('success', `任务已启动！任务ID: ${result.task.id.substring(0, 8)}... 即使关闭页面，任务也会在后台继续运行。`)
     } catch (error) {
       console.error('启动任务失败:', error)
-      onShowBanner('error', error instanceof Error ? error.message : '启动任务失败')
+      
+      // 尝试从错误中提取更详细的信息
+      let errorMessage = '启动任务失败'
+      if (error instanceof Error) {
+        errorMessage = error.message
+        
+        // 如果是网络错误，尝试获取响应详情
+        if (error.message.includes('Failed to fetch') || error.message.includes('500')) {
+          errorMessage = '服务器错误：可能是数据库表未创建。请检查 Vercel 日志或执行数据库迁移。'
+        }
+      }
+      
+      onShowBanner('error', errorMessage)
     }
   }
 
