@@ -117,14 +117,41 @@ export async function POST(request: NextRequest) {
       console.log(`[${industry}] 生成完成: 获得 ${scenes.length} 条场景词`)
       
       if (scenes.length === 0) {
-        console.error(`[${industry}] ⚠️ 警告: 生成返回空数组！可能是 API 调用失败或 JSON 解析失败`)
-        console.error(`[${industry}] 建议: 检查 API 响应、JSON 解析逻辑，或考虑使用 gemini-3-flash（联网搜索）`)
+        console.error(`[${industry}] ⚠️ 严重警告: 生成返回空数组！`)
+        console.error(`[${industry}] 这不应该发生，因为系统应该已经自动切换到 gemini-3-flash（联网搜索）`)
+        console.error(`[${industry}] 可能原因: 1) API 调用失败 2) JSON 解析失败 3) Fallback 逻辑未触发`)
         await tasksTable()
           .update({
-            last_error: `${industry}: 生成返回 0 条场景词，可能行业太冷门或 API 调用失败，建议使用联网搜索模型`,
+            last_error: `${industry}: 生成返回 0 条场景词（异常情况，系统应该已自动切换到联网搜索模型）`,
             updated_at: new Date().toISOString(),
           })
           .eq('id', taskId)
+        
+        // 即使返回空数组，也继续处理下一个行业，不中断整个任务
+        const progress = Math.round(((currentIndex + 1) / industries.length) * 100)
+        await tasksTable()
+          .update({
+            current_industry_index: currentIndex + 1,
+            total_scenes_generated: (task.total_scenes_generated || 0) + 0,
+            total_scenes_saved: (task.total_scenes_saved || 0) + 0,
+            progress,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', taskId)
+        
+        // 继续处理下一个行业
+        if (currentIndex + 1 < industries.length) {
+          const processUrl = `${process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL || 'http://localhost:3000'}/api/admin/batch-generation/process`
+          fetch(processUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ taskId }),
+          }).catch((err) => {
+            console.error(`[process] 链式调用失败:`, err)
+          })
+        }
+        
+        return NextResponse.json({ success: true, message: `${industry} 生成返回空数组，继续处理下一个行业` })
       }
       
       // 保存场景词（带重试机制和详细错误日志）

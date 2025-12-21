@@ -709,12 +709,17 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
             const updated = [...prev]
             const scenesPerIndustry = task.scenes_per_industry || 100
             
-            // 更新已完成的任务
+            // 更新已完成的任务（使用实际保存的数量）
             for (let i = 0; i < task.current_industry_index && i < updated.length; i++) {
+              // 计算每个行业实际保存的数量（平均分配 total_scenes_saved）
+              const avgSavedPerIndustry = task.total_scenes_saved && task.current_industry_index > 0
+                ? Math.floor(task.total_scenes_saved / task.current_industry_index)
+                : scenesPerIndustry
+              
               updated[i] = { 
                 ...updated[i], 
                 status: 'completed', 
-                savedCount: scenesPerIndustry 
+                savedCount: avgSavedPerIndustry 
               }
             }
             
@@ -723,6 +728,10 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
               updated[task.current_industry_index] = {
                 ...updated[task.current_industry_index],
                 status: 'processing',
+                // 如果当前行业正在处理，显示已生成的场景词数量
+                savedCount: task.total_scenes_saved && task.current_industry_index > 0
+                  ? task.total_scenes_saved % scenesPerIndustry
+                  : undefined,
               }
             }
             
@@ -1169,7 +1178,8 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
                       </div>
                       <div className="mt-1 text-xs text-gray-600 dark:text-gray-400">
                         {task.status === 'processing' && '正在生成场景词...'}
-                        {task.status === 'completed' && `已生成 ${task.scenes?.length || 0} 条场景词，正在保存...`}
+                        {task.status === 'completed' && task.savedCount !== undefined && task.savedCount > 0 && `已生成 ${task.savedCount} 条场景词，正在保存...`}
+                        {task.status === 'completed' && (task.savedCount === undefined || task.savedCount === 0) && '⚠️ 生成返回 0 条场景词，已自动切换到联网搜索模型...'}
                         {task.status === 'saved' && `✅ 已保存 ${task.savedCount || 0} 条场景词`}
                         {task.status === 'failed' && `❌ 失败: ${task.error}`}
                         {task.status === 'pending' && '等待处理...'}

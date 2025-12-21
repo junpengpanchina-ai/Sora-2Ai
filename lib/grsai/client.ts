@@ -469,7 +469,29 @@ export async function createChatCompletion(
     throw new Error(errorMessage)
   }
 
-  return await response.json() as ChatCompletionResponse
+  const data = await response.json() as ChatCompletionResponse
+  
+  // 🔥 检查响应是否有效，避免浪费积分
+  if (!data.choices || data.choices.length === 0) {
+    console.error('[Grsai Chat API] ⚠️⚠️⚠️ 严重问题：API 返回空 choices 数组！完整响应:', JSON.stringify(data, null, 2))
+    throw new Error('API 返回空 choices 数组，可能请求被拒绝或格式错误')
+  }
+  
+  if (!data.choices[0]?.message?.content) {
+    console.error('[Grsai Chat API] ⚠️⚠️⚠️ 严重问题：API 返回空 content！完整响应:', JSON.stringify(data, null, 2))
+    throw new Error('API 返回空 content，可能内容被过滤或拒绝')
+  }
+  
+  // 记录响应详情（用于调试）
+  console.log('[Grsai Chat API] 响应详情:', {
+    model: data.model,
+    hasChoices: !!data.choices,
+    choicesCount: data.choices?.length || 0,
+    firstChoiceContentLength: data.choices?.[0]?.message?.content?.length || 0,
+    finishReason: data.choices?.[0]?.finish_reason,
+  })
+  
+  return data
 }
 
 /**
