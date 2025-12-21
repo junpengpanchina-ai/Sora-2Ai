@@ -2,6 +2,8 @@ import AdminLoginForm from '../AdminLoginForm'
 import { validateAdminSession } from '@/lib/admin-auth'
 import { redirect } from 'next/navigation'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AdminLoginPage() {
   const adminUser = await validateAdminSession()
 
