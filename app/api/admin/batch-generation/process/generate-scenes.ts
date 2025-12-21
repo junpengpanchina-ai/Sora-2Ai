@@ -128,29 +128,41 @@ Do not include explanations. Output only the JSON.`
         
         scenes = validScenes
 
-        // 检查生成质量（触发方式 A 和 B）
-        const qualityCheck = checkGenerationQuality(scenes, currentBatchSize, rawContent)
-        if (qualityCheck.needsProModel) {
-          // 需要 Level 3 (gemini-3-pro)
-          needsPro = true
+        // 🔥 强制检查：如果返回空数组，立即触发 fallback（最高优先级）
+        if (scenes.length === 0) {
           needsFallback = true
-          console.warn(`[${industry}] 批次 ${batch + 1}: 质量检查显示需要 gemini-3-pro（最高质量模型）`)
-          console.warn(`[${industry}] 失败原因: ${qualityCheck.reason}`)
-          console.warn(`[${industry}] 问题列表:`, qualityCheck.issues)
-        } else if (qualityCheck.needsFallback) {
-          // 需要 Level 2 (gemini-3-flash)
-          needsFallback = true
-          console.warn(`[${industry}] 批次 ${batch + 1}: 质量检查失败，需要 fallback 到 gemini-3-flash`)
-          console.warn(`[${industry}] 失败原因: ${qualityCheck.reason}`)
-          console.warn(`[${industry}] 问题列表:`, qualityCheck.issues)
+          console.warn(`[${industry}] 批次 ${batch + 1}: ⚠️ gemini-2.5-flash 返回空数组，强制切换到 gemini-3-flash（联网搜索）`)
+          console.warn(`[${industry}] 批次 ${batch + 1}: 原始内容长度: ${rawContent.length} 字符`)
+          console.warn(`[${industry}] 批次 ${batch + 1}: JSON 内容预览: ${rawContent.substring(0, 200)}...`)
         } else {
-          // 2.5-flash 生成成功，直接使用
-          allScenes.push(...scenes)
-          console.log(`[${industry}] 批次 ${batch + 1}: gemini-2.5-flash 生成成功，添加 ${scenes.length} 条场景词，累计 ${allScenes.length} 条`)
+          // 检查生成质量（触发方式 A 和 B）
+          const qualityCheck = checkGenerationQuality(scenes, currentBatchSize, rawContent)
+          if (qualityCheck.needsProModel) {
+            // 需要 Level 3 (gemini-3-pro)
+            needsPro = true
+            needsFallback = true
+            console.warn(`[${industry}] 批次 ${batch + 1}: 质量检查显示需要 gemini-3-pro（最高质量模型）`)
+            console.warn(`[${industry}] 失败原因: ${qualityCheck.reason}`)
+            console.warn(`[${industry}] 问题列表:`, qualityCheck.issues)
+          } else if (qualityCheck.needsFallback) {
+            // 需要 Level 2 (gemini-3-flash)
+            needsFallback = true
+            console.warn(`[${industry}] 批次 ${batch + 1}: 质量检查失败，需要 fallback 到 gemini-3-flash（联网搜索）`)
+            console.warn(`[${industry}] 失败原因: ${qualityCheck.reason}`)
+            console.warn(`[${industry}] 问题列表:`, qualityCheck.issues)
+          } else {
+            // 2.5-flash 生成成功，直接使用
+            allScenes.push(...scenes)
+            console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-2.5-flash 生成成功，添加 ${scenes.length} 条场景词，累计 ${allScenes.length} 条`)
+          }
         }
       } catch (error) {
-        console.error(`[${industry}] 批次 ${batch + 1}: gemini-2.5-flash 生成失败:`, error)
+        console.error(`[${industry}] 批次 ${batch + 1}: ❌ gemini-2.5-flash 生成失败:`, error)
+        console.error(`[${industry}] 错误详情:`, error instanceof Error ? error.message : String(error))
         needsFallback = true
+        // 如果生成失败，清空 scenes 数组，确保会触发 fallback
+        scenes = []
+        console.warn(`[${industry}] 批次 ${batch + 1}: 🔄 将强制切换到 gemini-3-flash（联网搜索）`)
       }
     } else if (needsPro) {
       // 极端专业领域直接使用 gemini-3-pro
@@ -227,9 +239,11 @@ Do not include explanations. Output only the JSON.`
       }
     }
     // Level 2: 如果需要 fallback（但不是极端专业），使用 gemini-3-flash（联网搜索）
-    else if (needsFallback || scenes.length === 0) {
+    // 🔥 强制检查：如果 scenes 为空或需要 fallback，必须切换到 3-flash
+    if ((needsFallback && !needsPro) || (scenes.length === 0 && !needsPro)) {
       try {
-        console.log(`[${industry}] 批次 ${batch + 1}: 切换到 gemini-3-flash（联网搜索）...`)
+        console.log(`[${industry}] 批次 ${batch + 1}: 🔄 强制切换到 gemini-3-flash（联网搜索）...`)
+        console.log(`[${industry}] 批次 ${batch + 1}: 切换原因: ${scenes.length === 0 ? '空数组' : '质量检查失败或生成失败'}`)
         
         const response = await createChatCompletion({
           model: 'gemini-3-flash',
@@ -282,11 +296,20 @@ Do not include explanations. Output only the JSON.`
         }
         
         scenes = validScenes
-        allScenes.push(...scenes)
-        console.log(`[${industry}] 批次 ${batch + 1}: gemini-3-flash 生成成功，添加 ${scenes.length} 条场景词，累计 ${allScenes.length} 条`)
+        
+        // 🔥 再次强制检查：如果 3-flash 也返回空数组，需要切换到 3-pro
+        if (scenes.length === 0) {
+          console.error(`[${industry}] 批次 ${batch + 1}: ⚠️ gemini-3-flash 也返回空数组，将切换到 gemini-3-pro（最高质量）`)
+          needsPro = true
+          needsFallback = true
+        } else {
+          allScenes.push(...scenes)
+          console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-3-flash 生成成功，添加 ${scenes.length} 条场景词，累计 ${allScenes.length} 条`)
+        }
       } catch (error) {
-        console.error(`[${industry}] 批次 ${batch + 1}: gemini-3-flash 失败，尝试 gemini-3-pro...`, error)
-        // Level 3 Fallback: 如果 3-flash 也失败，尝试 3-pro
+        console.error(`[${industry}] 批次 ${batch + 1}: ❌ gemini-3-flash 失败，强制切换到 gemini-3-pro...`, error)
+        console.error(`[${industry}] 批次 ${batch + 1}: 错误详情:`, error instanceof Error ? error.message : String(error))
+        // Level 3 Fallback: 如果 3-flash 也失败，强制切换到 3-pro
         try {
           console.log(`[${industry}] 批次 ${batch + 1}: 切换到 gemini-3-pro（最高质量，联网搜索）...`)
           
