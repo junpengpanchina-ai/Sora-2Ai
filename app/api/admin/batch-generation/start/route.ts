@@ -86,9 +86,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // 验证 admin_user_id
+    if (!adminUser.id || typeof adminUser.id !== 'string') {
+      console.error('[batch-generation/start] admin_user_id 无效:', {
+        adminUser,
+        id: adminUser.id,
+        idType: typeof adminUser.id,
+      })
+      return NextResponse.json(
+        { 
+          error: '管理员用户 ID 无效', 
+          details: '无法获取有效的管理员用户 ID',
+        },
+        { status: 500 }
+      )
+    }
+
     // 创建任务记录
     // 确保 industries 是字符串数组格式（Supabase TEXT[] 需要）
     const industriesArray = industries.map((ind: string) => String(ind).trim()).filter(Boolean)
+    
+    if (industriesArray.length === 0) {
+      return NextResponse.json(
+        { error: 'industries 数组为空，请至少选择一个行业' },
+        { status: 400 }
+      )
+    }
     
     // 使用类型断言修复 Supabase 类型推断问题
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -119,7 +142,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (createError || !task) {
-      console.error('[batch-generation/start] 创建任务失败:', {
+      const errorDetails = {
         error: createError,
         code: createError?.code,
         message: createError?.message,
@@ -129,13 +152,23 @@ export async function POST(request: NextRequest) {
           ...taskData,
           industries: taskData.industries.slice(0, 5), // 只记录前5个，避免日志过长
         },
-      })
+        adminUserId: adminUser.id,
+        adminUserExists: !!adminUser.id,
+      }
+      console.error('[batch-generation/start] 创建任务失败:', errorDetails)
+      
+      // 返回详细的错误信息，帮助诊断问题
       return NextResponse.json(
         { 
           error: '创建任务失败', 
           details: createError?.message || '未知错误',
-          code: createError?.code,
-          hint: createError?.hint || '请检查数据库连接和表结构',
+          code: createError?.code || 'UNKNOWN',
+          hint: createError?.hint || '请检查：1) 数据库表是否存在 2) RLS 策略是否正确 3) admin_user_id 是否有效',
+          debug: process.env.NODE_ENV === 'development' ? {
+            errorCode: createError?.code,
+            errorMessage: createError?.message,
+            errorDetails: createError?.details,
+          } : undefined,
         },
         { status: 500 }
       )

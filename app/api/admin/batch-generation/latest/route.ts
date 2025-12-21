@@ -52,9 +52,21 @@ export async function GET() {
       .limit(1)
 
     if (error) {
-      console.error('[batch-generation/latest] 查询失败:', error)
+      console.error('[batch-generation/latest] 查询失败:', {
+        error,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        adminUserId: adminUser.id,
+      })
       return NextResponse.json(
-        { error: '查询任务失败', details: error.message },
+        { 
+          error: '查询任务失败', 
+          details: error.message || '未知错误',
+          code: error.code || 'UNKNOWN',
+          hint: error.hint || '请检查数据库连接和表结构',
+        },
         { status: 500 }
       )
     }
