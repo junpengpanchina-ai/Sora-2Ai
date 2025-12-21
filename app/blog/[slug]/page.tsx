@@ -38,11 +38,16 @@ export async function generateStaticParams() {
   // 在静态生成时使用 service client，不需要 cookies
   const supabase = await createServiceClient()
   
+  // 限制静态生成的数量，避免构建时间过长
+  const MAX_STATIC_PAGES = 100
+  
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from('blog_posts')
     .select('slug')
     .eq('is_published', true)
+    .order('created_at', { ascending: false }) // 按创建时间倒序，优先生成最新的
+    .limit(MAX_STATIC_PAGES) // 限制数量
 
   if (error || !data) {
     // 如果数据库查询失败，返回空数组（fallback到动态渲染）
