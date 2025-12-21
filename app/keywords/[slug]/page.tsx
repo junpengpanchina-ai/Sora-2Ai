@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import type { Database } from '@/types/database'
 import { normalizeFaq, normalizeSteps, KEYWORD_INTENT_LABELS } from '@/lib/keywords/schema'
 import KeywordToolEmbed from '../KeywordToolEmbed'
@@ -156,8 +157,74 @@ const getRelatedUseCases = cache(async (keyword: string): Promise<Array<{
   return matched
 })
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+// 获取所有已发布的关键词 slugs（用于静态生成）
+// 预生成热门关键词（按 priority 和 search_volume 排序）
+export async function generateStaticParams() {
+  try {
+    // 在静态生成时使用 service client，不需要 cookies
+    const supabase = await createServiceClient()
+    
+    // 限制静态生成的数量，避免构建时间过长
+    // 只预生成最热门的 1000 个关键词，其余的动态渲染（使用 ISR）
+    const MAX_STATIC_PAGES = 1000
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('long_tail_keywords')
+      .select('page_slug')
+      .eq('status', 'published')
+      .not('page_slug', 'is', null) // 确保 page_slug 不为 null
+      .neq('page_slug', '') // 确保 page_slug 不为空字符串
+      .order('priority', { ascending: false }) // 按优先级降序
+      .order('search_volume', { ascending: false, nullsLast: true }) // 按搜索量降序
+      .order('created_at', { ascending: false }) // 按创建时间倒序
+      .limit(MAX_STATIC_PAGES) // 限制数量
+    
+    if (error) {
+      console.error('[keywords/generateStaticParams] 查询错误:', error)
+      return []
+    }
+    
+    if (!data || !Array.isArray(data)) {
+      return []
+    }
+    
+    // 过滤掉无效的 slug，并确保类型安全
+    // 文件系统限制：大多数系统限制文件名在 255 字符以内
+    // 考虑到路径前缀，我们限制 slug 在 100 字符以内
+    const MAX_SLUG_LENGTH = 100
+    
+    const filtered = data
+      .filter((item: { page_slug: string | null }) => {
+        if (!item.page_slug || typeof item.page_slug !== 'string') {
+          return false
+        }
+        // 移除可能的 .xml 后缀（兼容旧数据）
+        const slug = item.page_slug.replace(/\.xml$/, '')
+        const trimmed = slug.trim()
+        // 过滤掉空字符串和过长的 slug
+        return trimmed.length > 0 && trimmed.length <= MAX_SLUG_LENGTH
+      })
+      .map((item: { page_slug: string }) => {
+        // 移除可能的 .xml 后缀
+        const slug = item.page_slug.replace(/\.xml$/, '').trim()
+        return { slug }
+      })
+    
+    console.log(`[keywords/generateStaticParams] 生成 ${filtered.length} 个静态页面（限制: ${MAX_STATIC_PAGES}）`)
+    
+    return filtered
+  } catch (error) {
+    console.error('[keywords/generateStaticParams] 异常:', error)
+    return []
+  }
+}
+
+// 启用 ISR（增量静态再生）以提升性能和 SEO
+// dynamic = 'auto' 允许静态生成，也支持动态渲染
+export const dynamic = 'auto'
+export const revalidate = 3600 // ISR: 每小时重新验证
+export const dynamicParams = true // 允许动态渲染未预生成的页面
 
 type PageProps = {
   params: {
