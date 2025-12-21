@@ -12,38 +12,74 @@ interface UseCaseToolEmbedProps {
 /**
  * 从使用场景标题生成一个简洁的默认 prompt（50-100字符）
  * 只提取核心关键词，生成简洁明了的提示词
+ * 避免重复添加 "Create a professional" 前缀
  */
 function generateDefaultPromptFromUseCase(keyword: string, title: string): string {
+  // 清理输入：移除可能已存在的 "Create a professional" 前缀
+  const cleanKeyword = keyword
+    .replace(/^create\s+a\s+professional\s+/i, '')
+    .replace(/\s+video\s+with\s+.*$/i, '')
+    .trim()
+  
   // 如果 keyword 太长（超过100字符），截取并简化
-  if (keyword && keyword.length > 100) {
+  if (cleanKeyword && cleanKeyword.length > 100) {
     // 提取前50个字符，确保是完整的词
-    const shortKeyword = keyword.substring(0, 50).trim()
+    const shortKeyword = cleanKeyword.substring(0, 50).trim()
     const lastSpace = shortKeyword.lastIndexOf(' ')
     const finalKeyword = lastSpace > 0 ? shortKeyword.substring(0, lastSpace) : shortKeyword
     return `Create a professional ${finalKeyword} video with high-quality visuals`
   }
   
   // 如果 keyword 太短或只是关键词，生成一个简洁的提示词
-  if (!keyword || keyword.length < 10 || keyword === title) {
-    const cleanTitle = title.toLowerCase().replace(/\b(ai|video|generation|for|how|to|use)\b/gi, '').trim()
-    return `Create a professional ${cleanTitle || title.toLowerCase()} video with engaging visuals`
+  if (!cleanKeyword || cleanKeyword.length < 10 || cleanKeyword === title) {
+    const cleanTitle = title.toLowerCase()
+      .replace(/^create\s+a\s+professional\s+/i, '')
+      .replace(/\b(ai|video|generation|for|how|to|use|create|make|generate)\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+    
+    if (!cleanTitle || cleanTitle.length < 3) {
+      return 'Create a professional video with engaging visuals and smooth transitions'
+    }
+    
+    return `Create a professional ${cleanTitle} video with engaging visuals`
   }
   
-  // 如果 keyword 长度合适，直接使用（但确保不超过100字符）
-  return keyword.length > 100 ? keyword.substring(0, 100) : keyword
+  // 如果 keyword 已经包含完整描述，检查是否已有 "Create a professional" 前缀
+  if (cleanKeyword.toLowerCase().startsWith('create a professional')) {
+    // 如果已有前缀，直接使用（但确保不超过100字符）
+    return cleanKeyword.length > 100 ? cleanKeyword.substring(0, 100) : cleanKeyword
+  }
+  
+  // 如果 keyword 长度合适且没有前缀，添加前缀
+  return cleanKeyword.length > 100 ? cleanKeyword.substring(0, 100) : cleanKeyword
 }
 
 export default function UseCaseToolEmbed({ defaultPrompt = '', useCaseTitle = '' }: UseCaseToolEmbedProps) {
   const router = useRouter()
   
-  // 生成简洁的默认 prompt（限制在100字符以内）
+  // 生成简洁的默认 prompt（限制在200字符以内，但建议100字符）
   const initialPrompt = useMemo(() => {
-    if (defaultPrompt && defaultPrompt.length >= 10 && defaultPrompt.length <= 100) {
-      return defaultPrompt
+    if (!defaultPrompt) {
+      // 如果没有默认提示词，从标题生成
+      const generated = generateDefaultPromptFromUseCase('', useCaseTitle)
+      return generated.length > 200 ? generated.substring(0, 200) : generated
     }
-    const generated = generateDefaultPromptFromUseCase(defaultPrompt, useCaseTitle)
-    // 确保不超过100字符
-    return generated.length > 100 ? generated.substring(0, 100) : generated
+    
+    // 清理默认提示词：移除重复的前缀
+    const cleaned = defaultPrompt
+      .replace(/^create\s+a\s+professional\s+create\s+a\s+professional\s+/i, 'Create a professional ')
+      .replace(/\s+/g, ' ')
+      .trim()
+    
+    // 如果清理后的提示词长度合适，直接使用
+    if (cleaned.length >= 10 && cleaned.length <= 200) {
+      return cleaned
+    }
+    
+    // 否则重新生成
+    const generated = generateDefaultPromptFromUseCase(cleaned, useCaseTitle)
+    return generated.length > 200 ? generated.substring(0, 200) : generated
   }, [defaultPrompt, useCaseTitle])
   
   const [prompt, setPrompt] = useState(initialPrompt)
@@ -82,8 +118,17 @@ export default function UseCaseToolEmbed({ defaultPrompt = '', useCaseTitle = ''
     isNavigatingRef.current = true
     
     try {
-      // 清理 prompt：移除多余的空格和换行
-      const cleanedPrompt = trimmedPrompt.replace(/\s+/g, ' ').trim()
+      // 清理 prompt：移除多余的空格和换行，以及重复的前缀
+      let cleanedPrompt = trimmedPrompt
+        .replace(/^create\s+a\s+professional\s+create\s+a\s+professional\s+/i, 'Create a professional ')
+        .replace(/\s+/g, ' ')
+        .trim()
+      
+      // 确保提示词不会太长
+      if (cleanedPrompt.length > 500) {
+        cleanedPrompt = cleanedPrompt.substring(0, 500).trim()
+      }
+      
       const encoded = encodeURIComponent(cleanedPrompt)
       
       // Use a small delay to ensure the form submission is complete before navigation
