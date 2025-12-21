@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import type { Database } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -102,19 +103,26 @@ export async function POST(request: NextRequest) {
 
     // 处理当前行业
     try {
-      // 导入生成和保存函数
-      const { generateIndustryScenes } = await import('./generate-scenes')
-      const { saveSceneToDatabase } = await import('./save-scene')
-
-      // 导入检测函数
-      const { isColdIndustry, needsProModel } = await import('./detect-cold-industry')
+      // 🔥 使用边生成边保存的新函数，避免数据丢失和乱码
+      const { generateAndSaveScenes } = await import('./generate-and-save-scenes')
       
-      // 生成场景词
-      console.log(`[${industry}] 开始生成 ${scenesPerIndustry} 条场景词...`)
-      console.log(`[${industry}] 检测行业类型: 冷门=${isColdIndustry(industry)}, 极端专业=${needsProModel(industry)}`)
+      console.log(`[${industry}] 开始生成 ${scenesPerIndustry} 条场景词（边生成边保存模式）...`)
       
-      const scenes = await generateIndustryScenes(industry, scenesPerIndustry, useCaseType)
-      console.log(`[${industry}] 生成完成: 获得 ${scenes.length} 条场景词`)
+      // 边生成边保存，每生成一批立即保存
+      const result = await generateAndSaveScenes(
+        industry,
+        scenesPerIndustry,
+        useCaseType,
+        taskId,
+        supabase
+      )
+      
+      const scenes = result.scenes
+      const savedCount = result.savedCount
+      const failedCount = result.failedCount
+      const errors = result.errors
+      
+      console.log(`[${industry}] 生成和保存完成: 生成 ${scenes.length} 条, 成功保存 ${savedCount} 条, 失败 ${failedCount} 条`)
       
       if (scenes.length === 0) {
         console.error(`[${industry}] ⚠️ 严重警告: 生成返回空数组！`)
@@ -154,92 +162,33 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, message: `${industry} 生成返回空数组，继续处理下一个行业` })
       }
       
-      // 保存场景词（带重试机制和详细错误日志）
-      let savedCount = 0
-      let failedCount = 0
-      const errors: string[] = []
-      
-      for (let j = 0; j < scenes.length; j++) {
-        const scene = scenes[j]
-        
-        // 检查是否应该停止
-        const { data: checkTask } = await tasksTable()
-          .select('should_stop, status')
-          .eq('id', taskId)
-          .single()
-        
-        if (checkTask?.should_stop || checkTask?.status === 'cancelled') {
-          console.log(`[${industry}] 任务已停止，停止保存场景词`)
-          break
-        }
-
-        // 重试机制
-        let retryCount = 0
-        const maxRetries = 3
-        let saved = false
-        
-        while (retryCount <= maxRetries && !saved) {
-          try {
-            await saveSceneToDatabase(industry, scene, useCaseType, supabase)
-            savedCount++
-            saved = true
-            if (retryCount > 0) {
-              console.log(`[${industry}] 场景词 ${j + 1} 重试成功 (${retryCount}/${maxRetries})`)
-            }
-          } catch (error) {
-            retryCount++
-            const errorMessage = error instanceof Error ? error.message : String(error)
-            
-            if (retryCount > maxRetries) {
-              failedCount++
-              const fullError = `场景词 ${j + 1}: ${errorMessage}`
-              errors.push(fullError)
-              console.error(`[${industry}] 保存场景词 ${j + 1} 最终失败 (${retryCount}/${maxRetries}):`, errorMessage)
-            } else {
-              // 延迟后重试
-              const retryDelay = 1000 * retryCount
-              console.warn(`[${industry}] 保存场景词 ${j + 1} 失败，${retryDelay}ms 后重试 (${retryCount}/${maxRetries}):`, errorMessage)
-              await new Promise((resolve) => setTimeout(resolve, retryDelay))
-            }
-          }
-        }
-        
-        // 避免请求过快
-        if (j < scenes.length - 1) {
-          const delay = j < 10 ? 200 : j < 50 ? 150 : 100
-          await new Promise((resolve) => setTimeout(resolve, delay))
-        }
-        
-        // 每保存 10 条更新一次进度（避免丢失进度）
-        if ((j + 1) % 10 === 0) {
-          await tasksTable()
-            .update({
-              total_scenes_saved: (task.total_scenes_saved || 0) + savedCount,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', taskId)
-        }
-      }
-      
-      // 记录保存结果
-      console.log(`[${industry}] 保存完成: 成功 ${savedCount} 条, 失败 ${failedCount} 条, 总计 ${scenes.length} 条`)
+      // 🔥 场景词已经在 generateAndSaveScenes 中边生成边保存了
+      // 这里只需要记录结果
       if (errors.length > 0 && errors.length <= 5) {
         console.error(`[${industry}] 保存错误详情:`, errors)
       } else if (errors.length > 5) {
         console.error(`[${industry}] 保存错误详情 (前5条):`, errors.slice(0, 5))
       }
 
-      // 更新进度
+      // 更新进度（场景词已经在 generateAndSaveScenes 中保存，这里只更新统计）
       const progress = Math.round(((currentIndex + 1) / industries.length) * 100)
       const lastError = failedCount > 0 
         ? `${industry}: ${failedCount} 条场景词保存失败${errors.length > 0 ? ` (${errors[0]})` : ''}`
         : null
       
+      // 获取当前已保存的数量（因为边生成边保存，total_scenes_saved 已经在保存过程中更新了）
+      const { data: currentTask } = await tasksTable()
+        .select('total_scenes_saved')
+        .eq('id', taskId)
+        .single()
+      
+      const currentSaved = (currentTask as Database['public']['Tables']['batch_generation_tasks']['Row'])?.total_scenes_saved || 0
+      
       await tasksTable()
         .update({
           current_industry_index: currentIndex + 1,
           total_scenes_generated: (task.total_scenes_generated || 0) + scenes.length,
-          total_scenes_saved: (task.total_scenes_saved || 0) + savedCount,
+          total_scenes_saved: currentSaved, // 使用已保存的数量（已经在保存过程中更新）
           progress,
           updated_at: new Date().toISOString(),
           last_error: lastError,

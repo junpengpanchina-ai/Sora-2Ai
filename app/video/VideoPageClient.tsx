@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import LogoutButton from '@/components/LogoutButton'
 import { createClient } from '@/lib/supabase/client'
 
@@ -79,6 +80,14 @@ export default function VideoPageClient() {
   const [currentPrompt, setCurrentPrompt] = useState<string>('') // Save current prompt
   const [credits, setCredits] = useState<number | null>(null)
   const hasReadPromptFromUrl = useRef(false)
+  
+  // Image upload states
+  const [isDragging, setIsDragging] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [imageError, setImageError] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -437,6 +446,121 @@ export default function VideoPageClient() {
     }
   }
 
+  // Handle image upload
+  const handleImageUpload = async (file: File) => {
+    if (!supabase) {
+      alert('请先登录')
+      return
+    }
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!validTypes.includes(file.type)) {
+      alert('不支持的文件格式，请上传 JPG、JPEG、PNG 或 WEBP 格式的图片')
+      return
+    }
+
+    // Validate file size (10MB)
+    const maxSize = 10 * 1024 * 1024
+    if (file.size > maxSize) {
+      alert('文件大小超过限制，最大支持10MB')
+      return
+    }
+
+    setUploadingImage(true)
+    setUploadProgress(0)
+
+    // Create temporary preview URL for immediate feedback
+    const tempPreviewUrl = URL.createObjectURL(file)
+    setPreviewImage(tempPreviewUrl)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('folder', 'reference-images')
+
+      const response = await fetch('/api/storage/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (response.status === 401) {
+        alert('未授权，请先登录')
+        router.push('/login')
+        // Clean up temp preview
+        URL.revokeObjectURL(tempPreviewUrl)
+        setPreviewImage(null)
+        return
+      }
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || '上传失败')
+      }
+
+      // Set the uploaded image URL and use it as preview
+      setReferenceUrl(data.file.url)
+      setPreviewImage(data.file.url) // Use the uploaded URL as preview
+      setUploadProgress(100)
+      setImageError(false)
+      
+      // Clean up temporary preview URL
+      URL.revokeObjectURL(tempPreviewUrl)
+    } catch (error) {
+      console.error('上传图片失败:', error)
+      alert(error instanceof Error ? error.message : '上传失败，请重试')
+      // Clean up temp preview on error
+      URL.revokeObjectURL(tempPreviewUrl)
+      setPreviewImage(null)
+      setImageError(false)
+    } finally {
+      setUploadingImage(false)
+      setUploadProgress(0)
+    }
+  }
+
+  // Handle drag and drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    const files = e.dataTransfer.files
+    if (files.length > 0) {
+      handleImageUpload(files[0])
+    }
+  }
+
+  // Handle file input change
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (files && files.length > 0) {
+      handleImageUpload(files[0])
+    }
+    // Reset input value to allow selecting the same file again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  // Handle click to upload
+  const handleClickUpload = () => {
+    fileInputRef.current?.click()
+  }
+
   const violationInfo =
     currentResult?.violationType ? VIOLATION_GUIDANCE[currentResult.violationType] : null
 
@@ -550,15 +674,150 @@ export default function VideoPageClient() {
 
             <div>
               <label className="mb-2 block text-sm font-medium text-blue-100/80">
-                Reference Image URL (Optional)
+                Reference Image (Optional)
               </label>
-              <input
-                type="url"
-                value={referenceUrl}
-                onChange={(e) => setReferenceUrl(e.target.value)}
-                className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white placeholder:text-blue-100/50 shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
-                placeholder="https://example.com/image.png"
-              />
+              
+              {/* Drag and Drop Area */}
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={handleClickUpload}
+                className={`relative mb-3 cursor-pointer rounded-2xl border-2 border-dashed transition-all ${
+                  isDragging
+                    ? 'border-energy-water bg-energy-water/10'
+                    : 'border-white/20 bg-white/5 hover:border-white/30 hover:bg-white/10'
+                } ${uploadingImage ? 'pointer-events-none opacity-50' : ''}`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleFileInputChange}
+                  className="hidden"
+                  disabled={uploadingImage}
+                />
+                
+                <div className="flex flex-col items-center justify-center p-8 text-center">
+                  {previewImage && !uploadingImage && !imageError ? (
+                    <div className="relative w-full h-48 flex items-center justify-center">
+                      <div className="relative w-full h-full max-w-full">
+                        {previewImage.startsWith('blob:') ? (
+                          // Use regular img for blob URLs (no optimization needed)
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={previewImage}
+                            alt="Preview"
+                            className="mx-auto max-h-48 w-auto rounded-lg object-contain"
+                            onError={() => {
+                              setImageError(true)
+                              setPreviewImage(null)
+                            }}
+                          />
+                        ) : (
+                          // Use Next.js Image for HTTP URLs
+                          <Image
+                            src={previewImage}
+                            alt="Preview"
+                            fill
+                            className="object-contain rounded-lg"
+                            onError={() => {
+                              setImageError(true)
+                              setPreviewImage(null)
+                            }}
+                          />
+                        )}
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setPreviewImage(null)
+                          setReferenceUrl('')
+                          setImageError(false)
+                        }}
+                        className="absolute right-0 top-0 z-10 rounded-full bg-red-500 p-1 text-white hover:bg-red-600"
+                        title="Remove image"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <svg
+                        className="mb-4 h-12 w-12 text-blue-100/50"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                        />
+                      </svg>
+                      <p className="mb-2 text-sm font-medium text-blue-100/80">
+                        {uploadingImage ? 'Uploading...' : 'Click to upload image'}
+                      </p>
+                      <p className="text-xs text-blue-100/50">
+                        Or drag and drop images here
+                      </p>
+                      <p className="mt-2 text-xs text-blue-100/40">
+                        Supports JPG, JPEG, PNG, WEBP formats
+                      </p>
+                      {uploadingImage && (
+                        <div className="mt-4 w-full max-w-xs">
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+                            <div
+                              className="h-full rounded-full bg-energy-water transition-all duration-300"
+                              style={{ width: `${uploadProgress}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* URL Input (Alternative) */}
+              <div className="relative">
+                <input
+                  type="url"
+                  value={referenceUrl}
+                  onChange={(e) => {
+                    const url = e.target.value
+                    setReferenceUrl(url)
+                    setImageError(false)
+                    // Show preview if URL is valid and not from upload
+                    if (url && url.startsWith('http')) {
+                      setPreviewImage(url)
+                    } else if (!url) {
+                      setPreviewImage(null)
+                    }
+                  }}
+                  className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white placeholder:text-blue-100/50 shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
+                  placeholder="Or enter image URL directly (e.g., https://example.com/image.png)"
+                />
+                {referenceUrl && (
+                  <button
+                    onClick={() => {
+                      setReferenceUrl('')
+                      setPreviewImage(null)
+                      setImageError(false)
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-blue-100/50 hover:text-white"
+                    title="Clear URL"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
