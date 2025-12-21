@@ -13,34 +13,56 @@ function hashToken(token: string) {
 }
 
 export async function getAdminSessionToken() {
-  const cookieStore = await cookies()
-  return cookieStore.get('admin_session_token')?.value ?? null
+  try {
+    const cookieStore = await cookies()
+    return cookieStore.get('admin_session_token')?.value ?? null
+  } catch (error) {
+    console.error('[admin-auth] 获取 cookie 失败:', error)
+    return null
+  }
 }
 
 export async function validateAdminSession(): Promise<AdminUserSession | null> {
-  const token = await getAdminSessionToken()
-  if (!token) {
+  try {
+    const token = await getAdminSessionToken()
+    if (!token) {
+      return null
+    }
+
+    let supabase
+    try {
+      supabase = await createClient()
+    } catch (error) {
+      console.error('[admin-auth] 创建 Supabase 客户端失败:', error)
+      return null
+    }
+
+    const tokenHash = hashToken(token)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any).rpc('admin_validate_session', {
+      p_token_hash: tokenHash,
+    })
+
+    if (error || !data) {
+      try {
+        const cookieStore = await cookies()
+        cookieStore.delete('admin_session_token')
+      } catch (cookieError) {
+        // 忽略 cookie 删除错误
+        console.warn('[admin-auth] 删除 cookie 失败:', cookieError)
+      }
+      return null
+    }
+
+    return {
+      id: data.id,
+      username: data.username,
+      is_super_admin: data.is_super_admin,
+    }
+  } catch (error) {
+    console.error('[admin-auth] validateAdminSession 异常:', error)
     return null
-  }
-
-  const supabase = await createClient()
-  const tokenHash = hashToken(token)
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any).rpc('admin_validate_session', {
-    p_token_hash: tokenHash,
-  })
-
-  if (error || !data) {
-    const cookieStore = await cookies()
-    cookieStore.delete('admin_session_token')
-    return null
-  }
-
-  return {
-    id: data.id,
-    username: data.username,
-    is_super_admin: data.is_super_admin,
   }
 }
 

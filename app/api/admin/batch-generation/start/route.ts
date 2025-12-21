@@ -11,12 +11,32 @@ export const revalidate = 0
  */
 export async function POST(request: NextRequest) {
   try {
-    const adminUser = await validateAdminSession()
+    let adminUser
+    try {
+      adminUser = await validateAdminSession()
+    } catch (error) {
+      console.error('[batch-generation/start] 验证管理员会话失败:', error)
+      return NextResponse.json(
+        { error: '验证管理员会话失败', details: error instanceof Error ? error.message : '未知错误' },
+        { status: 500 }
+      )
+    }
+
     if (!adminUser) {
       return NextResponse.json({ error: '未授权，请先登录' }, { status: 401 })
     }
 
-    const body = await request.json()
+    let body
+    try {
+      body = await request.json()
+    } catch (error) {
+      console.error('[batch-generation/start] 解析请求体失败:', error)
+      return NextResponse.json(
+        { error: '请求体格式错误', details: error instanceof Error ? error.message : '未知错误' },
+        { status: 400 }
+      )
+    }
+
     const {
       industries,
       scenesPerIndustry = 100,
@@ -34,7 +54,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '请至少选择一个行业' }, { status: 400 })
     }
 
-    const supabase = await createServiceClient()
+    let supabase
+    try {
+      supabase = await createServiceClient()
+    } catch (error) {
+      console.error('[batch-generation/start] 创建 Supabase 客户端失败:', error)
+      return NextResponse.json(
+        { 
+          error: '数据库连接失败', 
+          details: error instanceof Error ? error.message : '未知错误',
+          hint: '请检查 SUPABASE_SERVICE_ROLE_KEY 环境变量是否配置正确'
+        },
+        { status: 500 }
+      )
+    }
 
     // 创建任务记录
     // 使用类型断言修复 Supabase 类型推断问题
@@ -92,9 +125,13 @@ export async function POST(request: NextRequest) {
     // 立即开始处理任务（使用链式调用，避免超时）
     // 通过 API 调用处理第一个行业，然后链式调用处理后续行业
     // 不等待响应，让任务在后台持续运行
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : 'http://localhost:3000'
+    let siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+    if (!siteUrl && process.env.VERCEL_URL) {
+      siteUrl = `https://${process.env.VERCEL_URL}`
+    }
+    if (!siteUrl) {
+      siteUrl = 'http://localhost:3000'
+    }
     const processUrl = `${siteUrl}/api/admin/batch-generation/process`
     
     console.log('[batch-generation/start] 启动处理任务:', {
