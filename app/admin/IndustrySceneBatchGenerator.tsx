@@ -763,9 +763,25 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
             // 任务不存在，清除 localStorage
             console.log('[恢复任务] localStorage 中的任务不存在，清除')
             localStorage.removeItem('lastBatchTaskId')
+            // 重置状态
+            setIsProcessing(false)
+            setIsPaused(false)
+            setTasks([])
+          } else if (!response.ok) {
+            // 如果请求失败（如 500 错误），也重置状态
+            console.log('[恢复任务] 获取任务状态失败，重置状态')
+            localStorage.removeItem('lastBatchTaskId')
+            setIsProcessing(false)
+            setIsPaused(false)
+            setTasks([])
           }
         } catch (error) {
           console.error('[恢复任务] 从 localStorage 恢复失败:', error)
+          // 发生错误时也重置状态
+          localStorage.removeItem('lastBatchTaskId')
+          setIsProcessing(false)
+          setIsPaused(false)
+          setTasks([])
         }
       }
       
@@ -783,9 +799,17 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
             localStorage.setItem('lastBatchTaskId', taskToRestore.id)
           } else {
             console.log('[恢复任务] 数据库中没有正在运行的任务')
+            // 确保重置状态
+            setIsProcessing(false)
+            setIsPaused(false)
+            setTasks([])
           }
         } catch (error) {
           console.error('[恢复任务] 从数据库查询失败:', error)
+          // 发生错误时也重置状态
+          setIsProcessing(false)
+          setIsPaused(false)
+          setTasks([])
         }
       }
       
@@ -835,6 +859,12 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
         onShowBanner('info', `检测到正在运行的任务，已恢复监控 (${task.current_industry_index || 0}/${task.total_industries || 0})`)
       } else {
         console.log('[恢复任务] 没有找到需要恢复的任务')
+        // 确保重置状态，允许用户开始新任务
+        setIsProcessing(false)
+        setIsPaused(false)
+        setTasks([])
+        shouldStopRef.current = false
+        isPausedRef.current = false
       }
     }
     
