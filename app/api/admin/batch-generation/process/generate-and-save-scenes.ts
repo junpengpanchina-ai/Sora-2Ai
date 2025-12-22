@@ -252,12 +252,24 @@ Do not include explanations. Output only the JSON.`
             // 2.5-flash 生成成功，立即保存这批场景词
             console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-2.5-flash 生成成功，获得 ${scenes.length} 条场景词，立即开始保存...`)
             
-            // 🔥 立即保存这批场景词
+            // 🔥 立即保存这批场景词（如果保存失败率太高，停止避免浪费积分）
             const saveResult = await saveBatchScenes(scenes, industry, useCaseType, taskId, supabase, batch + 1)
             totalSavedCount += saveResult.savedCount
             totalFailedCount += saveResult.failedCount
             allErrors.push(...saveResult.errors)
             
+            // 🔥 检查保存失败率，如果超过 50%，停止避免浪费积分
+            const totalAttempted = saveResult.savedCount + saveResult.failedCount
+            const saveFailureRate = totalAttempted > 0 ? saveResult.failedCount / totalAttempted : 0
+            
+            if (saveFailureRate > 0.5) {
+              console.error(`[${industry}] 批次 ${batch + 1}: ⚠️⚠️⚠️ 保存失败率过高 (${(saveFailureRate * 100).toFixed(1)}%)，停止生成避免浪费积分`)
+              allErrors.push(`批次 ${batch + 1} 保存失败率过高 (${(saveFailureRate * 100).toFixed(1)}%)，已停止生成`)
+              break // 停止整个循环，避免继续调用 API 浪费积分
+            }
+            
+            // 如果保存成功率 >= 50%，添加所有场景词（因为已经调用 API 了）
+            // 注意：虽然有些保存失败，但内容已经生成，所以仍然添加到 allScenes
             allScenes.push(...scenes)
             console.log(`[${industry}] 批次 ${batch + 1}: ✅ 保存完成，累计保存 ${totalSavedCount} 条，失败 ${totalFailedCount} 条`)
           }
@@ -417,19 +429,33 @@ Do not include explanations. Output only the JSON.`
           throw new Error('所有模型（2.5-flash、3-flash、3-pro）都返回空数组，无法生成场景词')
         }
         
-        // 🔥 立即保存这批场景词
+        // 🔥 立即保存这批场景词（如果保存失败率太高，停止避免浪费积分）
         console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-3-pro 生成成功，获得 ${scenes.length} 条场景词，立即开始保存...`)
         const saveResult = await saveBatchScenes(scenes, industry, useCaseType, taskId, supabase, batch + 1)
         totalSavedCount += saveResult.savedCount
         totalFailedCount += saveResult.failedCount
         allErrors.push(...saveResult.errors)
         
+        // 🔥 检查保存失败率，如果超过 50%，停止避免浪费积分
+        const totalAttempted = saveResult.savedCount + saveResult.failedCount
+        const saveFailureRate = totalAttempted > 0 ? saveResult.failedCount / totalAttempted : 0
+        
+        if (saveFailureRate > 0.5) {
+          console.error(`[${industry}] 批次 ${batch + 1}: ⚠️⚠️⚠️ gemini-3-pro 保存失败率过高 (${(saveFailureRate * 100).toFixed(1)}%)，停止生成避免浪费积分`)
+          allErrors.push(`批次 ${batch + 1} (gemini-3-pro) 保存失败率过高 (${(saveFailureRate * 100).toFixed(1)}%)，已停止生成`)
+          break // 停止整个循环，避免继续调用 API 浪费积分
+        }
+        
+        // 如果保存成功率 >= 50%，添加所有场景词（因为已经调用 API 了）
         allScenes.push(...scenes)
         console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-3-pro 保存完成，累计保存 ${totalSavedCount} 条，失败 ${totalFailedCount} 条`)
       } catch (error) {
         console.error(`[${industry}] 批次 ${batch + 1}: gemini-3-pro 也失败:`, error)
-        // 如果 3-pro 也失败，抛出错误
-        throw new Error(`生成失败：所有模型都失败 - ${error instanceof Error ? error.message : String(error)}`)
+        // 🔥 即使所有模型都失败，也继续下一个批次，避免整个任务失败
+        const errorMsg = error instanceof Error ? error.message : String(error)
+        allErrors.push(`批次 ${batch + 1} (gemini-3-pro) 生成失败: ${errorMsg}`)
+        console.warn(`[${industry}] 批次 ${batch + 1}: ⚠️ 所有模型都失败，跳过此批次，继续下一个批次`)
+        // 不抛出错误，继续下一个批次
       }
     }
     // Level 2: 如果需要 fallback（但不是极端专业），使用 gemini-3-flash（联网搜索）
@@ -570,13 +596,24 @@ Do not include explanations. Output only the JSON.`
           needsProModel = true
           needsFallback = true
         } else {
-          // 🔥 立即保存这批场景词
+          // 🔥 立即保存这批场景词（如果保存失败率太高，停止避免浪费积分）
           console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-3-flash 生成成功，获得 ${scenes.length} 条场景词，立即开始保存...`)
           const saveResult = await saveBatchScenes(scenes, industry, useCaseType, taskId, supabase, batch + 1)
           totalSavedCount += saveResult.savedCount
           totalFailedCount += saveResult.failedCount
           allErrors.push(...saveResult.errors)
           
+          // 🔥 检查保存失败率，如果超过 50%，停止避免浪费积分
+          const totalAttempted = saveResult.savedCount + saveResult.failedCount
+          const saveFailureRate = totalAttempted > 0 ? saveResult.failedCount / totalAttempted : 0
+          
+          if (saveFailureRate > 0.5) {
+            console.error(`[${industry}] 批次 ${batch + 1}: ⚠️⚠️⚠️ gemini-3-flash 保存失败率过高 (${(saveFailureRate * 100).toFixed(1)}%)，停止生成避免浪费积分`)
+            allErrors.push(`批次 ${batch + 1} (gemini-3-flash) 保存失败率过高 (${(saveFailureRate * 100).toFixed(1)}%)，已停止生成`)
+            break // 停止整个循环，避免继续调用 API 浪费积分
+          }
+          
+          // 如果保存成功率 >= 50%，添加所有场景词（因为已经调用 API 了）
           allScenes.push(...scenes)
           console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-3-flash 保存完成，累计保存 ${totalSavedCount} 条，失败 ${totalFailedCount} 条`)
         }
@@ -668,7 +705,7 @@ Do not include explanations. Output only the JSON.`
           
           scenes = validScenes
           
-          // 🔥 立即保存这批场景词
+          // 🔥 立即保存这批场景词（如果保存失败率太高，停止避免浪费积分）
           if (scenes.length > 0) {
             console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-3-pro 生成成功，获得 ${scenes.length} 条场景词，立即开始保存...`)
             const saveResult = await saveBatchScenes(scenes, industry, useCaseType, taskId, supabase, batch + 1)
@@ -676,12 +713,27 @@ Do not include explanations. Output only the JSON.`
             totalFailedCount += saveResult.failedCount
             allErrors.push(...saveResult.errors)
             
+            // 🔥 检查保存失败率，如果超过 50%，停止避免浪费积分
+            const totalAttempted = saveResult.savedCount + saveResult.failedCount
+            const saveFailureRate = totalAttempted > 0 ? saveResult.failedCount / totalAttempted : 0
+            
+            if (saveFailureRate > 0.5) {
+              console.error(`[${industry}] 批次 ${batch + 1}: ⚠️⚠️⚠️ gemini-3-pro 保存失败率过高 (${(saveFailureRate * 100).toFixed(1)}%)，停止生成避免浪费积分`)
+              allErrors.push(`批次 ${batch + 1} (gemini-3-pro fallback) 保存失败率过高 (${(saveFailureRate * 100).toFixed(1)}%)，已停止生成`)
+              break // 停止整个循环，避免继续调用 API 浪费积分
+            }
+            
+            // 如果保存成功率 >= 50%，添加所有场景词（因为已经调用 API 了）
             allScenes.push(...scenes)
             console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-3-pro 保存完成，累计保存 ${totalSavedCount} 条，失败 ${totalFailedCount} 条`)
           }
         } catch (proError) {
           console.error(`[${industry}] 批次 ${batch + 1}: 所有模型都失败:`, proError)
-          throw new Error(`生成失败：gemini-2.5-flash、gemini-3-flash 和 gemini-3-pro 都失败 - ${proError instanceof Error ? proError.message : String(proError)}`)
+          // 🔥 即使所有模型都失败，也继续下一个批次，避免整个任务失败
+          const errorMsg = proError instanceof Error ? proError.message : String(proError)
+          allErrors.push(`批次 ${batch + 1} (所有模型) 生成失败: ${errorMsg}`)
+          console.warn(`[${industry}] 批次 ${batch + 1}: ⚠️ 所有模型都失败，跳过此批次，继续下一个批次`)
+          // 不抛出错误，继续下一个批次
         }
       }
     }

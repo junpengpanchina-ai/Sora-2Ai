@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:turbo": "next dev --turbo",
     "dev:clean": "npm run clean && npm run dev",
     "dev:kill": "node scripts/kill-next.js && npm run dev",
     "build": "next build",
@@ -24,7 +25,8 @@
     "check:keywords": "node scripts/check-keywords.js",
     "add:christmas": "node scripts/add-christmas-keyword.js",
     "monitor:backlinks": "node scripts/monitor-backlinks.js",
-    "verify:page-style": "node scripts/verify-page-style-migration.js"
+    "verify:page-style": "node scripts/verify-page-style-migration.js",
+    "monitor:supabase": "node scripts/monitor-supabase-usage.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.927.0",
