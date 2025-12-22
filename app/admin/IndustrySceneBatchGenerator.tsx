@@ -24,6 +24,9 @@ interface IndustryTask {
   scenes?: SceneItem[]
   error?: string
   savedCount?: number
+  generatedCount?: number
+  isSaving?: boolean
+  isGenerating?: boolean
 }
 
 /**
@@ -688,49 +691,117 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
         if (task.current_industry_index !== undefined && task.total_industries) {
           setProcessingIndex(task.current_industry_index)
           
+          // 🔥 修复：始终使用数据库中的 industries 顺序，确保显示顺序正确
           // 更新任务状态
           setTasks((prev) => {
-            // 如果任务列表为空，尝试从任务信息重建
-            if (prev.length === 0 && task.industries && Array.isArray(task.industries)) {
+            // 🔥 如果任务列表为空或顺序不一致，从数据库重建（使用数据库中的顺序）
+            if ((prev.length === 0 || prev.length !== task.industries?.length) && task.industries && Array.isArray(task.industries)) {
               return task.industries.map((industry: string, index: number) => {
                 const isCompleted = index < task.current_industry_index
                 const isProcessing = index === task.current_industry_index
+                const scenesPerIndustry = task.scenes_per_industry || 100
+                
+                // 计算当前行业已保存的数量
+                let savedCount: number | undefined = undefined
+                if (isCompleted) {
+                  // 已完成的行业：固定保存 scenesPerIndustry 条
+                  savedCount = scenesPerIndustry
+                } else if (isProcessing && task.total_scenes_saved !== undefined) {
+                  // 当前正在处理的行业：计算当前行业已保存的数量
+                  const completedIndustriesCount = task.current_industry_index
+                  savedCount = Math.max(0, task.total_scenes_saved - (completedIndustriesCount * scenesPerIndustry))
+                }
                 
                 return {
                   id: `${index}`,
                   industry,
                   status: isCompleted ? 'completed' : isProcessing ? 'processing' : 'pending',
-                  savedCount: isCompleted ? (task.scenes_per_industry || 100) : undefined,
+                  savedCount,
                 }
               })
             }
             
-            // 更新现有任务列表
-            const updated = [...prev]
+            // 🔥 更新现有任务列表（确保顺序与数据库一致）
+            // 如果数据库中的 industries 顺序与前端不一致，重新排序
+            const dbIndustries = task.industries || []
             const scenesPerIndustry = task.scenes_per_industry || 100
+            
+            // 如果顺序不一致，重建列表
+            if (prev.length !== dbIndustries.length || 
+                prev.some((t, i) => t.industry !== dbIndustries[i])) {
+              return dbIndustries.map((industry: string, index: number) => {
+                const isCompleted = index < task.current_industry_index
+                const isProcessing = index === task.current_industry_index
+                
+                // 计算当前行业已保存的数量
+                let savedCount: number | undefined = undefined
+                if (isCompleted) {
+                  savedCount = scenesPerIndustry
+                } else if (isProcessing && task.total_scenes_saved !== undefined) {
+                  const completedIndustriesCount = task.current_industry_index
+                  savedCount = Math.max(0, task.total_scenes_saved - (completedIndustriesCount * scenesPerIndustry))
+                }
+                
+                return {
+                  id: `${index}`,
+                  industry,
+                  status: isCompleted ? 'completed' : isProcessing ? 'processing' : 'pending',
+                  savedCount,
+                }
+              })
+            }
+            
+            // 顺序一致，更新现有任务列表
+            const updated = [...prev]
             
             // 🔥 修复：正确计算每个行业的保存数量
             // total_scenes_saved 是全局累计的，需要计算每个行业的实际数量
+            // 🔥 生成逻辑是按顺序从上往下处理的（current_industry_index 递增）
+            // 🔥 边生成边保存模式：generateAndSaveScenes 函数在生成一批后立即保存，所以当函数返回时，所有场景词都已保存完成
             for (let i = 0; i < updated.length; i++) {
               if (i < task.current_industry_index) {
                 // 已完成的行业：每个行业应该保存 scenesPerIndustry 条
+                // 🔥 边生成边保存模式下，当 current_industry_index 递增时，前一个行业的生成和保存都已完成
                 updated[i] = { 
                   ...updated[i], 
-                  status: 'completed', 
+                  status: 'completed', // 已完成（生成和保存都已完成）
                   savedCount: scenesPerIndustry // 每个行业固定保存 scenesPerIndustry 条
                 }
               } else if (i === task.current_industry_index) {
-                // 当前正在处理的行业：计算当前行业已保存的数量
+                // 当前正在处理的行业：计算当前行业已生成和已保存的数量
                 // 当前行业已保存 = total_scenes_saved - (已完成行业数 * scenesPerIndustry)
+                // 当前行业已生成 = total_scenes_generated - (已完成行业数 * scenesPerIndustry)
                 const completedIndustriesCount = task.current_industry_index
-                const currentIndustrySaved = task.total_scenes_saved 
+                const currentIndustrySaved = task.total_scenes_saved !== undefined
                   ? Math.max(0, task.total_scenes_saved - (completedIndustriesCount * scenesPerIndustry))
                   : undefined
+                const currentIndustryGenerated = task.total_scenes_generated !== undefined
+                  ? Math.max(0, task.total_scenes_generated - (completedIndustriesCount * scenesPerIndustry))
+                  : undefined
+                
+                // 🔥 判断当前行业的状态
+                // 如果已生成数量 > 已保存数量，说明正在保存中
+                // 如果已生成数量 = 已保存数量，说明保存完成（但 current_industry_index 还未更新）
+                // 如果已生成数量 < scenesPerIndustry，说明还在生成中
+                const isSaving = currentIndustryGenerated !== undefined && 
+                                 currentIndustrySaved !== undefined &&
+                                 currentIndustryGenerated > currentIndustrySaved
+                const isCompleted = currentIndustrySaved !== undefined && 
+                                   currentIndustrySaved >= scenesPerIndustry
                 
                 updated[i] = {
                   ...updated[i],
-                  status: 'processing',
+                  status: isCompleted ? 'completed' : 'processing',
                   savedCount: currentIndustrySaved,
+                  generatedCount: currentIndustryGenerated, // 添加已生成数量，用于显示
+                  isSaving, // 标记是否正在保存
+                }
+              } else {
+                // 还未开始的行业：保持 pending 状态
+                updated[i] = {
+                  ...updated[i],
+                  status: 'pending',
+                  savedCount: undefined,
                 }
               }
             }
@@ -1177,8 +1248,14 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
                         {index + 1}. {task.industry}
                       </div>
                       <div className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                        {task.status === 'processing' && '正在生成场景词...'}
-                        {task.status === 'completed' && task.savedCount !== undefined && task.savedCount > 0 && `已生成 ${task.savedCount} 条场景词，正在保存...`}
+                        {task.status === 'processing' && (
+                          task.isSaving && task.generatedCount !== undefined
+                            ? `已生成 ${task.generatedCount} 条场景词，正在保存... (已保存 ${task.savedCount || 0} 条)`
+                            : task.savedCount !== undefined && task.savedCount > 0
+                            ? `正在生成场景词... (已保存 ${task.savedCount} 条)`
+                            : '正在生成场景词...'
+                        )}
+                        {task.status === 'completed' && task.savedCount !== undefined && task.savedCount > 0 && `✅ 已完成，已保存 ${task.savedCount} 条场景词`}
                         {task.status === 'completed' && (task.savedCount === undefined || task.savedCount === 0) && '⚠️ 生成返回 0 条场景词，已自动切换到联网搜索模型...'}
                         {task.status === 'saved' && `✅ 已保存 ${task.savedCount || 0} 条场景词`}
                         {task.status === 'failed' && `❌ 失败: ${task.error}`}

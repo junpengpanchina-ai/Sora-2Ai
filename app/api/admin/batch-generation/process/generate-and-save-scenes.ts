@@ -140,23 +140,71 @@ CRITICAL: The AI video platform ONLY supports 10-second or 15-second videos. NEV
   // 获取任务表引用（在循环外定义，避免重复创建）
   const tasksTable = () => supabase.from('batch_generation_tasks')
 
-  for (let batch = 0; batch < batches; batch++) {
-    // 🔥 检查是否应该停止（在每个批次前检查，避免浪费API调用）
+  // 🔥 辅助函数：检查任务是否应该停止或暂停
+  const checkShouldStop = async (): Promise<{ shouldStop: boolean; isPaused: boolean }> => {
     const { data: checkTask } = await tasksTable()
-      .select('should_stop, status')
+      .select('should_stop, status, is_paused')
       .eq('id', taskId)
       .single()
     
-    if (checkTask?.should_stop || checkTask?.status === 'cancelled') {
-      console.log(`[${industry}] 批次 ${batch + 1}: 任务已停止，停止生成`)
+    return {
+      shouldStop: checkTask?.should_stop === true || checkTask?.status === 'cancelled',
+      isPaused: checkTask?.is_paused === true,
+    }
+  }
+
+  // 🔥 按顺序处理每一批：生成一批 → 保存完成 → 再生成下一批
+  // 这样更简单、更清晰、更高效，避免并发问题
+  for (let batch = 0; batch < batches; batch++) {
+    // 🔥 检查是否应该停止（在每个批次前检查，避免浪费API调用）
+    const { shouldStop, isPaused } = await checkShouldStop()
+    
+    if (shouldStop) {
+      console.log(`[${industry}] 批次 ${batch + 1}: ⛔ 任务已终止，立即停止生成`)
       break
+    }
+    
+    if (isPaused) {
+      console.log(`[${industry}] 批次 ${batch + 1}: ⏸️ 任务已暂停，等待恢复...`)
+      // 等待恢复（最多等待 10 秒）
+      let waitCount = 0
+      while (waitCount < 10) {
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+        const check = await checkShouldStop()
+        if (!check.isPaused) {
+          console.log(`[${industry}] 批次 ${batch + 1}: ▶️ 任务已恢复，继续生成`)
+          break
+        }
+        if (check.shouldStop) {
+          console.log(`[${industry}] 批次 ${batch + 1}: ⛔ 任务已终止，停止生成`)
+          return {
+            scenes: allScenes.slice(0, scenesPerIndustry),
+            savedCount: totalSavedCount,
+            failedCount: totalFailedCount,
+            errors: [...allErrors, '任务已终止'],
+          }
+        }
+        waitCount++
+      }
+      
+      // 如果仍然暂停，跳过这个批次
+      const finalCheck = await checkShouldStop()
+      if (finalCheck.isPaused) {
+        console.log(`[${industry}] 批次 ${batch + 1}: ⏸️ 任务仍然暂停，跳过此批次`)
+        continue
+      }
+      if (finalCheck.shouldStop) {
+        console.log(`[${industry}] 批次 ${batch + 1}: ⛔ 任务已终止，停止生成`)
+        break
+      }
     }
     
     const currentBatchSize = batch === batches - 1 
       ? scenesPerIndustry - (batch * batchSize) 
       : batchSize
     
-    console.log(`[${industry}] 开始处理批次 ${batch + 1}/${batches}，生成 ${currentBatchSize} 条场景词...`)
+    console.log(`\n[${industry}] ========== 批次 ${batch + 1}/${batches} ==========`)
+    console.log(`[${industry}] 批次 ${batch + 1}: 📝 步骤 1 - 开始生成 ${currentBatchSize} 条场景词...`)
 
     const userPrompt = `Generate ${currentBatchSize} highly specific, practical, real-world use cases for AI video generation for the following industry:
 
@@ -189,6 +237,17 @@ Do not include explanations. Output only the JSON.`
 
     // Level 1: 尝试使用 gemini-2.5-flash（除非是冷门行业或极端专业领域）
     if (!isCold && !needsPro) {
+      // 🔥 在调用 API 前再次检查是否应该停止
+      const preApiCheck = await checkShouldStop()
+      if (preApiCheck.shouldStop) {
+        console.log(`[${industry}] 批次 ${batch + 1}: ⛔ 调用 API 前检测到任务已终止，立即停止`)
+        break
+      }
+      if (preApiCheck.isPaused) {
+        console.log(`[${industry}] 批次 ${batch + 1}: ⏸️ 调用 API 前检测到任务已暂停，跳过此批次`)
+        continue
+      }
+      
       try {
         console.log(`[${industry}] 批次 ${batch + 1}: 使用 gemini-2.5-flash 生成...`)
         
@@ -338,14 +397,51 @@ Do not include explanations. Output only the JSON.`
             console.warn(`[${industry}] 批次 ${batch + 1}: 失败原因: ${qualityCheck.reason}`)
             console.warn(`[${industry}] 批次 ${batch + 1}: 问题列表:`, qualityCheck.issues)
           } else {
-            // 2.5-flash 生成成功，立即保存这批场景词
-            console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-2.5-flash 生成成功，获得 ${scenes.length} 条场景词，立即开始保存...`)
+            // 2.5-flash 生成成功，立即更新生成数量，然后保存这批场景词
+            console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-2.5-flash 生成成功，获得 ${scenes.length} 条场景词`)
             
-            // 🔥 立即保存这批场景词（如果保存失败率太高，停止避免浪费积分）
+            // 🔥 在更新生成数量和保存前，再次检查是否应该停止
+            const preSaveCheck = await checkShouldStop()
+            if (preSaveCheck.shouldStop) {
+              console.log(`[${industry}] 批次 ${batch + 1}: ⛔ 保存前检测到任务已终止，立即停止`)
+              break
+            }
+            if (preSaveCheck.isPaused) {
+              console.log(`[${industry}] 批次 ${batch + 1}: ⏸️ 保存前检测到任务已暂停，跳过此批次`)
+              continue
+            }
+            
+            // 🔥 立即更新 total_scenes_generated，让前端显示"已生成 X 条，正在保存..."
+            try {
+              const { data: currentTask } = await tasksTable()
+                .select('total_scenes_generated')
+                .eq('id', taskId)
+                .single()
+              
+              const currentGenerated = (currentTask as Database['public']['Tables']['batch_generation_tasks']['Row'])?.total_scenes_generated || 0
+              
+              await tasksTable()
+                .update({
+                  total_scenes_generated: currentGenerated + scenes.length,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', taskId)
+              
+              console.log(`[${industry}] 批次 ${batch + 1}: 📊 已更新生成数量: ${currentGenerated + scenes.length} 条，开始保存...`)
+            } catch (updateError) {
+              console.warn(`[${industry}] 批次 ${batch + 1}: 更新生成数量失败（继续保存）:`, updateError)
+              // 即使更新失败，也继续保存
+            }
+            
+            // 🔥 步骤 2：保存这批场景词（等待全部保存完成后再继续下一批）
+            // 这样更简单、更清晰：生成一批 → 保存完成 → 再生成下一批
+            console.log(`[${industry}] 批次 ${batch + 1}: 💾 开始保存 ${scenes.length} 条场景词...`)
             const saveResult = await saveBatchScenes(scenes, industry, useCaseType, taskId, supabase, batch + 1)
             totalSavedCount += saveResult.savedCount
             totalFailedCount += saveResult.failedCount
             allErrors.push(...saveResult.errors)
+            
+            console.log(`[${industry}] 批次 ${batch + 1}: ✅ 保存完成！成功 ${saveResult.savedCount} 条，失败 ${saveResult.failedCount} 条`)
             
             // 🔥 检查保存失败率，如果超过 50%，停止避免浪费积分
             const totalAttempted = saveResult.savedCount + saveResult.failedCount
@@ -360,7 +456,12 @@ Do not include explanations. Output only the JSON.`
             // 如果保存成功率 >= 50%，添加所有场景词（因为已经调用 API 了）
             // 注意：虽然有些保存失败，但内容已经生成，所以仍然添加到 allScenes
             allScenes.push(...scenes)
-            console.log(`[${industry}] 批次 ${batch + 1}: ✅ 保存完成，累计保存 ${totalSavedCount} 条，失败 ${totalFailedCount} 条`)
+            console.log(`[${industry}] 批次 ${batch + 1}: 📊 累计统计 - 已生成 ${allScenes.length} 条，已保存 ${totalSavedCount} 条，失败 ${totalFailedCount} 条`)
+            
+            // 🔥 步骤 3：这批已完成，继续下一批（如果还有）
+            if (batch + 1 < batches) {
+              console.log(`[${industry}] 批次 ${batch + 1} 完成，准备生成批次 ${batch + 2}/${batches}...`)
+            }
           }
         }
       } catch (error) {
@@ -412,6 +513,17 @@ Do not include explanations. Output only the JSON.`
 
     // Level 3: 如果需要最高质量模型，使用 gemini-3-pro（联网搜索）
     if (needsProModel) {
+      // 🔥 在调用 API 前再次检查是否应该停止
+      const preApiCheck = await checkShouldStop()
+      if (preApiCheck.shouldStop) {
+        console.log(`[${industry}] 批次 ${batch + 1}: ⛔ 调用 API 前检测到任务已终止，立即停止`)
+        break
+      }
+      if (preApiCheck.isPaused) {
+        console.log(`[${industry}] 批次 ${batch + 1}: ⏸️ 调用 API 前检测到任务已暂停，跳过此批次`)
+        continue
+      }
+      
       try {
         console.log(`[${industry}] 批次 ${batch + 1}: 使用 gemini-3-pro（最高质量，联网搜索）...`)
         
@@ -546,12 +658,46 @@ Do not include explanations. Output only the JSON.`
           throw new Error('所有模型（2.5-flash、3-flash、3-pro）都返回空数组，无法生成场景词')
         }
         
-        // 🔥 立即保存这批场景词（如果保存失败率太高，停止避免浪费积分）
-        console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-3-pro 生成成功，获得 ${scenes.length} 条场景词，立即开始保存...`)
+        // 🔥 步骤 2：保存这批场景词（等待全部保存完成后再继续下一批）
+        // 🔥 在更新生成数量和保存前，再次检查是否应该停止
+        const preSaveCheck = await checkShouldStop()
+        if (preSaveCheck.shouldStop) {
+          console.log(`[${industry}] 批次 ${batch + 1}: ⛔ 保存前检测到任务已终止，立即停止`)
+          break
+        }
+        if (preSaveCheck.isPaused) {
+          console.log(`[${industry}] 批次 ${batch + 1}: ⏸️ 保存前检测到任务已暂停，跳过此批次`)
+          continue
+        }
+        
+        // 🔥 立即更新 total_scenes_generated，让前端显示"已生成 X 条，正在保存..."
+        try {
+          const { data: currentTask } = await tasksTable()
+            .select('total_scenes_generated')
+            .eq('id', taskId)
+            .single()
+          
+          const currentGenerated = (currentTask as Database['public']['Tables']['batch_generation_tasks']['Row'])?.total_scenes_generated || 0
+          
+          await tasksTable()
+            .update({
+              total_scenes_generated: currentGenerated + scenes.length,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', taskId)
+          
+          console.log(`[${industry}] 批次 ${batch + 1}: 📊 已更新生成数量: ${currentGenerated + scenes.length} 条，开始保存...`)
+        } catch (updateError) {
+          console.warn(`[${industry}] 批次 ${batch + 1}: 更新生成数量失败（继续保存）:`, updateError)
+        }
+        
+        console.log(`[${industry}] 批次 ${batch + 1}: 💾 开始保存 ${scenes.length} 条场景词...`)
         const saveResult = await saveBatchScenes(scenes, industry, useCaseType, taskId, supabase, batch + 1)
         totalSavedCount += saveResult.savedCount
         totalFailedCount += saveResult.failedCount
         allErrors.push(...saveResult.errors)
+        
+        console.log(`[${industry}] 批次 ${batch + 1}: ✅ 保存完成！成功 ${saveResult.savedCount} 条，失败 ${saveResult.failedCount} 条`)
         
         // 🔥 检查保存失败率，如果超过 50%，停止避免浪费积分
         const totalAttempted = saveResult.savedCount + saveResult.failedCount
@@ -565,7 +711,12 @@ Do not include explanations. Output only the JSON.`
         
         // 如果保存成功率 >= 50%，添加所有场景词（因为已经调用 API 了）
         allScenes.push(...scenes)
-        console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-3-pro 保存完成，累计保存 ${totalSavedCount} 条，失败 ${totalFailedCount} 条`)
+        console.log(`[${industry}] 批次 ${batch + 1}: 📊 累计统计 - 已生成 ${allScenes.length} 条，已保存 ${totalSavedCount} 条，失败 ${totalFailedCount} 条`)
+        
+        // 🔥 步骤 3：这批已完成，继续下一批（如果还有）
+        if (batch + 1 < batches) {
+          console.log(`[${industry}] 批次 ${batch + 1} 完成，准备生成批次 ${batch + 2}/${batches}...`)
+        }
       } catch (error) {
         console.error(`[${industry}] 批次 ${batch + 1}: gemini-3-pro 也失败:`, error)
         // 🔥 即使所有模型都失败，也继续下一个批次，避免整个任务失败
@@ -578,6 +729,17 @@ Do not include explanations. Output only the JSON.`
     // Level 2: 如果需要 fallback（但不是极端专业），使用 gemini-3-flash（联网搜索）
     // 🔥 强制检查：如果 scenes 为空或需要 fallback，必须切换到 3-flash
     if ((needsFallback && !needsProModel) || (scenes.length === 0 && !needsProModel)) {
+      // 🔥 在调用 API 前再次检查是否应该停止
+      const preApiCheck = await checkShouldStop()
+      if (preApiCheck.shouldStop) {
+        console.log(`[${industry}] 批次 ${batch + 1}: ⛔ 调用 API 前检测到任务已终止，立即停止`)
+        break
+      }
+      if (preApiCheck.isPaused) {
+        console.log(`[${industry}] 批次 ${batch + 1}: ⏸️ 调用 API 前检测到任务已暂停，跳过此批次`)
+        continue
+      }
+      
       try {
         console.log(`[${industry}] 批次 ${batch + 1}: 🔄 强制切换到 gemini-3-flash（联网搜索）...`)
         console.log(`[${industry}] 批次 ${batch + 1}: 切换原因: ${scenes.length === 0 ? '空数组' : '质量检查失败或生成失败'}`)
@@ -713,12 +875,46 @@ Do not include explanations. Output only the JSON.`
           needsProModel = true
           needsFallback = true
         } else {
-          // 🔥 立即保存这批场景词（如果保存失败率太高，停止避免浪费积分）
-          console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-3-flash 生成成功，获得 ${scenes.length} 条场景词，立即开始保存...`)
+          // 🔥 步骤 2：保存这批场景词（等待全部保存完成后再继续下一批）
+          // 🔥 在更新生成数量和保存前，再次检查是否应该停止
+          const preSaveCheck = await checkShouldStop()
+          if (preSaveCheck.shouldStop) {
+            console.log(`[${industry}] 批次 ${batch + 1}: ⛔ 保存前检测到任务已终止，立即停止`)
+            break
+          }
+          if (preSaveCheck.isPaused) {
+            console.log(`[${industry}] 批次 ${batch + 1}: ⏸️ 保存前检测到任务已暂停，跳过此批次`)
+            continue
+          }
+          
+          // 🔥 立即更新 total_scenes_generated，让前端显示"已生成 X 条，正在保存..."
+          try {
+            const { data: currentTask } = await tasksTable()
+              .select('total_scenes_generated')
+              .eq('id', taskId)
+              .single()
+            
+            const currentGenerated = (currentTask as Database['public']['Tables']['batch_generation_tasks']['Row'])?.total_scenes_generated || 0
+            
+            await tasksTable()
+              .update({
+                total_scenes_generated: currentGenerated + scenes.length,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', taskId)
+            
+            console.log(`[${industry}] 批次 ${batch + 1}: 📊 已更新生成数量: ${currentGenerated + scenes.length} 条，开始保存...`)
+          } catch (updateError) {
+            console.warn(`[${industry}] 批次 ${batch + 1}: 更新生成数量失败（继续保存）:`, updateError)
+          }
+          
+          console.log(`[${industry}] 批次 ${batch + 1}: 💾 开始保存 ${scenes.length} 条场景词...`)
           const saveResult = await saveBatchScenes(scenes, industry, useCaseType, taskId, supabase, batch + 1)
           totalSavedCount += saveResult.savedCount
           totalFailedCount += saveResult.failedCount
           allErrors.push(...saveResult.errors)
+          
+          console.log(`[${industry}] 批次 ${batch + 1}: ✅ 保存完成！成功 ${saveResult.savedCount} 条，失败 ${saveResult.failedCount} 条`)
           
           // 🔥 检查保存失败率，如果超过 50%，停止避免浪费积分
           const totalAttempted = saveResult.savedCount + saveResult.failedCount
@@ -732,12 +928,28 @@ Do not include explanations. Output only the JSON.`
           
           // 如果保存成功率 >= 50%，添加所有场景词（因为已经调用 API 了）
           allScenes.push(...scenes)
-          console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-3-flash 保存完成，累计保存 ${totalSavedCount} 条，失败 ${totalFailedCount} 条`)
+          console.log(`[${industry}] 批次 ${batch + 1}: 📊 累计统计 - 已生成 ${allScenes.length} 条，已保存 ${totalSavedCount} 条，失败 ${totalFailedCount} 条`)
+          
+          // 🔥 步骤 3：这批已完成，继续下一批（如果还有）
+          if (batch + 1 < batches) {
+            console.log(`[${industry}] 批次 ${batch + 1} 完成，准备生成批次 ${batch + 2}/${batches}...`)
+          }
         }
       } catch (error) {
         console.error(`[${industry}] 批次 ${batch + 1}: ❌ gemini-3-flash 失败，强制切换到 gemini-3-pro...`, error)
         console.error(`[${industry}] 批次 ${batch + 1}: 错误详情:`, error instanceof Error ? error.message : String(error))
         // Level 3 Fallback: 如果 3-flash 也失败，强制切换到 3-pro
+        // 🔥 在调用 API 前再次检查是否应该停止
+        const preApiCheck = await checkShouldStop()
+        if (preApiCheck.shouldStop) {
+          console.log(`[${industry}] 批次 ${batch + 1}: ⛔ 调用 API 前检测到任务已终止，立即停止`)
+          break
+        }
+        if (preApiCheck.isPaused) {
+          console.log(`[${industry}] 批次 ${batch + 1}: ⏸️ 调用 API 前检测到任务已暂停，跳过此批次`)
+          continue
+        }
+        
         try {
           console.log(`[${industry}] 批次 ${batch + 1}: 切换到 gemini-3-pro（最高质量，联网搜索）...`)
           
@@ -822,13 +1034,47 @@ Do not include explanations. Output only the JSON.`
           
           scenes = validScenes
           
-          // 🔥 立即保存这批场景词（如果保存失败率太高，停止避免浪费积分）
+          // 🔥 步骤 2：保存这批场景词（等待全部保存完成后再继续下一批）
           if (scenes.length > 0) {
-            console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-3-pro 生成成功，获得 ${scenes.length} 条场景词，立即开始保存...`)
+            // 🔥 在更新生成数量和保存前，再次检查是否应该停止
+            const preSaveCheck = await checkShouldStop()
+            if (preSaveCheck.shouldStop) {
+              console.log(`[${industry}] 批次 ${batch + 1}: ⛔ 保存前检测到任务已终止，立即停止`)
+              break
+            }
+            if (preSaveCheck.isPaused) {
+              console.log(`[${industry}] 批次 ${batch + 1}: ⏸️ 保存前检测到任务已暂停，跳过此批次`)
+              continue
+            }
+            
+            // 🔥 立即更新 total_scenes_generated，让前端显示"已生成 X 条，正在保存..."
+            try {
+              const { data: currentTask } = await tasksTable()
+                .select('total_scenes_generated')
+                .eq('id', taskId)
+                .single()
+              
+              const currentGenerated = (currentTask as Database['public']['Tables']['batch_generation_tasks']['Row'])?.total_scenes_generated || 0
+              
+              await tasksTable()
+                .update({
+                  total_scenes_generated: currentGenerated + scenes.length,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', taskId)
+              
+              console.log(`[${industry}] 批次 ${batch + 1}: 📊 已更新生成数量: ${currentGenerated + scenes.length} 条，开始保存...`)
+            } catch (updateError) {
+              console.warn(`[${industry}] 批次 ${batch + 1}: 更新生成数量失败（继续保存）:`, updateError)
+            }
+            
+            console.log(`[${industry}] 批次 ${batch + 1}: 💾 开始保存 ${scenes.length} 条场景词...`)
             const saveResult = await saveBatchScenes(scenes, industry, useCaseType, taskId, supabase, batch + 1)
             totalSavedCount += saveResult.savedCount
             totalFailedCount += saveResult.failedCount
             allErrors.push(...saveResult.errors)
+            
+            console.log(`[${industry}] 批次 ${batch + 1}: ✅ 保存完成！成功 ${saveResult.savedCount} 条，失败 ${saveResult.failedCount} 条`)
             
             // 🔥 检查保存失败率，如果超过 50%，停止避免浪费积分
             const totalAttempted = saveResult.savedCount + saveResult.failedCount
@@ -842,7 +1088,12 @@ Do not include explanations. Output only the JSON.`
             
             // 如果保存成功率 >= 50%，添加所有场景词（因为已经调用 API 了）
             allScenes.push(...scenes)
-            console.log(`[${industry}] 批次 ${batch + 1}: ✅ gemini-3-pro 保存完成，累计保存 ${totalSavedCount} 条，失败 ${totalFailedCount} 条`)
+            console.log(`[${industry}] 批次 ${batch + 1}: 📊 累计统计 - 已生成 ${allScenes.length} 条，已保存 ${totalSavedCount} 条，失败 ${totalFailedCount} 条`)
+            
+            // 🔥 步骤 3：这批已完成，继续下一批（如果还有）
+            if (batch + 1 < batches) {
+              console.log(`[${industry}] 批次 ${batch + 1} 完成，准备生成批次 ${batch + 2}/${batches}...`)
+            }
           }
         } catch (proError) {
           console.error(`[${industry}] 批次 ${batch + 1}: 所有模型都失败:`, proError)
@@ -887,18 +1138,58 @@ async function saveBatchScenes(
   let failedCount = 0
   const errors: string[] = []
 
-  for (let j = 0; j < scenes.length; j++) {
-    const scene = scenes[j]
-    
-    // 检查是否应该停止
+  // 🔥 辅助函数：检查任务是否应该停止或暂停（在保存循环中使用）
+  const checkShouldStopInSave = async (): Promise<{ shouldStop: boolean; isPaused: boolean }> => {
     const { data: checkTask } = await tasksTable()
-      .select('should_stop, status')
+      .select('should_stop, status, is_paused')
       .eq('id', taskId)
       .single()
     
-    if (checkTask?.should_stop || checkTask?.status === 'cancelled') {
-      console.log(`[${industry}] 批次 ${batchNumber}: 任务已停止，停止保存场景词`)
+    return {
+      shouldStop: checkTask?.should_stop === true || checkTask?.status === 'cancelled',
+      isPaused: checkTask?.is_paused === true,
+    }
+  }
+
+  for (let j = 0; j < scenes.length; j++) {
+    const scene = scenes[j]
+    
+    // 🔥 检查是否应该停止或暂停（在每条保存前检查）
+    const { shouldStop, isPaused } = await checkShouldStopInSave()
+    
+    if (shouldStop) {
+      console.log(`[${industry}] 批次 ${batchNumber}: ⛔ 任务已终止，立即停止保存场景词`)
       break
+    }
+    
+    if (isPaused) {
+      console.log(`[${industry}] 批次 ${batchNumber}: ⏸️ 任务已暂停，等待恢复...`)
+      // 等待恢复（最多等待 10 秒）
+      let waitCount = 0
+      while (waitCount < 10) {
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+        const check = await checkShouldStopInSave()
+        if (!check.isPaused) {
+          console.log(`[${industry}] 批次 ${batchNumber}: ▶️ 任务已恢复，继续保存`)
+          break
+        }
+        if (check.shouldStop) {
+          console.log(`[${industry}] 批次 ${batchNumber}: ⛔ 任务已终止，停止保存`)
+          break
+        }
+        waitCount++
+      }
+      
+      // 如果仍然暂停或已终止，停止保存
+      const finalCheck = await checkShouldStopInSave()
+      if (finalCheck.isPaused) {
+        console.log(`[${industry}] 批次 ${batchNumber}: ⏸️ 任务仍然暂停，停止保存`)
+        break
+      }
+      if (finalCheck.shouldStop) {
+        console.log(`[${industry}] 批次 ${batchNumber}: ⛔ 任务已终止，停止保存`)
+        break
+      }
     }
 
     // 🔥 增强的重试机制，避免第5个行业时出错
@@ -912,7 +1203,9 @@ async function saveBatchScenes(
         savedCount++
         saved = true
         
-        // 🔥 每保存一条立即更新进度，避免数据丢失（使用 service client，不依赖管理员会话）
+        // 🔥 每保存一条立即更新进度，让前端实时看到保存进度
+        // 注意：虽然逐条更新会增加数据库操作，但可以提供实时反馈
+        // 如果希望更简单，可以改为批量更新（每10条更新一次）
         try {
           const { data: currentTask } = await tasksTable()
             .select('total_scenes_saved')

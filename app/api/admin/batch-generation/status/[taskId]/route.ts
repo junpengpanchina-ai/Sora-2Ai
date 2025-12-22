@@ -23,11 +23,28 @@ export async function GET(
     const { taskId } = params
     const supabase = await createServiceClient()
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: task, error } = await (supabase.from('batch_generation_tasks') as any)
-      .select('*')
-      .eq('id', taskId)
-      .single()
+    let task: Database['public']['Tables']['batch_generation_tasks']['Row'] | null = null
+    let error: { message?: string } | null = null
+    
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await (supabase.from('batch_generation_tasks') as any)
+        .select('*')
+        .eq('id', taskId)
+        .single()
+      
+      task = result.data as Database['public']['Tables']['batch_generation_tasks']['Row'] | null
+      error = result.error as { message?: string } | null
+    } catch (fetchError) {
+      console.error('[batch-generation/status] 查询任务失败:', fetchError)
+      return NextResponse.json(
+        {
+          error: '获取任务状态失败',
+          details: fetchError instanceof Error ? fetchError.message : '未知错误',
+        },
+        { status: 500 }
+      )
+    }
 
     if (error || !task) {
       return NextResponse.json(
