@@ -41,18 +41,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: '任务已取消' })
     }
 
-    // 检查是否暂停（如果暂停，等待恢复）
+    // 🔥 检查是否暂停或终止（如果暂停，等待恢复；如果终止，立即停止）
     if (task.is_paused) {
-      // 如果任务暂停，等待恢复（最多等待 5 秒，然后返回，让前端继续轮询）
+      console.log(`[process] 任务 ${taskId} 已暂停，等待恢复...`)
+      // 如果任务暂停，等待恢复（最多等待 10 秒，然后返回，让前端继续轮询）
       let waitCount = 0
-      while (task.is_paused && waitCount < 5) {
+      while (waitCount < 10) {
         await new Promise((resolve) => setTimeout(resolve, 1000))
         const { data: checkTask } = await tasksTable()
-          .select('is_paused, should_stop')
+          .select('is_paused, should_stop, status')
           .eq('id', taskId)
           .single()
         
+        // 如果已终止，立即返回
+        if (checkTask?.should_stop || checkTask?.status === 'cancelled') {
+          console.log(`[process] 任务 ${taskId} 已终止，停止处理`)
+          return NextResponse.json({ success: true, message: '任务已终止' })
+        }
+        
+        // 如果已恢复，继续处理
         if (checkTask && !checkTask.is_paused) {
+          console.log(`[process] 任务 ${taskId} 已恢复，继续处理`)
           break
         }
         waitCount++
@@ -60,12 +69,17 @@ export async function POST(request: NextRequest) {
       
       // 如果仍然暂停，返回让前端继续轮询
       const { data: finalCheck } = await tasksTable()
-        .select('is_paused')
+        .select('is_paused, should_stop, status')
         .eq('id', taskId)
         .single()
       
       if (finalCheck?.is_paused) {
         return NextResponse.json({ success: true, message: '任务已暂停，等待恢复' })
+      }
+      
+      // 如果已终止，立即返回
+      if (finalCheck?.should_stop || finalCheck?.status === 'cancelled') {
+        return NextResponse.json({ success: true, message: '任务已终止' })
       }
     }
 
