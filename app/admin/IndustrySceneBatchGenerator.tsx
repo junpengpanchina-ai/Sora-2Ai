@@ -709,29 +709,29 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
             const updated = [...prev]
             const scenesPerIndustry = task.scenes_per_industry || 100
             
-            // 更新已完成的任务（使用实际保存的数量）
-            for (let i = 0; i < task.current_industry_index && i < updated.length; i++) {
-              // 计算每个行业实际保存的数量（平均分配 total_scenes_saved）
-              const avgSavedPerIndustry = task.total_scenes_saved && task.current_industry_index > 0
-                ? Math.floor(task.total_scenes_saved / task.current_industry_index)
-                : scenesPerIndustry
-              
-              updated[i] = { 
-                ...updated[i], 
-                status: 'completed', 
-                savedCount: avgSavedPerIndustry 
-              }
-            }
-            
-            // 更新当前处理的任务
-            if (task.current_industry_index < updated.length) {
-              updated[task.current_industry_index] = {
-                ...updated[task.current_industry_index],
-                status: 'processing',
-                // 如果当前行业正在处理，显示已生成的场景词数量
-                savedCount: task.total_scenes_saved && task.current_industry_index > 0
-                  ? task.total_scenes_saved % scenesPerIndustry
-                  : undefined,
+            // 🔥 修复：正确计算每个行业的保存数量
+            // total_scenes_saved 是全局累计的，需要计算每个行业的实际数量
+            for (let i = 0; i < updated.length; i++) {
+              if (i < task.current_industry_index) {
+                // 已完成的行业：每个行业应该保存 scenesPerIndustry 条
+                updated[i] = { 
+                  ...updated[i], 
+                  status: 'completed', 
+                  savedCount: scenesPerIndustry // 每个行业固定保存 scenesPerIndustry 条
+                }
+              } else if (i === task.current_industry_index) {
+                // 当前正在处理的行业：计算当前行业已保存的数量
+                // 当前行业已保存 = total_scenes_saved - (已完成行业数 * scenesPerIndustry)
+                const completedIndustriesCount = task.current_industry_index
+                const currentIndustrySaved = task.total_scenes_saved 
+                  ? Math.max(0, task.total_scenes_saved - (completedIndustriesCount * scenesPerIndustry))
+                  : undefined
+                
+                updated[i] = {
+                  ...updated[i],
+                  status: 'processing',
+                  savedCount: currentIndustrySaved,
+                }
               }
             }
             
