@@ -12,21 +12,43 @@ type UseCaseRow = Database['public']['Tables']['use_cases']['Row']
 // 获取行业的所有使用场景
 const getIndustryUseCases = cache(async (industry: string) => {
   try {
+    // 🔥 添加重试机制和请求延迟，解决构建时的连接错误
+    const { withRetryQuery, delay } = await import('@/lib/utils/retry')
+    
+    // 添加小延迟，避免并发请求过多
+    await delay(50)
+    
     const supabase = await createServiceClient()
     
+    // 🔥 使用重试机制查询数据库
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
-      .from('use_cases')
-      .select('id, slug, title, description, h1, use_case_type')
-      .eq('is_published', true)
-      .eq('industry', industry)
-      .order('created_at', { ascending: false })
+    const { data, error } = await withRetryQuery<Pick<UseCaseRow, 'id' | 'slug' | 'title' | 'description' | 'h1' | 'use_case_type'>[]>(
+      async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return await (supabase as any)
+          .from('use_cases')
+          .select('id, slug, title, description, h1, use_case_type')
+          .eq('is_published', true)
+          .eq('industry', industry)
+          .order('created_at', { ascending: false })
+      },
+      {
+        maxRetries: 3,
+        retryDelay: 500,
+        exponentialBackoff: true,
+        onRetry: (attempt, error) => {
+          console.warn(`[getIndustryUseCases] 重试 ${attempt}/3:`, error instanceof Error ? error.message : String(error))
+        },
+      }
+    )
 
     if (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errorObj = error as any
       console.error('[getIndustryUseCases] 查询错误:', {
         industry,
-        error: error.message,
-        code: error.code,
+        error: error instanceof Error ? error.message : String(error),
+        code: errorObj?.code,
       })
       return []
     }

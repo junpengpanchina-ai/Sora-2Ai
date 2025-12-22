@@ -17,26 +17,52 @@ interface KeywordPageRecord extends Omit<KeywordRow, 'steps' | 'faq'> {
 }
 
 const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord | null> => {
+  // 🔥 添加重试机制，解决构建时的连接错误
+  const { withRetryQuery, delay } = await import('@/lib/utils/retry')
+  
+  // 添加小延迟，避免并发请求过多
+  await delay(50)
+  
   const supabase = await createSupabaseServerClient()
   
   // 先尝试查询原始 slug（不带扩展名）
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let { data: rawData, error } = await (supabase as any)
-    .from('long_tail_keywords')
-    .select('*')
-    .eq('status', 'published')
-    .eq('page_slug', slug)
-    .maybeSingle()
+  let { data: rawData, error } = await withRetryQuery<KeywordRow | null>(
+    async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await (supabase as any)
+        .from('long_tail_keywords')
+        .select('*')
+        .eq('status', 'published')
+        .eq('page_slug', slug)
+        .maybeSingle()
+    },
+    {
+      maxRetries: 3,
+      retryDelay: 500,
+      exponentialBackoff: true,
+    }
+  )
 
   // 如果找不到，尝试查询带 .xml 后缀的（兼容旧数据）
   if (!rawData && !slug.endsWith('.xml')) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await (supabase as any)
-      .from('long_tail_keywords')
-      .select('*')
-      .eq('status', 'published')
-      .eq('page_slug', `${slug}.xml`)
-      .maybeSingle()
+    const result = await withRetryQuery<KeywordRow | null>(
+      async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return await (supabase as any)
+          .from('long_tail_keywords')
+          .select('*')
+          .eq('status', 'published')
+          .eq('page_slug', `${slug}.xml`)
+          .maybeSingle()
+      },
+      {
+        maxRetries: 3,
+        retryDelay: 500,
+        exponentialBackoff: true,
+      }
+    )
     rawData = result.data
     error = result.error
   }
@@ -44,13 +70,23 @@ const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord |
   // 如果还是找不到，尝试使用 ILIKE 模糊匹配（处理可能的空格或大小写问题）
   if (!rawData) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await (supabase as any)
-      .from('long_tail_keywords')
-      .select('*')
-      .eq('status', 'published')
-      .ilike('page_slug', `%${slug}%`)
-      .limit(1)
-      .maybeSingle()
+    const result = await withRetryQuery<KeywordRow | null>(
+      async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return await (supabase as any)
+          .from('long_tail_keywords')
+          .select('*')
+          .eq('status', 'published')
+          .ilike('page_slug', `%${slug}%`)
+          .limit(1)
+          .maybeSingle()
+      },
+      {
+        maxRetries: 2,
+        retryDelay: 500,
+        exponentialBackoff: true,
+      }
+    )
     if (result.data) {
       rawData = result.data
       error = result.error
@@ -168,17 +204,36 @@ export async function generateStaticParams() {
     // 只预生成最热门的 1000 个关键词，其余的动态渲染（使用 ISR）
     const MAX_STATIC_PAGES = 1000
     
+    // 🔥 添加重试机制和请求延迟，解决构建时的连接错误
+    const { withRetryQuery, delay } = await import('@/lib/utils/retry')
+    
+    // 添加初始延迟，避免同时发起大量请求
+    await delay(100)
+    
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
-      .from('long_tail_keywords')
-      .select('page_slug')
-      .eq('status', 'published')
-      .not('page_slug', 'is', null) // 确保 page_slug 不为 null
-      .neq('page_slug', '') // 确保 page_slug 不为空字符串
-      .order('priority', { ascending: false }) // 按优先级降序
-      .order('search_volume', { ascending: false, nullsLast: true }) // 按搜索量降序
-      .order('created_at', { ascending: false }) // 按创建时间倒序
-      .limit(MAX_STATIC_PAGES) // 限制数量
+    const { data, error } = await withRetryQuery(
+      async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return await (supabase as any)
+          .from('long_tail_keywords')
+          .select('page_slug')
+          .eq('status', 'published')
+          .not('page_slug', 'is', null) // 确保 page_slug 不为 null
+          .neq('page_slug', '') // 确保 page_slug 不为空字符串
+          .order('priority', { ascending: false }) // 按优先级降序
+          .order('search_volume', { ascending: false, nullsLast: true }) // 按搜索量降序
+          .order('created_at', { ascending: false }) // 按创建时间倒序
+          .limit(MAX_STATIC_PAGES) // 限制数量
+      },
+      {
+        maxRetries: 5, // 最多重试 5 次
+        retryDelay: 1000, // 初始延迟 1 秒
+        exponentialBackoff: true, // 指数退避
+        onRetry: (attempt, error) => {
+          console.warn(`[keywords/generateStaticParams] 重试 ${attempt}/5:`, error instanceof Error ? error.message : String(error))
+        },
+      }
+    )
     
     if (error) {
       console.error('[keywords/generateStaticParams] 查询错误:', error)

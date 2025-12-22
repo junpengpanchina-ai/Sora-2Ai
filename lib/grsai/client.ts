@@ -26,6 +26,97 @@ function getGrsaiChatHost(): string {
   return 'https://api.grsai.com'
 }
 
+/**
+ * 🔥 错误分类和处理
+ * 根据错误类型决定是否重试、重试延迟和错误消息
+ */
+function classifyApiError(
+  status: number,
+  errorText: string,
+  retryCount: number,
+  maxRetries: number
+): {
+  shouldRetry: boolean
+  retryDelay: number
+  errorMessage: string
+  message: string
+} {
+  // 速率限制（429）- 应该等待后重试
+  if (status === 429) {
+    const retryDelay = Math.min(5000 * Math.pow(2, retryCount), 30000) // 5s, 10s, 20s, 30s
+    return {
+      shouldRetry: retryCount < maxRetries,
+      retryDelay,
+      errorMessage: `API 请求频率过高（429），已重试 ${retryCount + 1} 次，请稍后重试`,
+      message: 'API 速率限制',
+    }
+  }
+  
+  // 服务器错误（5xx）- 可以重试
+  if (status >= 500 && status < 600) {
+    const retryDelay = status === 500 
+      ? Math.min(4000 * Math.pow(2, retryCount), 20000) // 500错误：4s, 8s, 16s, 20s
+      : Math.min(2000 * Math.pow(2, retryCount), 10000) // 其他5xx：2s, 4s, 8s, 10s
+    return {
+      shouldRetry: retryCount < maxRetries,
+      retryDelay,
+      errorMessage: `API 服务器错误（${status}），已重试 ${retryCount + 1} 次，请稍后重试`,
+      message: `服务器错误 ${status}`,
+    }
+  }
+  
+  // 认证错误（401, 403）- 不应该重试
+  if (status === 401 || status === 403) {
+    let errorMessage = `Grsai Chat API 错误: ${status}`
+    try {
+      const errorJson = JSON.parse(errorText)
+      if (errorJson.error?.message) {
+        errorMessage += ` - ${errorJson.error.message}`
+      } else if (errorJson.message) {
+        errorMessage += ` - ${errorJson.message}`
+      }
+    } catch {
+      errorMessage += ` - ${errorText.substring(0, 200)}`
+    }
+    
+    if (status === 401) {
+      errorMessage += ' (提示: 请检查 GRSAI_API_KEY 是否正确配置)'
+    } else {
+      errorMessage += ' (提示: API Key 可能没有权限或已过期)'
+    }
+    
+    return {
+      shouldRetry: false,
+      retryDelay: 0,
+      errorMessage,
+      message: '认证错误',
+    }
+  }
+  
+  // 其他错误（4xx）- 根据具体情况决定
+  let errorMessage = `Grsai Chat API 错误: ${status}`
+  try {
+    const errorJson = JSON.parse(errorText)
+    if (errorJson.error?.message) {
+      errorMessage += ` - ${errorJson.error.message}`
+    } else if (errorJson.message) {
+      errorMessage += ` - ${errorJson.message}`
+    } else {
+      errorMessage += ` - ${errorText.substring(0, 200)}`
+    }
+  } catch {
+    errorMessage += ` - ${errorText.substring(0, 200)}`
+  }
+  
+  // 400 错误通常不应该重试（请求格式错误）
+  return {
+    shouldRetry: false,
+    retryDelay: 0,
+    errorMessage,
+    message: `客户端错误 ${status}`,
+  }
+}
+
 export interface SoraVideoRequest {
   model: string
   prompt: string
@@ -348,8 +439,17 @@ export async function createChatCompletion(
   retryCount = 0
 ): Promise<ChatCompletionResponse> {
   const MAX_RETRIES = 3
-  const RETRY_DELAY = 1000 * (retryCount + 1) // 递增延迟：1s, 2s, 3s
-  const TIMEOUT = 60000 // 60秒超时
+  // 🔥 使用指数退避重试延迟：1s, 2s, 4s, 8s（最大 10s）
+  const RETRY_DELAY = Math.min(1000 * Math.pow(2, retryCount), 10000)
+  
+  // 🔥 根据模型类型调整超时时间
+  const getTimeout = (model: string): number => {
+    if (model.includes('gemini-3-pro')) return 120000 // 120 秒
+    if (model.includes('gemini-3-flash')) return 90000 // 90 秒
+    return 60000 // 60 秒（默认，gemini-2.5-flash）
+  }
+  
+  const TIMEOUT = getTimeout(params.model)
   
   const apiKey = getGrsaiApiKey()
   const host = getGrsaiChatHost()
@@ -360,25 +460,39 @@ export async function createChatCompletion(
       model: params.model,
       retryCount,
       delay: RETRY_DELAY,
+      timeout: TIMEOUT,
     })
   }
   
-  // 添加超时控制
+  // 🔥 双重超时保护：使用 AbortController + Promise.race
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT)
 
   let response: Response
   try {
-    response = await fetch(`${host}/v1/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(params),
-      signal: controller.signal,
-      keepalive: true,
-    })
+    // 🔥 使用速率限制器（避免触发 429 错误）
+    const { rateLimiter } = await import('./rate-limiter')
+    
+    // 🔥 使用 Promise.race 确保超时控制
+    const fetchPromise = rateLimiter.execute(() =>
+      fetch(`${host}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(params),
+        signal: controller.signal,
+        keepalive: true,
+      })
+    )
+    
+    // 双重超时保护：如果 AbortController 失效，Promise.race 会捕获
+    const timeoutPromise = new Promise<Response>((_, reject) =>
+      setTimeout(() => reject(new Error(`请求超时（${TIMEOUT / 1000}秒）`)), TIMEOUT)
+    )
+    
+    response = await Promise.race([fetchPromise, timeoutPromise])
     clearTimeout(timeoutId)
   } catch (fetchError) {
     clearTimeout(timeoutId)
@@ -433,40 +547,16 @@ export async function createChatCompletion(
       retryCount,
     })
     
-    // 如果是服务器错误（5xx）且还有重试次数，进行重试
-    // 对于500错误，使用更长的延迟（可能是服务端临时问题）
-    if ((response.status >= 500 && response.status < 600) && retryCount < MAX_RETRIES) {
-      const serverErrorDelay = response.status === 500 ? RETRY_DELAY * 2 : RETRY_DELAY // 500错误延迟加倍
-      console.warn(`[Grsai Chat API] 服务器错误 ${response.status}（可能是临时性问题），${serverErrorDelay}ms 后重试 (${retryCount + 1}/${MAX_RETRIES})...`)
-      await new Promise(resolve => setTimeout(resolve, serverErrorDelay))
+    // 🔥 智能错误分类和处理
+    const errorClassification = classifyApiError(response.status, errorText, retryCount, MAX_RETRIES)
+    
+    if (errorClassification.shouldRetry && retryCount < MAX_RETRIES) {
+      console.warn(`[Grsai Chat API] ${errorClassification.message}，${errorClassification.retryDelay}ms 后重试 (${retryCount + 1}/${MAX_RETRIES})...`)
+      await new Promise(resolve => setTimeout(resolve, errorClassification.retryDelay))
       return createChatCompletion(params, retryCount + 1)
     }
     
-    let errorMessage = `Grsai Chat API 错误: ${response.status}`
-    try {
-      const errorJson = JSON.parse(errorText)
-      if (errorJson.error?.message) {
-        errorMessage += ` - ${errorJson.error.message}`
-      } else if (errorJson.message) {
-        errorMessage += ` - ${errorJson.message}`
-      } else {
-        errorMessage += ` - ${errorText.substring(0, 200)}`
-      }
-    } catch {
-      errorMessage += ` - ${errorText.substring(0, 200)}`
-    }
-    
-    if (response.status === 401) {
-      errorMessage += ' (提示: 请检查 GRSAI_API_KEY 是否正确配置)'
-    } else if (response.status === 403) {
-      errorMessage += ' (提示: API Key 可能没有权限或已过期)'
-    } else if (response.status === 429) {
-      errorMessage += ' (提示: API 请求频率过高，请稍后重试)'
-    } else if (response.status === 500 || response.status === 502 || response.status === 503) {
-      errorMessage += ' (提示: API 服务暂时不可用，请稍后重试)'
-    }
-    
-    throw new Error(errorMessage)
+    throw new Error(errorClassification.errorMessage)
   }
 
   const data = await response.json() as ChatCompletionResponse

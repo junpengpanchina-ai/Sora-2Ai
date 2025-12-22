@@ -29,13 +29,17 @@ const FREE_PLAN_LIMITS = {
   maxConnections: 60,
 }
 
-// Pro 计划限制
+// Pro 计划限制（当前计划）
 const PRO_PLAN_LIMITS = {
   databaseSize: 8 * 1024 * 1024 * 1024, // 8 GB
-  bandwidth: 50 * 1024 * 1024 * 1024, // 50 GB
+  bandwidth: 250 * 1024 * 1024 * 1024, // 250 GB/月
   storage: 100 * 1024 * 1024 * 1024, // 100 GB
   maxConnections: 200,
+  poolSize: 48, // 连接池大小（当前配置）
 }
+
+// 当前使用的计划（已升级到 Pro）
+const CURRENT_PLAN = PRO_PLAN_LIMITS
 
 function formatBytes(bytes) {
   if (bytes === 0) return '0 Bytes'
@@ -223,15 +227,17 @@ async function main() {
   console.log('🔌 数据库连接数:')
   const connectionCount = await checkConnectionCount()
   if (connectionCount !== null) {
-    const percentage = formatPercentage(connectionCount, FREE_PLAN_LIMITS.maxConnections)
-    const status = connectionCount >= FREE_PLAN_LIMITS.maxConnections * 0.8 ? '⚠️' : '✅'
-    console.log(`   ${status} 当前连接: ${connectionCount} / ${FREE_PLAN_LIMITS.maxConnections} (${percentage})`)
+    const percentage = formatPercentage(connectionCount, CURRENT_PLAN.maxConnections)
+    const status = connectionCount >= CURRENT_PLAN.maxConnections * 0.8 ? '⚠️' : '✅'
+    console.log(`   ${status} 当前连接: ${connectionCount} / ${CURRENT_PLAN.maxConnections} (${percentage})`)
+    console.log(`   📊 连接池 Pool Size: ${CURRENT_PLAN.poolSize} (当前配置)`)
     
-    if (connectionCount >= FREE_PLAN_LIMITS.maxConnections * 0.8) {
-      console.log('   ⚠️  警告: 连接数接近限制，建议考虑升级到 Pro 计划')
+    if (connectionCount >= CURRENT_PLAN.maxConnections * 0.8) {
+      console.log('   ⚠️  警告: 连接数接近限制，建议优化连接使用')
     }
   } else {
     console.log('   ⚠️  无法自动查询连接数')
+    console.log(`   📊 连接池 Pool Size: ${CURRENT_PLAN.poolSize} (当前配置)`)
   }
   console.log('')
   
@@ -239,9 +245,9 @@ async function main() {
   console.log('💾 存储使用情况:')
   const storageUsage = await checkStorageUsage()
   if (storageUsage) {
-    const percentage = formatPercentage(storageUsage.total, FREE_PLAN_LIMITS.storage)
-    const status = storageUsage.total >= FREE_PLAN_LIMITS.storage * 0.8 ? '⚠️' : '✅'
-    console.log(`   ${status} 已使用: ${formatBytes(storageUsage.total)} / ${formatBytes(FREE_PLAN_LIMITS.storage)} (${percentage})`)
+    const percentage = formatPercentage(storageUsage.total, CURRENT_PLAN.storage)
+    const status = storageUsage.total >= CURRENT_PLAN.storage * 0.8 ? '⚠️' : '✅'
+    console.log(`   ${status} 已使用: ${formatBytes(storageUsage.total)} / ${formatBytes(CURRENT_PLAN.storage)} (${percentage})`)
     
     if (storageUsage.buckets.length > 0) {
       console.log('   存储桶详情:')
@@ -250,8 +256,8 @@ async function main() {
       })
     }
     
-    if (storageUsage.total >= FREE_PLAN_LIMITS.storage * 0.8) {
-      console.log('   ⚠️  警告: 存储空间接近限制，建议考虑升级到 Pro 计划')
+    if (storageUsage.total >= CURRENT_PLAN.storage * 0.8) {
+      console.log('   ⚠️  警告: 存储空间接近限制，建议优化存储使用')
     }
   } else {
     console.log('   ⚠️  无法自动查询存储使用情况')
@@ -259,19 +265,21 @@ async function main() {
   console.log('')
   
   // 总结和建议
-  console.log('📊 免费计划限制:')
-  console.log(`   - 数据库大小: ${formatBytes(FREE_PLAN_LIMITS.databaseSize)}`)
-  console.log(`   - 带宽: ${formatBytes(FREE_PLAN_LIMITS.bandwidth)}/月`)
-  console.log(`   - 存储: ${formatBytes(FREE_PLAN_LIMITS.storage)}`)
-  console.log(`   - 最大连接数: ${FREE_PLAN_LIMITS.maxConnections}`)
+  console.log('📊 Pro 计划限制（当前计划）:')
+  console.log(`   - 数据库大小: ${formatBytes(CURRENT_PLAN.databaseSize)}`)
+  console.log(`   - 带宽: ${formatBytes(CURRENT_PLAN.bandwidth)}/月`)
+  console.log(`   - 存储: ${formatBytes(CURRENT_PLAN.storage)}`)
+  console.log(`   - 最大连接数: ${CURRENT_PLAN.maxConnections}`)
+  console.log(`   - 连接池 Pool Size: ${CURRENT_PLAN.poolSize}`)
   console.log('')
   
   console.log('💡 建议:')
-  console.log('   1. 定期运行此脚本监控使用情况')
+  console.log('   1. 定期运行此脚本监控使用情况（建议每月 1 号）')
   console.log('   2. 在 Supabase Dashboard 查看详细使用情况:')
-  console.log('      https://supabase.com/dashboard/project/_/settings/usage')
-  console.log('   3. 如果接近限制，考虑升级到 Pro 计划 ($25/月)')
-  console.log('   4. 优化数据库查询和连接使用')
+  console.log('      https://supabase.com/dashboard/org/afwecwqmahxrgmicbpem/usage?projectRef=hgzpzsiafycwlqrkzbis')
+  console.log('   3. 如果使用率 > 60%，增加检查频率')
+  console.log('   4. 如果使用率 > 80%，考虑优化或升级')
+  console.log('   5. 优化数据库查询和连接使用')
   console.log('')
   
   console.log('✅ 检查完成!')

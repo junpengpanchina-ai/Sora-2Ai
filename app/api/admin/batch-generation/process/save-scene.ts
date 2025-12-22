@@ -98,9 +98,12 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
   const isPublished = qualityStatus === 'approved'
 
   // 直接使用 Supabase 保存（避免 HTTP 调用）
-  // 添加详细的错误日志
+  // 🔥 添加超时控制，避免数据库操作卡住
+  const DB_TIMEOUT = 10000 // 10秒超时
+  
   try {
-    const { error: insertError } = await supabase
+    // 🔥 使用 Promise.race 确保超时控制
+    const insertPromise = supabase
       .from('use_cases')
       .insert({
         slug,
@@ -117,12 +120,18 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
         quality_issues: qualityCheck.issues,
       })
       .select()
+    
+    const timeoutPromise = new Promise<{ error: { message?: string; code?: string; details?: string; hint?: string } | null }>((_, reject) =>
+      setTimeout(() => reject(new Error('数据库保存超时（10秒）')), DB_TIMEOUT)
+    )
+    
+    const { error: insertError } = await Promise.race([insertPromise, timeoutPromise]) as { error: { message?: string; code?: string; details?: string; hint?: string } | null }
 
     if (insertError) {
-      // 如果是重复 slug，尝试添加后缀
+      // 如果是重复 slug，尝试添加后缀（也添加超时控制）
       if (insertError.code === '23505') {
         const newSlug = `${slug}-${Date.now()}`
-        const { error: retryError } = await supabase
+        const retryInsertPromise = supabase
           .from('use_cases')
           .insert({
             slug: newSlug,
@@ -138,6 +147,12 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
             quality_score: qualityCheck.score,
             quality_issues: qualityCheck.issues,
           })
+        
+        const retryTimeoutPromise = new Promise<{ error: { message?: string; code?: string; details?: string; hint?: string } | null }>((_, reject) =>
+          setTimeout(() => reject(new Error('数据库保存超时（10秒）')), DB_TIMEOUT)
+        )
+        
+        const { error: retryError } = await Promise.race([retryInsertPromise, retryTimeoutPromise]) as { error: { message?: string; code?: string; details?: string; hint?: string } | null }
         
         if (retryError) {
           console.error(`[${industry}] 保存失败 (重复slug重试失败):`, {
