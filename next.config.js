@@ -68,6 +68,10 @@ const nextConfig = {
   
   // 实验性功能：优化构建
   experimental: {
+    // 启用 Turbopack（Next.js 14+ 支持，大幅提升构建速度）
+    turbo: {
+      // Turbopack 配置
+    },
     // 优化服务器组件
     serverComponentsExternalPackages: [],
     // 优化包导入
