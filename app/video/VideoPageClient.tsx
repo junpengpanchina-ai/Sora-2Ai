@@ -204,6 +204,10 @@ export default function VideoPageClient() {
   useEffect(() => {
     if (!pollingTaskId || !isMountedRef.current) return
 
+    let consecutiveErrors = 0
+    const MAX_CONSECUTIVE_ERRORS = 5 // 允许最多5次连续错误
+    const POLLING_INTERVAL = 3000 // 3秒轮询一次
+
     const interval = setInterval(async () => {
       // Check if component is still mounted before making updates
       if (!isMountedRef.current) {
@@ -214,9 +218,58 @@ export default function VideoPageClient() {
       try {
         console.log('[VideoPage] 🔍 Polling task status:', { taskId: pollingTaskId })
         
-        const response = await fetch(`/api/video/result/${pollingTaskId}`, {
-          headers: await getAuthHeaders(),
-        })
+        // 使用 AbortController 添加超时控制
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10秒超时
+        
+        let response: Response
+        try {
+          response = await fetch(`/api/video/result/${pollingTaskId}`, {
+            headers: await getAuthHeaders(),
+            signal: controller.signal,
+          })
+          clearTimeout(timeoutId)
+        } catch (fetchError) {
+          clearTimeout(timeoutId)
+          
+          // 处理网络错误
+          if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+            console.warn('[VideoPage] ⚠️ Polling request timeout:', { taskId: pollingTaskId })
+            consecutiveErrors++
+          } else if (fetchError instanceof TypeError && fetchError.message.includes('Failed to fetch')) {
+            console.warn('[VideoPage] ⚠️ Network error during polling:', { 
+              taskId: pollingTaskId,
+              error: fetchError.message 
+            })
+            consecutiveErrors++
+          } else {
+            console.error('[VideoPage] ❌ Unexpected error during polling:', {
+              taskId: pollingTaskId,
+              error: fetchError instanceof Error ? fetchError.message : String(fetchError)
+            })
+            consecutiveErrors++
+          }
+          
+          // 如果连续错误太多，停止轮询并显示错误
+          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+            console.error('[VideoPage] ❌ Too many consecutive polling errors, stopping:', {
+              taskId: pollingTaskId,
+              consecutiveErrors
+            })
+            clearInterval(interval)
+            if (isMountedRef.current) {
+              setCurrentResult(prev => ({
+                ...(prev ?? { task_id: pollingTaskId, prompt: currentPrompt }),
+                task_id: pollingTaskId,
+                status: 'failed',
+                error: 'Network connection error. Please check your internet connection and try refreshing the page.',
+                prompt: prev?.prompt || currentPrompt,
+              }))
+              setPollingTaskId(null)
+            }
+          }
+          return
+        }
         
         // Check again after async operation
         if (!isMountedRef.current) {
@@ -224,11 +277,56 @@ export default function VideoPageClient() {
           return
         }
         
+        // 重置连续错误计数
+        consecutiveErrors = 0
+        
         console.log('[VideoPage] 📥 Polling response:', {
           taskId: pollingTaskId,
           status: response.status,
           ok: response.ok,
         })
+        
+        // 检查响应状态
+        if (!response.ok) {
+          console.error('[VideoPage] ❌ Polling response not OK:', {
+            taskId: pollingTaskId,
+            status: response.status,
+            statusText: response.statusText,
+          })
+          
+          // 如果是404，任务可能不存在
+          if (response.status === 404) {
+            clearInterval(interval)
+            if (isMountedRef.current) {
+              setCurrentResult(prev => ({
+                ...(prev ?? { task_id: pollingTaskId, prompt: currentPrompt }),
+                task_id: pollingTaskId,
+                status: 'failed',
+                error: 'Task not found. Please try generating a new video.',
+                prompt: prev?.prompt || currentPrompt,
+              }))
+              setPollingTaskId(null)
+            }
+            return
+          }
+          
+          // 其他错误，继续重试但增加错误计数
+          consecutiveErrors++
+          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+            clearInterval(interval)
+            if (isMountedRef.current) {
+              setCurrentResult(prev => ({
+                ...(prev ?? { task_id: pollingTaskId, prompt: currentPrompt }),
+                task_id: pollingTaskId,
+                status: 'failed',
+                error: `Server error (${response.status}). Please try again later.`,
+                prompt: prev?.prompt || currentPrompt,
+              }))
+              setPollingTaskId(null)
+            }
+          }
+          return
+        }
         
         const data = await response.json()
         console.log('[VideoPage] 📦 Polling data:', {
@@ -300,16 +398,35 @@ export default function VideoPageClient() {
           }
         }
       } catch (error) {
+        // 处理 JSON 解析错误或其他意外错误
         console.error(`[VideoPage] ❌ Failed to poll task ${pollingTaskId}:`, {
           error: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : undefined,
           taskId: pollingTaskId,
         })
-        if (isMountedRef.current) {
-          setPollingTaskId(null)
+        
+        consecutiveErrors++
+        
+        // 如果连续错误太多，停止轮询
+        if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+          console.error('[VideoPage] ❌ Too many consecutive errors, stopping polling:', {
+            taskId: pollingTaskId,
+            consecutiveErrors
+          })
+          clearInterval(interval)
+          if (isMountedRef.current) {
+            setCurrentResult(prev => ({
+              ...(prev ?? { task_id: pollingTaskId, prompt: currentPrompt }),
+              task_id: pollingTaskId,
+              status: 'failed',
+              error: 'Failed to check task status. Please refresh the page and try again.',
+              prompt: prev?.prompt || currentPrompt,
+            }))
+            setPollingTaskId(null)
+          }
         }
       }
-    }, 3000) // Poll every 3 seconds
+    }, POLLING_INTERVAL) // Poll every 3 seconds
 
     return () => clearInterval(interval)
   }, [pollingTaskId, currentPrompt, getAuthHeaders])
@@ -354,14 +471,44 @@ export default function VideoPageClient() {
       })
 
       const authHeaders = await getAuthHeaders()
-      const response = await fetch('/api/video/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeaders,
-        },
-        body: JSON.stringify(requestBody),
-      })
+      
+      // 使用 AbortController 添加超时控制
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60秒超时
+      
+      let response: Response
+      try {
+        response = await fetch('/api/video/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders,
+          },
+          body: JSON.stringify(requestBody),
+          signal: controller.signal,
+        })
+        clearTimeout(timeoutId)
+      } catch (fetchError) {
+        clearTimeout(timeoutId)
+        
+        // 处理网络错误
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+          console.error('[VideoPage] ❌ Request timeout:', { error: 'Request took too long' })
+          alert('Request timeout. Please check your network connection and try again.')
+          setLoading(false)
+          return
+        } else if (fetchError instanceof TypeError && fetchError.message.includes('Failed to fetch')) {
+          console.error('[VideoPage] ❌ Network error:', { error: fetchError.message })
+          alert('Network error. Please check your internet connection and try again.')
+          setLoading(false)
+          return
+        } else {
+          console.error('[VideoPage] ❌ Unexpected error:', { error: fetchError })
+          alert('An unexpected error occurred. Please try again.')
+          setLoading(false)
+          return
+        }
+      }
 
       console.log('[VideoPage] 📥 Received response:', {
         status: response.status,
