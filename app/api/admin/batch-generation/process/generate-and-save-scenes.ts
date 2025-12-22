@@ -441,9 +441,12 @@ Do not include explanations. Output only the JSON.`
             totalFailedCount += saveResult.failedCount
             allErrors.push(...saveResult.errors)
             
-            console.log(`[${industry}] 批次 ${batch + 1}: ✅ 保存完成！成功 ${saveResult.savedCount} 条，失败 ${saveResult.failedCount} 条`)
+            // 🔥 记录保存结果（包括跳过的数量）
+            const skippedInfo = saveResult.skippedCount > 0 ? `，跳过 ${saveResult.skippedCount} 条（质量过低）` : ''
+            console.log(`[${industry}] 批次 ${batch + 1}: ✅ 保存完成！成功 ${saveResult.savedCount} 条，失败 ${saveResult.failedCount} 条${skippedInfo}`)
             
             // 🔥 检查保存失败率，如果超过 50%，停止避免浪费积分
+            // 注意：跳过的数量不计入失败率计算（因为这是主动跳过，不是真正的失败）
             const totalAttempted = saveResult.savedCount + saveResult.failedCount
             const saveFailureRate = totalAttempted > 0 ? saveResult.failedCount / totalAttempted : 0
             
@@ -1074,9 +1077,12 @@ Do not include explanations. Output only the JSON.`
             totalFailedCount += saveResult.failedCount
             allErrors.push(...saveResult.errors)
             
-            console.log(`[${industry}] 批次 ${batch + 1}: ✅ 保存完成！成功 ${saveResult.savedCount} 条，失败 ${saveResult.failedCount} 条`)
+            // 🔥 记录保存结果（包括跳过的数量）
+            const skippedInfo = saveResult.skippedCount > 0 ? `，跳过 ${saveResult.skippedCount} 条（质量过低）` : ''
+            console.log(`[${industry}] 批次 ${batch + 1}: ✅ 保存完成！成功 ${saveResult.savedCount} 条，失败 ${saveResult.failedCount} 条${skippedInfo}`)
             
             // 🔥 检查保存失败率，如果超过 50%，停止避免浪费积分
+            // 注意：跳过的数量不计入失败率计算（因为这是主动跳过，不是真正的失败）
             const totalAttempted = saveResult.savedCount + saveResult.failedCount
             const saveFailureRate = totalAttempted > 0 ? saveResult.failedCount / totalAttempted : 0
             
@@ -1129,6 +1135,7 @@ async function saveBatchScenes(
 ): Promise<{
   savedCount: number
   failedCount: number
+  skippedCount: number // 🔥 新增：因质量过低而跳过的数量
   errors: string[]
 }> {
   const { saveSceneToDatabase } = await import('./save-scene')
@@ -1136,6 +1143,7 @@ async function saveBatchScenes(
   
   let savedCount = 0
   let failedCount = 0
+  let skippedCount = 0 // 🔥 新增：因质量过低而跳过的数量
   const errors: string[] = []
 
   // 🔥 辅助函数：检查任务是否应该停止或暂停（在保存循环中使用）
@@ -1231,8 +1239,22 @@ async function saveBatchScenes(
           console.log(`[${industry}] 批次 ${batchNumber}: 场景词 ${j + 1} 重试成功 (${retryCount}/${maxRetries})`)
         }
       } catch (error) {
-        retryCount++
         const errorMessage = error instanceof Error ? error.message : String(error)
+        
+        // 🔥 检查是否是质量过低错误（主动跳过，不计入失败）
+        const isQualityTooLow = (error as Error & { isQualityTooLow?: boolean })?.isQualityTooLow === true
+        
+        if (isQualityTooLow) {
+          // 质量过低，跳过保存（不计入失败，不计入重试）
+          skippedCount++
+          errors.push(`场景词 ${j + 1}: ${errorMessage}`)
+          console.warn(`[${industry}] 批次 ${batchNumber}: 场景词 ${j + 1} 质量过低，已跳过保存`)
+          saved = true // 标记为已处理，退出重试循环
+          break
+        }
+        
+        // 真正的保存失败，需要重试
+        retryCount++
         
         // 🔥 检查是否是数据库连接错误
         const isConnectionError = errorMessage.includes('ECONNRESET') || 
@@ -1282,7 +1304,9 @@ async function saveBatchScenes(
           .single()
         
         const currentSaved = (currentTask as Database['public']['Tables']['batch_generation_tasks']['Row'])?.total_scenes_saved || 0
-        console.log(`[${industry}] 批次 ${batchNumber}: 已保存 ${j + 1}/${scenes.length} 条场景词，累计保存 ${currentSaved} 条`)
+        const skippedInfo = skippedCount > 0 ? `，跳过 ${skippedCount} 条（质量过低）` : ''
+        const failedInfo = failedCount > 0 ? `，失败 ${failedCount} 条` : ''
+        console.log(`[${industry}] 批次 ${batchNumber}: 已保存 ${j + 1}/${scenes.length} 条场景词，累计保存 ${currentSaved} 条${skippedInfo}${failedInfo}`)
       } catch (logError) {
         // 日志记录失败不影响保存流程
         console.warn(`[${industry}] 批次 ${batchNumber}: 记录日志失败:`, logError)
@@ -1290,6 +1314,6 @@ async function saveBatchScenes(
     }
   }
 
-  return { savedCount, failedCount, errors }
+  return { savedCount, failedCount, skippedCount, errors }
 }
 

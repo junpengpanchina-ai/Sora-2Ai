@@ -93,6 +93,24 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
     seo_keywords: [scene.use_case, industry, `${industry} AI video`],
   })
 
+  // 🔥 质量阈值检查：如果质量分数 < 40，跳过保存，避免保存低质量内容
+  // 注意：正常生成的内容通常能拿到 60-100 分，40 分阈值只过滤严重低质量内容
+  const QUALITY_THRESHOLD = 40
+  if (qualityCheck.score < QUALITY_THRESHOLD) {
+    const errorMessage = `质量分数过低 (${qualityCheck.score}/${QUALITY_THRESHOLD})，跳过保存。问题: ${qualityCheck.issues.join(', ')}`
+    console.warn(`[${industry}] 场景词 ${scene.id} 质量过低，跳过保存:`, {
+      score: qualityCheck.score,
+      threshold: QUALITY_THRESHOLD,
+      issues: qualityCheck.issues,
+      warnings: qualityCheck.warnings,
+      scenePreview: scene.use_case.substring(0, 100),
+    })
+    // 抛出特定错误，便于在 saveBatchScenes 中区分
+    const qualityError = new Error(errorMessage) as Error & { isQualityTooLow?: boolean }
+    qualityError.isQualityTooLow = true
+    throw qualityError
+  }
+
   // 根据质量检查结果设置状态
   const qualityStatus = qualityCheck.passed && qualityCheck.score >= 70 ? 'approved' : 'pending'
   const isPublished = qualityStatus === 'approved'
