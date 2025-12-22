@@ -7,7 +7,8 @@ import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 // 24小时
+// 🔥 延长会话时间到 7 天，避免批量生成过程中会话过期
+const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 7 // 7天（168小时）
 
 // Rate limiting: 5 attempts per 15 minutes per IP
 const RATE_LIMIT_MAX_ATTEMPTS = 5
