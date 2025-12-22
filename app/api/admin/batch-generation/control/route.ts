@@ -91,6 +91,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // 🔥 如果恢复任务，自动触发继续处理
+    if (action === 'resume') {
+      // 异步触发继续处理，不等待响应（避免阻塞）
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+                     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+      const processUrl = `${siteUrl}/api/admin/batch-generation/process`
+      
+      console.log('[batch-generation/control] 任务已恢复，触发继续处理:', {
+        taskId,
+        processUrl,
+      })
+      
+      fetch(processUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId }),
+      }).catch((error) => {
+        console.error('[batch-generation/control] 触发继续处理失败:', {
+          error: error instanceof Error ? error.message : String(error),
+          taskId,
+          processUrl,
+        })
+      })
+    }
+
     return NextResponse.json({
       success: true,
       message: `任务已${action === 'pause' ? '暂停' : action === 'resume' ? '恢复' : '取消'}`,
