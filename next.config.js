@@ -29,6 +29,11 @@ const nextConfig = {
         pathname: '/**',
       },
     ],
+    // 🔥 Pro 计划优化：启用图片优化和缓存
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60 * 60 * 24 * 7, // 7天缓存
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   
   // 优化文件系统监听
@@ -76,6 +81,67 @@ const nextConfig = {
     serverComponentsExternalPackages: [],
     // 优化包导入
     optimizePackageImports: ['@supabase/supabase-js', '@supabase/ssr'],
+    // 🔥 Pro 计划优化：启用服务器操作优化
+    serverActions: {
+      bodySizeLimit: '2mb', // 增加 body 大小限制
+    },
+  },
+  
+  // 🔥 Pro 计划优化：配置 CDN 和缓存
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'on',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'SAMEORIGIN',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+        ],
+      },
+      {
+        // 静态资源长期缓存（利用 Vercel CDN）
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        // 图片资源缓存
+        source: '/:path*\\.(jpg|jpeg|png|gif|webp|avif|svg|ico)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        // API 路由缓存（仅适用于可缓存的 API）
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=60, stale-while-revalidate=300',
+          },
+        ],
+      },
+    ]
   },
   
   // 优化构建性能

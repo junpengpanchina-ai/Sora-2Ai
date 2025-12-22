@@ -61,12 +61,21 @@ export async function GET(request: Request) {
       })
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       trends: trendingSearches.slice(0, 20), // 返回前20个
       geo,
       updatedAt: new Date().toISOString(),
     })
+    
+    // 🔥 Pro 计划优化：添加 CDN 缓存 headers（利用 Vercel Edge Network）
+    // 趋势数据每小时更新一次，但允许使用过期数据（stale-while-revalidate）
+    response.headers.set(
+      'Cache-Control',
+      'public, s-maxage=3600, stale-while-revalidate=7200'
+    )
+    
+    return response
   } catch (error) {
     console.error('Failed to fetch Google Trends:', error)
     

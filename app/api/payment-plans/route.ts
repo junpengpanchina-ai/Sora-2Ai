@@ -25,10 +25,18 @@ export async function GET() {
       })
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       plans: data || [],
     })
+    
+    // 🔥 Pro 计划优化：添加 CDN 缓存 headers（利用 Vercel Edge Network）
+    response.headers.set(
+      'Cache-Control',
+      'public, s-maxage=60, stale-while-revalidate=300'
+    )
+    
+    return response
   } catch (error) {
     console.error('获取支付计划异常:', error)
     return NextResponse.json({

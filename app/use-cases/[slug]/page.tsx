@@ -24,21 +24,42 @@ const getUseCaseBySlug = cache(async (slug: string) => {
     // 使用 service client 避免 cookies，支持静态生成和动态渲染
     const supabase = await createServiceClient()
     
+    // 🔥 添加重试机制和请求延迟，解决构建时的连接错误
+    const { withRetryQuery, delay } = await import('@/lib/utils/retry')
+    
+    // 添加小延迟，避免并发请求过多
+    await delay(50)
+    
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
-      .from('use_cases')
-      .select('*')
-      .eq('slug', trimmedSlug)
-      .eq('is_published', true)
-      .maybeSingle()
+    const { data, error } = await withRetryQuery(
+      async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return await (supabase as any)
+          .from('use_cases')
+          .select('*')
+          .eq('slug', trimmedSlug)
+          .eq('is_published', true)
+          .maybeSingle()
+      },
+      {
+        maxRetries: 3,
+        retryDelay: 500,
+        exponentialBackoff: true,
+        onRetry: (attempt, error) => {
+          console.warn(`[getUseCaseBySlug] 重试 ${attempt}/3:`, error instanceof Error ? error.message : String(error))
+        },
+      }
+    )
 
     if (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errorObj = error as any
       console.error('[getUseCaseBySlug] 查询错误:', {
         slug: trimmedSlug,
-        error: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
+        error: error instanceof Error ? error.message : String(error),
+        code: errorObj?.code,
+        details: errorObj?.details,
+        hint: errorObj?.hint,
       })
       return null
     }
@@ -215,15 +236,34 @@ export async function generateStaticParams() {
     // 只预生成最新的 500 个 use_cases，其余的动态渲染
     const MAX_STATIC_PAGES = 500
     
+    // 🔥 添加重试机制和请求延迟，解决构建时的连接错误
+    const { withRetryQuery, delay } = await import('@/lib/utils/retry')
+    
+    // 添加初始延迟，避免同时发起大量请求
+    await delay(200)
+    
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
-      .from('use_cases')
-      .select('slug')
-      .eq('is_published', true)
-      .not('slug', 'is', null) // 确保 slug 不为 null
-      .neq('slug', '') // 确保 slug 不为空字符串
-      .order('created_at', { ascending: false }) // 按创建时间倒序，优先生成最新的
-      .limit(MAX_STATIC_PAGES) // 限制数量
+    const { data, error } = await withRetryQuery(
+      async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return await (supabase as any)
+          .from('use_cases')
+          .select('slug')
+          .eq('is_published', true)
+          .not('slug', 'is', null) // 确保 slug 不为 null
+          .neq('slug', '') // 确保 slug 不为空字符串
+          .order('created_at', { ascending: false }) // 按创建时间倒序，优先生成最新的
+          .limit(MAX_STATIC_PAGES) // 限制数量
+      },
+      {
+        maxRetries: 5, // 最多重试 5 次
+        retryDelay: 1000, // 初始延迟 1 秒
+        exponentialBackoff: true, // 指数退避
+        onRetry: (attempt, error) => {
+          console.warn(`[generateStaticParams] 重试 ${attempt}/5:`, error instanceof Error ? error.message : String(error))
+        },
+      }
+    )
 
     if (error) {
       console.error('[generateStaticParams] 查询错误:', error)

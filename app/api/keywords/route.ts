@@ -78,13 +78,21 @@ export async function GET(request: Request) {
       faq: normalizeFaq(item.faq),
     }))
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       keywords,
       filters: {
         intents: KEYWORD_INTENTS,
       },
     })
+    
+    // 🔥 Pro 计划优化：添加 CDN 缓存 headers（利用 Vercel Edge Network）
+    response.headers.set(
+      'Cache-Control',
+      'public, s-maxage=60, stale-while-revalidate=300'
+    )
+    
+    return response
   } catch (error) {
     console.error('Failed to fetch public keywords:', error)
     return NextResponse.json(

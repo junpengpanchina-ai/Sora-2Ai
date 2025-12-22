@@ -4,6 +4,95 @@
  */
 import type { Database } from '@/types/database'
 
+/**
+ * 🔥 错误分类和处理
+ * 根据错误类型决定是否应该重试、是否应该停止生成
+ */
+function classifyGenerationError(error: Error): {
+  shouldRetry: boolean
+  shouldStop: boolean
+  retryDelay: number
+  errorMessage: string
+  errorCategory: 'timeout' | 'network' | 'content_filter' | 'rate_limit' | 'server_error' | 'other'
+} {
+  const message = error.message.toLowerCase()
+  
+  // 超时错误 - 可以重试，但需要更长的延迟
+  if (message.includes('超时') || message.includes('timeout')) {
+    return {
+      shouldRetry: true,
+      shouldStop: false,
+      retryDelay: 3000, // 3秒延迟
+      errorMessage: 'API 调用超时，将重试',
+      errorCategory: 'timeout',
+    }
+  }
+  
+  // 网络错误 - 可以重试
+  if (message.includes('econnreset') || 
+      message.includes('网络') || 
+      message.includes('connection') ||
+      message.includes('连接')) {
+    return {
+      shouldRetry: true,
+      shouldStop: false,
+      retryDelay: 2000, // 2秒延迟
+      errorMessage: '网络连接错误，将重试',
+      errorCategory: 'network',
+    }
+  }
+  
+  // 内容被过滤 - 不应该重试（会浪费积分）
+  if (message.includes('被过滤') || 
+      message.includes('content_filter') ||
+      message.includes('被拒绝') ||
+      message.includes('refused')) {
+    return {
+      shouldRetry: false,
+      shouldStop: false, // 不停止，继续下一个批次
+      retryDelay: 0,
+      errorMessage: '内容被过滤，跳过此批次',
+      errorCategory: 'content_filter',
+    }
+  }
+  
+  // 速率限制 - 应该等待后重试
+  if (message.includes('429') || 
+      message.includes('rate limit') ||
+      message.includes('频率过高')) {
+    return {
+      shouldRetry: true,
+      shouldStop: false,
+      retryDelay: 5000, // 5秒延迟
+      errorMessage: 'API 速率限制，等待后重试',
+      errorCategory: 'rate_limit',
+    }
+  }
+  
+  // 服务器错误 - 可以重试
+  if (message.includes('500') || 
+      message.includes('502') || 
+      message.includes('503') ||
+      message.includes('服务器错误')) {
+    return {
+      shouldRetry: true,
+      shouldStop: false,
+      retryDelay: 4000, // 4秒延迟
+      errorMessage: '服务器错误，将重试',
+      errorCategory: 'server_error',
+    }
+  }
+  
+  // 其他错误 - 根据情况决定
+  return {
+    shouldRetry: false,
+    shouldStop: false, // 不停止，继续下一个批次
+    retryDelay: 0,
+    errorMessage: error.message,
+    errorCategory: 'other',
+  }
+}
+
 export async function generateAndSaveScenes(
   industry: string,
   scenesPerIndustry: number,
@@ -275,8 +364,36 @@ Do not include explanations. Output only the JSON.`
           }
         }
       } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error)
         console.error(`[${industry}] 批次 ${batch + 1}: ❌ gemini-2.5-flash 生成失败:`, error)
-        console.error(`[${industry}] 批次 ${batch + 1}: 错误详情:`, error instanceof Error ? error.message : String(error))
+        console.error(`[${industry}] 批次 ${batch + 1}: 错误详情:`, errorMsg)
+        
+        // 🔥 使用错误分类决定是否重试
+        const errorClassification = classifyGenerationError(
+          error instanceof Error ? error : new Error(errorMsg)
+        )
+        
+        console.log(`[${industry}] 批次 ${batch + 1}: 错误分类:`, {
+          category: errorClassification.errorCategory,
+          shouldRetry: errorClassification.shouldRetry,
+          shouldStop: errorClassification.shouldStop,
+          message: errorClassification.errorMessage,
+        })
+        
+        // 如果应该重试且是超时/网络错误，可以尝试重试（但这里我们直接 fallback 到更强大的模型）
+        if (errorClassification.shouldRetry && 
+            (errorClassification.errorCategory === 'timeout' || 
+             errorClassification.errorCategory === 'network')) {
+          console.warn(`[${industry}] 批次 ${batch + 1}: ${errorClassification.errorMessage}，将切换到更强大的模型`)
+        }
+        
+        // 如果内容被过滤，不应该重试（会浪费积分）
+        if (errorClassification.errorCategory === 'content_filter') {
+          console.warn(`[${industry}] 批次 ${batch + 1}: ${errorClassification.errorMessage}，跳过此批次`)
+          allErrors.push(`批次 ${batch + 1}: ${errorClassification.errorMessage}`)
+          continue // 跳过此批次，继续下一个
+        }
+        
         needsFallback = true
         // 如果生成失败，清空 scenes 数组，确保会触发 fallback
         scenes = []
