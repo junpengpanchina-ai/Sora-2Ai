@@ -452,6 +452,35 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     }
   }, [autoRefresh, fetchData, fetchIssues, fetchAdjustments])
 
+  // 🔥 管理员会话自动刷新机制（每30分钟刷新一次，避免会话过期）
+  useEffect(() => {
+    const SESSION_REFRESH_INTERVAL = 30 * 60 * 1000 // 30分钟
+    const refreshSession = async () => {
+      try {
+        // 通过访问一个需要认证的 API 来刷新会话
+        // 如果会话有效，会自动延长过期时间
+        const response = await fetch('/api/auth/admin-refresh-session', { method: 'POST' })
+        if (response.ok) {
+          console.log('[AdminClient] 管理员会话已刷新')
+        } else {
+          console.warn('[AdminClient] 会话刷新失败（可能已过期）')
+        }
+      } catch (error) {
+        console.warn('[AdminClient] 会话刷新失败（可能已过期）:', error)
+      }
+    }
+
+    // 立即刷新一次
+    refreshSession()
+
+    // 每30分钟刷新一次
+    const interval = setInterval(refreshSession, SESSION_REFRESH_INTERVAL)
+
+    return () => {
+      clearInterval(interval)
+    }
+  }, [])
+
   // 实时订阅数据库变化（只在浏览器环境中）
   useEffect(() => {
     if (!supabaseClient || typeof window === 'undefined') {

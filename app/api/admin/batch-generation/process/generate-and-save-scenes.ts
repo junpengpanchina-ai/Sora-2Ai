@@ -794,6 +794,29 @@ async function saveBatchScenes(
         await saveSceneToDatabase(industry, scene, useCaseType, supabase)
         savedCount++
         saved = true
+        
+        // 🔥 每保存一条立即更新进度，避免数据丢失（使用 service client，不依赖管理员会话）
+        try {
+          const { data: currentTask } = await tasksTable()
+            .select('total_scenes_saved')
+            .eq('id', taskId)
+            .single()
+          
+          const currentSaved = (currentTask as Database['public']['Tables']['batch_generation_tasks']['Row'])?.total_scenes_saved || 0
+          
+          // 立即更新已保存的数量（每保存一条就更新一次）
+          // 注意：这里使用 service client，不依赖管理员会话，即使会话过期也能继续保存
+          await tasksTable()
+            .update({
+              total_scenes_saved: currentSaved + 1, // 每次只增加1，因为是一条一条保存的
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', taskId)
+        } catch (updateError) {
+          console.warn(`[${industry}] 批次 ${batchNumber}: 更新进度失败（继续保存）:`, updateError)
+          // 即使更新失败，也继续保存，避免中断
+        }
+        
         if (retryCount > 0) {
           console.log(`[${industry}] 批次 ${batchNumber}: 场景词 ${j + 1} 重试成功 (${retryCount}/${maxRetries})`)
         }
@@ -840,30 +863,21 @@ async function saveBatchScenes(
       await new Promise((resolve) => setTimeout(resolve, delay))
     }
     
-    // 🔥 每保存 3 条更新一次进度（更频繁的更新，避免丢失进度）
-    if ((j + 1) % 3 === 0) {
-          try {
-            const { data: currentTask } = await tasksTable()
-              .select('total_scenes_saved')
-              .eq('id', taskId)
-              .single()
-            
-            const currentSaved = (currentTask as Database['public']['Tables']['batch_generation_tasks']['Row'])?.total_scenes_saved || 0
-            
-            await tasksTable()
-              .update({
-                total_scenes_saved: currentSaved + savedCount,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', taskId)
-            
-            console.log(`[${industry}] 批次 ${batchNumber}: 已保存 ${j + 1}/${scenes.length} 条场景词，累计保存 ${currentSaved + savedCount} 条`)
-          } catch (updateError) {
-            console.error(`[${industry}] 批次 ${batchNumber}: 更新进度失败:`, updateError)
-            // 如果更新失败，等待一下再继续，避免数据库连接问题
-            await new Promise((resolve) => setTimeout(resolve, 500))
-          }
-        }
+    // 🔥 每保存 10 条记录一次日志（进度更新已在保存时完成）
+    if ((j + 1) % 10 === 0) {
+      try {
+        const { data: currentTask } = await tasksTable()
+          .select('total_scenes_saved')
+          .eq('id', taskId)
+          .single()
+        
+        const currentSaved = (currentTask as Database['public']['Tables']['batch_generation_tasks']['Row'])?.total_scenes_saved || 0
+        console.log(`[${industry}] 批次 ${batchNumber}: 已保存 ${j + 1}/${scenes.length} 条场景词，累计保存 ${currentSaved} 条`)
+      } catch (logError) {
+        // 日志记录失败不影响保存流程
+        console.warn(`[${industry}] 批次 ${batchNumber}: 记录日志失败:`, logError)
+      }
+    }
   }
 
   return { savedCount, failedCount, errors }
