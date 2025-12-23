@@ -455,29 +455,67 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
   // 🔥 管理员会话自动刷新机制（每30分钟刷新一次，避免会话过期）
   useEffect(() => {
     const SESSION_REFRESH_INTERVAL = 30 * 60 * 1000 // 30分钟
+    let interval: NodeJS.Timeout | null = null
+    let shouldStop = false
+
     const refreshSession = async () => {
+      // 如果已经标记为停止，不再执行
+      if (shouldStop) {
+        return
+      }
+
       try {
         // 通过访问一个需要认证的 API 来刷新会话
         // 如果会话有效，会自动延长过期时间
         const response = await fetch('/api/auth/admin-refresh-session', { method: 'POST' })
+        
         if (response.ok) {
           console.log('[AdminClient] 管理员会话已刷新')
         } else {
-          console.warn('[AdminClient] 会话刷新失败（可能已过期）')
+          const status = response.status
+          const data = await response.json().catch(() => ({}))
+          
+          // 如果会话已过期（401），停止自动刷新并跳转到登录页
+          if (status === 401 || data.code === 'SESSION_EXPIRED') {
+            console.warn('[AdminClient] 会话已过期，停止自动刷新并跳转到登录页')
+            shouldStop = true
+            if (interval) {
+              clearInterval(interval)
+            }
+            // 清除 Cookie 并跳转到登录页
+            document.cookie = "admin_session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/"
+            window.location.href = "/admin/login"
+            return
+          }
+          
+          // 如果是500错误，可能是数据库函数问题，记录错误但不停止（可能是临时问题）
+          if (status === 500) {
+            console.error('[AdminClient] 会话刷新失败（服务器错误）:', data.error || data.details)
+            // 不停止自动刷新，可能是临时问题
+          } else {
+            console.warn('[AdminClient] 会话刷新失败:', status, data.error || '未知错误')
+          }
         }
       } catch (error) {
-        console.warn('[AdminClient] 会话刷新失败（可能已过期）:', error)
+        console.warn('[AdminClient] 会话刷新请求失败:', error)
+        // 网络错误不停止自动刷新，可能是临时问题
       }
     }
 
-    // 立即刷新一次
-    refreshSession()
+    // 延迟执行第一次刷新（避免页面加载时立即执行）
+    const initialTimeout = setTimeout(() => {
+      refreshSession()
+    }, 5000) // 5秒后执行第一次刷新
 
     // 每30分钟刷新一次
-    const interval = setInterval(refreshSession, SESSION_REFRESH_INTERVAL)
+    interval = setInterval(refreshSession, SESSION_REFRESH_INTERVAL)
 
     return () => {
-      clearInterval(interval)
+      shouldStop = true
+      clearTimeout(initialTimeout)
+      if (interval) {
+        clearInterval(interval)
+      }
     }
   }, [])
 
