@@ -196,6 +196,10 @@ const getRelatedUseCases = cache(async (keyword: string): Promise<Array<{
 // 获取所有已发布的关键词 slugs（用于静态生成）
 // 预生成热门关键词（按 priority 和 search_volume 排序）
 export async function generateStaticParams() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return []
+  }
+
   try {
     // 在静态生成时使用 service client，不需要 cookies
     const supabase = await createServiceClient()
