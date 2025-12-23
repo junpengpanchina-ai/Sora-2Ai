@@ -5,73 +5,102 @@ import { getOrCreateUser } from '@/lib/user'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 30 // Set max duration to 30 seconds
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify user authentication
-    const supabase = await createClient(request.headers)
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized, please login first' },
-        { status: 401 }
-      )
-    }
-
-    // Get or create user information
-    const userProfile = await getOrCreateUser(supabase, user)
-
-    if (!userProfile) {
-      return NextResponse.json(
-        { error: 'User profile not found or failed to create user' },
-        { status: 404 }
-      )
-    }
-
-    // Get all task statistics
-    const { data: allTasks, error: allTasksError } = await supabase
-      .from('video_tasks')
-      .select('status')
-      .eq('user_id', userProfile.id)
-
-    if (allTasksError) {
-      console.error('Failed to fetch task statistics:', allTasksError)
-      return NextResponse.json(
-        { error: 'Failed to fetch statistics', details: allTasksError.message },
-        { status: 500 }
-      )
-    }
-
-    // Calculate statistics
-    const total = allTasks?.length || 0
-    const succeeded = allTasks?.filter(t => t.status === 'succeeded').length || 0
-    const processing = allTasks?.filter(t => t.status === 'processing' || t.status === 'pending').length || 0
-    const failed = allTasks?.filter(t => t.status === 'failed').length || 0
-
-    // Get recent tasks (max 5)
-    const { data: recentTasks } = await supabase
-      .from('video_tasks')
-      .select('id, prompt, status, created_at, video_url')
-      .eq('user_id', userProfile.id)
-      .order('created_at', { ascending: false })
-      .limit(5)
-
-    return NextResponse.json({
-      success: true,
-      stats: {
-        total,
-        succeeded,
-        processing,
-        failed,
-      },
-      recentTasks: recentTasks || [],
-      credits: userProfile?.credits || 0,
+    // Add timeout protection
+    const timeoutPromise = new Promise<NextResponse>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Request timeout'))
+      }, 25000) // 25 seconds timeout
     })
+
+    const statsPromise = (async () => {
+      // Verify user authentication
+      const supabase = await createClient(request.headers)
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Unauthorized, please login first' },
+          { status: 401 }
+        )
+      }
+
+      // Get or create user information
+      const userProfile = await getOrCreateUser(supabase, user)
+
+      if (!userProfile) {
+        return NextResponse.json(
+          { error: 'User profile not found or failed to create user' },
+          { status: 404 }
+        )
+      }
+
+      // Get all task statistics with timeout protection
+      const { data: allTasks, error: allTasksError } = await supabase
+        .from('video_tasks')
+        .select('status')
+        .eq('user_id', userProfile.id)
+
+      if (allTasksError) {
+        console.error('Failed to fetch task statistics:', allTasksError)
+        return NextResponse.json(
+          { error: 'Failed to fetch statistics', details: allTasksError.message },
+          { status: 500 }
+        )
+      }
+
+      // Calculate statistics
+      const total = allTasks?.length || 0
+      const succeeded = allTasks?.filter(t => t.status === 'succeeded').length || 0
+      const processing = allTasks?.filter(t => t.status === 'processing' || t.status === 'pending').length || 0
+      const failed = allTasks?.filter(t => t.status === 'failed').length || 0
+
+      // Get recent tasks (max 5) - don't fail if this query fails
+      let recentTasks = []
+      try {
+        const { data } = await supabase
+          .from('video_tasks')
+          .select('id, prompt, status, created_at, video_url')
+          .eq('user_id', userProfile.id)
+          .order('created_at', { ascending: false })
+          .limit(5)
+        recentTasks = data || []
+      } catch (recentTasksError) {
+        console.warn('Failed to fetch recent tasks (non-critical):', recentTasksError)
+        // Continue without recent tasks
+      }
+
+      return NextResponse.json({
+        success: true,
+        stats: {
+          total,
+          succeeded,
+          processing,
+          failed,
+        },
+        recentTasks,
+        credits: userProfile?.credits || 0,
+      })
+    })()
+
+    // Race between timeout and actual request
+    return await Promise.race([statsPromise, timeoutPromise])
   } catch (error) {
     console.error('Failed to fetch statistics:', error)
+    
+    // Handle timeout specifically
+    if (error instanceof Error && error.message === 'Request timeout') {
+      return NextResponse.json(
+        { error: 'Request timeout', details: 'The request took too long to complete. Please try again.' },
+        { status: 504 }
+      )
+    }
+    
     return NextResponse.json(
       { error: 'Failed to fetch statistics', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
