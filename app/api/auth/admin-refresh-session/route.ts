@@ -39,14 +39,36 @@ export async function POST() {
 
     // 更新会话过期时间
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any).rpc('admin_extend_session', {
+    const { data, error } = await (supabase as any).rpc('admin_extend_session', {
       p_token_hash: tokenHash,
       p_expires_at: expiresAt.toISOString(),
     })
 
     if (error) {
-      console.error('[admin-refresh-session] 延长会话失败:', error)
-      return NextResponse.json({ error: '刷新会话失败' }, { status: 500 })
+      console.error('[admin-refresh-session] 延长会话失败:', {
+        error,
+        errorCode: error.code,
+        errorMessage: error.message,
+        errorDetails: error.details,
+        errorHint: error.hint,
+        tokenHashPrefix: tokenHash.substring(0, 10) + '...',
+      })
+      return NextResponse.json({ 
+        error: '刷新会话失败',
+        details: error.message || '数据库操作失败'
+      }, { status: 500 })
+    }
+
+    // 检查函数返回值：如果返回 false，说明会话已过期或不存在
+    if (data === false) {
+      console.warn('[admin-refresh-session] 会话已过期或不存在，无法延长:', {
+        tokenHashPrefix: tokenHash.substring(0, 10) + '...',
+        expiresAt: expiresAt.toISOString(),
+      })
+      return NextResponse.json({ 
+        error: '会话已过期',
+        code: 'SESSION_EXPIRED'
+      }, { status: 401 })
     }
 
     return NextResponse.json({ 
@@ -54,9 +76,19 @@ export async function POST() {
       expiresAt: expiresAt.toISOString(),
     })
   } catch (error) {
-    console.error('[admin-refresh-session] 异常:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorStack = error instanceof Error ? error.stack : undefined
+    console.error('[admin-refresh-session] 异常:', {
+      error: errorMessage,
+      stack: errorStack,
+      errorType: error instanceof Error ? error.constructor.name : typeof error,
+    })
     return NextResponse.json(
-      { error: '刷新会话失败' },
+      { 
+        error: '刷新会话失败',
+        details: errorMessage,
+        code: 'INTERNAL_ERROR'
+      },
       { status: 500 }
     )
   }

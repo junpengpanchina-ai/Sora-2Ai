@@ -79,6 +79,7 @@ export default function VideoPageClient() {
   const [pollingTaskId, setPollingTaskId] = useState<string | null>(null)
   const [currentPrompt, setCurrentPrompt] = useState<string>('') // Save current prompt
   const [credits, setCredits] = useState<number | null>(null)
+  const [videoLoadError, setVideoLoadError] = useState<string | null>(null)
   const hasReadPromptFromUrl = useRef(false)
   const isMountedRef = useRef(true)
   
@@ -118,19 +119,30 @@ export default function VideoPageClient() {
     return {} as Record<string, string>
   }, [supabase])
 
-  // Fetch credits
+  // Fetch credits with retry logic
   useEffect(() => {
     if (!supabase || !isMountedRef.current) {
       return
     }
 
-    async function fetchCredits() {
+    let retryCount = 0
+    const MAX_RETRIES = 3
+    const BASE_DELAY = 1000 // 1 second
+
+    async function fetchCredits(retryAttempt = 0): Promise<void> {
       if (!isMountedRef.current) return
       
       try {
+        // Create abort controller for timeout
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 20000) // 20 second timeout
+        
         const response = await fetch('/api/stats', {
           headers: await getAuthHeaders(),
+          signal: controller.signal,
         })
+        
+        clearTimeout(timeoutId)
         
         // Check again after async operation
         if (!isMountedRef.current) return
@@ -139,12 +151,28 @@ export default function VideoPageClient() {
           const data = await response.json()
           if (data.success && data.credits !== undefined && isMountedRef.current) {
             setCredits(data.credits)
+            retryCount = 0 // Reset retry count on success
           }
+        } else if (response.status >= 500 && retryAttempt < MAX_RETRIES) {
+          // Retry on server errors
+          const delay = BASE_DELAY * Math.pow(2, retryAttempt)
+          console.warn(`[VideoPage] Stats API returned ${response.status}, retrying in ${delay}ms...`)
+          setTimeout(() => fetchCredits(retryAttempt + 1), delay)
         }
       } catch (error) {
-        console.error('Failed to fetch credits:', error)
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.warn('[VideoPage] Stats API request timeout')
+        } else if (retryAttempt < MAX_RETRIES) {
+          // Retry on network errors
+          const delay = BASE_DELAY * Math.pow(2, retryAttempt)
+          console.warn(`[VideoPage] Failed to fetch credits, retrying in ${delay}ms...`, error)
+          setTimeout(() => fetchCredits(retryAttempt + 1), delay)
+        } else {
+          console.error('Failed to fetch credits after retries:', error)
+        }
       }
     }
+    
     fetchCredits()
     const interval = setInterval(() => {
       if (isMountedRef.current) {
@@ -1206,19 +1234,41 @@ export default function VideoPageClient() {
                         })
                       }}
                       onError={(e) => {
+                        const video = e.currentTarget
+                        const networkState = video.networkState
+                        const errorMessage = networkState === 3 // NETWORK_NO_SOURCE
+                          ? 'Video URL has expired (GRSAI videos expire after 2 hours). Please try generating the video again.'
+                          : networkState === 2 // NETWORK_LOADING
+                          ? 'Video is still loading. Please wait...'
+                          : 'Failed to load video. The video URL may have expired or the server is unavailable.'
+                        
                         console.error('[VideoPage] ❌ Video load error:', {
                           error: e,
                           src: currentResult.video_url,
-                          networkState: e.currentTarget.networkState,
+                          networkState,
+                          errorMessage,
                         })
+                        setVideoLoadError(errorMessage)
+                      }}
+                      onLoadedData={() => {
+                        // Clear error when video loads successfully
+                        setVideoLoadError(null)
                       }}
                     >
                       Your browser does not support video playback
                     </video>
                   </div>
-                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-                    If you encounter any issues, please return to the homepage and provide feedback. We will contact you as soon as possible after receiving your message.
-                  </p>
+                  {videoLoadError ? (
+                    <div className="mt-2 rounded-md bg-yellow-50 p-3 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
+                      <p className="text-xs font-medium text-yellow-800 dark:text-yellow-200">
+                        ⚠️ {videoLoadError}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
+                      If you encounter any issues, please return to the homepage and provide feedback. We will contact you as soon as possible after receiving your message.
+                    </p>
+                  )}
                   <div className="mt-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {currentResult.remove_watermark && (
@@ -1226,12 +1276,40 @@ export default function VideoPageClient() {
                           ✓ No Watermark
                         </span>
                       )}
-                      {currentResult.task_id && currentResult.video_url && (
+                      {currentResult.task_id && (
                         <a
                           href={`/api/video/download/${currentResult.task_id}`}
                           download={`video-${currentResult.task_id}.mp4`}
-                          className="inline-flex items-center gap-2 rounded-lg bg-energy-water px-4 py-2 text-sm font-medium text-white hover:bg-energy-water/90 transition-colors"
-                          title="Download original quality video directly from API (no compression, no storage)"
+                          className="inline-flex items-center gap-2 rounded-lg bg-energy-water px-4 py-2 text-sm font-medium text-white hover:bg-energy-water/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={videoLoadError ? "Video URL may have expired. Click to try downloading (will attempt to re-fetch from API)." : "Download original quality video directly from API (no compression, no storage)"}
+                          onClick={async (e) => {
+                            // If there's a video load error, show a message that we're trying to re-fetch
+                            if (videoLoadError) {
+                              e.preventDefault()
+                              // Try to download - the endpoint will attempt to re-fetch
+                              try {
+                                const response = await fetch(`/api/video/download/${currentResult.task_id}`)
+                                if (response.ok) {
+                                  const blob = await response.blob()
+                                  const url = window.URL.createObjectURL(blob)
+                                  const a = document.createElement('a')
+                                  a.href = url
+                                  a.download = `video-${currentResult.task_id}.mp4`
+                                  document.body.appendChild(a)
+                                  a.click()
+                                  document.body.removeChild(a)
+                                  window.URL.revokeObjectURL(url)
+                                  setVideoLoadError(null) // Clear error on success
+                                } else {
+                                  const errorData = await response.json().catch(() => ({}))
+                                  setVideoLoadError(errorData.details || errorData.error || 'Failed to download video. The video URL may have expired.')
+                                }
+                              } catch (error) {
+                                console.error('Download error:', error)
+                                setVideoLoadError('Failed to download video. Please try again or generate a new video.')
+                              }
+                            }
+                          }}
                         >
                           <svg
                             className="h-4 w-4"
@@ -1246,7 +1324,7 @@ export default function VideoPageClient() {
                               d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                             />
                           </svg>
-                          Download Original Video
+                          {videoLoadError ? 'Try Download (Re-fetch)' : 'Download Original Video'}
                         </a>
                       )}
                     </div>
