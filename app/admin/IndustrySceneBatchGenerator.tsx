@@ -47,10 +47,14 @@ export default function IndustrySceneBatchGenerator({
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingIndex, setProcessingIndex] = useState(-1)
   const [isPaused, setIsPaused] = useState(false)
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null)
+  const [autoRecoverStuck, setAutoRecoverStuck] = useState(true)
   // 使用 useRef 来在闭包中正确访问状态
   const shouldStopRef = useRef(false)
   const isPausedRef = useRef(false)
   const useCaseTypeRef = useRef(useCaseType)
+  const autoRecoverInFlightRef = useRef(false)
   
   // 同步 useCaseType 到 ref
   useCaseTypeRef.current = useCaseType
@@ -635,6 +639,7 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
       // 保存任务 ID 到 localStorage，以便页面刷新后能继续查看
       if (result.task?.id) {
         localStorage.setItem('lastBatchTaskId', result.task.id)
+        setActiveTaskId(result.task.id)
       }
 
       // 转换为前端任务格式用于显示
@@ -686,6 +691,7 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
         }
 
         const task = result.task
+        setLastUpdatedAt(task.updated_at || null)
 
         // 更新进度
         if (task.current_industry_index !== undefined && task.total_industries) {
@@ -838,6 +844,36 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
           setIsPaused(false)
           isPausedRef.current = false
         }
+
+        // 自动恢复：超过 10 分钟未更新且仍在 processing/pending/paused
+        if (autoRecoverStuck && !autoRecoverInFlightRef.current) {
+          const updatedAtMs = task.updated_at ? new Date(task.updated_at).getTime() : 0
+          const minutes = updatedAtMs ? (Date.now() - updatedAtMs) / 60000 : Infinity
+          const shouldRecover =
+            ['processing', 'pending', 'paused'].includes(task.status) && minutes >= 10
+
+          if (shouldRecover) {
+            autoRecoverInFlightRef.current = true
+            fetch('/api/admin/batch-generation/recover', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ taskId, force: true }),
+            })
+              .then(async (r) => ({ ok: r.ok, data: await r.json().catch(() => ({})) }))
+              .then(({ ok, data }) => {
+                if (ok) onShowBanner('info', '检测到任务长时间未更新，已自动触发恢复')
+                else onShowBanner('error', data?.error || '自动恢复失败')
+              })
+              .catch((e) => {
+                console.error('[auto-recover] failed:', e)
+              })
+              .finally(() => {
+                setTimeout(() => {
+                  autoRecoverInFlightRef.current = false
+                }, 15_000)
+              })
+          }
+        }
       } catch (error) {
         console.error('轮询任务状态失败:', error)
       }
@@ -924,6 +960,8 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
       if (taskToRestore) {
         const task = taskToRestore
         console.log('[恢复任务] 开始恢复任务:', task.id, '状态:', task.status)
+        setActiveTaskId(task.id)
+        setLastUpdatedAt(task.updated_at || null)
         
         // 恢复任务状态
         setIsProcessing(true)
@@ -1053,6 +1091,30 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
     } catch (error) {
       console.error('终止任务失败:', error)
       onShowBanner('error', error instanceof Error ? error.message : '终止失败')
+    }
+  }
+
+  const handleRecover = async () => {
+    const taskId = activeTaskId || localStorage.getItem('lastBatchTaskId')
+    if (!taskId) {
+      onShowBanner('error', '未找到任务 ID')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/admin/batch-generation/recover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, force: true }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(result?.error || '恢复失败')
+      }
+      onShowBanner('info', '已触发恢复：后台将继续处理队列/下一个行业')
+    } catch (error) {
+      console.error('恢复任务失败:', error)
+      onShowBanner('error', error instanceof Error ? error.message : '恢复失败')
     }
   }
 
@@ -1212,6 +1274,9 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
               >
                 {isPaused ? '▶️ 恢复生成' : '⏸️ 暂停生成'}
               </Button>
+              <Button onClick={handleRecover} variant="outline">
+                🔧 恢复卡住
+              </Button>
               <Button 
                 onClick={handleStop} 
                 variant="danger"
@@ -1222,11 +1287,31 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
           )}
         </div>
 
+        {/* 自动恢复开关 + 最后更新时间 */}
+        {isProcessing && (
+          <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={autoRecoverStuck}
+                onChange={(e) => setAutoRecoverStuck(e.target.checked)}
+              />
+              自动恢复卡住（10分钟无更新）
+            </label>
+            <div>
+              最后更新：
+              {lastUpdatedAt
+                ? `${Math.max(0, Math.round((Date.now() - new Date(lastUpdatedAt).getTime()) / 60000))} 分钟前`
+                : '未知'}
+            </div>
+          </div>
+        )}
+
         {/* 任务状态 */}
         {tasks.length > 0 && (
           <div className="space-y-2">
             <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              生成进度 ({tasks.filter((t) => t.status === 'saved').length} / {tasks.length})
+              生成进度 (已完成行业数 / 总行业数)：{tasks.filter((t) => t.status === 'completed').length} / {tasks.length}
             </div>
             <div className="max-h-64 space-y-2 overflow-y-auto">
               {tasks.map((task, index) => (
