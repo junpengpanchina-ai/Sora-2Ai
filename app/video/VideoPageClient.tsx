@@ -125,7 +125,6 @@ export default function VideoPageClient() {
       return
     }
 
-    let retryCount = 0
     const MAX_RETRIES = 3
     const BASE_DELAY = 1000 // 1 second
 
@@ -151,7 +150,6 @@ export default function VideoPageClient() {
           const data = await response.json()
           if (data.success && data.credits !== undefined && isMountedRef.current) {
             setCredits(data.credits)
-            retryCount = 0 // Reset retry count on success
           }
         } else if (response.status >= 500 && retryAttempt < MAX_RETRIES) {
           // Retry on server errors
