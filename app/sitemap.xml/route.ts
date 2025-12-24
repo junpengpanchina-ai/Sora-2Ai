@@ -9,6 +9,7 @@ export async function GET() {
   const entries = [
     `${baseUrl}/sitemap-static.xml`,
     `${baseUrl}/sitemap-long-tail.xml`,
+    `${baseUrl}/sitemap-use-cases.xml`,
   ]
 
   const body = `<?xml version="1.0" encoding="UTF-8"?>
