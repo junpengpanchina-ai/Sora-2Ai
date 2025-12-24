@@ -486,7 +486,7 @@ export default function VideoPageClient() {
     try {
       // Make validation obvious and avoid popping blocking alerts.
       setPromptTouched(true)
-
+      
       // 验证清理后的提示词
       if (!cleanedPrompt || cleanedPrompt.length < MIN_PROMPT_LENGTH) {
         console.warn('[VideoPage] ⚠️ Prompt too short:', {
@@ -1162,7 +1162,7 @@ export default function VideoPageClient() {
             >
               {!supabase ? 'Initializing...' : loading ? 'Generating...' : 'Generate Video'}
             </button>
-            <p className="mt-2 text-xs text-blue-100/70 text-center">
+              <p className="mt-2 text-xs text-blue-100/70 text-center">
               {!supabase
                 ? 'Setting up secure connection… Please wait a moment.'
                 : loading
@@ -1170,7 +1170,7 @@ export default function VideoPageClient() {
                   : promptValidationMessage
                     ? promptValidationMessage
                     : 'Ready to generate.'}
-            </p>
+              </p>
           </form>
         </div>
 

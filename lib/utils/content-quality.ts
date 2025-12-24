@@ -158,7 +158,7 @@ export function checkContentQuality(content: {
           'generated video',
           '生成一个',
         ]
-
+        
         const isVideoRelated = ['video', 'generate', 'create', 'prompt', 'duration', 'seconds', 'second', 'clip', '视频', '生成', '时长'].some(
           (k) => combined.includes(k)
         )
@@ -190,7 +190,7 @@ export function checkContentQuality(content: {
               if (hasCtx && !hasServiceNearby && !hasTravelNearby) {
                 hasIncorrectDuration = true
                 break
-              }
+            }
             }
           }
         }

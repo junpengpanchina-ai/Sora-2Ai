@@ -40,21 +40,21 @@ const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord |
   let error: unknown = null
   try {
     const result = await withRetryQuery<KeywordRow | null>(
-      async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await (supabase as any)
-          .from('long_tail_keywords')
-          .select('*')
-          .eq('status', 'published')
-          .eq('page_slug', slug)
-          .maybeSingle()
-      },
-      {
-        maxRetries: 3,
-        retryDelay: 500,
-        exponentialBackoff: true,
-      }
-    )
+    async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await (supabase as any)
+        .from('long_tail_keywords')
+        .select('*')
+        .eq('status', 'published')
+        .eq('page_slug', slug)
+        .maybeSingle()
+    },
+    {
+      maxRetries: 3,
+      retryDelay: 500,
+      exponentialBackoff: true,
+    }
+  )
     rawData = result.data
     error = result.error
   } catch (caught) {
@@ -69,24 +69,24 @@ const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord |
   if (!rawData && !slug.endsWith('.xml')) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     try {
-      const result = await withRetryQuery<KeywordRow | null>(
-        async () => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return await (supabase as any)
-            .from('long_tail_keywords')
-            .select('*')
-            .eq('status', 'published')
-            .eq('page_slug', `${slug}.xml`)
-            .maybeSingle()
-        },
-        {
-          maxRetries: 3,
-          retryDelay: 500,
-          exponentialBackoff: true,
-        }
-      )
-      rawData = result.data
-      error = result.error
+    const result = await withRetryQuery<KeywordRow | null>(
+      async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return await (supabase as any)
+          .from('long_tail_keywords')
+          .select('*')
+          .eq('status', 'published')
+          .eq('page_slug', `${slug}.xml`)
+          .maybeSingle()
+      },
+      {
+        maxRetries: 3,
+        retryDelay: 500,
+        exponentialBackoff: true,
+      }
+    )
+    rawData = result.data
+    error = result.error
     } catch (caught) {
       console.warn('[keywords/getKeywordBySlug] Network error on xml fallback, skipping slug during build:', {
         slug,
@@ -100,27 +100,27 @@ const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord |
   if (!rawData) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     try {
-      const result = await withRetryQuery<KeywordRow | null>(
-        async () => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return await (supabase as any)
-            .from('long_tail_keywords')
-            .select('*')
-            .eq('status', 'published')
-            .ilike('page_slug', `%${slug}%`)
-            .limit(1)
-            .maybeSingle()
-        },
-        {
-          maxRetries: 2,
-          retryDelay: 500,
-          exponentialBackoff: true,
-        }
-      )
-      if (result.data) {
-        rawData = result.data
-        error = result.error
-        console.log(`Found keyword with fuzzy match: ${result.data.page_slug} for slug: ${slug}`)
+    const result = await withRetryQuery<KeywordRow | null>(
+      async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return await (supabase as any)
+          .from('long_tail_keywords')
+          .select('*')
+          .eq('status', 'published')
+          .ilike('page_slug', `%${slug}%`)
+          .limit(1)
+          .maybeSingle()
+      },
+      {
+        maxRetries: 2,
+        retryDelay: 500,
+        exponentialBackoff: true,
+      }
+    )
+    if (result.data) {
+      rawData = result.data
+      error = result.error
+      console.log(`Found keyword with fuzzy match: ${result.data.page_slug} for slug: ${slug}`)
       }
     } catch (caught) {
       console.warn('[keywords/getKeywordBySlug] Network error on fuzzy fallback, skipping slug during build:', {
@@ -179,13 +179,13 @@ const getRelatedKeywords = cache(async (excludeId: string): Promise<KeywordPageR
       async () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return await (supabase as any)
-          .from('long_tail_keywords')
-          .select('*')
-          .eq('status', 'published')
-          .neq('id', excludeId)
-          .order('priority', { ascending: false })
-          .order('updated_at', { ascending: false })
-          .limit(12)
+    .from('long_tail_keywords')
+    .select('*')
+    .eq('status', 'published')
+    .neq('id', excludeId)
+    .order('priority', { ascending: false })
+    .order('updated_at', { ascending: false })
+    .limit(12)
       },
       {
         maxRetries: 3,
@@ -260,10 +260,10 @@ const getRelatedUseCases = cache(async (keyword: string): Promise<Array<{
       async () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return await (supabase as any)
-          .from('use_cases')
-          .select('id, slug, title, description, use_case_type, seo_keywords')
-          .eq('is_published', true)
-          .limit(10)
+    .from('use_cases')
+    .select('id, slug, title, description, use_case_type, seo_keywords')
+    .eq('is_published', true)
+    .limit(10)
       },
       {
         maxRetries: 3,
