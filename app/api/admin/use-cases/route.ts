@@ -36,6 +36,34 @@ function parseArrayInput(input: string | string[] | undefined): string[] {
   return []
 }
 
+function extractSupabaseErrorInfo(error: unknown): {
+  message: string
+  code?: string
+  details?: string
+  hint?: string
+  status?: number
+} {
+  if (!error || typeof error !== 'object') {
+    return { message: typeof error === 'string' ? error : 'Unknown error' }
+  }
+
+  const record = error as Record<string, unknown>
+  const message =
+    typeof record.message === 'string'
+      ? record.message
+      : typeof record.error === 'string'
+        ? record.error
+        : 'Unknown error'
+
+  return {
+    message,
+    code: typeof record.code === 'string' ? record.code : undefined,
+    details: typeof record.details === 'string' ? record.details : undefined,
+    hint: typeof record.hint === 'string' ? record.hint : undefined,
+    status: typeof record.status === 'number' ? record.status : undefined,
+  }
+}
+
 export async function GET(request: Request) {
   try {
     const adminUser = await validateAdminSession()
@@ -59,7 +87,8 @@ export async function GET(request: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let countQuery = (supabase as any)
       .from('use_cases')
-      .select('*', { count: 'exact', head: true })
+      // Use a minimal column for count queries to reduce payload/compute pressure
+      .select('id', { count: 'exact', head: true })
 
     if (typeFilter && isUseCaseType(typeFilter)) {
       countQuery = countQuery.eq('use_case_type', typeFilter)
@@ -120,8 +149,18 @@ export async function GET(request: Request) {
 
     const { data, error } = await query
     if (error) {
-      console.error('[use-cases GET] Supabase 查询错误:', error)
-      throw error
+      const info = extractSupabaseErrorInfo(error)
+      console.error('[use-cases GET] Supabase 查询错误:', { ...info })
+      return NextResponse.json(
+        {
+          error: '获取使用场景失败',
+          details: info.message,
+          code: info.code,
+          hint: info.hint,
+        },
+        // Gateway-ish error: the upstream (Supabase) failed
+        { status: info.status && info.status >= 400 ? info.status : 502 }
+      )
     }
 
     const useCases = (Array.isArray(data) ? data : []) as Database['public']['Tables']['use_cases']['Row'][]
@@ -152,13 +191,16 @@ export async function GET(request: Request) {
     })
   } catch (error) {
     console.error('[use-cases GET] 获取使用场景失败:', error)
-    const errorMessage = error instanceof Error ? error.message : '未知错误'
+    const info = extractSupabaseErrorInfo(error)
     const errorStack = error instanceof Error ? error.stack : undefined
+    console.error('[use-cases GET] 错误详情:', { ...info })
     console.error('[use-cases GET] 错误堆栈:', errorStack)
     return NextResponse.json(
       {
         error: '获取使用场景失败',
-        details: errorMessage,
+        details: info.message || '未知错误',
+        code: info.code,
+        hint: info.hint,
       },
       { status: 500 }
     )
