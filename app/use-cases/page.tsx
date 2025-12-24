@@ -25,7 +25,7 @@ export default async function UseCasesIndexPage({
   const type = (searchParams?.type ?? 'all').toLowerCase()
   const industry = searchParams?.industry ?? 'all'
   const q = (searchParams?.q ?? '').trim()
-
+  
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase as any)
     .from('use_cases')
@@ -58,7 +58,7 @@ export default async function UseCasesIndexPage({
   const useCases = (Array.isArray(data) ? data : []) as Pick<
     UseCaseRow,
     'id' | 'slug' | 'title' | 'description' | 'use_case_type' | 'industry'
-  >[]
+ >[]
   const totalCount = typeof count === 'number' ? count : useCases.length
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
 
