@@ -5,6 +5,13 @@ import type { Database } from '@/types/database'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+function getSiteUrl() {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL
+  if (siteUrl) return siteUrl
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+  return 'http://localhost:3000'
+}
+
 /**
  * POST /api/admin/batch-generation/process
  * 处理单个行业的场景词生成（链式调用，避免超时）
@@ -163,7 +170,7 @@ export async function POST(request: NextRequest) {
         
         // 继续处理下一个行业
         if (currentIndex + 1 < industries.length) {
-          const processUrl = `${process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL || 'http://localhost:3000'}/api/admin/batch-generation/process`
+          const processUrl = `${getSiteUrl()}/api/admin/batch-generation/process`
           fetch(processUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -224,7 +231,7 @@ export async function POST(request: NextRequest) {
       if (currentIndex + 1 < industries.length) {
         // 立即触发下一个 API 调用，但不等待响应（fire and forget）
         // 这样当前函数可以快速返回，避免超过 Vercel 的 10 秒限制
-        const processUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/admin/batch-generation/process`
+        const processUrl = `${getSiteUrl()}/api/admin/batch-generation/process`
         fetch(processUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
