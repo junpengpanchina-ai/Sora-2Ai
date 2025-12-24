@@ -3,6 +3,7 @@ Allow: /
 Allow: /prompts
 Allow: /prompts-en
 Allow: /keywords/
+Allow: /use-cases/
 Allow: /video
 Disallow: /admin
 Disallow: /api

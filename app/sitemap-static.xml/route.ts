@@ -59,19 +59,8 @@ async function getDynamicPaths() {
       })
     }
 
-    // Use cases - must be both published AND approved for public visibility
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: useCases } = await (supabase as any)
-      .from('use_cases')
-      .select('slug')
-      .eq('is_published', true)
-      .eq('quality_status', 'approved') // RLS policy requires both conditions
-
-    if (Array.isArray(useCases)) {
-      useCases.forEach((useCase: { slug: string }) => {
-        paths.push({ path: `/use-cases/${useCase.slug}`, priority: '0.7' })
-      })
-    }
+    // Use cases are now in a separate sitemap (sitemap-use-cases.xml)
+    // to avoid exceeding the 50,000 URL limit per sitemap file
 
     // Compare pages
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
