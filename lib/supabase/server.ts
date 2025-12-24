@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
 import { cookies, headers } from 'next/headers'
+import { resilientFetch } from '@/lib/utils/resilient-fetch'
 
 export async function createClient(customHeaders?: Headers | HeadersInit): Promise<SupabaseClient<Database>> {
   const cookieStore = await cookies()
@@ -31,17 +32,32 @@ export async function createClient(customHeaders?: Headers | HeadersInit): Promi
     }
   }
 
+  const globalConfig: {
+    headers?: Record<string, string>
+    fetch: typeof fetch
+  } = {
+    fetch: (input, init) =>
+      resilientFetch(input, init, {
+        timeoutMs: 30000,
+        keepAlive: true,
+        maxRetries: 5,
+        retryDelay: 500,
+        exponentialBackoff: true,
+        returnErrorResponseOnFailure: true,
+      }),
+  }
+
+  if (authorizationHeader) {
+    globalConfig.headers = {
+      Authorization: authorizationHeader,
+    }
+  }
+
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      global: authorizationHeader
-        ? {
-            headers: {
-              Authorization: authorizationHeader,
-            },
-          }
-        : undefined,
+      global: globalConfig,
       cookies: {
         getAll() {
           return cookieStore.getAll()

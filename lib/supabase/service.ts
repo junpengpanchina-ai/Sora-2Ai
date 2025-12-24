@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
+import { resilientFetch } from '@/lib/utils/resilient-fetch'
 
 export async function createServiceClient(): Promise<SupabaseClient<Database>> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -36,28 +37,16 @@ export async function createServiceClient(): Promise<SupabaseClient<Database>> {
       headers: {
         'Connection': 'keep-alive',
       },
-      // 增加超时时间，但不覆盖 Supabase 的 API key 处理
-      fetch: async (input, init) => {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 秒超时
-        
-        try {
-          // 保留原始 headers，只添加 Connection header
-          const headers = new Headers(init?.headers)
-          headers.set('Connection', 'keep-alive')
-          
-          const response = await fetch(input, {
-            ...init,
-            signal: controller.signal,
-            headers,
-          })
-          clearTimeout(timeoutId)
-          return response
-        } catch (error) {
-          clearTimeout(timeoutId)
-          throw error
-        }
-      },
+      // 增加超时时间 + 重试，提升构建/SSG 阶段稳定性
+      fetch: (input, init) =>
+        resilientFetch(input, init, {
+          timeoutMs: 30000,
+          keepAlive: true,
+          maxRetries: 5,
+          retryDelay: 500,
+          exponentialBackoff: true,
+          returnErrorResponseOnFailure: true,
+        }),
     },
   })
 }

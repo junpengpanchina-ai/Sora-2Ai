@@ -69,6 +69,7 @@ export default function VideoPageClient() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [prompt, setPrompt] = useState('')
+  const [promptTouched, setPromptTouched] = useState(false)
   const [referenceUrl, setReferenceUrl] = useState('')
   const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>('9:16')
   const [duration, setDuration] = useState<'10' | '15'>('10')
@@ -92,6 +93,19 @@ export default function VideoPageClient() {
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [imageError, setImageError] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const MIN_PROMPT_LENGTH = 5
+  const cleanedPrompt = prompt
+    .replace(/^create\s+a\s+professional\s+create\s+a\s+professional\s+/i, 'Create a professional ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  const promptValidationMessage =
+    promptTouched && (!cleanedPrompt || cleanedPrompt.length < MIN_PROMPT_LENGTH)
+      ? `Please enter at least ${MIN_PROMPT_LENGTH} characters (currently ${cleanedPrompt.length}).`
+      : null
+
+  const canSubmit = !!supabase && !loading && !!cleanedPrompt && cleanedPrompt.length >= MIN_PROMPT_LENGTH
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -200,6 +214,8 @@ export default function VideoPageClient() {
         .trim()
       
       setPrompt(cleanedPrompt)
+      // Mark as touched so validation is visible if the URL prompt is too short
+      setPromptTouched(true)
       hasReadPromptFromUrl.current = true
       
       // Clear the URL parameter after reading, but delay to avoid DOM conflicts during navigation
@@ -468,15 +484,15 @@ export default function VideoPageClient() {
     setLoading(true)
 
     try {
-      // 清理提示词：移除重复的前缀和多余空格
-      const cleanedPrompt = prompt
-        .replace(/^create\s+a\s+professional\s+create\s+a\s+professional\s+/i, 'Create a professional ')
-        .replace(/\s+/g, ' ')
-        .trim()
-      
+      // Make validation obvious and avoid popping blocking alerts.
+      setPromptTouched(true)
+
       // 验证清理后的提示词
-      if (!cleanedPrompt || cleanedPrompt.length < 10) {
-        alert('Please enter a valid prompt (at least 10 characters)')
+      if (!cleanedPrompt || cleanedPrompt.length < MIN_PROMPT_LENGTH) {
+        console.warn('[VideoPage] ⚠️ Prompt too short:', {
+          cleanedLength: cleanedPrompt.length,
+          minLength: MIN_PROMPT_LENGTH,
+        })
         setLoading(false)
         return
       }
@@ -612,6 +628,7 @@ export default function VideoPageClient() {
 
         // Reset form
         setPrompt('')
+        setPromptTouched(false)
         setReferenceUrl('')
       } else {
         const errorMsg = data.error || 'Unknown error'
@@ -927,12 +944,23 @@ export default function VideoPageClient() {
               </label>
               <textarea
                 value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
+                onChange={(e) => {
+                  setPromptTouched(true)
+                  setPrompt(e.target.value)
+                }}
                 required
                 rows={4}
                 className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white placeholder:text-blue-100/50 shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
                 placeholder="e.g., A cute cat playing on the grass"
               />
+              <div className="mt-2 flex items-center justify-between">
+                <p className={`text-xs ${promptValidationMessage ? 'text-red-300' : 'text-blue-100/50'}`}>
+                  {promptValidationMessage ?? `Tip: prompts work best with more detail. Minimum ${MIN_PROMPT_LENGTH} characters.`}
+                </p>
+                <p className="text-xs text-blue-100/50">
+                  {cleanedPrompt.length}/{MIN_PROMPT_LENGTH}+
+                </p>
+              </div>
             </div>
 
             <div>
@@ -1129,16 +1157,20 @@ export default function VideoPageClient() {
 
             <button
               type="submit"
-              disabled={loading || !supabase}
+              disabled={!canSubmit}
               className="w-full rounded-2xl bg-gradient-to-r from-[#1f75ff] via-[#3f8cff] to-[#6fd6ff] px-4 py-3 text-base font-semibold text-white shadow-[0_25px_55px_-25px_rgba(33,122,255,0.9)] transition-transform hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-energy-water disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {!supabase ? 'Initializing...' : loading ? 'Generating...' : 'Generate Video'}
             </button>
-            {!supabase && (
-              <p className="mt-2 text-xs text-blue-100/70 text-center">
-                Setting up secure connection… Please wait a moment.
-              </p>
-            )}
+            <p className="mt-2 text-xs text-blue-100/70 text-center">
+              {!supabase
+                ? 'Setting up secure connection… Please wait a moment.'
+                : loading
+                  ? 'Submitting request…'
+                  : promptValidationMessage
+                    ? promptValidationMessage
+                    : 'Ready to generate.'}
+            </p>
           </form>
         </div>
 

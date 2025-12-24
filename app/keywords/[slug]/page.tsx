@@ -27,26 +27,9 @@ const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord |
   
   // 先尝试查询原始 slug（不带扩展名）
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let { data: rawData, error } = await withRetryQuery<KeywordRow | null>(
-    async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return await (supabase as any)
-        .from('long_tail_keywords')
-        .select('*')
-        .eq('status', 'published')
-        .eq('page_slug', slug)
-        .maybeSingle()
-    },
-    {
-      maxRetries: 3,
-      retryDelay: 500,
-      exponentialBackoff: true,
-    }
-  )
-
-  // 如果找不到，尝试查询带 .xml 后缀的（兼容旧数据）
-  if (!rawData && !slug.endsWith('.xml')) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let rawData: KeywordRow | null = null
+  let error: unknown = null
+  try {
     const result = await withRetryQuery<KeywordRow | null>(
       async () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,7 +37,7 @@ const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord |
           .from('long_tail_keywords')
           .select('*')
           .eq('status', 'published')
-          .eq('page_slug', `${slug}.xml`)
+          .eq('page_slug', slug)
           .maybeSingle()
       },
       {
@@ -65,32 +48,77 @@ const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord |
     )
     rawData = result.data
     error = result.error
+  } catch (caught) {
+    console.warn('[keywords/getKeywordBySlug] Network error, skipping slug during build:', {
+      slug,
+      error: caught instanceof Error ? caught.message : String(caught),
+    })
+    return null
+  }
+
+  // 如果找不到，尝试查询带 .xml 后缀的（兼容旧数据）
+  if (!rawData && !slug.endsWith('.xml')) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    try {
+      const result = await withRetryQuery<KeywordRow | null>(
+        async () => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return await (supabase as any)
+            .from('long_tail_keywords')
+            .select('*')
+            .eq('status', 'published')
+            .eq('page_slug', `${slug}.xml`)
+            .maybeSingle()
+        },
+        {
+          maxRetries: 3,
+          retryDelay: 500,
+          exponentialBackoff: true,
+        }
+      )
+      rawData = result.data
+      error = result.error
+    } catch (caught) {
+      console.warn('[keywords/getKeywordBySlug] Network error on xml fallback, skipping slug during build:', {
+        slug,
+        error: caught instanceof Error ? caught.message : String(caught),
+      })
+      return null
+    }
   }
 
   // 如果还是找不到，尝试使用 ILIKE 模糊匹配（处理可能的空格或大小写问题）
   if (!rawData) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await withRetryQuery<KeywordRow | null>(
-      async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await (supabase as any)
-          .from('long_tail_keywords')
-          .select('*')
-          .eq('status', 'published')
-          .ilike('page_slug', `%${slug}%`)
-          .limit(1)
-          .maybeSingle()
-      },
-      {
-        maxRetries: 2,
-        retryDelay: 500,
-        exponentialBackoff: true,
+    try {
+      const result = await withRetryQuery<KeywordRow | null>(
+        async () => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return await (supabase as any)
+            .from('long_tail_keywords')
+            .select('*')
+            .eq('status', 'published')
+            .ilike('page_slug', `%${slug}%`)
+            .limit(1)
+            .maybeSingle()
+        },
+        {
+          maxRetries: 2,
+          retryDelay: 500,
+          exponentialBackoff: true,
+        }
+      )
+      if (result.data) {
+        rawData = result.data
+        error = result.error
+        console.log(`Found keyword with fuzzy match: ${result.data.page_slug} for slug: ${slug}`)
       }
-    )
-    if (result.data) {
-      rawData = result.data
-      error = result.error
-      console.log(`Found keyword with fuzzy match: ${result.data.page_slug} for slug: ${slug}`)
+    } catch (caught) {
+      console.warn('[keywords/getKeywordBySlug] Network error on fuzzy fallback, skipping slug during build:', {
+        slug,
+        error: caught instanceof Error ? caught.message : String(caught),
+      })
+      return null
     }
   }
 
@@ -122,15 +150,40 @@ const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord |
 
 const getRelatedKeywords = cache(async (excludeId: string): Promise<KeywordPageRecord[]> => {
   const supabase = await createSupabaseServerClient()
+  const { withRetryQuery, delay } = await import('@/lib/utils/retry')
+  await delay(30)
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: rawData, error } = await (supabase as any)
-    .from('long_tail_keywords')
-    .select('*')
-    .eq('status', 'published')
-    .neq('id', excludeId)
-    .order('priority', { ascending: false })
-    .order('updated_at', { ascending: false })
-    .limit(12)
+  let rawData: KeywordRow[] | null = null
+  let error: unknown = null
+  try {
+    const result = await withRetryQuery<KeywordRow[]>(
+      async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return await (supabase as any)
+          .from('long_tail_keywords')
+          .select('*')
+          .eq('status', 'published')
+          .neq('id', excludeId)
+          .order('priority', { ascending: false })
+          .order('updated_at', { ascending: false })
+          .limit(12)
+      },
+      {
+        maxRetries: 3,
+        retryDelay: 500,
+        exponentialBackoff: true,
+      }
+    )
+    rawData = result.data
+    error = result.error
+  } catch (caught) {
+    console.warn('[keywords/getRelatedKeywords] Network error, returning empty list:', {
+      excludeId,
+      error: caught instanceof Error ? caught.message : String(caught),
+    })
+    return []
+  }
 
   if (error) {
     console.error('Failed to load related keywords:', error)
@@ -155,6 +208,17 @@ const getRelatedUseCases = cache(async (keyword: string): Promise<Array<{
   use_case_type: string
 }>> => {
   const supabase = await createSupabaseServerClient()
+  const { withRetryQuery, delay } = await import('@/lib/utils/retry')
+  await delay(30)
+
+  type UseCaseRowLite = {
+    id: string
+    slug: string
+    title: string
+    description: string
+    use_case_type: string
+    seo_keywords: string[] | null
+  }
   
   // 将关键词转换为小写用于匹配
   const keywordLower = keyword.toLowerCase()
@@ -162,33 +226,63 @@ const getRelatedUseCases = cache(async (keyword: string): Promise<Array<{
   // 查找使用场景的 seo_keywords 数组包含此关键词或相关词
   // 由于 Supabase 不支持直接查询数组包含，我们使用文本搜索
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('use_cases')
-    .select('id, slug, title, description, use_case_type, seo_keywords')
-    .eq('is_published', true)
-    .limit(10)
+  let rawUseCases: UseCaseRowLite[] | null = null
+  let error: unknown = null
+  try {
+    const result = await withRetryQuery<UseCaseRowLite[]>(
+      async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return await (supabase as any)
+          .from('use_cases')
+          .select('id, slug, title, description, use_case_type, seo_keywords')
+          .eq('is_published', true)
+          .limit(10)
+      },
+      {
+        maxRetries: 3,
+        retryDelay: 500,
+        exponentialBackoff: true,
+      }
+    )
+    rawUseCases = result.data
+    error = result.error
+  } catch (caught) {
+    console.warn('[keywords/getRelatedUseCases] Network error, returning empty list:', {
+      keyword,
+      error: caught instanceof Error ? caught.message : String(caught),
+    })
+    return []
+  }
 
-  if (error || !data) {
+  const data = Array.isArray(rawUseCases) ? rawUseCases : []
+
+  if (error || data.length === 0) {
     return []
   }
 
   // 在应用层过滤：检查 seo_keywords 数组是否包含相关关键词
-  const matched = data
-    .filter((uc: { seo_keywords: string[] | null }) => {
+  const matched: Array<{
+    id: string
+    slug: string
+    title: string
+    description: string
+    use_case_type: string
+  }> = data
+    .filter((uc) => {
       if (!uc.seo_keywords || uc.seo_keywords.length === 0) return false
       // 检查关键词是否包含在 seo_keywords 中，或 seo_keywords 中的词是否包含在关键词中
-      return uc.seo_keywords.some(seoKw => 
-        keywordLower.includes(seoKw.toLowerCase()) || 
-        seoKw.toLowerCase().includes(keywordLower)
+      return uc.seo_keywords.some(
+        (seoKw) => keywordLower.includes(seoKw.toLowerCase()) || seoKw.toLowerCase().includes(keywordLower)
       )
     })
     .slice(0, 6)
-    .map((uc: { seo_keywords: unknown }) => {
-      // 移除 seo_keywords 字段，只返回需要的字段
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { seo_keywords, ...rest } = uc
-      return rest
-    })
+    .map(({ id, slug, title, description, use_case_type }) => ({
+      id,
+      slug,
+      title,
+      description,
+      use_case_type,
+    }))
 
   return matched
 })
@@ -204,9 +298,9 @@ export async function generateStaticParams() {
     // 在静态生成时使用 service client，不需要 cookies
     const supabase = await createServiceClient()
     
-    // 限制静态生成的数量，避免构建时间过长
-    // 只预生成最热门的 1000 个关键词，其余的动态渲染（使用 ISR）
-    const MAX_STATIC_PAGES = 1000
+    // 限制静态生成的数量，避免构建时间过长/并发请求过多
+    // 只预生成最热门的 200 个关键词，其余的动态渲染（使用 ISR）
+    const MAX_STATIC_PAGES = 200
     
     // 🔥 添加重试机制和请求延迟，解决构建时的连接错误
     const { withRetryQuery, delay } = await import('@/lib/utils/retry')

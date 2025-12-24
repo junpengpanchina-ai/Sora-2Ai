@@ -237,8 +237,9 @@ export async function generateStaticParams() {
     const supabase = await createServiceClient()
     
     // 限制静态生成的数量，避免构建时间过长
-    // 只预生成最新的 500 个 use_cases，其余的动态渲染
-    const MAX_STATIC_PAGES = 500
+    // 只预生成最新的 100 个 use_cases，其余的动态渲染（ISR）
+    // 这样可以显著降低构建期对 Supabase 的并发压力，避免 ECONNRESET/fetch failed
+    const MAX_STATIC_PAGES = 100
     
     // 🔥 添加重试机制和请求延迟，解决构建时的连接错误
     const { withRetryQuery, delay } = await import('@/lib/utils/retry')
