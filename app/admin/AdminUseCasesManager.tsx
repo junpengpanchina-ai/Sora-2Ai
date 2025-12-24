@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from '@/components/ui'
 import TextRecognitionArea from '@/components/admin/TextRecognitionArea'
@@ -167,6 +167,7 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
   const [industryFilter, setIndustryFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all')
   const [qualityFilter, setQualityFilter] = useState<string>('all')
+  const [groupBy, setGroupBy] = useState<'none' | 'type' | 'industry' | 'quality_status'>('industry')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(50)
@@ -315,6 +316,44 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
 
   // 计算总页数
   const totalPages = Math.ceil(totalCount / itemsPerPage)
+
+  const groupedUseCases = useMemo(() => {
+    if (groupBy === 'none') {
+      return [{ key: 'all', label: 'All', items: useCases }]
+    }
+
+    const map = new Map<string, UseCaseRecord[]>()
+    for (const uc of useCases) {
+      let key = ''
+      if (groupBy === 'type') {
+        key = uc.use_case_type || 'other'
+      } else if (groupBy === 'industry') {
+        key = uc.industry || 'Uncategorized'
+      } else {
+        key = uc.quality_status || 'null'
+      }
+      map.set(key, [...(map.get(key) || []), uc])
+    }
+
+    const labelFor = (key: string): string => {
+      if (groupBy === 'type') {
+        return USE_CASE_TYPES.find((t) => t.value === key)?.label || key
+      }
+      if (groupBy === 'industry') {
+        return key
+      }
+      // quality_status
+      if (key === 'approved') return '✅ 已批准'
+      if (key === 'pending') return '⏳ 待审核'
+      if (key === 'needs_review') return '🔍 需要审核'
+      if (key === 'rejected') return '❌ 已拒绝'
+      return '未检查'
+    }
+
+    return [...map.entries()]
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(([key, items]) => ({ key, label: labelFor(key), items }))
+  }, [groupBy, useCases])
 
   const handleCreateUseCase = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -539,7 +578,7 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Filters */}
-          <div className="grid gap-4 md:grid-cols-5">
+          <div className="grid gap-4 md:grid-cols-6">
             <Input
               placeholder="搜索 slug、标题、描述..."
               value={search}
@@ -600,6 +639,17 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
               <option value="approved">已批准</option>
               <option value="rejected">已拒绝</option>
               <option value="needs_review">需要审核</option>
+            </select>
+            <select
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value as typeof groupBy)}
+              title="按分类分组展示"
+            >
+              <option value="industry">按行业分组</option>
+              <option value="type">按类型分组</option>
+              <option value="quality_status">按质量状态分组</option>
+              <option value="none">不分组</option>
             </select>
           </div>
 
@@ -759,233 +809,236 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
           ) : useCases.length === 0 ? (
             <div className="py-8 text-center text-gray-500">暂无使用场景</div>
           ) : (
-            <div className="space-y-2">
-              {useCases.map((useCase) => {
-                const isEditing = editingUseCaseId === useCase.id
-                const isDeleting = deletingId === useCase.id
-                const isHighlighted = editIdFromUrl === useCase.id
-
-                if (isEditing) {
-                  return (
-                    <Card key={useCase.id} id={`edit-form-${useCase.id}`} className="border-blue-300">
-                      <CardContent className="space-y-4 p-4">
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <Input
-                            placeholder="Slug"
-                            value={editForm.slug}
-                            onChange={(e) => setEditForm({ ...editForm, slug: e.target.value })}
-                          />
-                          <Input
-                            placeholder="标题"
-                            value={editForm.title}
-                            onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                          />
-                          <Input
-                            placeholder="H1"
-                            value={editForm.h1}
-                            onChange={(e) => setEditForm({ ...editForm, h1: e.target.value })}
-                          />
-                          <select
-                            className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
-                            value={editForm.use_case_type}
-                            onChange={(e) => setEditForm({ ...editForm, use_case_type: e.target.value })}
-                          >
-                            {USE_CASE_TYPES.map((type) => (
-                              <option key={type.value} value={type.value}>
-                                {type.label}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
-                            value={editForm.industry}
-                            onChange={(e) => setEditForm({ ...editForm, industry: e.target.value })}
-                          >
-                            <option value="">不限制行业</option>
-                            <option value="Fitness & Sports">Fitness & Sports</option>
-                            <option value="E-commerce & Retail">E-commerce & Retail</option>
-                            <option value="Education & Training">Education & Training</option>
-                            <option value="Marketing & Advertising">Marketing & Advertising</option>
-                            <option value="Social Media">Social Media</option>
-                            <option value="Entertainment">Entertainment</option>
-                            <option value="Real Estate">Real Estate</option>
-                            <option value="Food & Beverage">Food & Beverage</option>
-                            <option value="Travel & Tourism">Travel & Tourism</option>
-                            <option value="Fashion & Beauty">Fashion & Beauty</option>
-                            <option value="Technology">Technology</option>
-                            <option value="Healthcare">Healthcare</option>
-                            <option value="Finance">Finance</option>
-                            <option value="Automotive">Automotive</option>
-                            <option value="Gaming">Gaming</option>
-                          </select>
-                        </div>
-                        <Textarea
-                          placeholder="描述"
-                          value={editForm.description}
-                          onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                          rows={2}
-                        />
-                        <Textarea
-                          placeholder="内容 (HTML)"
-                          value={editForm.content}
-                          onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
-                          rows={10}
-                        />
-                        <div className="grid gap-4 md:grid-cols-3">
-                          <Input
-                            placeholder="Featured Prompt IDs (逗号分隔)"
-                            value={editForm.featured_prompt_ids}
-                            onChange={(e) => setEditForm({ ...editForm, featured_prompt_ids: e.target.value })}
-                          />
-                          <Input
-                            placeholder="Related Use Case IDs (逗号分隔)"
-                            value={editForm.related_use_case_ids}
-                            onChange={(e) => setEditForm({ ...editForm, related_use_case_ids: e.target.value })}
-                          />
-                          <Input
-                            placeholder="SEO Keywords (逗号分隔)"
-                            value={editForm.seo_keywords}
-                            onChange={(e) => setEditForm({ ...editForm, seo_keywords: e.target.value })}
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={editForm.isPublished}
-                              onChange={(e) => setEditForm({ ...editForm, isPublished: e.target.checked })}
-                            />
-                            <span className="text-sm">已发布</span>
-                          </label>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => handleUpdateUseCase(useCase.id)}
-                            disabled={updating}
-                            size="sm"
-                          >
-                            {updating ? '更新中...' : '保存'}
-                          </Button>
-                          <Button onClick={handleCancelEdit} variant="secondary" size="sm">
-                            取消
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                }
-
-                return (
-                  <Card 
-                    key={useCase.id} 
-                    id={`use-case-${useCase.id}`}
-                    className={isHighlighted ? 'border-energy-water bg-energy-water/10 ring-2 ring-energy-water' : ''}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3 flex-1">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(useCase.id)}
-                            onChange={(e) => {
-                              const newSet = new Set(selectedIds)
-                              if (e.target.checked) {
-                                newSet.add(useCase.id)
-                              } else {
-                                newSet.delete(useCase.id)
-                              }
-                              setSelectedIds(newSet)
-                            }}
-                            className="mt-1 h-4 w-4 rounded border-gray-300 text-energy-water focus:ring-energy-water"
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="font-semibold">{useCase.title}</h3>
-                              <Badge
-                                className={
-                                  STATUS_BADGES[useCase.is_published ? 'published' : 'draft'].className
-                                }
-                              >
-                                {STATUS_BADGES[useCase.is_published ? 'published' : 'draft'].label}
-                              </Badge>
-                              <Badge variant="default">{useCase.use_case_type}</Badge>
-                              {useCase.industry && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {useCase.industry}
-                                </Badge>
-                              )}
-                              {/* 质量状态标签 */}
-                              {useCase.quality_status && (
-                                <Badge
-                                  className={
-                                    useCase.quality_status === 'approved'
-                                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                      : useCase.quality_status === 'rejected'
-                                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                        : useCase.quality_status === 'pending'
-                                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                          : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                                  }
-                                >
-                                  {useCase.quality_status === 'approved' ? '✅ 已批准' :
-                                   useCase.quality_status === 'rejected' ? '❌ 已拒绝' :
-                                   useCase.quality_status === 'pending' ? '⏳ 待审核' :
-                                   '🔍 需要审核'}
-                                </Badge>
-                              )}
-                              {useCase.quality_score !== null && (
-                                <Badge
-                                  className={
-                                    useCase.quality_score >= 80
-                                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                      : useCase.quality_score >= 60
-                                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                  }
-                                >
-                                  质量: {useCase.quality_score}
-                                </Badge>
-                              )}
-                            </div>
-                            {useCase.quality_issues && useCase.quality_issues.length > 0 && (
-                              <div className="mt-2 text-xs text-red-600 dark:text-red-400">
-                                ⚠️ 质量问题: {useCase.quality_issues.join(', ')}
-                              </div>
-                            )}
-                          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                            Slug: {useCase.slug}
-                          </p>
-                          <p className="mt-1 text-sm text-gray-500 dark:text-gray-500">
-                            {useCase.description}
-                          </p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <a
-                            href={`/use-cases/${useCase.slug}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
-                          >
-                            👁️ 查看
-                          </a>
-                          <Button onClick={() => handleStartEdit(useCase)} size="sm" variant="secondary">
-                            ✏️ 编辑
-                          </Button>
-                          <Button
-                            onClick={() => handleDeleteUseCase(useCase.id)}
-                            disabled={isDeleting}
-                            size="sm"
-                            variant="danger"
-                          >
-                            {isDeleting ? '删除中...' : '删除'}
-                          </Button>
-                        </div>
+            <div className="space-y-6">
+              {groupedUseCases.map((group) => (
+                <div key={group.key} className="space-y-2">
+                  {groupBy !== 'none' && (
+                    <div className="flex items-center justify-between px-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                          {group.label}
+                        </span>
+                        <Badge variant="secondary" className="text-xs">
+                          {group.items.length}
+                        </Badge>
                       </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    {group.items.map((useCase) => {
+                      const isEditing = editingUseCaseId === useCase.id
+                      const isDeleting = deletingId === useCase.id
+                      const isHighlighted = editIdFromUrl === useCase.id
+
+                      if (isEditing) {
+                        return (
+                          <Card key={useCase.id} id={`edit-form-${useCase.id}`} className="border-blue-300">
+                            <CardContent className="space-y-4 p-4">
+                              <div className="grid gap-4 md:grid-cols-2">
+                                <Input
+                                  placeholder="Slug"
+                                  value={editForm.slug}
+                                  onChange={(e) => setEditForm({ ...editForm, slug: e.target.value })}
+                                />
+                                <Input
+                                  placeholder="标题"
+                                  value={editForm.title}
+                                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                                />
+                                <Input
+                                  placeholder="H1"
+                                  value={editForm.h1}
+                                  onChange={(e) => setEditForm({ ...editForm, h1: e.target.value })}
+                                />
+                                <select
+                                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
+                                  value={editForm.use_case_type}
+                                  onChange={(e) => setEditForm({ ...editForm, use_case_type: e.target.value })}
+                                >
+                                  {USE_CASE_TYPES.map((type) => (
+                                    <option key={type.value} value={type.value}>
+                                      {type.label}
+                                    </option>
+                                  ))}
+                                </select>
+                                <select
+                                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
+                                  value={editForm.industry}
+                                  onChange={(e) => setEditForm({ ...editForm, industry: e.target.value })}
+                                >
+                                  <option value="">不限制行业</option>
+                                  <option value="Fitness & Sports">Fitness & Sports</option>
+                                  <option value="E-commerce & Retail">E-commerce & Retail</option>
+                                  <option value="Education & Training">Education & Training</option>
+                                  <option value="Marketing & Advertising">Marketing & Advertising</option>
+                                  <option value="Social Media">Social Media</option>
+                                  <option value="Entertainment">Entertainment</option>
+                                  <option value="Real Estate">Real Estate</option>
+                                  <option value="Food & Beverage">Food & Beverage</option>
+                                  <option value="Travel & Tourism">Travel & Tourism</option>
+                                  <option value="Fashion & Beauty">Fashion & Beauty</option>
+                                  <option value="Technology">Technology</option>
+                                  <option value="Healthcare">Healthcare</option>
+                                  <option value="Finance">Finance</option>
+                                  <option value="Automotive">Automotive</option>
+                                  <option value="Gaming">Gaming</option>
+                                </select>
+                              </div>
+                              <Textarea
+                                placeholder="描述"
+                                value={editForm.description}
+                                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                rows={2}
+                              />
+                              <Textarea
+                                placeholder="内容 (HTML)"
+                                value={editForm.content}
+                                onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                                rows={10}
+                              />
+                              <div className="grid gap-4 md:grid-cols-3">
+                                <Input
+                                  placeholder="Featured Prompt IDs (逗号分隔)"
+                                  value={editForm.featured_prompt_ids}
+                                  onChange={(e) => setEditForm({ ...editForm, featured_prompt_ids: e.target.value })}
+                                />
+                                <Input
+                                  placeholder="Related Use Case IDs (逗号分隔)"
+                                  value={editForm.related_use_case_ids}
+                                  onChange={(e) => setEditForm({ ...editForm, related_use_case_ids: e.target.value })}
+                                />
+                                <Input
+                                  placeholder="SEO Keywords (逗号分隔)"
+                                  value={editForm.seo_keywords}
+                                  onChange={(e) => setEditForm({ ...editForm, seo_keywords: e.target.value })}
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <label className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={editForm.isPublished}
+                                    onChange={(e) => setEditForm({ ...editForm, isPublished: e.target.checked })}
+                                  />
+                                  <span className="text-sm">已发布</span>
+                                </label>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button onClick={() => handleUpdateUseCase(useCase.id)} disabled={updating} size="sm">
+                                  {updating ? '更新中...' : '保存'}
+                                </Button>
+                                <Button onClick={handleCancelEdit} variant="secondary" size="sm">
+                                  取消
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )
+                      }
+
+                      return (
+                        <Card
+                          key={useCase.id}
+                          id={`use-case-${useCase.id}`}
+                          className={isHighlighted ? 'border-energy-water bg-energy-water/10 ring-2 ring-energy-water' : ''}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex items-start gap-3 flex-1">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.has(useCase.id)}
+                                  onChange={(e) => {
+                                    const newSet = new Set(selectedIds)
+                                    if (e.target.checked) newSet.add(useCase.id)
+                                    else newSet.delete(useCase.id)
+                                    setSelectedIds(newSet)
+                                  }}
+                                  className="mt-1 h-4 w-4 rounded border-gray-300 text-energy-water focus:ring-energy-water"
+                                />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <a
+                                      href={`/use-cases/${useCase.slug}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="font-semibold text-gray-900 hover:underline dark:text-white"
+                                      title="点击标题打开内容页（新窗口）"
+                                    >
+                                      {useCase.title}
+                                    </a>
+                                    <Badge className={STATUS_BADGES[useCase.is_published ? 'published' : 'draft'].className}>
+                                      {STATUS_BADGES[useCase.is_published ? 'published' : 'draft'].label}
+                                    </Badge>
+                                    <Badge variant="default">{useCase.use_case_type}</Badge>
+                                    {useCase.industry && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        {useCase.industry}
+                                      </Badge>
+                                    )}
+                                    {useCase.quality_status && (
+                                      <Badge
+                                        className={
+                                          useCase.quality_status === 'approved'
+                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                            : useCase.quality_status === 'rejected'
+                                              ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                              : useCase.quality_status === 'pending'
+                                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                                : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                        }
+                                      >
+                                        {useCase.quality_status === 'approved'
+                                          ? '✅ 已批准'
+                                          : useCase.quality_status === 'rejected'
+                                            ? '❌ 已拒绝'
+                                            : useCase.quality_status === 'pending'
+                                              ? '⏳ 待审核'
+                                              : '🔍 需要审核'}
+                                      </Badge>
+                                    )}
+                                    {useCase.quality_score !== null && (
+                                      <Badge
+                                        className={
+                                          useCase.quality_score >= 80
+                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                            : useCase.quality_score >= 60
+                                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                        }
+                                      >
+                                        质量: {useCase.quality_score}
+                                      </Badge>
+                                    )}
+                                    {useCase.quality_issues && useCase.quality_issues.length > 0 && (
+                                      <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                        ⚠️ {useCase.quality_issues.length}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button onClick={() => handleStartEdit(useCase)} size="sm" variant="secondary">
+                                  ✏️ 编辑
+                                </Button>
+                                <Button
+                                  onClick={() => handleDeleteUseCase(useCase.id)}
+                                  disabled={isDeleting}
+                                  size="sm"
+                                  variant="danger"
+                                >
+                                  {isDeleting ? '删除中...' : '删除'}
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 

@@ -60,6 +60,49 @@ const promptTemplates = [
   },
 ]
 
+const USE_CASE_SHOWCASE = [
+  {
+    title: 'Marketing Campaigns',
+    description: 'Product launches, promotions, and brand storytelling with short-form video.',
+    tag: 'marketing',
+  },
+  {
+    title: 'Social Media Shorts',
+    description: 'Fast, scroll-stopping clips for TikTok / Reels / Shorts—optimized for 10–15s.',
+    tag: 'social-media',
+  },
+  {
+    title: 'Advertising Creatives',
+    description: 'A/B test ad angles quickly with consistent visual style and messaging.',
+    tag: 'ads',
+  },
+  {
+    title: 'Product Demos',
+    description: 'Show features and workflows clearly—ideal for SaaS and e-commerce.',
+    tag: 'product-demo',
+  },
+  {
+    title: 'Education Explainers',
+    description: 'Visualize concepts with simple, safe scenes and clear structure.',
+    tag: 'education',
+  },
+  {
+    title: 'YouTube Visual B-Roll',
+    description: 'Supplement narration with cinematic, topic-matching visuals.',
+    tag: 'youtube',
+  },
+  {
+    title: 'Local Business Promos',
+    description: 'Restaurants, cafes, gyms—flash deals and announcements made easy.',
+    tag: 'local',
+  },
+  {
+    title: 'Real Estate Highlights',
+    description: 'Property features, neighborhood vibe, and lifestyle storytelling.',
+    tag: 'real-estate',
+  },
+] as const
+
 interface HomePageClientProps {
   userProfile: UserProfile | null
 }
@@ -572,10 +615,10 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               </Link>
               {hydratedProfile && (
                 <Link
-                  href="/profile"
+                  href="/use-cases"
                   className="text-sm font-medium text-gray-700 transition-colors hover:text-energy-water dark:text-gray-300 dark:hover:text-energy-water-deep"
                 >
-                  Profile
+                  Use Cases
                 </Link>
               )}
             </div>
@@ -663,18 +706,26 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
             {homepageSettings?.hero_description || 'Find the best Sora alternatives for creating stunning text-to-video content. Our free AI video generator lets you create professional videos from text prompts in seconds. Compare top Sora alternatives and start creating today.'}
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
-            <Link href={hydratedProfile ? '/video' : '/login'}>
+            <Link href={hydratedProfile ? '/use-cases' : '/login'}>
               <Button variant="primary" size="lg" className="shadow-energy-focus">
                 {hydratedProfile 
-                  ? (homepageSettings?.cta_primary_text || 'Open Video Console')
+                  ? 'Browse Use Cases'
                   : (homepageSettings?.cta_primary_text_logged_out || 'Sign in to Start')}
               </Button>
             </Link>
-            <Link href="/prompts">
-              <Button variant="secondary" size="lg">
-                {homepageSettings?.cta_secondary_text || 'Browse Prompt Library'}
-              </Button>
-            </Link>
+            {hydratedProfile ? (
+              <Link href="/use-cases">
+                <Button variant="secondary" size="lg">
+                  View All Scenarios
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/prompts">
+                <Button variant="secondary" size="lg">
+                  {homepageSettings?.cta_secondary_text || 'Browse Prompt Library'}
+                </Button>
+              </Link>
+            )}
           </div>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
@@ -701,6 +752,46 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
 
         <main className="mx-auto max-w-7xl px-4 py-8 text-white sm:px-6 lg:px-8">
 
+        {/* Logged-in: Scenario / Use Cases showcase (all links go to the hub page) */}
+        {hydratedProfile && (
+          <div className="mb-10">
+            <Card className="!bg-white/5 border border-white/15 backdrop-blur-xl text-blue-50 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.9)]">
+              <CardHeader>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-white">Scenario Applications</CardTitle>
+                    <p className="mt-2 text-sm text-blue-100/80">
+                      Browse scenario inspirations. To keep navigation simple, every scenario entry links to the same hub page.
+                    </p>
+                  </div>
+                  <Link href="/use-cases">
+                    <Button variant="primary" size="sm">
+                      Open Use Cases
+                    </Button>
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {USE_CASE_SHOWCASE.map((item) => (
+                    <Link
+                      key={item.title}
+                      href="/use-cases"
+                      className="rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-energy-water hover:bg-white/10"
+                    >
+                      <p className="text-xs uppercase tracking-[0.25em] text-energy-water">{item.tag}</p>
+                      <p className="mt-2 text-lg font-semibold text-white">{item.title}</p>
+                      <p className="mt-1 text-sm text-blue-100/80">{item.description}</p>
+                    </Link>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {!hydratedProfile && (
+          <>
         {/* Pricing and Recharge Section */}
         <div className="mb-8">
           <Card className="!bg-white/5 border border-white/15 backdrop-blur-xl text-blue-50 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.9)]">
@@ -1124,6 +1215,8 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
             </ul>
           </div>
         </div>
+          </>
+        )}
       </main>
       </div>
 
