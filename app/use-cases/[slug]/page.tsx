@@ -482,17 +482,24 @@ export default async function UseCasePage({ params }: { params: { slug: string }
             )}
             
             {/* 醒目的视频生成 CTA 按钮 */}
-            <div className="mt-6">
-              <a
-                href="#video-generator"
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                href={`/video?prompt=${encodeURIComponent(defaultPrompt)}`}
                 className="inline-flex items-center gap-2 rounded-full bg-energy-water px-6 py-3 text-base font-semibold text-white shadow-lg transition hover:bg-energy-water-deep hover:shadow-xl"
               >
                 <span>🎬</span>
                 <span>Generate Video Now</span>
                 <span>→</span>
+              </Link>
+              <a
+                href="#video-generator"
+                className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-base font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+              >
+                <span>📝</span>
+                <span>Try In-Page</span>
               </a>
-              <p className="mt-2 text-sm text-blue-100/70">Free to try • No credit card required</p>
             </div>
+            <p className="mt-2 text-sm text-blue-100/70">Free to try • No credit card required</p>
             
             <div className="mt-6 flex flex-wrap gap-3 text-xs text-white/70">
               <span className="rounded-full border border-white/30 px-3 py-1">Use Case: {useCase.title}</span>

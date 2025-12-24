@@ -824,140 +824,140 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
                       </div>
                     </div>
                   )}
-                  <div className="space-y-2">
+            <div className="space-y-2">
                     {group.items.map((useCase) => {
-                      const isEditing = editingUseCaseId === useCase.id
-                      const isDeleting = deletingId === useCase.id
-                      const isHighlighted = editIdFromUrl === useCase.id
+                const isEditing = editingUseCaseId === useCase.id
+                const isDeleting = deletingId === useCase.id
+                const isHighlighted = editIdFromUrl === useCase.id
 
-                      if (isEditing) {
-                        return (
-                          <Card key={useCase.id} id={`edit-form-${useCase.id}`} className="border-blue-300">
-                            <CardContent className="space-y-4 p-4">
-                              <div className="grid gap-4 md:grid-cols-2">
-                                <Input
-                                  placeholder="Slug"
-                                  value={editForm.slug}
-                                  onChange={(e) => setEditForm({ ...editForm, slug: e.target.value })}
-                                />
-                                <Input
-                                  placeholder="标题"
-                                  value={editForm.title}
-                                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                                />
-                                <Input
-                                  placeholder="H1"
-                                  value={editForm.h1}
-                                  onChange={(e) => setEditForm({ ...editForm, h1: e.target.value })}
-                                />
-                                <select
-                                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
-                                  value={editForm.use_case_type}
-                                  onChange={(e) => setEditForm({ ...editForm, use_case_type: e.target.value })}
-                                >
-                                  {USE_CASE_TYPES.map((type) => (
-                                    <option key={type.value} value={type.value}>
-                                      {type.label}
-                                    </option>
-                                  ))}
-                                </select>
-                                <select
-                                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
-                                  value={editForm.industry}
-                                  onChange={(e) => setEditForm({ ...editForm, industry: e.target.value })}
-                                >
-                                  <option value="">不限制行业</option>
-                                  <option value="Fitness & Sports">Fitness & Sports</option>
-                                  <option value="E-commerce & Retail">E-commerce & Retail</option>
-                                  <option value="Education & Training">Education & Training</option>
-                                  <option value="Marketing & Advertising">Marketing & Advertising</option>
-                                  <option value="Social Media">Social Media</option>
-                                  <option value="Entertainment">Entertainment</option>
-                                  <option value="Real Estate">Real Estate</option>
-                                  <option value="Food & Beverage">Food & Beverage</option>
-                                  <option value="Travel & Tourism">Travel & Tourism</option>
-                                  <option value="Fashion & Beauty">Fashion & Beauty</option>
-                                  <option value="Technology">Technology</option>
-                                  <option value="Healthcare">Healthcare</option>
-                                  <option value="Finance">Finance</option>
-                                  <option value="Automotive">Automotive</option>
-                                  <option value="Gaming">Gaming</option>
-                                </select>
-                              </div>
-                              <Textarea
-                                placeholder="描述"
-                                value={editForm.description}
-                                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                                rows={2}
-                              />
-                              <Textarea
-                                placeholder="内容 (HTML)"
-                                value={editForm.content}
-                                onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
-                                rows={10}
-                              />
-                              <div className="grid gap-4 md:grid-cols-3">
-                                <Input
-                                  placeholder="Featured Prompt IDs (逗号分隔)"
-                                  value={editForm.featured_prompt_ids}
-                                  onChange={(e) => setEditForm({ ...editForm, featured_prompt_ids: e.target.value })}
-                                />
-                                <Input
-                                  placeholder="Related Use Case IDs (逗号分隔)"
-                                  value={editForm.related_use_case_ids}
-                                  onChange={(e) => setEditForm({ ...editForm, related_use_case_ids: e.target.value })}
-                                />
-                                <Input
-                                  placeholder="SEO Keywords (逗号分隔)"
-                                  value={editForm.seo_keywords}
-                                  onChange={(e) => setEditForm({ ...editForm, seo_keywords: e.target.value })}
-                                />
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <label className="flex items-center gap-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={editForm.isPublished}
-                                    onChange={(e) => setEditForm({ ...editForm, isPublished: e.target.checked })}
-                                  />
-                                  <span className="text-sm">已发布</span>
-                                </label>
-                              </div>
-                              <div className="flex gap-2">
+                if (isEditing) {
+                  return (
+                    <Card key={useCase.id} id={`edit-form-${useCase.id}`} className="border-blue-300">
+                      <CardContent className="space-y-4 p-4">
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <Input
+                            placeholder="Slug"
+                            value={editForm.slug}
+                            onChange={(e) => setEditForm({ ...editForm, slug: e.target.value })}
+                          />
+                          <Input
+                            placeholder="标题"
+                            value={editForm.title}
+                            onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                          />
+                          <Input
+                            placeholder="H1"
+                            value={editForm.h1}
+                            onChange={(e) => setEditForm({ ...editForm, h1: e.target.value })}
+                          />
+                          <select
+                            className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
+                            value={editForm.use_case_type}
+                            onChange={(e) => setEditForm({ ...editForm, use_case_type: e.target.value })}
+                          >
+                            {USE_CASE_TYPES.map((type) => (
+                              <option key={type.value} value={type.value}>
+                                {type.label}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
+                            value={editForm.industry}
+                            onChange={(e) => setEditForm({ ...editForm, industry: e.target.value })}
+                          >
+                            <option value="">不限制行业</option>
+                            <option value="Fitness & Sports">Fitness & Sports</option>
+                            <option value="E-commerce & Retail">E-commerce & Retail</option>
+                            <option value="Education & Training">Education & Training</option>
+                            <option value="Marketing & Advertising">Marketing & Advertising</option>
+                            <option value="Social Media">Social Media</option>
+                            <option value="Entertainment">Entertainment</option>
+                            <option value="Real Estate">Real Estate</option>
+                            <option value="Food & Beverage">Food & Beverage</option>
+                            <option value="Travel & Tourism">Travel & Tourism</option>
+                            <option value="Fashion & Beauty">Fashion & Beauty</option>
+                            <option value="Technology">Technology</option>
+                            <option value="Healthcare">Healthcare</option>
+                            <option value="Finance">Finance</option>
+                            <option value="Automotive">Automotive</option>
+                            <option value="Gaming">Gaming</option>
+                          </select>
+                        </div>
+                        <Textarea
+                          placeholder="描述"
+                          value={editForm.description}
+                          onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                          rows={2}
+                        />
+                        <Textarea
+                          placeholder="内容 (HTML)"
+                          value={editForm.content}
+                          onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                          rows={10}
+                        />
+                        <div className="grid gap-4 md:grid-cols-3">
+                          <Input
+                            placeholder="Featured Prompt IDs (逗号分隔)"
+                            value={editForm.featured_prompt_ids}
+                            onChange={(e) => setEditForm({ ...editForm, featured_prompt_ids: e.target.value })}
+                          />
+                          <Input
+                            placeholder="Related Use Case IDs (逗号分隔)"
+                            value={editForm.related_use_case_ids}
+                            onChange={(e) => setEditForm({ ...editForm, related_use_case_ids: e.target.value })}
+                          />
+                          <Input
+                            placeholder="SEO Keywords (逗号分隔)"
+                            value={editForm.seo_keywords}
+                            onChange={(e) => setEditForm({ ...editForm, seo_keywords: e.target.value })}
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={editForm.isPublished}
+                              onChange={(e) => setEditForm({ ...editForm, isPublished: e.target.checked })}
+                            />
+                            <span className="text-sm">已发布</span>
+                          </label>
+                        </div>
+                        <div className="flex gap-2">
                                 <Button onClick={() => handleUpdateUseCase(useCase.id)} disabled={updating} size="sm">
-                                  {updating ? '更新中...' : '保存'}
-                                </Button>
-                                <Button onClick={handleCancelEdit} variant="secondary" size="sm">
-                                  取消
-                                </Button>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )
-                      }
+                            {updating ? '更新中...' : '保存'}
+                          </Button>
+                          <Button onClick={handleCancelEdit} variant="secondary" size="sm">
+                            取消
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                }
 
-                      return (
-                        <Card
-                          key={useCase.id}
-                          id={`use-case-${useCase.id}`}
-                          className={isHighlighted ? 'border-energy-water bg-energy-water/10 ring-2 ring-energy-water' : ''}
-                        >
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex items-start gap-3 flex-1">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedIds.has(useCase.id)}
-                                  onChange={(e) => {
-                                    const newSet = new Set(selectedIds)
+                return (
+                  <Card 
+                    key={useCase.id} 
+                    id={`use-case-${useCase.id}`}
+                    className={isHighlighted ? 'border-energy-water bg-energy-water/10 ring-2 ring-energy-water' : ''}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3 flex-1">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(useCase.id)}
+                            onChange={(e) => {
+                              const newSet = new Set(selectedIds)
                                     if (e.target.checked) newSet.add(useCase.id)
                                     else newSet.delete(useCase.id)
-                                    setSelectedIds(newSet)
-                                  }}
-                                  className="mt-1 h-4 w-4 rounded border-gray-300 text-energy-water focus:ring-energy-water"
-                                />
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 flex-wrap">
+                              setSelectedIds(newSet)
+                            }}
+                            className="mt-1 h-4 w-4 rounded border-gray-300 text-energy-water focus:ring-energy-water"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
                                     <a
                                       href={`/use-cases/${useCase.slug}`}
                                       target="_blank"
@@ -968,26 +968,26 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
                                       {useCase.title}
                                     </a>
                                     <Badge className={STATUS_BADGES[useCase.is_published ? 'published' : 'draft'].className}>
-                                      {STATUS_BADGES[useCase.is_published ? 'published' : 'draft'].label}
-                                    </Badge>
-                                    <Badge variant="default">{useCase.use_case_type}</Badge>
-                                    {useCase.industry && (
-                                      <Badge variant="secondary" className="text-xs">
-                                        {useCase.industry}
-                                      </Badge>
-                                    )}
-                                    {useCase.quality_status && (
-                                      <Badge
-                                        className={
-                                          useCase.quality_status === 'approved'
-                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                            : useCase.quality_status === 'rejected'
-                                              ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                              : useCase.quality_status === 'pending'
-                                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                                : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                                        }
-                                      >
+                                {STATUS_BADGES[useCase.is_published ? 'published' : 'draft'].label}
+                              </Badge>
+                              <Badge variant="default">{useCase.use_case_type}</Badge>
+                              {useCase.industry && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {useCase.industry}
+                                </Badge>
+                              )}
+                              {useCase.quality_status && (
+                                <Badge
+                                  className={
+                                    useCase.quality_status === 'approved'
+                                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                      : useCase.quality_status === 'rejected'
+                                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                        : useCase.quality_status === 'pending'
+                                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                          : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                  }
+                                >
                                         {useCase.quality_status === 'approved'
                                           ? '✅ 已批准'
                                           : useCase.quality_status === 'rejected'
@@ -995,47 +995,47 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
                                             : useCase.quality_status === 'pending'
                                               ? '⏳ 待审核'
                                               : '🔍 需要审核'}
-                                      </Badge>
-                                    )}
-                                    {useCase.quality_score !== null && (
-                                      <Badge
-                                        className={
-                                          useCase.quality_score >= 80
-                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                            : useCase.quality_score >= 60
-                                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                        }
-                                      >
-                                        质量: {useCase.quality_score}
-                                      </Badge>
-                                    )}
-                                    {useCase.quality_issues && useCase.quality_issues.length > 0 && (
+                                </Badge>
+                              )}
+                              {useCase.quality_score !== null && (
+                                <Badge
+                                  className={
+                                    useCase.quality_score >= 80
+                                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                      : useCase.quality_score >= 60
+                                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                  }
+                                >
+                                  质量: {useCase.quality_score}
+                                </Badge>
+                              )}
+                            {useCase.quality_issues && useCase.quality_issues.length > 0 && (
                                       <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
                                         ⚠️ {useCase.quality_issues.length}
                                       </Badge>
                                     )}
-                                  </div>
-                                </div>
                               </div>
-                              <div className="flex gap-2">
-                                <Button onClick={() => handleStartEdit(useCase)} size="sm" variant="secondary">
-                                  ✏️ 编辑
-                                </Button>
-                                <Button
-                                  onClick={() => handleDeleteUseCase(useCase.id)}
-                                  disabled={isDeleting}
-                                  size="sm"
-                                  variant="danger"
-                                >
-                                  {isDeleting ? '删除中...' : '删除'}
-                                </Button>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )
-                    })}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button onClick={() => handleStartEdit(useCase)} size="sm" variant="secondary">
+                            ✏️ 编辑
+                          </Button>
+                          <Button
+                            onClick={() => handleDeleteUseCase(useCase.id)}
+                            disabled={isDeleting}
+                            size="sm"
+                            variant="danger"
+                          >
+                            {isDeleting ? '删除中...' : '删除'}
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
                   </div>
                 </div>
               ))}

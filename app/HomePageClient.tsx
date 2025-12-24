@@ -720,11 +720,11 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                 </Button>
               </Link>
             ) : (
-              <Link href="/prompts">
-                <Button variant="secondary" size="lg">
-                  {homepageSettings?.cta_secondary_text || 'Browse Prompt Library'}
-                </Button>
-              </Link>
+            <Link href="/prompts">
+              <Button variant="secondary" size="lg">
+                {homepageSettings?.cta_secondary_text || 'Browse Prompt Library'}
+              </Button>
+            </Link>
             )}
           </div>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

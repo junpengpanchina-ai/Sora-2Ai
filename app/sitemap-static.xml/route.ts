@@ -59,12 +59,13 @@ async function getDynamicPaths() {
       })
     }
 
-    // Use cases
+    // Use cases - must be both published AND approved for public visibility
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: useCases } = await (supabase as any)
       .from('use_cases')
       .select('slug')
       .eq('is_published', true)
+      .eq('quality_status', 'approved') // RLS policy requires both conditions
 
     if (Array.isArray(useCases)) {
       useCases.forEach((useCase: { slug: string }) => {
