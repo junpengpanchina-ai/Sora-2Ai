@@ -10,6 +10,7 @@ export async function saveSceneToDatabase(
 ) {
   const { generateSlugFromText } = await import('@/lib/utils/slug')
   const { checkContentQuality } = await import('@/lib/utils/content-quality')
+  const { createHash } = await import('crypto')
 
   // 从场景词中提取关键词作为标题
   const title = scene.use_case.length > 100 
@@ -20,11 +21,44 @@ export async function saveSceneToDatabase(
   const sceneText = scene.use_case.length > 80 
     ? scene.use_case.substring(0, 80) 
     : scene.use_case
-  const slug = generateSlugFromText(`${industry}-${sceneText}`)
+  // 🔥 防重复：对完整 use_case 做稳定 hash，避免重复跑任务时产生海量重复记录
+  // 也避免过去“slug 冲突就加时间戳”导致的重复膨胀
+  const useCaseHash = createHash('sha1')
+    .update(scene.use_case.trim(), 'utf8')
+    .digest('hex')
+    .slice(0, 10)
+  const slug = generateSlugFromText(`${industry}-${useCaseHash}-${sceneText}`)
   
   // 生成 H1 和描述
   const h1 = `AI Video Generation for ${scene.use_case} in ${industry}`
   const description = `Learn how to use AI video generation for ${scene.use_case} in the ${industry} industry. Create professional videos with Sora2.`
+
+  // 🔥 先做轻量去重：同一 industry + use_case_type + h1 已存在，则跳过保存
+  // 这能覆盖“历史旧 slug”导致的重复问题（不依赖 slug 冲突）
+  try {
+    const { data: existing } = await supabase
+      .from('use_cases')
+      .select('id')
+      .eq('industry', industry)
+      .eq('use_case_type', useCaseType)
+      .eq('h1', h1)
+      .limit(1)
+      .maybeSingle()
+    if (existing?.id) {
+      const duplicateError = new Error('Duplicate use case (same industry + type + h1), skipped.') as Error & {
+        isDuplicate?: boolean
+      }
+      duplicateError.isDuplicate = true
+      throw duplicateError
+    }
+  } catch (dedupeCheckError) {
+    // 如果是我们抛出的 duplicate，继续向上抛，让上层按“跳过”处理
+    if ((dedupeCheckError as Error & { isDuplicate?: boolean })?.isDuplicate) {
+      throw dedupeCheckError
+    }
+    // 去重查询失败不应阻断保存流程（例如临时连接问题）
+    console.warn(`[${industry}] 去重检查失败（继续尝试保存）:`, dedupeCheckError)
+  }
 
   // 生成完整内容
   const content = `# ${h1}
@@ -146,42 +180,13 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
     const { error: insertError } = await Promise.race([insertPromise, timeoutPromise]) as { error: { message?: string; code?: string; details?: string; hint?: string } | null }
 
     if (insertError) {
-      // 如果是重复 slug，尝试添加后缀（也添加超时控制）
+      // 如果是重复 slug：视为重复内容，直接跳过（避免无限堆积重复记录）
       if (insertError.code === '23505') {
-        const newSlug = `${slug}-${Date.now()}`
-        const retryInsertPromise = supabase
-          .from('use_cases')
-          .insert({
-            slug: newSlug,
-            title,
-            h1,
-            description,
-            content,
-            use_case_type: useCaseType,
-            industry,
-            is_published: isPublished,
-            seo_keywords: [scene.use_case, industry, `${industry} AI video`],
-            quality_status: qualityStatus,
-            quality_score: qualityCheck.score,
-            quality_issues: qualityCheck.issues,
-          })
-        
-        const retryTimeoutPromise = new Promise<{ error: { message?: string; code?: string; details?: string; hint?: string } | null }>((_, reject) =>
-          setTimeout(() => reject(new Error('数据库保存超时（10秒）')), DB_TIMEOUT)
-        )
-        
-        const { error: retryError } = await Promise.race([retryInsertPromise, retryTimeoutPromise]) as { error: { message?: string; code?: string; details?: string; hint?: string } | null }
-        
-        if (retryError) {
-          console.error(`[${industry}] 保存失败 (重复slug重试失败):`, {
-            error: retryError.message,
-            code: retryError.code,
-            details: retryError.details,
-            hint: retryError.hint,
-            slug: newSlug,
-          })
-          throw new Error(`保存失败: ${retryError.message} (code: ${retryError.code})`)
+        const duplicateError = new Error(`Duplicate slug detected (likely duplicate use_case), skipped. slug=${slug}`) as Error & {
+          isDuplicate?: boolean
         }
+        duplicateError.isDuplicate = true
+        throw duplicateError
       } else {
         console.error(`[${industry}] 保存失败:`, {
           error: insertError.message,

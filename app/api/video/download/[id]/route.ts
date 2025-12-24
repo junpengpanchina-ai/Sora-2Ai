@@ -15,7 +15,9 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = await createClient()
+    // Accept both cookie-based auth and Authorization: Bearer <token>
+    // (Some browsers / download flows may not include cookies reliably)
+    const supabase = await createClient(request.headers)
     const {
       data: { user },
     } = await supabase.auth.getUser()
