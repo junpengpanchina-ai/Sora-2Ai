@@ -613,12 +613,12 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               >
                 Video Generation
               </Link>
-              <Link
+                <Link
                 href="/use-cases"
-                className="text-sm font-medium text-gray-700 transition-colors hover:text-energy-water dark:text-gray-300 dark:hover:text-energy-water-deep"
-              >
+                  className="text-sm font-medium text-gray-700 transition-colors hover:text-energy-water dark:text-gray-300 dark:hover:text-energy-water-deep"
+                >
                 Use Cases
-              </Link>
+                </Link>
             </div>
             <div className="flex items-center gap-4">
               {/* Stats Cards in Navbar - Only show if logged in */}
