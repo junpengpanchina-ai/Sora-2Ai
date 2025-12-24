@@ -31,6 +31,14 @@ interface UserStats {
   total_consumption: number
 }
 
+interface UseCasesStats {
+  total: number
+  published: number
+  draft: number
+  approved: number
+  pending: number
+}
+
 interface RechargeRecord {
   id: string
   user_id: string
@@ -230,6 +238,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<UserStats | null>(null)
+  const [useCasesStats, setUseCasesStats] = useState<UseCasesStats | null>(null)
   const [rechargeRecords, setRechargeRecords] = useState<RechargeRecord[]>([])
   const [consumptionRecords, setConsumptionRecords] = useState<ConsumptionRecord[]>([])
   const [videoTasks, setVideoTasks] = useState<VideoTask[]>([])
@@ -348,11 +357,12 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
       }
 
       try {
-        const [statsResponse, rechargeResponse, consumptionResponse, videosResponse] = await Promise.all([
+        const [statsResponse, rechargeResponse, consumptionResponse, videosResponse, useCasesResponse] = await Promise.all([
           fetch('/api/admin/stats'),
           fetch('/api/admin/recharges'),
           fetch('/api/admin/consumption'),
           fetch('/api/admin/videos'),
+          fetch('/api/admin/use-cases?limit=0&offset=0'), // 只获取count，不获取数据
         ])
 
         const statsData = await parseResponse<{ success: boolean; stats: UserStats }>(
@@ -385,6 +395,46 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
         )
         if (videosData?.success) {
           setVideoTasks(videosData.tasks || [])
+        }
+
+        // 获取场景应用统计数据
+        const useCasesData = await parseResponse<{ success: boolean; count: number; useCases: unknown[] }>(
+          useCasesResponse,
+          '获取场景应用统计失败，请稍后再试'
+        )
+        if (useCasesData?.success) {
+          // 获取详细统计：分别获取已发布、草稿、已批准、待审核的数量
+          try {
+            const [publishedRes, draftRes, approvedRes, pendingRes] = await Promise.all([
+              fetch('/api/admin/use-cases?limit=0&offset=0&status=published'),
+              fetch('/api/admin/use-cases?limit=0&offset=0&status=draft'),
+              fetch('/api/admin/use-cases?limit=0&offset=0&quality_status=approved'),
+              fetch('/api/admin/use-cases?limit=0&offset=0&quality_status=pending'),
+            ])
+            
+            const publishedData = await publishedRes.json().catch(() => ({ count: 0 }))
+            const draftData = await draftRes.json().catch(() => ({ count: 0 }))
+            const approvedData = await approvedRes.json().catch(() => ({ count: 0 }))
+            const pendingData = await pendingRes.json().catch(() => ({ count: 0 }))
+            
+            setUseCasesStats({
+              total: useCasesData.count || 0,
+              published: publishedData.count || 0,
+              draft: draftData.count || 0,
+              approved: approvedData.count || 0,
+              pending: pendingData.count || 0,
+            })
+          } catch (err) {
+            console.error('获取场景应用详细统计失败:', err)
+            // 至少设置总数
+            setUseCasesStats({
+              total: useCasesData.count || 0,
+              published: 0,
+              draft: 0,
+              approved: 0,
+              pending: 0,
+            })
+          }
         }
       } catch (error) {
         console.error('获取数据失败:', error)
@@ -1236,6 +1286,87 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* 场景应用统计板块 */}
+                {useCasesStats && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">场景应用</h3>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          setActiveTab('use-cases')
+                          router.push('/admin?tab=use-cases')
+                        }}
+                      >
+                        管理场景应用 →
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                            总场景数
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                            {useCasesStats.total.toLocaleString()}
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                            已发布
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                            {useCasesStats.published.toLocaleString()}
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                            已批准
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold text-energy-water dark:text-energy-soft">
+                            {useCasesStats.approved.toLocaleString()}
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                            草稿
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold text-gray-500 dark:text-gray-400">
+                            {useCasesStats.draft.toLocaleString()}
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                            待审核
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                            {useCasesStats.pending.toLocaleString()}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                )}
 
                 <Card>
                   <CardHeader>
