@@ -715,7 +715,11 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
                 } else if (isProcessing && task.total_scenes_saved !== undefined) {
                   // 当前正在处理的行业：计算当前行业已保存的数量
                   const completedIndustriesCount = task.current_industry_index
-                  savedCount = Math.max(0, task.total_scenes_saved - (completedIndustriesCount * scenesPerIndustry))
+                  // 防御性处理：如果数据库统计异常，避免显示超过每行业上限的数字
+                  savedCount = Math.min(
+                    scenesPerIndustry,
+                    Math.max(0, task.total_scenes_saved - (completedIndustriesCount * scenesPerIndustry))
+                  )
                 }
                 
                 return {
@@ -745,7 +749,11 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
                   savedCount = scenesPerIndustry
                 } else if (isProcessing && task.total_scenes_saved !== undefined) {
                   const completedIndustriesCount = task.current_industry_index
-                  savedCount = Math.max(0, task.total_scenes_saved - (completedIndustriesCount * scenesPerIndustry))
+                  // 防御性处理：如果数据库统计异常，避免显示超过每行业上限的数字
+                  savedCount = Math.min(
+                    scenesPerIndustry,
+                    Math.max(0, task.total_scenes_saved - (completedIndustriesCount * scenesPerIndustry))
+                  )
                 }
                 
                 return {
@@ -779,10 +787,16 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
                 // 当前行业已生成 = total_scenes_generated - (已完成行业数 * scenesPerIndustry)
                 const completedIndustriesCount = task.current_industry_index
                 const currentIndustrySaved = task.total_scenes_saved !== undefined
-                  ? Math.max(0, task.total_scenes_saved - (completedIndustriesCount * scenesPerIndustry))
+                  ? Math.min(
+                      scenesPerIndustry,
+                      Math.max(0, task.total_scenes_saved - (completedIndustriesCount * scenesPerIndustry))
+                    )
                   : undefined
                 const currentIndustryGenerated = task.total_scenes_generated !== undefined
-                  ? Math.max(0, task.total_scenes_generated - (completedIndustriesCount * scenesPerIndustry))
+                  ? Math.min(
+                      scenesPerIndustry,
+                      Math.max(0, task.total_scenes_generated - (completedIndustriesCount * scenesPerIndustry))
+                    )
                   : undefined
                 
                 // 🔥 判断当前行业的状态

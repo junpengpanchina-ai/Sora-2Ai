@@ -80,6 +80,8 @@ export default function VideoPageClient() {
   const [currentPrompt, setCurrentPrompt] = useState<string>('') // Save current prompt
   const [credits, setCredits] = useState<number | null>(null)
   const [videoLoadError, setVideoLoadError] = useState<string | null>(null)
+  // Pixel-perfect (1:1) display: prevent upscaling beyond intrinsic resolution (adjusted for DPR)
+  const [videoMaxCssWidth, setVideoMaxCssWidth] = useState<number | null>(null)
   const hasReadPromptFromUrl = useRef(false)
   const isMountedRef = useRef(true)
   
@@ -1212,14 +1214,25 @@ export default function VideoPageClient() {
                     <video
                       src={currentResult.video_url}
                       controls
-                      className="w-full rounded-lg"
+                      className="w-full max-w-full rounded-lg"
                       preload="metadata"
                       playsInline
                       crossOrigin="anonymous"
-                      style={{ maxWidth: '100%', height: 'auto', width: 'auto' }}
+                      // For "1:1 original" display, cap CSS width to intrinsicWidth / DPR to avoid upscaling.
+                      style={{
+                        width: '100%',
+                        height: 'auto',
+                        maxWidth: videoMaxCssWidth ? `${videoMaxCssWidth}px` : '100%',
+                      }}
                       onLoadedMetadata={(e) => {
                         // Log video quality information for debugging
                         const video = e.currentTarget
+                        const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
+                        const maxCssWidth = video.videoWidth ? Math.floor(video.videoWidth / dpr) : null
+                        setVideoMaxCssWidth(maxCssWidth)
+                        const upscaling = video.videoWidth
+                          ? (video.clientWidth * dpr) / video.videoWidth
+                          : null
                         console.log('[VideoPage] 📹 Video loaded:', {
                           src: currentResult.video_url,
                           videoWidth: video.videoWidth,
@@ -1227,6 +1240,13 @@ export default function VideoPageClient() {
                           duration: video.duration,
                           readyState: video.readyState,
                           networkState: video.networkState,
+                          devicePixelRatio: dpr,
+                          maxCssWidthNoUpscale: maxCssWidth,
+                          displayedCssPx: {
+                            width: video.clientWidth,
+                            height: video.clientHeight,
+                          },
+                          upscaling,
                           isFromR2: currentResult.video_url?.includes('r2.dev'),
                           isFromOriginalApi: !currentResult.video_url?.includes('r2.dev'),
                         })
@@ -1281,31 +1301,42 @@ export default function VideoPageClient() {
                           className="inline-flex items-center gap-2 rounded-lg bg-energy-water px-4 py-2 text-sm font-medium text-white hover:bg-energy-water/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           title={videoLoadError ? "Video URL may have expired. Click to try downloading (will attempt to re-fetch from API)." : "Download original quality video directly from API (no compression, no storage)"}
                           onClick={async (e) => {
-                            // If there's a video load error, show a message that we're trying to re-fetch
-                            if (videoLoadError) {
-                              e.preventDefault()
-                              // Try to download - the endpoint will attempt to re-fetch
-                              try {
-                                const response = await fetch(`/api/video/download/${currentResult.task_id}`)
-                                if (response.ok) {
-                                  const blob = await response.blob()
-                                  const url = window.URL.createObjectURL(blob)
-                                  const a = document.createElement('a')
-                                  a.href = url
-                                  a.download = `video-${currentResult.task_id}.mp4`
-                                  document.body.appendChild(a)
-                                  a.click()
-                                  document.body.removeChild(a)
-                                  window.URL.revokeObjectURL(url)
-                                  setVideoLoadError(null) // Clear error on success
-                                } else {
-                                  const errorData = await response.json().catch(() => ({}))
-                                  setVideoLoadError(errorData.details || errorData.error || 'Failed to download video. The video URL may have expired.')
-                                }
-                              } catch (error) {
-                                console.error('Download error:', error)
-                                setVideoLoadError('Failed to download video. Please try again or generate a new video.')
+                            // Always download via fetch + blob with Authorization header.
+                            // This avoids "无法从网站上提取文件" caused by missing cookies in some download flows.
+                            e.preventDefault()
+                            try {
+                              const authHeaders = await getAuthHeaders()
+                              const response = await fetch(`/api/video/download/${currentResult.task_id}`, {
+                                headers: authHeaders,
+                                credentials: 'include',
+                              })
+                              if (response.ok) {
+                                const blob = await response.blob()
+                                const url = window.URL.createObjectURL(blob)
+                                const a = document.createElement('a')
+                                a.href = url
+                                a.download = `video-${currentResult.task_id}.mp4`
+                                document.body.appendChild(a)
+                                a.click()
+                                document.body.removeChild(a)
+                                window.URL.revokeObjectURL(url)
+                                setVideoLoadError(null) // Clear error on success
+                              } else if (response.status === 401) {
+                                setVideoLoadError('Unauthorized, please login first')
+                              } else if (response.status === 404) {
+                                const errorData = await response.json().catch(() => ({}))
+                                setVideoLoadError(
+                                  errorData.details ||
+                                    errorData.error ||
+                                    'Video not found (the video URL may have expired). Please try generating the video again.'
+                                )
+                              } else {
+                                const errorData = await response.json().catch(() => ({}))
+                                setVideoLoadError(errorData.details || errorData.error || `Failed to download video (HTTP ${response.status}).`)
                               }
+                            } catch (error) {
+                              console.error('Download error:', error)
+                              setVideoLoadError('Failed to download video. Please try again or generate a new video.')
                             }
                           }}
                         >

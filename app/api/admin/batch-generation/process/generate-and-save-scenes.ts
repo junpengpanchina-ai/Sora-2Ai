@@ -1243,12 +1243,16 @@ async function saveBatchScenes(
         
         // 🔥 检查是否是质量过低错误（主动跳过，不计入失败）
         const isQualityTooLow = (error as Error & { isQualityTooLow?: boolean })?.isQualityTooLow === true
+        // 🔥 检查是否是重复内容（主动跳过，不计入失败）
+        const isDuplicate = (error as Error & { isDuplicate?: boolean })?.isDuplicate === true
         
-        if (isQualityTooLow) {
-          // 质量过低，跳过保存（不计入失败，不计入重试）
+        if (isQualityTooLow || isDuplicate) {
+          // 质量过低或重复内容：跳过保存（不计入失败，不计入重试）
           skippedCount++
           errors.push(`场景词 ${j + 1}: ${errorMessage}`)
-          console.warn(`[${industry}] 批次 ${batchNumber}: 场景词 ${j + 1} 质量过低，已跳过保存`)
+          console.warn(
+            `[${industry}] 批次 ${batchNumber}: 场景词 ${j + 1} ${isDuplicate ? '重复内容' : '质量过低'}，已跳过保存`
+          )
           saved = true // 标记为已处理，退出重试循环
           break
         }
