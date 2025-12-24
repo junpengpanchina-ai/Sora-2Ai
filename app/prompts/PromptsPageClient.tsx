@@ -209,11 +209,11 @@ export default function PromptsPageClient() {
   const getDifficultyText = (difficulty: string) => {
     switch (difficulty) {
       case 'information':
-        return '信息型'
+        return 'Information'
       case 'comparison':
-        return '对比型'
+        return 'Comparison'
       case 'transaction':
-        return '交易型'
+        return 'Transaction'
       default:
         return difficulty
     }
