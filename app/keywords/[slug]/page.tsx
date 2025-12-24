@@ -2,7 +2,6 @@ import { cache } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Database } from '@/types/database'
 import { normalizeFaq, normalizeSteps, KEYWORD_INTENT_LABELS } from '@/lib/keywords/schema'
@@ -23,7 +22,17 @@ const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord |
   // 添加小延迟，避免并发请求过多
   await delay(50)
   
-  const supabase = await createSupabaseServerClient()
+  // Public keyword pages don't require per-request cookies; use service client for build stability.
+  let supabase: Awaited<ReturnType<typeof createServiceClient>>
+  try {
+    supabase = await createServiceClient()
+  } catch (error) {
+    console.warn('[keywords/getKeywordBySlug] Failed to create service client, skipping:', {
+      slug,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return null
+  }
   
   // 先尝试查询原始 slug（不带扩展名）
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -149,7 +158,16 @@ const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord |
 })
 
 const getRelatedKeywords = cache(async (excludeId: string): Promise<KeywordPageRecord[]> => {
-  const supabase = await createSupabaseServerClient()
+  let supabase: Awaited<ReturnType<typeof createServiceClient>>
+  try {
+    supabase = await createServiceClient()
+  } catch (error) {
+    console.warn('[keywords/getRelatedKeywords] Failed to create service client, returning empty list:', {
+      excludeId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return []
+  }
   const { withRetryQuery, delay } = await import('@/lib/utils/retry')
   await delay(30)
 
@@ -207,7 +225,16 @@ const getRelatedUseCases = cache(async (keyword: string): Promise<Array<{
   description: string
   use_case_type: string
 }>> => {
-  const supabase = await createSupabaseServerClient()
+  let supabase: Awaited<ReturnType<typeof createServiceClient>>
+  try {
+    supabase = await createServiceClient()
+  } catch (error) {
+    console.warn('[keywords/getRelatedUseCases] Failed to create service client, returning empty list:', {
+      keyword,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return []
+  }
   const { withRetryQuery, delay } = await import('@/lib/utils/retry')
   await delay(30)
 
@@ -290,6 +317,13 @@ const getRelatedUseCases = cache(async (keyword: string): Promise<Array<{
 // 获取所有已发布的关键词 slugs（用于静态生成）
 // 预生成热门关键词（按 priority 和 search_volume 排序）
 export async function generateStaticParams() {
+  // To keep production builds stable (avoid flaky Supabase connections during SSG),
+  // we disable keyword SSG by default. Enable explicitly via env:
+  //   ENABLE_KEYWORD_SSG=true
+  if (process.env.ENABLE_KEYWORD_SSG !== 'true') {
+    return []
+  }
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return []
   }
