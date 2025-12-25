@@ -6,7 +6,7 @@ import {
   type ChatCompletionRequest,
 } from '@/lib/grsai/client'
 import { selectSEOModel, detectSEOTaskType, getSEOSystemPrompt } from '@/lib/admin-chat/seo-model-selector'
-import { createClient as createSupabaseClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { SEO_CONTENT_TEMPLATES, renderTemplate } from '@/lib/prompts/seo-content-templates'
 
 // Force dynamic rendering
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     // 如果有 sessionId，加载历史消息
     if (sessionId && saveHistory) {
-      const supabase = await createSupabaseClient()
+      const supabase = await createServiceClient()
       const { data: historyMessages, error: historyError } = await (
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (supabase.from('admin_chat_messages') as any)
@@ -248,7 +248,7 @@ async function saveMessagesToDatabase(
   taskType?: string
 ) {
   try {
-    const supabase = await createSupabaseClient()
+    const supabase = await createServiceClient()
 
     // 保存用户消息
     const lastUserMessage = messages.find(m => m.role === 'user')

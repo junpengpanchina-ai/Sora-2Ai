@@ -6,7 +6,7 @@ import {
   type ChatCompletionRequest,
 } from '@/lib/grsai/client'
 import { selectModel } from '@/lib/admin-chat/model-selector'
-import { createClient as createSupabaseClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
 
     // 如果有 sessionId，加载历史消息
     if (sessionId && saveHistory) {
-      const supabase = await createSupabaseClient()
+      const supabase = await createServiceClient()
       const { data: historyMessages, error: historyError } = await (
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         supabase.from('admin_chat_messages') as any
@@ -266,7 +266,7 @@ async function saveMessagesToDatabase(
   userImages: string[]
 ) {
   try {
-    const supabase = await createSupabaseClient()
+    const supabase = await createServiceClient()
 
     // 保存用户消息
     const lastUserMessage = messages[messages.length - 1]
@@ -325,7 +325,7 @@ export async function GET() {
       return NextResponse.json({ success: false, error: '未授权' }, { status: 401 })
     }
 
-    const supabase = await createSupabaseClient()
+    const supabase = await createServiceClient()
     const { data: sessions, error } = await (
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase.from('admin_chat_sessions') as any)

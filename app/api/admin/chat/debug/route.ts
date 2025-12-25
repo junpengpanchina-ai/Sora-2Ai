@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateAdminSession } from '@/lib/admin-auth'
-import { createClient as createSupabaseClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { getGrsaiChatHost } from '@/lib/grsai/client'
 
 export const dynamic = 'force-dynamic'
@@ -63,7 +63,7 @@ export async function GET() {
 
     // 2. 检查数据库连接和表是否存在
     try {
-      const supabase = await createSupabaseClient()
+      const supabase = await createServiceClient()
       
       // 检查 admin_chat_sessions 表
       const { data: sessions, error: sessionsError } = await (
@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
 
     // 步骤1: 创建会话
     try {
-      const supabase = await createSupabaseClient()
+      const supabase = await createServiceClient()
       const { data: session, error: sessionError } = await (
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (supabase.from('admin_chat_sessions') as any)

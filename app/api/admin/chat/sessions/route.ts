@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateAdminSession } from '@/lib/admin-auth'
-import { createClient as createSupabaseClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,7 +15,7 @@ export async function GET() {
       return NextResponse.json({ success: false, error: '未授权' }, { status: 401 })
     }
 
-    const supabase = await createSupabaseClient()
+    const supabase = await createServiceClient()
     const { data: sessions, error } = await (
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase.from('admin_chat_sessions') as any)
@@ -26,11 +26,13 @@ export async function GET() {
     )
 
     if (error) {
-      console.error('[Chat Sessions] 数据库查询错误:', {
-        error: error,
-        errorMessage: error instanceof Error ? error.message : String(error),
-        errorCode: (error as { code?: string })?.code,
-        errorDetails: (error as { details?: string })?.details,
+      const dbError = error as { code?: string; message?: string; details?: string; hint?: string }
+      console.error('[Chat Sessions GET] 数据库查询错误详情:', {
+        error,
+        code: dbError.code,
+        message: dbError.message,
+        details: dbError.details,
+        hint: dbError.hint,
         adminUserId: adminUser.id,
       })
       throw error
@@ -83,7 +85,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { title } = body
 
-    const supabase = await createSupabaseClient()
+    const supabase = await createServiceClient()
     const { data: session, error } = await (
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase.from('admin_chat_sessions') as any)
@@ -96,6 +98,15 @@ export async function POST(request: NextRequest) {
     )
 
     if (error) {
+      const dbError = error as { code?: string; message?: string; details?: string; hint?: string }
+      console.error('[Chat Sessions POST] 数据库错误详情:', {
+        error,
+        code: dbError.code,
+        message: dbError.message,
+        details: dbError.details,
+        hint: dbError.hint,
+        adminUserId: adminUser.id,
+      })
       throw error
     }
 
@@ -103,8 +114,27 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('创建聊天会话失败:', error)
     const errorMessage = error instanceof Error ? error.message : '未知错误'
+    const errorDetails = error instanceof Error ? {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    } : String(error)
+    
+    // 如果是数据库错误，添加更多信息
+    const dbError = error as { code?: string; details?: string; hint?: string; message?: string }
+    
     return NextResponse.json(
-      { success: false, error: errorMessage },
+      { 
+        success: false, 
+        error: errorMessage,
+        debug: {
+          errorDetails,
+          errorCode: dbError.code,
+          errorDetails_db: dbError.details,
+          errorHint: dbError.hint,
+          errorMessage_db: dbError.message,
+        },
+      },
       { status: 500 }
     )
   }
@@ -128,7 +158,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: '缺少会话ID' }, { status: 400 })
     }
 
-    const supabase = await createSupabaseClient()
+    const supabase = await createServiceClient()
     const { error } = await (
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase.from('admin_chat_sessions') as any)
