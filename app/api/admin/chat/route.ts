@@ -74,9 +74,10 @@ export async function POST(request: NextRequest) {
     messages.push({ role: 'user', content: userContent })
 
     // 如果有 sessionId，加载历史消息
+    let historyMessages: Array<{ role: string; content: string | null; images: unknown }> = []
     if (sessionId && saveHistory) {
       const supabase = await createServiceClient()
-      const { data: historyMessages, error: historyError } = await (
+      const { data: loadedHistory, error: historyError } = await (
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         supabase.from('admin_chat_messages') as any
       )
@@ -84,14 +85,15 @@ export async function POST(request: NextRequest) {
         .eq('session_id', sessionId)
         .order('created_at', { ascending: true })
 
-      if (!historyError && historyMessages && historyMessages.length > 0) {
+      if (!historyError && loadedHistory && loadedHistory.length > 0) {
+        historyMessages = loadedHistory as Array<{ role: string; content: string | null; images: unknown }>
         // 将历史消息转换为 API 格式
         const formattedHistory: Array<{
           role: 'system' | 'user' | 'assistant'
           content: string
         }> = []
 
-        for (const msg of historyMessages as Array<{ role: string; content: string | null; images: unknown }>) {
+        for (const msg of historyMessages) {
           let content = (msg.content || '') as string
           
           // 如果有图片，添加到内容描述中
@@ -176,17 +178,57 @@ export async function POST(request: NextRequest) {
     
     // 检查响应是否有效
     if (!response.choices || response.choices.length === 0) {
-      console.error('[Admin Chat] API 返回空 choices 数组！完整响应:', JSON.stringify(response, null, 2))
+      // 记录详细的诊断信息
+      const apiKey = process.env.GRSAI_API_KEY
+      const apiKeyPrefix = apiKey ? apiKey.substring(0, 10) + '...' : '未配置'
+      const chatHost = process.env.GRSAI_CHAT_HOST || 'https://api.grsai.com'
+      
+      console.error('[Admin Chat] ⚠️⚠️⚠️ API 返回空 choices 数组！', {
+        model: selectedModel,
+        apiKeyConfigured: !!apiKey,
+        apiKeyPrefix,
+        chatHost,
+        responseStructure: {
+          hasChoices: !!response.choices,
+          choicesLength: response.choices?.length || 0,
+          hasId: !!response.id,
+          hasModel: !!response.model,
+          hasObject: !!response.object,
+          fullResponseKeys: Object.keys(response || {}),
+        },
+        requestInfo: {
+          messageLength: message?.length || 0,
+          imagesCount: images?.length || 0,
+          hasHistory: historyMessages.length > 0,
+        },
+      })
+      
+      // 检查响应中是否有错误信息
+      const errorInfo = (response as { error?: { message?: string; type?: string; code?: string } })?.error
+      
       return NextResponse.json({
         success: false,
-        error: 'API 返回空 choices 数组，可能请求被拒绝或格式错误',
+        error: errorInfo?.message || 'API 返回空 choices 数组，可能请求被拒绝或格式错误',
         debug: {
           model: selectedModel,
+          apiKeyConfigured: !!apiKey,
+          apiKeyPrefix,
+          chatHost,
+          errorInfo,
           responseStructure: {
             hasChoices: !!response.choices,
             choicesLength: response.choices?.length || 0,
-            fullResponse: response,
+            hasId: !!response.id,
+            hasModel: !!response.model,
+            fullResponse: process.env.NODE_ENV === 'development' ? response : undefined,
           },
+          suggestions: [
+            !apiKey ? '检查 GRSAI_API_KEY 环境变量是否已配置' : null,
+            '检查 API Key 是否有效（未过期、有足够权限）',
+            '检查 API 服务是否可用（https://api.grsai.com）',
+            '检查请求内容是否被过滤或拒绝',
+            '查看服务器日志获取更多详细信息',
+          ].filter(Boolean),
         },
       }, { status: 500 })
     }
