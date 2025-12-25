@@ -328,14 +328,7 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
             h1,
             description,
             content,
-            use_case_type: task.params.industry === 'marketing' ? 'marketing' 
-              : task.params.industry === 'social-media' ? 'social-media'
-              : task.params.industry === 'youtube' ? 'youtube'
-              : task.params.industry === 'tiktok' ? 'tiktok'
-              : task.params.industry === 'product-demo' ? 'product-demo'
-              : task.params.industry === 'ads' ? 'ads'
-              : task.params.industry === 'education' ? 'education'
-              : 'other', // 默认类型
+            use_case_type: 'advertising-promotion', // 默认使用广告转化类型
             is_published: true,
             seo_keywords: task.params.keyword ? [task.params.keyword] : [],
           }),

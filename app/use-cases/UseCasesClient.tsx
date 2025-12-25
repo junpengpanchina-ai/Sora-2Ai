@@ -17,16 +17,12 @@ type UseCaseListItem = {
 
 const USE_CASE_TYPES = [
   { value: 'all', label: 'All Types' },
-  { value: 'marketing', label: 'Marketing' },
-  { value: 'social-media', label: 'Social Media' },
-  { value: 'youtube', label: 'YouTube' },
-  { value: 'tiktok', label: 'TikTok' },
-  { value: 'instagram', label: 'Instagram' },
-  { value: 'twitter', label: 'Twitter (X)' },
-  { value: 'product-demo', label: 'Product Demo' },
-  { value: 'ads', label: 'Advertising' },
-  { value: 'education', label: 'Education' },
-  { value: 'other', label: 'Other' },
+  { value: 'advertising-promotion', label: 'Advertising & Promotion' },
+  { value: 'social-media-content', label: 'Social Media Content' },
+  { value: 'product-demo-showcase', label: 'Product Demo & Showcase' },
+  { value: 'brand-storytelling', label: 'Brand Storytelling' },
+  { value: 'education-explainer', label: 'Education & Explainer' },
+  { value: 'ugc-creator-content', label: 'UGC & Creator Content' },
 ] as const
 
 // 优先行业列表（推荐给用户）

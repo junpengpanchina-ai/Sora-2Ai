@@ -34,12 +34,13 @@ export async function GET() {
       .eq('quality_status', 'approved')
       .not('industry', 'is', null) // 必须有行业标记
       .in('use_case_type', [
-        // 转化意图
-        'marketing', 'ads', 'product-demo',
-        // 平台明确
-        'youtube', 'tiktok', 'instagram', 'twitter', 'social-media',
-        // 教育（核心）
-        'education',
+        // 6个新的视频任务类型（全选，因为都是跨行业通用的任务类型）
+        'advertising-promotion',      // 广告转化
+        'social-media-content',       // 短视频内容
+        'product-demo-showcase',      // 产品演示
+        'brand-storytelling',         // 品牌叙事
+        'education-explainer',        // 讲解说明
+        'ugc-creator-content',         // UGC/测评
       ])
       .order('updated_at', { ascending: false })
       .limit(MAX_URLS_CORE_SITEMAP * 2) // 获取更多数据用于筛选
@@ -90,12 +91,12 @@ export async function GET() {
           return tierB - tierA // 降序
         }
 
-        // 2. 转化意图优先（marketing/ads/product-demo > 平台 > education）
-        const conversionTypes = ['marketing', 'ads', 'product-demo']
-        const isConversionA = conversionTypes.includes(a.use_case_type)
-        const isConversionB = conversionTypes.includes(b.use_case_type)
-        if (isConversionA !== isConversionB) {
-          return isConversionA ? -1 : 1
+        // 2. 转化意图优先（advertising-promotion/product-demo-showcase > 其他）
+        const highConversionTypes = ['advertising-promotion', 'product-demo-showcase']
+        const isHighConversionA = highConversionTypes.includes(a.use_case_type)
+        const isHighConversionB = highConversionTypes.includes(b.use_case_type)
+        if (isHighConversionA !== isHighConversionB) {
+          return isHighConversionA ? -1 : 1
         }
 
         // 3. 更新时间（最新的优先）
@@ -109,20 +110,20 @@ export async function GET() {
     const getPriority = (useCase: UseCaseForSitemap) => {
       const tier = getIndustryTier(useCase.industry)
       
-      // S 级行业 + 转化意图 = 0.9
-      if (tier === 5 && ['marketing', 'ads', 'product-demo'].includes(useCase.use_case_type)) {
+      // S 级行业 + 高转化意图 = 0.9
+      if (tier === 5 && ['advertising-promotion', 'product-demo-showcase'].includes(useCase.use_case_type)) {
         return '0.9'
       }
-      // A+ 级行业 + 转化意图 = 0.85
-      if (tier === 4 && ['marketing', 'ads', 'product-demo'].includes(useCase.use_case_type)) {
+      // A+ 级行业 + 高转化意图 = 0.85
+      if (tier === 4 && ['advertising-promotion', 'product-demo-showcase'].includes(useCase.use_case_type)) {
         return '0.85'
       }
-      // S/A+ 级行业 + 平台 = 0.8
-      if (tier >= 4 && ['youtube', 'tiktok', 'instagram', 'twitter', 'social-media'].includes(useCase.use_case_type)) {
+      // S/A+ 级行业 + 社媒/UGC = 0.8
+      if (tier >= 4 && ['social-media-content', 'ugc-creator-content'].includes(useCase.use_case_type)) {
         return '0.8'
       }
-      // A 级行业 + 转化意图 = 0.75
-      if (tier === 3 && ['marketing', 'ads', 'product-demo'].includes(useCase.use_case_type)) {
+      // A 级行业 + 高转化意图 = 0.75
+      if (tier === 3 && ['advertising-promotion', 'product-demo-showcase'].includes(useCase.use_case_type)) {
         return '0.75'
       }
       // 其他优先行业 = 0.7

@@ -345,16 +345,12 @@ export const revalidate = 3600 // Revalidate every hour
 export const dynamicParams = true
 
 const USE_CASE_TYPE_LABELS: Record<string, string> = {
-  marketing: 'Marketing',
-  'social-media': 'Social Media',
-  youtube: 'YouTube',
-  tiktok: 'TikTok',
-  instagram: 'Instagram',
-  twitter: 'Twitter (X)',
-  'product-demo': 'Product Demo',
-  ads: 'Advertising',
-  education: 'Education',
-  other: 'Other',
+  'advertising-promotion': 'Advertising & Promotion',
+  'social-media-content': 'Social Media Content',
+  'product-demo-showcase': 'Product Demo & Showcase',
+  'brand-storytelling': 'Brand Storytelling',
+  'education-explainer': 'Education & Explainer',
+  'ugc-creator-content': 'UGC & Creator Content',
 }
 
 export default async function UseCasePage({ params }: { params: { slug: string } }) {

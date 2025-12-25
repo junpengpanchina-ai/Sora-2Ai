@@ -64,7 +64,7 @@ export default function IndustrySceneBatchGenerator({
   
   const [selectedIndustries, setSelectedIndustries] = useState<string[]>([])
   const [scenesPerIndustry, setScenesPerIndustry] = useState<number>(100)
-  const [useCaseType, setUseCaseType] = useState<string>('marketing')
+  const [useCaseType, setUseCaseType] = useState<string>('advertising-promotion')
   const [tasks, setTasks] = useState<IndustryTask[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingIndex, setProcessingIndex] = useState(-1)
@@ -1012,7 +1012,7 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
         if (task.industries && Array.isArray(task.industries)) {
           setSelectedIndustries(task.industries)
           setScenesPerIndustry(task.scenes_per_industry || 100)
-          setUseCaseType(task.use_case_type || 'marketing')
+          setUseCaseType(task.use_case_type || 'advertising-promotion')
           
           // 重建任务列表
           const restoredTasks: IndustryTask[] = task.industries.map((industry: string, index: number) => {
@@ -1203,16 +1203,12 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
               onChange={(e) => setUseCaseType(e.target.value)}
               disabled={isProcessing}
             >
-              <option value="marketing">Marketing</option>
-              <option value="social-media">Social Media</option>
-              <option value="youtube">YouTube</option>
-              <option value="tiktok">TikTok</option>
-              <option value="instagram">Instagram</option>
-              <option value="twitter">Twitter (X)</option>
-              <option value="product-demo">Product Demo</option>
-              <option value="ads">Advertising</option>
-              <option value="education">Education</option>
-              <option value="other">Other</option>
+              <option value="advertising-promotion">Advertising & Promotion</option>
+              <option value="social-media-content">Social Media Content</option>
+              <option value="product-demo-showcase">Product Demo & Showcase</option>
+              <option value="brand-storytelling">Brand Storytelling</option>
+              <option value="education-explainer">Education & Explainer</option>
+              <option value="ugc-creator-content">UGC & Creator Content</option>
             </select>
           </div>
 

@@ -20,7 +20,7 @@ interface UseCaseRecord {
   h1: string
   description: string
   content: string
-  use_case_type: 'marketing' | 'social-media' | 'youtube' | 'tiktok' | 'instagram' | 'twitter' | 'product-demo' | 'ads' | 'education' | 'other'
+  use_case_type: 'advertising-promotion' | 'social-media-content' | 'product-demo-showcase' | 'brand-storytelling' | 'education-explainer' | 'ugc-creator-content'
   industry: string | null
   featured_prompt_ids: string[]
   related_use_case_ids: string[]
@@ -56,7 +56,7 @@ const DEFAULT_FORM_STATE: UseCaseFormState = {
   h1: '',
   description: '',
   content: '',
-  use_case_type: 'marketing',
+  use_case_type: 'advertising-promotion',
   industry: '',
   featured_prompt_ids: '',
   related_use_case_ids: '',
@@ -65,16 +65,12 @@ const DEFAULT_FORM_STATE: UseCaseFormState = {
 }
 
 const USE_CASE_TYPES = [
-  { value: 'marketing', label: 'Marketing' },
-  { value: 'social-media', label: 'Social Media' },
-  { value: 'youtube', label: 'YouTube' },
-  { value: 'tiktok', label: 'TikTok' },
-  { value: 'instagram', label: 'Instagram' },
-  { value: 'twitter', label: 'Twitter (X)' },
-  { value: 'product-demo', label: 'Product Demo' },
-  { value: 'ads', label: 'Advertising' },
-  { value: 'education', label: 'Education' },
-  { value: 'other', label: 'Other' },
+  { value: 'advertising-promotion', label: 'Advertising & Promotion' },
+  { value: 'social-media-content', label: 'Social Media Content' },
+  { value: 'product-demo-showcase', label: 'Product Demo & Showcase' },
+  { value: 'brand-storytelling', label: 'Brand Storytelling' },
+  { value: 'education-explainer', label: 'Education & Explainer' },
+  { value: 'ugc-creator-content', label: 'UGC & Creator Content' },
 ] as const
 
 const STATUS_BADGES: Record<'published' | 'draft', { label: string; className: string }> = {

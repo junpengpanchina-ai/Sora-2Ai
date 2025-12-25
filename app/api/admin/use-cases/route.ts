@@ -7,16 +7,12 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 const USE_CASE_TYPES = [
-  'marketing',
-  'social-media',
-  'youtube',
-  'tiktok',
-  'instagram',
-  'twitter',
-  'product-demo',
-  'ads',
-  'education',
-  'other',
+  'advertising-promotion',      // 广告转化（原 ads, 部分 marketing）
+  'social-media-content',       // 短视频内容（原 social-media, youtube, tiktok, instagram, twitter）
+  'product-demo-showcase',      // 产品演示（原 product-demo）
+  'brand-storytelling',         // 品牌叙事（原 部分 marketing）
+  'education-explainer',        // 讲解说明（原 education）
+  'ugc-creator-content',         // UGC/测评（新增）
 ] as const
 
 type UseCaseType = (typeof USE_CASE_TYPES)[number]
