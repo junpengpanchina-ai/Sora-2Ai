@@ -562,7 +562,10 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
                   document.body.appendChild(a)
                   a.click()
                   window.URL.revokeObjectURL(url)
-                  document.body.removeChild(a)
+                  // 安全地移除元素，如果已经被移除则忽略错误
+                  if (a.parentNode) {
+                    document.body.removeChild(a)
+                  }
                   onShowBanner('success', 'CSV 导出成功')
                 } catch (error) {
                   console.error('导出失败:', error)

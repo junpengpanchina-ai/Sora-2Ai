@@ -1350,7 +1350,10 @@ export default function VideoPageClient() {
                                 a.download = `video-${currentResult.task_id}.mp4`
                                 document.body.appendChild(a)
                                 a.click()
-                                document.body.removeChild(a)
+                                // 安全地移除元素，如果已经被移除则忽略错误
+                                if (a.parentNode) {
+                                  document.body.removeChild(a)
+                                }
                                 window.URL.revokeObjectURL(url)
                                 setVideoLoadError(null) // Clear error on success
                               } else if (response.status === 401) {
