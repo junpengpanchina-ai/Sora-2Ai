@@ -22,7 +22,7 @@ function getGrsaiHost(): string {
 }
 
 // 获取 Grsai Chat API 主机地址（使用 api.grsai.com）
-function getGrsaiChatHost(): string {
+export function getGrsaiChatHost(): string {
   return 'https://api.grsai.com'
 }
 

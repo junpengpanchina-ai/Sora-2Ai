@@ -173,7 +173,43 @@ export async function POST(request: NextRequest) {
 
     // 非流式响应
     const response = await createChatCompletion(chatParams)
-    const assistantContent = response.choices?.[0]?.message?.content || ''
+    
+    // 检查响应是否有效
+    if (!response.choices || response.choices.length === 0) {
+      console.error('[Admin Chat] API 返回空 choices 数组！完整响应:', JSON.stringify(response, null, 2))
+      return NextResponse.json({
+        success: false,
+        error: 'API 返回空 choices 数组，可能请求被拒绝或格式错误',
+        debug: {
+          model: selectedModel,
+          responseStructure: {
+            hasChoices: !!response.choices,
+            choicesLength: response.choices?.length || 0,
+            fullResponse: response,
+          },
+        },
+      }, { status: 500 })
+    }
+
+    if (!response.choices[0]?.message?.content) {
+      console.error('[Admin Chat] API 返回空 content！完整响应:', JSON.stringify(response, null, 2))
+      return NextResponse.json({
+        success: false,
+        error: 'API 返回空 content，可能内容被过滤或拒绝',
+        debug: {
+          model: selectedModel,
+          responseStructure: {
+            hasChoices: !!response.choices,
+            choicesLength: response.choices?.length || 0,
+            hasContent: !!response.choices[0]?.message?.content,
+            finishReason: response.choices[0]?.finish_reason,
+            fullResponse: response,
+          },
+        },
+      }, { status: 500 })
+    }
+
+    const assistantContent = response.choices[0].message.content
 
     // 保存消息到数据库
     if (saveHistory && sessionId) {
@@ -188,8 +224,31 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Admin Chat API 错误:', error)
     const errorMessage = error instanceof Error ? error.message : '未知错误'
+    
+    // 提供更详细的错误信息用于调试
+    const errorDetails: Record<string, unknown> = {
+      message: errorMessage,
+      errorType: error instanceof Error ? error.constructor.name : typeof error,
+    }
+    
+    // 如果是 Gemini API 相关错误，添加更多信息
+    if (errorMessage.includes('choices') || errorMessage.includes('API')) {
+      errorDetails.isApiError = true
+      errorDetails.suggestion = '请检查 GRSAI_API_KEY 是否正确配置，以及 API 服务是否可用'
+    }
+    
+    // 如果是数据库相关错误
+    if (errorMessage.includes('database') || errorMessage.includes('table') || errorMessage.includes('relation')) {
+      errorDetails.isDatabaseError = true
+      errorDetails.suggestion = '请检查数据库迁移是否已运行（041_create_admin_chat_history.sql）'
+    }
+    
     return NextResponse.json(
-      { success: false, error: errorMessage },
+      { 
+        success: false, 
+        error: errorMessage,
+        debug: errorDetails,
+      },
       { status: 500 }
     )
   }
