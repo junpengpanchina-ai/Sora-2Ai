@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     const {
       industries,
       scenesPerIndustry = 100,
-      useCaseType = 'social-media',
+      useCaseType = 'advertising-promotion',
     } = body
 
     console.log('[batch-generation/start] 接收请求:', {

@@ -37,14 +37,14 @@ export async function GET(request: Request) {
 
     // 根据意图过滤
     if (intent === 'conversion') {
-      // 转化意图：marketing, ads, product-demo
-      countQuery = countQuery.in('use_case_type', ['marketing', 'ads', 'product-demo'])
+      // 转化意图：advertising-promotion, product-demo-showcase
+      countQuery = countQuery.in('use_case_type', ['advertising-promotion', 'product-demo-showcase'])
     } else if (intent === 'education') {
-      // 教育意图：education
-      countQuery = countQuery.eq('use_case_type', 'education')
+      // 教育意图：education-explainer
+      countQuery = countQuery.eq('use_case_type', 'education-explainer')
     } else if (intent === 'platform') {
-      // 平台意图：youtube, tiktok, instagram, twitter, social-media
-      countQuery = countQuery.in('use_case_type', ['youtube', 'tiktok', 'instagram', 'twitter', 'social-media'])
+      // 平台意图：social-media-content, ugc-creator-content
+      countQuery = countQuery.in('use_case_type', ['social-media-content', 'ugc-creator-content'])
     }
     // intent === 'all' 时不过滤
 
@@ -120,11 +120,11 @@ export async function GET(request: Request) {
 
     // 根据意图过滤数据
     if (intent === 'conversion') {
-      dataQuery = dataQuery.in('use_case_type', ['marketing', 'ads', 'product-demo'])
+      dataQuery = dataQuery.in('use_case_type', ['advertising-promotion', 'product-demo-showcase'])
     } else if (intent === 'education') {
-      dataQuery = dataQuery.eq('use_case_type', 'education')
+      dataQuery = dataQuery.eq('use_case_type', 'education-explainer')
     } else if (intent === 'platform') {
-      dataQuery = dataQuery.in('use_case_type', ['youtube', 'tiktok', 'instagram', 'twitter', 'social-media'])
+      dataQuery = dataQuery.in('use_case_type', ['social-media-content', 'ugc-creator-content'])
     }
 
     const { data: useCases, error } = await dataQuery
@@ -150,11 +150,14 @@ export async function GET(request: Request) {
 
     // 根据意图设置优先级
     const getPriority = (useCaseType: string) => {
-      if (['marketing', 'ads', 'product-demo'].includes(useCaseType)) {
+      if (['advertising-promotion', 'product-demo-showcase'].includes(useCaseType)) {
         return '0.8' // 转化意图
       }
-      if (useCaseType === 'education') {
+      if (useCaseType === 'education-explainer') {
         return '0.7' // 教育意图
+      }
+      if (['social-media-content', 'ugc-creator-content'].includes(useCaseType)) {
+        return '0.7' // 平台/UGC内容
       }
       return '0.6' // 其他
     }

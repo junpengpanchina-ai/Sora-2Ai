@@ -49,22 +49,18 @@ const INDUSTRIES = [
 
 // 使用场景类型（类目）- AI 视频生成核心场景
 const USE_CASE_TYPES = [
-  { value: 'marketing', label: 'Marketing', note: '营销视频 - 品牌宣传、产品推广、广告创意' },
-  { value: 'social-media', label: 'Social Media', note: '社交媒体 - 短视频、内容创作、用户互动' },
-  { value: 'youtube', label: 'YouTube', note: 'YouTube 视频 - 长视频、教程、Vlog' },
-  { value: 'tiktok', label: 'TikTok', note: 'TikTok 视频 - 短视频、热门内容、趋势视频' },
-  { value: 'instagram', label: 'Instagram', note: 'Instagram 视频 - Instagram Reels、Stories、内容营销' },
-  { value: 'twitter', label: 'Twitter (X)', note: 'Twitter/X 视频 - Twitter/X 视频内容、推文视频' },
-  { value: 'product-demo', label: 'Product Demo', note: '产品演示 - 产品展示、功能演示、使用教程' },
-  { value: 'ads', label: 'Advertising', note: '广告视频 - 商业广告、宣传片、促销视频' },
-  { value: 'education', label: 'Education', note: '教育视频 - 课程讲解、知识科普、培训视频' },
-  { value: 'other', label: 'Other', note: '其他场景 - 自定义用途' },
+  { value: 'advertising-promotion', label: 'Advertising & Promotion', note: '广告转化 - 商业广告、转化视频、绩效营销、活动推广' },
+  { value: 'social-media-content', label: 'Social Media Content', note: '短视频内容 - Reels/Shorts、趋势视频、无脸内容、短格式视频（TikTok/Instagram/YouTube/X）' },
+  { value: 'product-demo-showcase', label: 'Product Demo & Showcase', note: '产品演示 - 产品展示、App演示、功能亮点、落地页视频' },
+  { value: 'brand-storytelling', label: 'Brand Storytelling', note: '品牌叙事 - 品牌介绍、创始人故事、公司愿景、美学品牌视频' },
+  { value: 'education-explainer', label: 'Education & Explainer', note: '讲解说明 - 解释视频、教程、微学习、课程推广' },
+  { value: 'ugc-creator-content', label: 'UGC & Creator Content', note: 'UGC/测评 - UGC风格广告、影响者内容、推荐视频、测评视频' },
 ]
 
 export default function UseCaseBatchGenerator({ onShowBanner, onGenerated }: UseCaseBatchGeneratorProps) {
   const [trendingKeywords, setTrendingKeywords] = useState<TrendingKeyword[]>([])
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([])
-  const [selectedUseCaseType, setSelectedUseCaseType] = useState<string>('marketing')
+  const [selectedUseCaseType, setSelectedUseCaseType] = useState<string>('advertising-promotion')
   const [selectedIndustry, setSelectedIndustry] = useState<string>('')
   const [count, setCount] = useState<number>(10)
   const [tasks, setTasks] = useState<BatchTask[]>([])

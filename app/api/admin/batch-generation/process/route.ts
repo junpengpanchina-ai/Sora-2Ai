@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
 
     const industry = industries[currentIndex]
     const scenesPerIndustry = task.scenes_per_industry || 100
-    const useCaseType = task.use_case_type || 'social-media'
+    const useCaseType = task.use_case_type || 'advertising-promotion'
 
     // 处理当前行业
     try {

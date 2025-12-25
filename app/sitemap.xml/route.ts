@@ -33,11 +33,11 @@ export async function GET() {
 
       // 根据意图过滤
       if (intent === 'conversion') {
-        countQuery = countQuery.in('use_case_type', ['marketing', 'ads', 'product-demo'])
+        countQuery = countQuery.in('use_case_type', ['advertising-promotion', 'product-demo-showcase'])
       } else if (intent === 'education') {
-        countQuery = countQuery.eq('use_case_type', 'education')
+        countQuery = countQuery.eq('use_case_type', 'education-explainer')
       } else if (intent === 'platform') {
-        countQuery = countQuery.in('use_case_type', ['youtube', 'tiktok', 'instagram', 'twitter', 'social-media'])
+        countQuery = countQuery.in('use_case_type', ['social-media-content', 'ugc-creator-content'])
       }
       // intent === 'all' 时不过滤
 

@@ -18,9 +18,12 @@ export interface ParsedUseCaseData {
 }
 
 const USE_CASE_TYPES = [
-  'marketing', 'social-media', 'youtube', 'tiktok', 
-  'instagram', 'twitter',
-  'product-demo', 'ads', 'education', 'other'
+  'advertising-promotion',      // 广告转化
+  'social-media-content',       // 短视频内容
+  'product-demo-showcase',      // 产品演示
+  'brand-storytelling',         // 品牌叙事
+  'education-explainer',        // 讲解说明
+  'ugc-creator-content',         // UGC/测评
 ]
 
 /**
@@ -76,23 +79,23 @@ export function parseUseCaseText(inputText: string): ParsedUseCaseData {
   ])
   if (useCaseType) {
     const lower = useCaseType.toLowerCase().replace(/[^a-z-]/g, '')
-    const matched = USE_CASE_TYPES.find(type => 
-      lower.includes(type) ||
-      (type === 'marketing' && lower.includes('marketing')) ||
-      (type === 'social-media' && (lower.includes('social') || lower.includes('media'))) ||
-      (type === 'youtube' && lower.includes('youtube')) ||
-      (type === 'tiktok' && lower.includes('tiktok')) ||
-      (type === 'instagram' && lower.includes('instagram')) ||
-      (type === 'twitter' && (lower.includes('twitter') || lower.includes('x'))) ||
-      (type === 'product-demo' && (lower.includes('product') || lower.includes('demo'))) ||
-      (type === 'ads' && (lower.includes('ads') || lower.includes('advertising'))) ||
-      (type === 'education' && lower.includes('education')) ||
-      (type === 'other' && lower.includes('other'))
-    )
+    // 匹配新的6个视频任务类型
+    const matched = USE_CASE_TYPES.find(type => {
+      return (
+        lower.includes(type) ||
+        (type === 'advertising-promotion' && (lower.includes('advertising') || lower.includes('ads') || lower.includes('promotion'))) ||
+        (type === 'social-media-content' && (lower.includes('social') || lower.includes('media') || lower.includes('youtube') || lower.includes('tiktok') || lower.includes('instagram') || lower.includes('twitter') || lower.includes('x'))) ||
+        (type === 'product-demo-showcase' && (lower.includes('product') || lower.includes('demo') || lower.includes('showcase'))) ||
+        (type === 'brand-storytelling' && (lower.includes('brand') || lower.includes('storytelling'))) ||
+        (type === 'education-explainer' && (lower.includes('education') || lower.includes('explainer') || lower.includes('tutorial'))) ||
+        (type === 'ugc-creator-content' && (lower.includes('ugc') || lower.includes('creator') || lower.includes('user-generated')))
+      )
+    })
     if (matched) {
       parsed.use_case_type = matched
     } else {
-      parsed.use_case_type = lower
+      // 如果无法匹配，默认使用第一个类型
+      parsed.use_case_type = USE_CASE_TYPES[0]
     }
   }
   

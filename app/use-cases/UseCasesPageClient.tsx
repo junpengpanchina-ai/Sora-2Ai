@@ -7,14 +7,12 @@ import type { Database } from '@/types/database'
 type UseCaseRow = Database['public']['Tables']['use_cases']['Row']
 
 const USE_CASE_TYPE_LABELS: Record<string, string> = {
-  marketing: 'Marketing',
-  'social-media': 'Social Media',
-  youtube: 'YouTube',
-  tiktok: 'TikTok',
-  'product-demo': 'Product Demo',
-  ads: 'Advertising',
-  education: 'Education',
-  other: 'Other',
+  'advertising-promotion': 'Advertising & Promotion',
+  'social-media-content': 'Social Media Content',
+  'product-demo-showcase': 'Product Demo & Showcase',
+  'brand-storytelling': 'Brand Storytelling',
+  'education-explainer': 'Education & Explainer',
+  'ugc-creator-content': 'UGC & Creator Content',
 }
 
 interface UseCasesPageClientProps {
