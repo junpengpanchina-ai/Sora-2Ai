@@ -12,9 +12,17 @@ export async function generateIndustryScenes(
   const { isColdIndustry, needsProModel } = await import('./detect-cold-industry')
   const { checkGenerationQuality } = await import('./check-generation-quality')
   
-  const systemPrompt = `You are an SEO expert specializing in AI video generation use cases. Generate highly specific, practical, real-world use cases for AI video generation. All output must be in English.
+  const systemPrompt = `You are a marketing content expert specializing in high-converting video marketing scenarios. Your goal is to generate actionable, conversion-focused marketing video use cases that solve real business pain points and drive customer engagement. All output must be in English.
 
-CRITICAL: The AI video platform ONLY supports 10-second or 15-second videos. NEVER mention any duration longer than 15 seconds (such as 20 seconds, 30 seconds, 45 seconds, 60 seconds, 1 minute, 2 minutes, etc.). When describing video examples, ALWAYS use "10 seconds" or "15 seconds" only.`
+CRITICAL: The AI video platform ONLY supports 10-second or 15-second videos. NEVER mention any duration longer than 15 seconds (such as 20 seconds, 30 seconds, 45 seconds, 60 seconds, 1 minute, 2 minutes, etc.). When describing video examples, ALWAYS use "10 seconds" or "15 seconds" only.
+
+Focus on marketing scenarios that:
+- Solve specific customer pain points
+- Drive conversions and sales
+- Create emotional connections
+- Showcase product benefits in real-world contexts
+- Are suitable for social media marketing (TikTok, Instagram, YouTube, Twitter/X)
+- Generate repeatable, scalable content ideas`
 
   // 三级 Fallback 机制：
   // Level 1: gemini-2.5-flash（默认，低成本）
@@ -43,24 +51,31 @@ CRITICAL: The AI video platform ONLY supports 10-second or 15-second videos. NEV
       ? scenesPerIndustry - (batch * batchSize) 
       : batchSize
 
-    const userPrompt = `Generate ${currentBatchSize} highly specific, practical, real-world use cases for AI video generation for the following industry:
+    const userPrompt = `Generate ${currentBatchSize} highly specific, conversion-focused marketing video scenarios for the following target market:
 
-Industry: ${industry}
+Target Market: ${industry}
+
+CRITICAL: Generate MARKETING SCENARIOS, not industry encyclopedia entries. Focus on:
+- Real customer pain points that videos can solve
+- Conversion-focused content ideas that drive sales/engagement
+- Scalable marketing use cases that can be repeated 1000+ times
+- Social media-ready scenarios (TikTok, Instagram, YouTube, Twitter/X)
 
 Requirements:
-- ${currentBatchSize} use cases
-- Each use case = 300–500 characters (detailed scenario description)
-- Must be specific, not generic
-- Must be real-world scenarios where AI video creation is actually needed
-- Each use case should describe:
-  1. The specific scenario/situation
-  2. The pain point or challenge
-  3. Why AI video is suitable for this scenario
-  4. A brief example prompt idea
+- ${currentBatchSize} marketing scenarios
+- Each scenario = 300–500 characters (detailed marketing use case description)
+- Must be specific marketing scenarios, NOT generic industry descriptions
+- Each scenario must describe:
+  1. Specific marketing context (who, what, when, why)
+  2. Customer pain point or challenge this video addresses
+  3. Marketing goal (conversion, engagement, awareness, etc.)
+  4. Video content idea that solves the pain point
+  5. Example video prompt (10-15 seconds only)
+- Focus on scenarios where businesses would repeatedly create videos for ongoing marketing
 - IMPORTANT: When mentioning video duration, ALWAYS use "10 seconds" or "15 seconds" ONLY. NEVER mention "20 seconds", "30 seconds", "45 seconds", "60 seconds", "1 minute", "2 minutes", or any duration longer than 15 seconds.
 - Format as a clean JSON array: 
 [
-  {"id": 1, "use_case": "Detailed 300-500 character description including scenario, pain point, why AI video, and example prompt (video duration: 10 seconds or 15 seconds ONLY)"},
+  {"id": 1, "use_case": "Detailed 300-500 character marketing scenario description including: specific context, customer pain point, marketing goal, video idea, and example prompt (video duration: 10 seconds or 15 seconds ONLY)"},
   {"id": 2, "use_case": "..."},
   ...
   {"id": ${currentBatchSize}, "use_case": "..."}
