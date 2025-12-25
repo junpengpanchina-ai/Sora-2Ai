@@ -6,6 +6,8 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Textare
 import TextRecognitionArea from '@/components/admin/TextRecognitionArea'
 import { parseUseCaseText } from '@/lib/text-recognition/use-case'
 import IndustrySceneBatchGenerator from './IndustrySceneBatchGenerator'
+import { INDUSTRIES_100 } from '@/lib/data/industries-100'
+import { INDUSTRIES_TRADITIONAL } from '@/lib/data/industries-traditional'
 
 interface AdminUseCasesManagerProps {
   onShowBanner: (type: 'success' | 'error' | 'info', text: string) => void
@@ -163,6 +165,12 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
   const [useCases, setUseCases] = useState<UseCaseRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // 合并所有行业列表（营销场景 + 传统行业），去重，用于筛选
+  const allIndustries = useMemo(() => {
+    const merged = [...INDUSTRIES_100, ...INDUSTRIES_TRADITIONAL]
+    return Array.from(new Set(merged)).sort()
+  }, [])
 
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
@@ -645,21 +653,11 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
             >
               <option value="all">所有行业</option>
               <option value="">不限制行业</option>
-              <option value="Fitness & Sports">Fitness & Sports</option>
-              <option value="E-commerce & Retail">E-commerce & Retail</option>
-              <option value="Education & Training">Education & Training</option>
-              <option value="Marketing & Advertising">Marketing & Advertising</option>
-              <option value="Social Media">Social Media</option>
-              <option value="Entertainment">Entertainment</option>
-              <option value="Real Estate">Real Estate</option>
-              <option value="Food & Beverage">Food & Beverage</option>
-              <option value="Travel & Tourism">Travel & Tourism</option>
-              <option value="Fashion & Beauty">Fashion & Beauty</option>
-              <option value="Technology">Technology</option>
-              <option value="Healthcare">Healthcare</option>
-              <option value="Finance">Finance</option>
-              <option value="Automotive">Automotive</option>
-              <option value="Gaming">Gaming</option>
+              {allIndustries.map((industry) => (
+                <option key={industry} value={industry}>
+                  {industry}
+                </option>
+              ))}
             </select>
             <select
               className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
@@ -969,21 +967,11 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
                             onChange={(e) => setEditForm({ ...editForm, industry: e.target.value })}
                           >
                             <option value="">不限制行业</option>
-                            <option value="Fitness & Sports">Fitness & Sports</option>
-                            <option value="E-commerce & Retail">E-commerce & Retail</option>
-                            <option value="Education & Training">Education & Training</option>
-                            <option value="Marketing & Advertising">Marketing & Advertising</option>
-                            <option value="Social Media">Social Media</option>
-                            <option value="Entertainment">Entertainment</option>
-                            <option value="Real Estate">Real Estate</option>
-                            <option value="Food & Beverage">Food & Beverage</option>
-                            <option value="Travel & Tourism">Travel & Tourism</option>
-                            <option value="Fashion & Beauty">Fashion & Beauty</option>
-                            <option value="Technology">Technology</option>
-                            <option value="Healthcare">Healthcare</option>
-                            <option value="Finance">Finance</option>
-                            <option value="Automotive">Automotive</option>
-                            <option value="Gaming">Gaming</option>
+                            {allIndustries.map((industry) => (
+                              <option key={industry} value={industry}>
+                                {industry}
+                              </option>
+                            ))}
                           </select>
                         </div>
                         <Textarea
@@ -1270,6 +1258,18 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
                 {USE_CASE_TYPES.map((type) => (
                   <option key={type.value} value={type.value}>
                     {type.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
+                value={newUseCaseForm.industry}
+                onChange={(e) => setNewUseCaseForm({ ...newUseCaseForm, industry: e.target.value })}
+              >
+                <option value="">不限制行业（可选）</option>
+                {allIndustries.map((industry) => (
+                  <option key={industry} value={industry}>
+                    {industry}
                   </option>
                 ))}
               </select>

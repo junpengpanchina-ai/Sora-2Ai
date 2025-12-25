@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Badge } from '@/components/ui'
+import { shouldRecommendIndustry } from '@/lib/utils/industry-helper'
 
 type UseCaseListItem = {
   id: string
@@ -28,22 +29,24 @@ const USE_CASE_TYPES = [
   { value: 'other', label: 'Other' },
 ] as const
 
-const INDUSTRIES = [
-  'Fitness & Sports',
-  'E-commerce & Retail',
-  'Education & Training',
-  'Marketing & Advertising',
-  'Social Media',
-  'Entertainment',
-  'Real Estate',
-  'Food & Beverage',
-  'Travel & Tourism',
-  'Fashion & Beauty',
-  'Technology',
-  'Healthcare',
-  'Finance',
-  'Automotive',
-  'Gaming',
+// 优先行业列表（推荐给用户）
+const RECOMMENDED_INDUSTRIES = [
+  'TikTok Creators',
+  'Instagram Creators',
+  'YouTube Creators',
+  'Social Media Marketing',
+  'Digital Marketing Agencies',
+  'E-commerce Stores',
+  'SaaS Companies',
+  'Personal Branding',
+  'Online Courses',
+  'Coaches & Consultants',
+  'Real Estate Marketing',
+  'Fitness Trainers',
+  'Beauty & Skincare Brands',
+  'Fashion Brands',
+  'Restaurants & Cafes',
+  'Travel Agencies',
 ] as const
 
 function buildVideoPrompt(useCase: Pick<UseCaseListItem, 'title' | 'description' | 'industry'>): string {
@@ -102,12 +105,29 @@ export default function UseCasesClient(props: {
   const [industry, setIndustry] = useState(props.initialIndustry)
   const [page, setPage] = useState(props.initialPage)
   const [limit, setLimit] = useState(props.initialLimit)
+  const [availableIndustries, setAvailableIndustries] = useState<string[]>([])
 
   const [items, setItems] = useState<UseCaseListItem[]>(props.initialItems)
   const [totalCount, setTotalCount] = useState<number | null>(props.initialTotalCount)
   const [hasMore, setHasMore] = useState<boolean>(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // 从API获取所有可用行业
+  useEffect(() => {
+    fetch('/api/use-cases/industries')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.industries)) {
+          setAvailableIndustries(data.industries)
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load industries:', err)
+        // 使用默认列表作为fallback
+        setAvailableIndustries([...RECOMMENDED_INDUSTRIES])
+      })
+  }, [])
 
   const totalPages = useMemo(() => {
     if (!totalCount) return null
@@ -200,11 +220,33 @@ export default function UseCasesClient(props: {
               }}
             >
               <option value="all">All Industries</option>
-              {INDUSTRIES.map((ind) => (
-                <option key={ind} value={ind}>
-                  {ind}
-                </option>
-              ))}
+              {availableIndustries.length > 0 ? (
+                <>
+                  <optgroup label="⭐ Recommended Industries">
+                    {availableIndustries.filter(ind => shouldRecommendIndustry(ind)).map((ind) => (
+                      <option key={ind} value={ind}>
+                        ⭐ {ind}
+                      </option>
+                    ))}
+                  </optgroup>
+                  {availableIndustries.filter(ind => !shouldRecommendIndustry(ind)).length > 0 && (
+                    <optgroup label="Other Industries">
+                      {availableIndustries.filter(ind => !shouldRecommendIndustry(ind)).map((ind) => (
+                        <option key={ind} value={ind}>
+                          {ind}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </>
+              ) : (
+                // Fallback: 使用默认推荐行业
+                RECOMMENDED_INDUSTRIES.map((ind) => (
+                  <option key={ind} value={ind}>
+                    {shouldRecommendIndustry(ind) ? `⭐ ${ind}` : ind}
+                  </option>
+                ))
+              )}
             </select>
             <select
               className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-900"

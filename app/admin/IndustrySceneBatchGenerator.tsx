@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input } from '@/components/ui'
 import { INDUSTRIES_100 } from '@/lib/data/industries-100'
+import { INDUSTRIES_TRADITIONAL } from '@/lib/data/industries-traditional'
 import { generateSlugFromText } from '@/lib/utils/slug'
 import { checkContentQuality } from '@/lib/utils/content-quality'
+import { getPrioritizedIndustries, getIndustryBadge, getBusinessTierBadge, shouldRecommendIndustry } from '@/lib/utils/industry-helper'
 
 interface IndustrySceneBatchGeneratorProps {
   onShowBanner: (type: 'success' | 'error' | 'info', text: string) => void
@@ -40,6 +42,26 @@ export default function IndustrySceneBatchGenerator({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onFilterChange, // 保留用于未来功能
 }: IndustrySceneBatchGeneratorProps) {
+  // 模式切换：营销场景模式 vs 传统行业模式
+  const [industryMode, setIndustryMode] = useState<'marketing' | 'traditional'>('marketing')
+  // 视图切换：列表视图 vs 网格视图
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  
+  // 根据模式选择行业列表
+  const currentIndustries = useMemo(() => {
+    return (industryMode === 'marketing' ? INDUSTRIES_100 : INDUSTRIES_TRADITIONAL) as readonly string[]
+  }, [industryMode])
+
+  // 获取优先行业列表（用于快速选择）
+  const prioritizedIndustries = useMemo(() => {
+    const industriesArray = Array.from(currentIndustries)
+    return getPrioritizedIndustries()
+      .map(item => item.industry)
+      .filter((industry): industry is string => 
+        industriesArray.includes(industry)
+      )
+  }, [currentIndustries])
+  
   const [selectedIndustries, setSelectedIndustries] = useState<string[]>([])
   const [scenesPerIndustry, setScenesPerIndustry] = useState<number>(100)
   const [useCaseType, setUseCaseType] = useState<string>('marketing')
@@ -58,6 +80,11 @@ export default function IndustrySceneBatchGenerator({
   
   // 同步 useCaseType 到 ref
   useCaseTypeRef.current = useCaseType
+  
+  // 当模式切换时，清空已选择的行业
+  useEffect(() => {
+    setSelectedIndustries([])
+  }, [industryMode])
 
   // 解析场景词内容（提取 JSON 数组）
   const parseScenesFromContent = (content: string): SceneItem[] => {
@@ -1196,27 +1223,50 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => setSelectedIndustries(INDUSTRIES_100.slice(0, 10).map(i => i))}
+                onClick={() => {
+                  // 全选
+                  setSelectedIndustries([...currentIndustries])
+                }}
                 disabled={isProcessing}
-                className="rounded border border-gray-300 bg-white px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800"
+                className="rounded border border-blue-500 bg-blue-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
               >
-                前 10 个行业
+                ✓ 全选
               </button>
               <button
                 type="button"
-                onClick={() => setSelectedIndustries(INDUSTRIES_100.slice(0, 50).map(i => i))}
+                onClick={() => {
+                  // 全不选
+                  setSelectedIndustries([])
+                }}
                 disabled={isProcessing}
-                className="rounded border border-gray-300 bg-white px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800"
+                className="rounded border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
               >
-                前 50 个行业
+                ✗ 全不选
               </button>
               <button
                 type="button"
-                onClick={() => setSelectedIndustries([...INDUSTRIES_100])}
+                onClick={() => setSelectedIndustries(currentIndustries.slice(0, 10).map(i => i))}
                 disabled={isProcessing}
                 className="rounded border border-gray-300 bg-white px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800"
               >
-                全部 100 个行业
+                前 10 个
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedIndustries(currentIndustries.slice(0, 50).map(i => i))}
+                disabled={isProcessing}
+                className="rounded border border-gray-300 bg-white px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800"
+              >
+                前 50 个
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedIndustries(prioritizedIndustries)}
+                disabled={isProcessing}
+                className="rounded border border-purple-500 bg-purple-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-600 dark:bg-purple-600 dark:hover:bg-purple-700"
+                title="选择S/A+/A级优先行业（推荐）"
+              >
+                ⭐ 优先行业 ({prioritizedIndustries.length})
               </button>
             </div>
           </div>
@@ -1239,35 +1289,188 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
           </div>
         </div>
 
+        {/* 模式切换和视图切换 */}
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">模式切换：</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setIndustryMode('marketing')}
+                disabled={isProcessing}
+                className={`rounded-lg border px-4 py-1.5 text-sm font-medium transition ${
+                  industryMode === 'marketing'
+                    ? 'border-energy-water bg-energy-water text-white'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200'
+                }`}
+              >
+                🎯 营销场景 ({INDUSTRIES_100.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setIndustryMode('traditional')}
+                disabled={isProcessing}
+                className={`rounded-lg border px-4 py-1.5 text-sm font-medium transition ${
+                  industryMode === 'traditional'
+                    ? 'border-energy-water bg-energy-water text-white'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200'
+                }`}
+              >
+                📊 传统行业 ({INDUSTRIES_TRADITIONAL.length})
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">视图切换：</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                disabled={isProcessing}
+                className={`rounded-lg border px-4 py-1.5 text-sm font-medium transition ${
+                  viewMode === 'grid'
+                    ? 'border-energy-water bg-energy-water text-white'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200'
+                }`}
+              >
+                ⊞ 网格
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                disabled={isProcessing}
+                className={`rounded-lg border px-4 py-1.5 text-sm font-medium transition ${
+                  viewMode === 'list'
+                    ? 'border-energy-water bg-energy-water text-white'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200'
+                }`}
+              >
+                ☰ 列表
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* 行业选择 */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            选择行业（已选择 {selectedIndustries.length} / {INDUSTRIES_100.length}）
-          </label>
-          <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-            <div className="flex flex-wrap gap-2">
-              {INDUSTRIES_100.map((industry) => (
-                <button
-                  key={industry}
-                  type="button"
-                  onClick={() => {
-                    setSelectedIndustries((prev) =>
-                      prev.includes(industry)
-                        ? prev.filter((i) => i !== industry)
-                        : [...prev, industry]
-                    )
-                  }}
-                  disabled={isProcessing}
-                  className={`rounded-lg border px-3 py-1.5 text-sm transition ${
-                    selectedIndustries.includes(industry)
-                      ? 'border-energy-water bg-energy-water text-white'
-                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200'
-                  }`}
-                >
-                  {industry}
-                </button>
-              ))}
+          <div className="mb-2 flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              选择行业（已选择 {selectedIndustries.length} / {currentIndustries.length}）
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedIndustries([...currentIndustries])}
+                disabled={isProcessing}
+                className="rounded border border-blue-500 bg-blue-500 px-3 py-1 text-xs font-medium text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+              >
+                ✓ 全选
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedIndustries([])}
+                disabled={isProcessing}
+                className="rounded border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+              >
+                ✗ 全不选
+              </button>
             </div>
+          </div>
+          <div className="max-h-96 overflow-y-auto rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+            {viewMode === 'grid' ? (
+              <div className="flex flex-wrap gap-2">
+                {currentIndustries.map((industry) => {
+                  const seoBadge = getIndustryBadge(industry)
+                  const businessBadge = getBusinessTierBadge(industry)
+                  const isRecommended = shouldRecommendIndustry(industry)
+                  
+                  return (
+                    <button
+                      key={industry}
+                      type="button"
+                      onClick={() => {
+                        setSelectedIndustries((prev) =>
+                          prev.includes(industry)
+                            ? prev.filter((i) => i !== industry)
+                            : [...prev, industry]
+                        )
+                      }}
+                      disabled={isProcessing}
+                      className={`group relative rounded-lg border px-3 py-1.5 text-sm transition ${
+                        selectedIndustries.includes(industry)
+                          ? 'border-energy-water bg-energy-water text-white'
+                          : isRecommended
+                          ? 'border-purple-300 bg-purple-50 text-gray-800 hover:bg-purple-100 dark:border-purple-700 dark:bg-purple-900/20 dark:text-gray-200 dark:hover:bg-purple-900/30'
+                          : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200'
+                      }`}
+                      title={isRecommended ? '推荐行业（S/A+/A级）' : undefined}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{industry}</span>
+                        {seoBadge && (
+                          <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${seoBadge.color} ${seoBadge.bgColor}`}>
+                            {seoBadge.label}
+                          </span>
+                        )}
+                        {businessBadge && (
+                          <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${businessBadge.color} ${businessBadge.bgColor}`} title={businessBadge.label}>
+                            {businessBadge.icon}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {currentIndustries.map((industry) => {
+                  const seoBadge = getIndustryBadge(industry)
+                  const businessBadge = getBusinessTierBadge(industry)
+                  const isRecommended = shouldRecommendIndustry(industry)
+                  
+                  return (
+                    <button
+                      key={industry}
+                      type="button"
+                      onClick={() => {
+                        setSelectedIndustries((prev) =>
+                          prev.includes(industry)
+                            ? prev.filter((i) => i !== industry)
+                            : [...prev, industry]
+                        )
+                      }}
+                      disabled={isProcessing}
+                      className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition ${
+                        selectedIndustries.includes(industry)
+                          ? 'border-energy-water bg-energy-water text-white'
+                          : isRecommended
+                          ? 'border-purple-300 bg-purple-50 text-gray-800 hover:bg-purple-100 dark:border-purple-700 dark:bg-purple-900/20 dark:text-gray-200 dark:hover:bg-purple-900/30'
+                          : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200'
+                      }`}
+                      title={isRecommended ? '推荐行业（S/A+/A级）' : undefined}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{industry}</span>
+                        {seoBadge && (
+                          <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${seoBadge.color} ${seoBadge.bgColor}`}>
+                            {seoBadge.label}
+                          </span>
+                        )}
+                        {businessBadge && (
+                          <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${businessBadge.color} ${businessBadge.bgColor}`} title={businessBadge.label}>
+                            {businessBadge.icon}
+                          </span>
+                        )}
+                      </div>
+                      {selectedIndustries.includes(industry) && (
+                        <span className="ml-2 text-xs">✓</span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
 
