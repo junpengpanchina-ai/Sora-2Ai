@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateAdminSession } from '@/lib/admin-auth'
-import { createClient as createSupabaseClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: '缺少会话ID' }, { status: 400 })
     }
 
-    const supabase = await createSupabaseClient()
+    const supabase = await createServiceClient()
     
     // 验证会话属于当前管理员
     const { data: session, error: sessionError } = await (
