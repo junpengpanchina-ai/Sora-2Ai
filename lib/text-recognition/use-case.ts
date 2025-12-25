@@ -19,6 +19,7 @@ export interface ParsedUseCaseData {
 
 const USE_CASE_TYPES = [
   'marketing', 'social-media', 'youtube', 'tiktok', 
+  'instagram', 'twitter',
   'product-demo', 'ads', 'education', 'other'
 ]
 
@@ -81,6 +82,8 @@ export function parseUseCaseText(inputText: string): ParsedUseCaseData {
       (type === 'social-media' && (lower.includes('social') || lower.includes('media'))) ||
       (type === 'youtube' && lower.includes('youtube')) ||
       (type === 'tiktok' && lower.includes('tiktok')) ||
+      (type === 'instagram' && lower.includes('instagram')) ||
+      (type === 'twitter' && (lower.includes('twitter') || lower.includes('x'))) ||
       (type === 'product-demo' && (lower.includes('product') || lower.includes('demo'))) ||
       (type === 'ads' && (lower.includes('ads') || lower.includes('advertising'))) ||
       (type === 'education' && lower.includes('education')) ||

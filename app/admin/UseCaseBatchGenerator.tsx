@@ -53,6 +53,8 @@ const USE_CASE_TYPES = [
   { value: 'social-media', label: 'Social Media', note: '社交媒体 - 短视频、内容创作、用户互动' },
   { value: 'youtube', label: 'YouTube', note: 'YouTube 视频 - 长视频、教程、Vlog' },
   { value: 'tiktok', label: 'TikTok', note: 'TikTok 视频 - 短视频、热门内容、趋势视频' },
+  { value: 'instagram', label: 'Instagram', note: 'Instagram 视频 - Instagram Reels、Stories、内容营销' },
+  { value: 'twitter', label: 'Twitter (X)', note: 'Twitter/X 视频 - Twitter/X 视频内容、推文视频' },
   { value: 'product-demo', label: 'Product Demo', note: '产品演示 - 产品展示、功能演示、使用教程' },
   { value: 'ads', label: 'Advertising', note: '广告视频 - 商业广告、宣传片、促销视频' },
   { value: 'education', label: 'Education', note: '教育视频 - 课程讲解、知识科普、培训视频' },

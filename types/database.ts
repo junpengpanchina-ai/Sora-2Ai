@@ -569,7 +569,7 @@ export interface Database {
           h1: string
           description: string
           content: string
-          use_case_type: 'marketing' | 'social-media' | 'youtube' | 'tiktok' | 'product-demo' | 'ads' | 'education' | 'other'
+          use_case_type: 'marketing' | 'social-media' | 'youtube' | 'tiktok' | 'instagram' | 'twitter' | 'product-demo' | 'ads' | 'education' | 'other'
           industry: string | null
           featured_prompt_ids: string[]
           related_use_case_ids: string[]
@@ -592,7 +592,7 @@ export interface Database {
           h1: string
           description: string
           content: string
-          use_case_type: 'marketing' | 'social-media' | 'youtube' | 'tiktok' | 'product-demo' | 'ads' | 'education' | 'other'
+          use_case_type: 'marketing' | 'social-media' | 'youtube' | 'tiktok' | 'instagram' | 'twitter' | 'product-demo' | 'ads' | 'education' | 'other'
           industry?: string | null
           featured_prompt_ids?: string[]
           related_use_case_ids?: string[]

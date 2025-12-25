@@ -349,6 +349,8 @@ const USE_CASE_TYPE_LABELS: Record<string, string> = {
   'social-media': 'Social Media',
   youtube: 'YouTube',
   tiktok: 'TikTok',
+  instagram: 'Instagram',
+  twitter: 'Twitter (X)',
   'product-demo': 'Product Demo',
   ads: 'Advertising',
   education: 'Education',

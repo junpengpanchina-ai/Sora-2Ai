@@ -1180,6 +1180,8 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
               <option value="social-media">Social Media</option>
               <option value="youtube">YouTube</option>
               <option value="tiktok">TikTok</option>
+              <option value="instagram">Instagram</option>
+              <option value="twitter">Twitter (X)</option>
               <option value="product-demo">Product Demo</option>
               <option value="ads">Advertising</option>
               <option value="education">Education</option>

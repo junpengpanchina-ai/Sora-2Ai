@@ -11,6 +11,8 @@ const USE_CASE_TYPES = [
   'social-media',
   'youtube',
   'tiktok',
+  'instagram',
+  'twitter',
   'product-demo',
   'ads',
   'education',

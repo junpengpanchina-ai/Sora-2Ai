@@ -18,7 +18,7 @@ interface UseCaseRecord {
   h1: string
   description: string
   content: string
-  use_case_type: 'marketing' | 'social-media' | 'youtube' | 'tiktok' | 'product-demo' | 'ads' | 'education' | 'other'
+  use_case_type: 'marketing' | 'social-media' | 'youtube' | 'tiktok' | 'instagram' | 'twitter' | 'product-demo' | 'ads' | 'education' | 'other'
   industry: string | null
   featured_prompt_ids: string[]
   related_use_case_ids: string[]
@@ -67,6 +67,8 @@ const USE_CASE_TYPES = [
   { value: 'social-media', label: 'Social Media' },
   { value: 'youtube', label: 'YouTube' },
   { value: 'tiktok', label: 'TikTok' },
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'twitter', label: 'Twitter (X)' },
   { value: 'product-demo', label: 'Product Demo' },
   { value: 'ads', label: 'Advertising' },
   { value: 'education', label: 'Education' },
@@ -480,6 +482,43 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
     }
   }
 
+  const handleTogglePublish = async (id: string, currentStatus: boolean) => {
+    const action = currentStatus ? '下架' : '上架'
+    if (!confirm(`确定要${action}这个使用场景吗？`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/use-cases/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          is_published: !currentStatus,
+        }),
+      })
+
+      const payload = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        const messageParts: string[] = []
+        if (typeof payload.error === 'string' && payload.error.trim().length > 0) {
+          messageParts.push(payload.error.trim())
+        }
+        if (typeof payload.details === 'string' && payload.details.trim().length > 0) {
+          messageParts.push(payload.details.trim())
+        }
+        const message = messageParts.join('：') || `${action}使用场景失败`
+        throw new Error(message)
+      }
+
+      onShowBanner('success', `使用场景已${action}`)
+      await fetchUseCases()
+    } catch (err) {
+      console.error(`${action}使用场景失败:`, err)
+      onShowBanner('error', err instanceof Error ? err.message : `${action}使用场景失败`)
+    }
+  }
+
   const handleDeleteUseCase = async (id: string) => {
     if (!confirm('确定要删除这个使用场景吗？此操作无法撤销。')) {
       return
@@ -656,13 +695,73 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
             </select>
           </div>
 
-          {/* 批量审核操作 */}
+          {/* 批量操作 */}
           {selectedIds.size > 0 && (
             <div className="flex items-center gap-4 rounded-lg border border-energy-water bg-energy-water/10 p-4">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 已选择 {selectedIds.size} 项
               </span>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                {/* 批量上架/下架 */}
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('/api/admin/use-cases/batch-publish', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          ids: Array.from(selectedIds),
+                          action: 'publish',
+                        }),
+                      })
+                      const data = await response.json()
+                      if (response.ok) {
+                        onShowBanner('success', data.message || '批量上架成功')
+                        setSelectedIds(new Set())
+                        fetchUseCases()
+                      } else {
+                        onShowBanner('error', data.error || '批量上架失败')
+                      }
+                    } catch (error) {
+                      console.error('批量上架失败:', error)
+                      onShowBanner('error', '批量上架失败')
+                    }
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  📤 批量上架
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('/api/admin/use-cases/batch-publish', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          ids: Array.from(selectedIds),
+                          action: 'unpublish',
+                        }),
+                      })
+                      const data = await response.json()
+                      if (response.ok) {
+                        onShowBanner('success', data.message || '批量下架成功')
+                        setSelectedIds(new Set())
+                        fetchUseCases()
+                      } else {
+                        onShowBanner('error', data.error || '批量下架失败')
+                      }
+                    } catch (error) {
+                      console.error('批量下架失败:', error)
+                      onShowBanner('error', '批量下架失败')
+                    }
+                  }}
+                  className="bg-gray-600 hover:bg-gray-700 text-white"
+                >
+                  📥 批量下架
+                </Button>
+                {/* 批量审核 */}
                 <Button
                   size="sm"
                   onClick={async () => {
@@ -1024,6 +1123,13 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
                         <div className="flex gap-2">
                           <Button onClick={() => handleStartEdit(useCase)} size="sm" variant="secondary">
                             ✏️ 编辑
+                          </Button>
+                          <Button
+                            onClick={() => handleTogglePublish(useCase.id, useCase.is_published)}
+                            size="sm"
+                            className={useCase.is_published ? 'bg-gray-600 hover:bg-gray-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}
+                          >
+                            {useCase.is_published ? '📥 下架' : '📤 上架'}
                           </Button>
                           <Button
                             onClick={() => handleDeleteUseCase(useCase.id)}

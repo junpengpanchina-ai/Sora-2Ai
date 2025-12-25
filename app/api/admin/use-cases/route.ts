@@ -11,6 +11,8 @@ const USE_CASE_TYPES = [
   'social-media',
   'youtube',
   'tiktok',
+  'instagram',
+  'twitter',
   'product-demo',
   'ads',
   'education',
@@ -112,6 +114,16 @@ export async function GET(request: Request) {
       }
     }
 
+    // 添加搜索查询到总数统计中（在数据库层面搜索，支持所有数据）
+    if (searchQuery) {
+      // 转义特殊字符，避免 SQL 注入和语法错误
+      const escapedQuery = searchQuery.replace(/[%_\\]/g, (m) => `\\${m}`)
+      const searchPattern = `%${escapedQuery}%`
+      // 使用 or 查询在 title, description, slug 中搜索
+      // Supabase `or` 使用逗号分隔的表达式
+      countQuery = countQuery.or(`title.ilike.${searchPattern},description.ilike.${searchPattern},slug.ilike.${searchPattern}`)
+    }
+
     const { count, error: countError } = await countQuery
     if (countError) {
       console.error('[use-cases GET] 获取总数错误:', countError)
@@ -147,6 +159,16 @@ export async function GET(request: Request) {
       }
     }
 
+    // 添加搜索查询到数据查询中（在数据库层面搜索，支持所有数据）
+    if (searchQuery) {
+      // 转义特殊字符，避免 SQL 注入和语法错误
+      const escapedQuery = searchQuery.replace(/[%_\\]/g, (m) => `\\${m}`)
+      const searchPattern = `%${escapedQuery}%`
+      // 使用 or 查询在 title, description, slug 中搜索
+      // Supabase `or` 使用逗号分隔的表达式
+      query = query.or(`title.ilike.${searchPattern},description.ilike.${searchPattern},slug.ilike.${searchPattern}`)
+    }
+
     const { data, error } = await query
     if (error) {
       const info = extractSupabaseErrorInfo(error)
@@ -164,27 +186,12 @@ export async function GET(request: Request) {
     }
 
     const useCases = (Array.isArray(data) ? data : []) as Database['public']['Tables']['use_cases']['Row'][]
-
-    let filteredUseCases = useCases
-    let totalCount = typeof count === 'number' ? count : useCases.length
-
-    if (searchQuery) {
-      const lowered = searchQuery.toLowerCase()
-      filteredUseCases = useCases.filter((useCase) => {
-        const matchesTitle = useCase.title?.toLowerCase().includes(lowered)
-        const matchesDescription = useCase.description?.toLowerCase().includes(lowered)
-        const matchesSlug = useCase.slug?.toLowerCase().includes(lowered)
-        return matchesTitle || matchesDescription || matchesSlug
-      })
-      // 如果有搜索查询，总数需要重新计算（因为搜索是在客户端过滤的）
-      // 为了准确，我们可能需要重新查询，但为了性能，这里使用过滤后的数量
-      totalCount = filteredUseCases.length
-    }
+    const totalCount = typeof count === 'number' ? count : useCases.length
 
     return NextResponse.json({
       success: true,
-      useCases: filteredUseCases,
-      count: filteredUseCases.length,
+      useCases: useCases,
+      count: useCases.length,
       totalCount: totalCount,
       limit: limit,
       offset: offset,
