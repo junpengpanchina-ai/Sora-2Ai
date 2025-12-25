@@ -34,7 +34,7 @@ export default async function UseCasesIndexPage({
     .eq('quality_status', 'approved') // RLS policy requires both is_published=true AND quality_status='approved'
     .order('created_at', { ascending: false })
 
-  if (type !== 'all' && ['marketing', 'social-media', 'youtube', 'tiktok', 'product-demo', 'ads', 'education', 'other'].includes(type)) {
+  if (type !== 'all' && ['marketing', 'social-media', 'youtube', 'tiktok', 'instagram', 'twitter', 'product-demo', 'ads', 'education', 'other'].includes(type)) {
     query = query.eq('use_case_type', type)
   }
 

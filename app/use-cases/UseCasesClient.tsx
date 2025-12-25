@@ -20,6 +20,8 @@ const USE_CASE_TYPES = [
   { value: 'social-media', label: 'Social Media' },
   { value: 'youtube', label: 'YouTube' },
   { value: 'tiktok', label: 'TikTok' },
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'twitter', label: 'Twitter (X)' },
   { value: 'product-demo', label: 'Product Demo' },
   { value: 'ads', label: 'Advertising' },
   { value: 'education', label: 'Education' },
