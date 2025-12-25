@@ -17,12 +17,13 @@ import { createClient as createSupabaseClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import AdminPromptsManager from './AdminPromptsManager'
 import AdminKeywordsManager from './AdminKeywordsManager'
-import AdminGrsaiChatManager from './AdminGrsaiChatManager'
 import AdminHomepageManager from './AdminHomepageManager'
 import AdminBlogManager from './AdminBlogManager'
 import AdminUseCasesManager from './AdminUseCasesManager'
 import AdminComparePagesManager from './AdminComparePagesManager'
 import AdminBatchContentGenerator from './AdminBatchContentGenerator'
+import AdminChatManager from './AdminChatManager'
+import AdminSEOChatManager from './AdminSEOChatManager'
 
 interface UserStats {
   total_users: number
@@ -257,12 +258,13 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     | 'adjustments'
     | 'prompts'
     | 'keywords'
-    | 'grsai-chat'
     | 'homepage'
     | 'blog'
     | 'use-cases'
     | 'compare-pages'
     | 'batch-generator'
+    | 'seo-chat'
+    | 'admin-chat'
   
   const [activeTab, setActiveTab] = useState<TabType>(
     (tabFromUrl as TabType) || 'overview'
@@ -1147,7 +1149,8 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                   { value: 'use-cases', label: '使用场景' },
                   { value: 'compare-pages', label: '对比页' },
                   { value: 'batch-generator', label: '批量生成' },
-                  { value: 'grsai-chat', label: 'GRSAI Chat' },
+                  { value: 'seo-chat', label: 'SEO 助手' },
+                  { value: 'admin-chat', label: 'AI 助手' },
                   { value: 'homepage', label: '首页管理' },
                 ].map((tab) => (
                   <button
@@ -2170,7 +2173,8 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
             })()}
             {activeTab === 'compare-pages' && <AdminComparePagesManager onShowBanner={showBanner} />}
             {activeTab === 'batch-generator' && <AdminBatchContentGenerator onShowBanner={showBanner} />}
-            {activeTab === 'grsai-chat' && <AdminGrsaiChatManager onShowBanner={showBanner} />}
+            {activeTab === 'seo-chat' && <AdminSEOChatManager onShowBanner={showBanner} />}
+            {activeTab === 'admin-chat' && <AdminChatManager onShowBanner={showBanner} />}
             {activeTab === 'homepage' && <AdminHomepageManager onShowBanner={showBanner} />}
           </>
         )}
