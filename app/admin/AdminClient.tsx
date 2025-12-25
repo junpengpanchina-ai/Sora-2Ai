@@ -24,6 +24,7 @@ import AdminComparePagesManager from './AdminComparePagesManager'
 import AdminBatchContentGenerator from './AdminBatchContentGenerator'
 import AdminChatManager from './AdminChatManager'
 import AdminSEOChatManager from './AdminSEOChatManager'
+import AdminChatDebug from './AdminChatDebug'
 
 interface UserStats {
   total_users: number
@@ -265,6 +266,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     | 'batch-generator'
     | 'seo-chat'
     | 'admin-chat'
+    | 'chat-debug'
   
   const [activeTab, setActiveTab] = useState<TabType>(
     (tabFromUrl as TabType) || 'overview'
@@ -1151,6 +1153,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                   { value: 'batch-generator', label: '批量生成' },
                   { value: 'seo-chat', label: 'SEO 助手' },
                   { value: 'admin-chat', label: 'AI 助手' },
+                  { value: 'chat-debug', label: '聊天调试' },
                   { value: 'homepage', label: '首页管理' },
                 ].map((tab) => (
                   <button
@@ -2175,6 +2178,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
             {activeTab === 'batch-generator' && <AdminBatchContentGenerator onShowBanner={showBanner} />}
             {activeTab === 'seo-chat' && <AdminSEOChatManager onShowBanner={showBanner} />}
             {activeTab === 'admin-chat' && <AdminChatManager onShowBanner={showBanner} />}
+            {activeTab === 'chat-debug' && <AdminChatDebug onShowBanner={showBanner} />}
             {activeTab === 'homepage' && <AdminHomepageManager onShowBanner={showBanner} />}
           </>
         )}

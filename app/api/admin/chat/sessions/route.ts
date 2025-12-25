@@ -26,15 +26,44 @@ export async function GET() {
     )
 
     if (error) {
+      console.error('[Chat Sessions] 数据库查询错误:', {
+        error: error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorCode: (error as { code?: string })?.code,
+        errorDetails: (error as { details?: string })?.details,
+        adminUserId: adminUser.id,
+      })
       throw error
     }
 
-    return NextResponse.json({ success: true, data: sessions })
+    return NextResponse.json({ success: true, data: sessions || [] })
   } catch (error) {
     console.error('获取聊天会话失败:', error)
     const errorMessage = error instanceof Error ? error.message : '未知错误'
+    const errorDetails = error instanceof Error ? {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    } : String(error)
+    
+    // 尝试获取 adminUser，如果失败则为 undefined
+    let adminUserId: string | undefined
+    try {
+      const adminUser = await validateAdminSession()
+      adminUserId = adminUser?.id
+    } catch {
+      // 忽略认证错误
+    }
+    
     return NextResponse.json(
-      { success: false, error: errorMessage },
+      { 
+        success: false, 
+        error: errorMessage,
+        debug: {
+          errorDetails,
+          adminUserId,
+        },
+      },
       { status: 500 }
     )
   }
