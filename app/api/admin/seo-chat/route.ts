@@ -96,12 +96,14 @@ export async function POST(request: NextRequest) {
 
     // 如果有 sessionId，加载历史消息
     if (sessionId && saveHistory) {
-      const supabase = createSupabaseClient()
-      const { data: historyMessages, error: historyError } = await supabase
-        .from('admin_chat_messages')
-        .select('role, content, images')
-        .eq('session_id', sessionId)
-        .order('created_at', { ascending: true })
+      const supabase = await createSupabaseClient()
+      const { data: historyMessages, error: historyError } = await (
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase.from('admin_chat_messages') as any)
+          .select('role, content, images')
+          .eq('session_id', sessionId)
+          .order('created_at', { ascending: true })
+      )
 
       if (!historyError && historyMessages && historyMessages.length > 0) {
         // 将历史消息转换为 API 格式（排除 system 消息，因为我们已经有了）
@@ -113,7 +115,7 @@ export async function POST(request: NextRequest) {
         for (const msg of historyMessages) {
           if (msg.role === 'system') continue // 跳过系统消息
           
-          let content = msg.content || ''
+          let content = (msg.content as string) || ''
           
           // 如果有图片，添加到内容描述中
           if (msg.images && Array.isArray(msg.images) && msg.images.length > 0) {
@@ -246,7 +248,7 @@ async function saveMessagesToDatabase(
   taskType?: string
 ) {
   try {
-    const supabase = createSupabaseClient()
+    const supabase = await createSupabaseClient()
 
     // 保存用户消息
     const lastUserMessage = messages.find(m => m.role === 'user')
@@ -256,7 +258,8 @@ async function saveMessagesToDatabase(
         userContent = lastUserMessage.content
       }
 
-      await supabase.from('admin_chat_messages').insert({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from('admin_chat_messages') as any).insert({
         session_id: sessionId,
         role: 'user',
         content: userContent,
@@ -267,7 +270,8 @@ async function saveMessagesToDatabase(
 
     // 保存助手回复
     if (assistantResponse) {
-      await supabase.from('admin_chat_messages').insert({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from('admin_chat_messages') as any).insert({
         session_id: sessionId,
         role: 'assistant',
         content: assistantResponse,
@@ -277,11 +281,13 @@ async function saveMessagesToDatabase(
     }
 
     // 更新会话的 updated_at 和标题（如果是新会话，基于第一条消息生成标题）
-    const { data: session } = await supabase
-      .from('admin_chat_sessions')
-      .select('title')
-      .eq('id', sessionId)
-      .single()
+    const { data: session } = await (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase.from('admin_chat_sessions') as any)
+        .select('title')
+        .eq('id', sessionId)
+        .single()
+    )
 
     if (session && !session.title) {
       // 生成标题（基于任务类型和第一条消息）
@@ -300,18 +306,22 @@ async function saveMessagesToDatabase(
         title = preview || 'SEO 对话'
       }
 
-      await supabase
-        .from('admin_chat_sessions')
-        .update({ 
-          updated_at: new Date().toISOString(),
-          title,
-        })
-        .eq('id', sessionId)
+      await (
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase.from('admin_chat_sessions') as any)
+          .update({ 
+            updated_at: new Date().toISOString(),
+            title,
+          })
+          .eq('id', sessionId)
+      )
     } else {
-      await supabase
-        .from('admin_chat_sessions')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('id', sessionId)
+      await (
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase.from('admin_chat_sessions') as any)
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', sessionId)
+      )
     }
   } catch (error) {
     console.error('保存 SEO 聊天消息失败:', error)

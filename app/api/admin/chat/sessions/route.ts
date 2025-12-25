@@ -15,13 +15,15 @@ export async function GET() {
       return NextResponse.json({ success: false, error: '未授权' }, { status: 401 })
     }
 
-    const supabase = createSupabaseClient()
-    const { data: sessions, error } = await supabase
-      .from('admin_chat_sessions')
-      .select('*')
-      .eq('admin_user_id', adminUser.id)
-      .order('updated_at', { ascending: false })
-      .limit(100)
+    const supabase = await createSupabaseClient()
+    const { data: sessions, error } = await (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase.from('admin_chat_sessions') as any)
+        .select('*')
+        .eq('admin_user_id', adminUser.id)
+        .order('updated_at', { ascending: false })
+        .limit(100)
+    )
 
     if (error) {
       throw error
@@ -52,15 +54,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { title } = body
 
-    const supabase = createSupabaseClient()
-    const { data: session, error } = await supabase
-      .from('admin_chat_sessions')
-      .insert({
-        admin_user_id: adminUser.id,
-        title: title || '新对话',
-      })
-      .select()
-      .single()
+    const supabase = await createSupabaseClient()
+    const { data: session, error } = await (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase.from('admin_chat_sessions') as any)
+        .insert({
+          admin_user_id: adminUser.id,
+          title: title || '新对话',
+        })
+        .select()
+        .single()
+    )
 
     if (error) {
       throw error
@@ -95,12 +99,14 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: '缺少会话ID' }, { status: 400 })
     }
 
-    const supabase = createSupabaseClient()
-    const { error } = await supabase
-      .from('admin_chat_sessions')
-      .delete()
-      .eq('id', sessionId)
-      .eq('admin_user_id', adminUser.id) // 确保只能删除自己的会话
+    const supabase = await createSupabaseClient()
+    const { error } = await (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase.from('admin_chat_sessions') as any)
+        .delete()
+        .eq('id', sessionId)
+        .eq('admin_user_id', adminUser.id) // 确保只能删除自己的会话
+    )
 
     if (error) {
       throw error

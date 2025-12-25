@@ -22,26 +22,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: '缺少会话ID' }, { status: 400 })
     }
 
-    const supabase = createSupabaseClient()
+    const supabase = await createSupabaseClient()
     
     // 验证会话属于当前管理员
-    const { data: session, error: sessionError } = await supabase
-      .from('admin_chat_sessions')
-      .select('id')
-      .eq('id', sessionId)
-      .eq('admin_user_id', adminUser.id)
-      .single()
+    const { data: session, error: sessionError } = await (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase.from('admin_chat_sessions') as any)
+        .select('id')
+        .eq('id', sessionId)
+        .eq('admin_user_id', adminUser.id)
+        .single()
+    )
 
     if (sessionError || !session) {
       return NextResponse.json({ success: false, error: '会话不存在或无权限' }, { status: 403 })
     }
 
     // 获取消息列表
-    const { data: messages, error } = await supabase
-      .from('admin_chat_messages')
-      .select('*')
-      .eq('session_id', sessionId)
-      .order('created_at', { ascending: true })
+    const { data: messages, error } = await (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase.from('admin_chat_messages') as any)
+        .select('*')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: true })
+    )
 
     if (error) {
       throw error

@@ -75,9 +75,11 @@ export async function POST(request: NextRequest) {
 
     // 如果有 sessionId，加载历史消息
     if (sessionId && saveHistory) {
-      const supabase = createSupabaseClient()
-      const { data: historyMessages, error: historyError } = await supabase
-        .from('admin_chat_messages')
+      const supabase = await createSupabaseClient()
+      const { data: historyMessages, error: historyError } = await (
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        supabase.from('admin_chat_messages') as any
+      )
         .select('role, content, images')
         .eq('session_id', sessionId)
         .order('created_at', { ascending: true })
@@ -89,8 +91,8 @@ export async function POST(request: NextRequest) {
           content: string
         }> = []
 
-        for (const msg of historyMessages) {
-          let content = msg.content || ''
+        for (const msg of historyMessages as Array<{ role: string; content: string | null; images: unknown }>) {
+          let content = (msg.content || '') as string
           
           // 如果有图片，添加到内容描述中
           if (msg.images && Array.isArray(msg.images) && msg.images.length > 0) {
@@ -205,7 +207,7 @@ async function saveMessagesToDatabase(
   userImages: string[]
 ) {
   try {
-    const supabase = createSupabaseClient()
+    const supabase = await createSupabaseClient()
 
     // 保存用户消息
     const lastUserMessage = messages[messages.length - 1]
@@ -218,7 +220,8 @@ async function saveMessagesToDatabase(
         userContent = textPart?.text || ''
       }
 
-      await supabase.from('admin_chat_messages').insert({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from('admin_chat_messages') as any).insert({
         session_id: sessionId,
         role: 'user',
         content: userContent,
@@ -229,7 +232,8 @@ async function saveMessagesToDatabase(
 
     // 保存助手回复
     if (assistantResponse) {
-      await supabase.from('admin_chat_messages').insert({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from('admin_chat_messages') as any).insert({
         session_id: sessionId,
         role: 'assistant',
         content: assistantResponse,
@@ -239,10 +243,12 @@ async function saveMessagesToDatabase(
     }
 
     // 更新会话的 updated_at
-    await supabase
-      .from('admin_chat_sessions')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('id', sessionId)
+    await (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase.from('admin_chat_sessions') as any)
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', sessionId)
+    )
   } catch (error) {
     console.error('保存聊天消息失败:', error)
     // 不抛出错误，避免影响 API 响应
@@ -260,13 +266,15 @@ export async function GET() {
       return NextResponse.json({ success: false, error: '未授权' }, { status: 401 })
     }
 
-    const supabase = createSupabaseClient()
-    const { data: sessions, error } = await supabase
-      .from('admin_chat_sessions')
-      .select('*')
-      .eq('admin_user_id', adminUser.id)
-      .order('updated_at', { ascending: false })
-      .limit(50)
+    const supabase = await createSupabaseClient()
+    const { data: sessions, error } = await (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase.from('admin_chat_sessions') as any)
+        .select('*')
+        .eq('admin_user_id', adminUser.id)
+        .order('updated_at', { ascending: false })
+        .limit(50)
+    )
 
     if (error) {
       throw error
