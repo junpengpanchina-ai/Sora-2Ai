@@ -110,11 +110,35 @@ export async function generateAndSaveScenes(
   const { createChatCompletion } = await import('@/lib/grsai/client')
   const { isColdIndustry, needsProModel } = await import('./detect-cold-industry')
   const { checkGenerationQuality } = await import('./check-generation-quality')
-  const { selectModelForIndustryScene, getGeoDefaultModel } = await import('@/lib/model-selector/industry-scene-selector')
+  const { selectModelForIndustryScene } = await import('@/lib/model-selector/industry-scene-selector')
   
-  const systemPrompt = `You are a marketing content expert specializing in high-converting video marketing scenarios. Your goal is to generate actionable, conversion-focused marketing video use cases that solve real business pain points and drive customer engagement. All output must be in English.
+  const systemPrompt = `You are a marketing content expert specializing in high-converting video marketing scenarios optimized for both SEO and GEO (Generative Engine Optimization). Your goal is to generate actionable, conversion-focused marketing video use cases that solve real business pain points and drive customer engagement. All output must be in English.
 
 CRITICAL: The AI video platform ONLY supports 10-second or 15-second videos. NEVER mention any duration longer than 15 seconds (such as 20 seconds, 30 seconds, 45 seconds, 60 seconds, 1 minute, 2 minutes, etc.). When describing video examples, ALWAYS use "10 seconds" or "15 seconds" only.
+
+GEO Optimization Requirements (for AI search citation - ChatGPT/Gemini/Perplexity):
+1. Answer-First Structure (GEO-1):
+   - Start with a clear, citable definition: "In [industry], AI-generated videos are commonly used for [use case]."
+   - Follow with a list of typical applications (noun phrases, not marketing copy)
+   - End with a summary sentence explaining the purpose
+
+2. List Format (GEO-2):
+   - Use noun phrases, NOT marketing sentences
+   - ✅ Good: "Product demo videos", "Onboarding explainer clips", "Social media short-form ads"
+   - ❌ Bad: "Boost your brand visibility", "Increase engagement dramatically"
+   - AI prefers encyclopedia-style expressions over marketing copy
+
+3. How-to Steps (GEO-3):
+   - Include clear, actionable steps
+   - Format: "1. [action], 2. [action], 3. [action]"
+
+4. FAQ Style (GEO-4):
+   - Answer questions a non-expert would ask
+   - Use simple, direct questions: "Is AI video suitable for [industry]?", "Do I need [equipment]?", "Which platform works best?"
+   - Keep answers 2-4 sentences, no marketing jargon
+
+5. Industry + Scene + Platform (GEO-5):
+   - Must clearly identify at least 2 of: industry, use case scenario, platform
 
 Focus on marketing scenarios that:
 - Solve specific customer pain points
@@ -124,27 +148,19 @@ Focus on marketing scenarios that:
 - Are suitable for social media marketing (TikTok, Instagram, YouTube, Twitter/X)
 - Generate repeatable, scalable content ideas`
 
-  // 🔥 优先使用配置表中的模型选择（结合GEO和行业×场景）
+  // 🔥 优先使用场景应用配置（简化版，按场景应用配置，自动应用到所有行业）
   const modelSelection = await selectModelForIndustryScene(
     industry,
     useCaseType as 'advertising-promotion' | 'social-media-content' | 'product-demo-showcase' | 'brand-storytelling' | 'education-explainer' | 'ugc-creator-content',
     1 // 第一次尝试
   )
   
-  // 如果没有配置，使用GEO默认模型
-  const geoDefaultModel = await getGeoDefaultModel(geo)
-  
-  // 确定使用的模型：优先使用配置，其次使用GEO默认，最后使用默认策略
-  let currentModel = modelSelection.model
+  // 确定使用的模型：场景配置优先级最高，如果没有配置则使用默认策略
+  const currentModel = modelSelection.model
   const fallbackModel = modelSelection.nextFallback || 'gemini-3-flash' // Fallback模型
   const ultimateModel = 'gemini-3-pro' // 终极模型
   
-  if (modelSelection.model === 'gemini-2.5-flash' && geoDefaultModel !== 'gemini-2.5-flash') {
-    // 如果配置是默认值，但GEO有特殊配置，使用GEO配置
-    currentModel = geoDefaultModel
-  }
-  
-  console.log(`[${industry}] GEO: ${geo}, 模型选择: ${currentModel}, Fallback: ${fallbackModel}, 原因: ${modelSelection.reason}`)
+  console.log(`[${industry}] GEO: ${geo}, 场景: ${useCaseType}, 模型选择: ${currentModel}, Fallback: ${fallbackModel}, 原因: ${modelSelection.reason}`)
   
   // 兼容旧的检测逻辑（如果没有配置则使用）
   const needsPro = needsProModel(industry)
@@ -233,28 +249,34 @@ Focus on marketing scenarios that:
     const userPrompt = `Generate ${currentBatchSize} highly specific, conversion-focused marketing video scenarios for the following target market:
 
 Target Market: ${industry}
+Use Case Type: ${useCaseType}
 
-CRITICAL: Generate MARKETING SCENARIOS, not industry encyclopedia entries. Focus on:
+CRITICAL: Generate MARKETING SCENARIOS optimized for GEO (Generative Engine Optimization), not industry encyclopedia entries. Focus on:
 - Real customer pain points that videos can solve
 - Conversion-focused content ideas that drive sales/engagement
 - Scalable marketing use cases that can be repeated 1000+ times
 - Social media-ready scenarios (TikTok, Instagram, YouTube, Twitter/X)
 
+GEO Structure Requirements (for AI search citation):
+Each scenario must follow this structure:
+1. Answer-First (50-80 chars): "In [industry], AI videos are used for [specific use case]."
+2. List of Applications (noun phrases only):
+   - Use noun phrases: "Product demo videos", "Onboarding clips", "Social media ads"
+   - NOT marketing copy: "Boost visibility", "Increase engagement"
+3. Context & Pain Point (100-150 chars): Who, what, when, why
+4. Video Solution (100-150 chars): Specific video idea that solves the pain point
+5. Example Prompt (50-80 chars): 10-15 seconds only
+
 Requirements:
 - ${currentBatchSize} marketing scenarios
 - Each scenario = 300–500 characters (detailed marketing use case description)
 - Must be specific marketing scenarios, NOT generic industry descriptions
-- Each scenario must describe:
-  1. Specific marketing context (who, what, when, why)
-  2. Customer pain point or challenge this video addresses
-  3. Marketing goal (conversion, engagement, awareness, etc.)
-  4. Video content idea that solves the pain point
-  5. Example video prompt (10-15 seconds only)
-- Focus on scenarios where businesses would repeatedly create videos for ongoing marketing
+- Each scenario must clearly identify: industry + use case scenario + platform (at least 2 of 3)
+- Use encyclopedia-style language (AI-friendly), not marketing jargon
 - IMPORTANT: When mentioning video duration, ALWAYS use "10 seconds" or "15 seconds" ONLY. NEVER mention "20 seconds", "30 seconds", "45 seconds", "60 seconds", "1 minute", "2 minutes", or any duration longer than 15 seconds.
 - Format as a clean JSON array: 
 [
-  {"id": 1, "use_case": "Detailed 300-500 character marketing scenario description including: specific context, customer pain point, marketing goal, video idea, and example prompt (video duration: 10 seconds or 15 seconds ONLY)"},
+  {"id": 1, "use_case": "In [industry], AI videos are used for [use case]. Typical applications: [noun phrase list]. [Context & pain point]. [Video solution]. Example: [10-15 second prompt]"},
   {"id": 2, "use_case": "..."},
   ...
   {"id": ${currentBatchSize}, "use_case": "..."}

@@ -27,7 +27,9 @@ export const SEO_CONTENT_TEMPLATES: PromptTemplate[] = [
       { key: 'keyword', label: '目标关键词', required: false, placeholder: '例如：ai fitness video generator' },
       { key: 'style', label: '视频风格', required: false, placeholder: '例如：真实写实、动漫、商业' },
     ],
-    template: `You are an experienced SEO content writer. Please generate a high-quality, indexable use case page for an AI video generation platform (Sora2) based on the following parameters.
+    template: `You are an experienced SEO content writer specializing in both SEO (Google ranking) and GEO (Generative Engine Optimization - AI search citation). Generate a high-quality, indexable use case page for an AI video generation platform (Sora2) that can be directly quoted by ChatGPT, Gemini, and Perplexity. All content must be in English.
+
+CRITICAL: The AI video platform ONLY supports 10-second or 15-second videos. NEVER mention any duration longer than 15 seconds (such as 20 seconds, 30 seconds, 45 seconds, 60 seconds, 1 minute, 2 minutes, etc.). When describing video examples, ALWAYS use "10 seconds" or "15 seconds" only.
 
 【Platform Features】
 - Text-to-video generation
@@ -44,24 +46,50 @@ export const SEO_CONTENT_TEMPLATES: PromptTemplate[] = [
 - All content must be in English
 - IMPORTANT: When mentioning video duration, ALWAYS use "10 seconds" or "15 seconds". NEVER mention "2 minutes", "1 minute", or any duration longer than 15 seconds.
 
+【GEO Optimization Requirements】
+1. Answer-First Structure (GEO-1): Start with "In [industry], AI-generated videos are commonly used for [use case]." Follow with typical applications list (noun phrases).
+2. List Format (GEO-2): Use noun phrases, NOT marketing sentences (e.g., "Product demo videos", not "Boost your brand visibility").
+3. FAQ Style (GEO-4): Answer questions non-experts would ask (e.g., "Is AI video suitable for [industry]?", "Do I need [equipment]?"). Keep answers 2-4 sentences, no marketing jargon.
+4. Industry + Scene + Platform (GEO-5): Must clearly identify at least 2 of: industry, use case scenario, platform.
+
 【Parameters】
 Use Case: {{scene}}
 Target Industry: {{industry}}
 Target Keyword: {{keyword}}
 Video Style: {{style}}
 
-【Content Structure】
+【Content Structure - SEO + GEO Optimized】
 H1: [Main title based on the use case, e.g., "AI Video Generation for {{scene}}"]
-H2: Introduction to this use case (explain what it is)
+
+H2: Introduction (GEO-1: Answer-First Structure - 150-200 words)
+Start with: "In {{industry}}, AI-generated videos are commonly used for {{scene}}."
+Follow with:
+- Typical applications include: [list of noun phrases]
+- This page explains how teams use AI video tools for this purpose, which platforms are most suitable, and practical steps to get started.
+
 H2: Why AI video is suitable for this scenario (3-5 points)
+Use noun phrases in lists:
+✅ Good: "Product demo videos", "Onboarding clips", "Social media ads"
+❌ Bad: "Boost your brand visibility", "Increase engagement dramatically"
+
 H2: What Sora2 can do in this scenario (3-6 sub-scenarios with H3 headings)
+List format with noun phrases
+
 H2: Video generation examples (text-to-video examples)
-H2: Frequently Asked Questions (3-5 questions about this scenario)
+Use noun phrases for examples
+
+H2: Frequently Asked Questions (GEO-4: "傻问题化" - Answer questions non-experts would ask)
+Must include at least 3 questions like:
+- "Is AI video suitable for {{industry}}?"
+- "Do I need filming equipment for {{scene}}?"
+- "Which platform works best for {{scene}} in {{industry}}?"
+Keep answers 2-4 sentences, no marketing jargon.
+
 H2: Target Audience / Applicable Industries
 
 IMPORTANT: You MUST start with an H1 heading (single #). The H1 should be the main title of the page.
 
-Please output high-quality SEO content in English.`,
+Please output high-quality SEO + GEO optimized content in English.`,
   },
   {
     id: 'long-tail-keyword',
