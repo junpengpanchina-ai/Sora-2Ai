@@ -25,6 +25,8 @@ import AdminBatchContentGenerator from './AdminBatchContentGenerator'
 import AdminChatManager from './AdminChatManager'
 import AdminSEOChatManager from './AdminSEOChatManager'
 import AdminChatDebug from './AdminChatDebug'
+import AdminGeoManager from './AdminGeoManager'
+import AdminIndustryModelConfig from './AdminIndustryModelConfig'
 
 interface UserStats {
   total_users: number
@@ -267,6 +269,8 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     | 'seo-chat'
     | 'admin-chat'
     | 'chat-debug'
+    | 'geo'
+    | 'model-config'
   
   const [activeTab, setActiveTab] = useState<TabType>(
     (tabFromUrl as TabType) || 'overview'
@@ -1155,6 +1159,8 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                   { value: 'admin-chat', label: 'AI 助手' },
                   { value: 'chat-debug', label: '聊天调试' },
                   { value: 'homepage', label: '首页管理' },
+                  { value: 'geo', label: 'GEO配置' },
+                  { value: 'model-config', label: '模型配置' },
                 ].map((tab) => (
                   <button
                     key={tab.value}
@@ -2180,6 +2186,8 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
             {activeTab === 'admin-chat' && <AdminChatManager onShowBanner={showBanner} />}
             {activeTab === 'chat-debug' && <AdminChatDebug onShowBanner={showBanner} />}
             {activeTab === 'homepage' && <AdminHomepageManager onShowBanner={showBanner} />}
+            {activeTab === 'geo' && <AdminGeoManager onShowBanner={showBanner} />}
+            {activeTab === 'model-config' && <AdminIndustryModelConfig onShowBanner={showBanner} />}
           </>
         )}
       </main>

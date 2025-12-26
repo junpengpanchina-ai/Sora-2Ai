@@ -202,9 +202,97 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // 检查 API Key 配置
+    const apiKey = process.env.GRSAI_API_KEY
+    if (!apiKey) {
+      console.error('[SEO Chat] GRSAI_API_KEY 未配置')
+      return NextResponse.json({
+        success: false,
+        error: 'API Key 未配置',
+        debug: {
+          suggestion: '请检查环境变量 GRSAI_API_KEY 是否已设置',
+        },
+      }, { status: 500 })
+    }
+
     // 非流式响应
     const response = await createChatCompletion(chatParams)
-    const assistantContent = response.choices?.[0]?.message?.content || ''
+    
+    // 检查响应是否有效
+    if (!response.choices || response.choices.length === 0) {
+      // 记录详细的诊断信息
+      const apiKeyPrefix = apiKey ? apiKey.substring(0, 10) + '...' : '未配置'
+      const chatHost = process.env.GRSAI_CHAT_HOST || 'https://api.grsai.com'
+      
+      console.error('[SEO Chat] ⚠️⚠️⚠️ API 返回空 choices 数组！', {
+        model: selectedModel,
+        apiKeyConfigured: !!apiKey,
+        apiKeyPrefix,
+        chatHost,
+        responseStructure: {
+          hasChoices: !!response.choices,
+          choicesLength: response.choices?.length || 0,
+          hasId: !!response.id,
+          hasModel: !!response.model,
+          hasObject: !!response.object,
+          fullResponseKeys: Object.keys(response || {}),
+        },
+        requestInfo: {
+          messageLength: userMessage?.length || 0,
+          imagesCount: images?.length || 0,
+          taskType: seoTaskAnalysis.taskType,
+        },
+      })
+      
+      // 检查响应中是否有错误信息
+      const errorInfo = (response as { error?: { message?: string; type?: string; code?: string } })?.error
+      
+      return NextResponse.json({
+        success: false,
+        error: errorInfo?.message || 'API 返回空 choices 数组，可能请求被拒绝或格式错误',
+        debug: {
+          model: selectedModel,
+          apiKeyConfigured: !!apiKey,
+          apiKeyPrefix,
+          chatHost,
+          errorInfo,
+          responseStructure: {
+            hasChoices: !!response.choices,
+            choicesLength: response.choices?.length || 0,
+            hasId: !!response.id,
+            hasModel: !!response.model,
+            fullResponse: process.env.NODE_ENV === 'development' ? response : undefined,
+          },
+          suggestions: [
+            !apiKey ? '检查 GRSAI_API_KEY 环境变量是否已配置' : null,
+            '检查 API Key 是否有效（未过期、有足够权限）',
+            '检查 API 服务是否可用（https://api.grsai.com）',
+            '检查请求内容是否被过滤或拒绝',
+            '查看服务器日志获取更多详细信息',
+          ].filter(Boolean),
+        },
+      }, { status: 500 })
+    }
+
+    if (!response.choices[0]?.message?.content) {
+      console.error('[SEO Chat] API 返回空 content！完整响应:', JSON.stringify(response, null, 2))
+      return NextResponse.json({
+        success: false,
+        error: 'API 返回空 content，可能内容被过滤或拒绝',
+        debug: {
+          model: selectedModel,
+          responseStructure: {
+            hasChoices: !!response.choices,
+            choicesLength: response.choices?.length || 0,
+            hasContent: !!response.choices[0]?.message?.content,
+            finishReason: response.choices[0]?.finish_reason,
+            fullResponse: process.env.NODE_ENV === 'development' ? response : undefined,
+          },
+        },
+      }, { status: 500 })
+    }
+
+    const assistantContent = response.choices[0].message.content
 
     // 保存消息到数据库
     if (saveHistory && sessionId) {
@@ -228,8 +316,28 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('SEO Chat API 错误:', error)
     const errorMessage = error instanceof Error ? error.message : '未知错误'
+    
+    // 如果是 API Key 相关错误，提供更详细的提示
+    let errorDetails = errorMessage
+    if (error instanceof Error) {
+      if (error.message.includes('GRSAI_API_KEY')) {
+        errorDetails = 'API Key 未配置或无效，请检查环境变量 GRSAI_API_KEY'
+      } else if (error.message.includes('空 choices')) {
+        errorDetails = 'API 返回空响应，可能 API Key 无效或服务不可用'
+      }
+    }
+    
     return NextResponse.json(
-      { success: false, error: errorMessage },
+      { 
+        success: false, 
+        error: errorDetails,
+        debug: {
+          errorMessage,
+          suggestion: errorMessage.includes('GRSAI_API_KEY') 
+            ? '请检查环境变量 GRSAI_API_KEY 是否已正确配置'
+            : '查看服务器日志获取更多详细信息',
+        },
+      },
       { status: 500 }
     )
   }
