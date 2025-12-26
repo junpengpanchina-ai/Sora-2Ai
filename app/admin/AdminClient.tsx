@@ -25,8 +25,6 @@ import AdminBatchContentGenerator from './AdminBatchContentGenerator'
 import AdminChatManager from './AdminChatManager'
 import AdminSEOChatManager from './AdminSEOChatManager'
 import AdminChatDebug from './AdminChatDebug'
-import AdminGeoManager from './AdminGeoManager'
-import AdminIndustryModelConfig from './AdminIndustryModelConfig'
 import AdminSceneModelConfig from './AdminSceneModelConfig'
 
 interface UserStats {

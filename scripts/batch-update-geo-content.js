@@ -298,40 +298,56 @@ async function main() {
   let failCount = 0
   const errors = []
   
-  // 分批处理
+  // 分批处理（并发处理以提高速度）
+  const concurrency = 10 // 增加并发数到10条（提高速度）
   for (let i = 0; i < useCases.length; i += batchSize) {
     const batch = useCases.slice(i, i + batchSize)
     console.log(`\n📦 处理批次 ${Math.floor(i / batchSize) + 1}/${Math.ceil(useCases.length / batchSize)} (${batch.length} 条)`)
     
-    for (const useCase of batch) {
-      try {
-        console.log(`\n[${i + batch.indexOf(useCase) + 1}/${useCases.length}] 处理: ${useCase.title}`)
-        
-        // 生成 GEO 优化内容
-        console.log('  ⏳ 生成 GEO 优化内容...')
-        const newContent = await generateGEOContent(useCase)
-        console.log(`  ✅ 生成成功 (${newContent.length} 字符)`)
-        
-        // 更新数据库
-        console.log('  ⏳ 更新数据库...')
-        const result = await updateUseCase(supabase, useCase, newContent, dryRun)
-        console.log(`  ✅ 更新成功`)
-        
-        successCount++
-        
-        // 避免 API 限流
-        await new Promise(resolve => setTimeout(resolve, 1000))
-      } catch (error) {
-        console.error(`  ❌ 失败: ${error.message}`)
-        failCount++
-        errors.push({ id: useCase.id, title: useCase.title, error: error.message })
+    // 并发处理批次内的内容
+    for (let j = 0; j < batch.length; j += concurrency) {
+      const concurrentBatch = batch.slice(j, j + concurrency)
+      const promises = concurrentBatch.map(async (useCase, idx) => {
+        const globalIndex = i + j + idx + 1
+        try {
+          console.log(`\n[${globalIndex}/${useCases.length}] 处理: ${useCase.title.substring(0, 50)}...`)
+          
+          // 生成 GEO 优化内容
+          const newContent = await generateGEOContent(useCase)
+          console.log(`[${globalIndex}] ✅ 生成成功 (${newContent.length} 字符)`)
+          
+          // 更新数据库
+          const result = await updateUseCase(supabase, useCase, newContent, dryRun)
+          console.log(`[${globalIndex}] ✅ 更新成功`)
+          
+          return { success: true, useCase }
+        } catch (error) {
+          console.error(`[${globalIndex}] ❌ 失败: ${error.message}`)
+          return { success: false, useCase, error: error.message }
+        }
+      })
+      
+      const results = await Promise.all(promises)
+      
+      results.forEach(result => {
+        if (result.success) {
+          successCount++
+        } else {
+          failCount++
+          errors.push({ id: result.useCase.id, title: result.useCase.title, error: result.error })
+        }
+      })
+      
+      // 并发批次间短暂延迟（减少延迟以提高速度）
+      if (j + concurrency < batch.length) {
+        await new Promise(resolve => setTimeout(resolve, 50))
       }
     }
     
-    // 批次间延迟
+    // 批次间延迟（减少延迟以加快速度）
     if (i + batchSize < useCases.length) {
-      console.log(`\n⏸️  批次间休息 2 秒...`)
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      console.log(`\n⏸️  批次间休息 0.2 秒...`)
+      await new Promise(resolve => setTimeout(resolve, 200))
     }
   }
   
