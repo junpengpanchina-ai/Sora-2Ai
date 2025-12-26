@@ -13,6 +13,17 @@ import { z } from 'zod'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+// Helper function to ensure UTF-8 encoding in JSON responses
+function jsonResponse<T = unknown>(data: T, init?: ResponseInit): NextResponse {
+  return NextResponse.json(data, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      ...init?.headers,
+    },
+  })
+}
+
 // Request parameter validation schema
 const generateVideoSchema = z.object({
   prompt: z.string().min(1, 'Prompt cannot be empty'),
@@ -36,7 +47,7 @@ export async function POST(request: NextRequest) {
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/ef411af9-a357-4528-93a0-017b8708eb6e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/video/generate/route.ts:30',message:'Video generate POST - CSRF REJECTED',data:{origin,referer},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'D'})}).catch(()=>{});
     // #endregion
-    return NextResponse.json(
+    return jsonResponse(
       { error: 'Invalid origin' },
       { status: 403 }
     )
@@ -50,7 +61,7 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json(
+      return jsonResponse(
         { error: 'Unauthorized, please login first' },
         { status: 401 }
       )
@@ -65,7 +76,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         googleId: user.user_metadata?.provider_id || user.user_metadata?.sub || user.id,
       })
-      return NextResponse.json(
+      return jsonResponse(
         { 
           error: 'User not found or failed to create user',
           details: 'Please try logging out and logging back in, or contact support if the issue persists.'
@@ -74,8 +85,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Parse request body
+    // Parse request body with UTF-8 encoding
     const body = await request.json()
+    
+    // Validate and normalize prompt encoding
+    if (body.prompt && typeof body.prompt === 'string') {
+      // Ensure prompt is valid UTF-8 string
+      try {
+        // Normalize whitespace and trim
+        body.prompt = body.prompt
+          .replace(/^create\s+a\s+professional\s+create\s+a\s+professional\s+/i, 'Create a professional ')
+          .replace(/\s+/g, ' ')
+          .trim()
+        
+        // Validate UTF-8 encoding (check for invalid characters)
+        const utf8Valid = Buffer.from(body.prompt, 'utf8').toString('utf8') === body.prompt
+        if (!utf8Valid) {
+          console.warn('[video/generate] Potential encoding issue detected in prompt')
+        }
+      } catch (error) {
+        console.error('[video/generate] Error normalizing prompt:', error)
+      }
+    }
+    
     const validatedData = generateVideoSchema.parse(body)
 
     // Build webhook URL (if using callback)
@@ -118,7 +150,7 @@ export async function POST(request: NextRequest) {
 
     if (taskError || !videoTask) {
       console.error('Failed to create video task:', taskError)
-      return NextResponse.json(
+      return jsonResponse(
         { error: 'Failed to create video task', details: taskError?.message },
         { status: 500 }
       )
@@ -139,7 +171,7 @@ export async function POST(request: NextRequest) {
         .delete()
         .eq('id', videoTask.id)
       
-      return NextResponse.json(
+      return jsonResponse(
         { error: deductResult.error || 'Insufficient credits' },
         { status: 400 }
       )
@@ -187,28 +219,31 @@ export async function POST(request: NextRequest) {
       
       // Provide more helpful error message
       let userFriendlyError = errorMessage
-      if (errorMessage.includes('GRSAI_API_KEY 环境变量未配置')) {
-        userFriendlyError = 'API Key 未配置。请检查服务器配置中的 GRSAI_API_KEY 环境变量。'
+      if (errorMessage.includes('GRSAI_API_KEY 环境变量未配置') || errorMessage.includes('GRSAI_API_KEY environment variable not configured')) {
+        userFriendlyError = 'API Key not configured. Please check the GRSAI_API_KEY environment variable in server configuration.'
       } else if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
-        userFriendlyError = 'API Key 无效或已过期。请检查 GRSAI_API_KEY 配置。'
+        userFriendlyError = 'API Key is invalid or expired. Please check the GRSAI_API_KEY configuration.'
       } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
-        userFriendlyError = 'API Key 没有权限访问此服务。请检查 API Key 配置。'
+        userFriendlyError = 'API Key does not have permission to access this service. Please check the API Key configuration.'
       } else if (errorMessage.includes('429') || errorMessage.includes('Rate limit')) {
-        userFriendlyError = 'API 请求频率过高，请稍后重试。'
+        userFriendlyError = 'API request rate limit exceeded. Please try again later.'
       } else if (errorMessage.includes('500') || errorMessage.includes('502') || errorMessage.includes('503')) {
-        userFriendlyError = 'API 服务暂时不可用，请稍后重试。'
+        userFriendlyError = 'API service is temporarily unavailable. Please try again later.'
       } else if (
         errorMessage.includes('fetch failed') ||
         errorMessage.includes('连接失败') ||
         errorMessage.includes('连接被重置') ||
         errorMessage.includes('ECONNRESET') ||
         errorMessage.includes('socket hang up') ||
-        errorMessage.includes('请求超时')
+        errorMessage.includes('请求超时') ||
+        errorMessage.includes('Connection failed') ||
+        errorMessage.includes('Connection reset') ||
+        errorMessage.includes('Request timeout')
       ) {
-        userFriendlyError = '网络连接问题，系统已自动重试。如果问题持续，请检查网络连接或稍后重试。'
+        userFriendlyError = 'Network connection issue. The system has automatically retried. If the problem persists, please check your network connection or try again later.'
       }
       
-      return NextResponse.json(
+      return jsonResponse(
         { 
           error: 'Failed to call video generation API', 
           details: userFriendlyError,
@@ -283,7 +318,7 @@ export async function POST(request: NextRequest) {
           })
           .eq('id', videoTask.id)
 
-        return NextResponse.json({
+        return jsonResponse({
           success: true,
           status: 'succeeded',
           video_url: finalVideoUrl,
@@ -323,7 +358,7 @@ export async function POST(request: NextRequest) {
           })
           .eq('id', videoTask.id)
 
-        return NextResponse.json({
+        return jsonResponse({
           success: false,
           status: 'failed',
           error: friendlyError.message,
@@ -341,7 +376,7 @@ export async function POST(request: NextRequest) {
 
     // If using polling method, return task ID for frontend polling
     if (taskId) {
-      return NextResponse.json({
+      return jsonResponse({
         success: true,
         status: 'processing',
         task_id: videoTask.id, // Return our internal task ID
@@ -351,7 +386,7 @@ export async function POST(request: NextRequest) {
     }
 
     // If using webhook, return task ID
-    return NextResponse.json({
+    return jsonResponse({
       success: true,
       status: 'processing',
       task_id: videoTask.id, // Return our internal task ID
@@ -362,13 +397,13 @@ export async function POST(request: NextRequest) {
     console.error('Failed to generate video:', error)
     
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
+      return jsonResponse(
         { error: 'Parameter validation failed', details: error.errors },
         { status: 400 }
       )
     }
 
-    return NextResponse.json(
+    return jsonResponse(
       { error: 'Failed to generate video', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )

@@ -5,12 +5,12 @@
 export async function generateIndustryScenes(
   industry: string,
   scenesPerIndustry: number,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _useCaseType: string // 保留参数以保持接口一致性
+  useCaseType: string // 使用场景类型来选择模型
 ): Promise<Array<{ id: number; use_case: string }>> {
   const { createChatCompletion } = await import('@/lib/grsai/client')
   const { isColdIndustry, needsProModel } = await import('./detect-cold-industry')
   const { checkGenerationQuality } = await import('./check-generation-quality')
+  const { selectModelForIndustryScene } = await import('@/lib/model-selector/industry-scene-selector')
   
   const systemPrompt = `You are a marketing content expert specializing in high-converting video marketing scenarios. Your goal is to generate actionable, conversion-focused marketing video use cases that solve real business pain points and drive customer engagement. All output must be in English.
 
@@ -29,17 +29,18 @@ Focus on marketing scenarios that:
   // Level 2: gemini-3-flash（联网搜索，中等成本）
   // Level 3: gemini-3-pro（最高质量，高成本，极端情况）
   
-  // 检测是否需要极端专业模型（Level 3）
-  const needsPro = needsProModel(industry)
-  if (needsPro) {
-    console.log(`[${industry}] 检测到极端专业领域，直接使用 gemini-3-pro（最高质量）`)
-  }
+  // 优先使用配置表中的模型选择（如果配置了的话）
+  const modelSelection = await selectModelForIndustryScene(
+    industry,
+    useCaseType as 'advertising-promotion' | 'social-media-content' | 'product-demo-showcase' | 'brand-storytelling' | 'education-explainer' | 'ugc-creator-content',
+    1 // 第一次尝试
+  )
   
-  // 检测是否为冷门行业（Level 2）
+  console.log(`[${industry}] 模型选择: ${modelSelection.model}, 原因: ${modelSelection.reason}`)
+  
+  // 兼容旧的检测逻辑（如果没有配置则使用）
+  let needsPro = needsProModel(industry)
   const isCold = isColdIndustry(industry)
-  if (isCold && !needsPro) {
-    console.log(`[${industry}] 检测到冷门行业，直接使用 gemini-3-flash（联网搜索）`)
-  }
 
   // 如果数量超过 50，分批生成
   const batchSize = Math.min(scenesPerIndustry, 50)
@@ -85,15 +86,15 @@ Do not include explanations. Output only the JSON.`
     let rawContent = ''
     let scenes: Array<{ id: number; use_case: string }> = []
     let needsFallback = false
-    let needsPro = false
+    const currentModel = modelSelection.model
 
-    // Level 1: 尝试使用 gemini-2.5-flash（除非是冷门行业或极端专业领域）
-    if (!isCold && !needsPro) {
+    // Level 1: 使用配置的默认模型（或根据行业判断）
+    if (modelSelection.model === 'gemini-2.5-flash' || (!isCold && !needsPro)) {
       try {
-        console.log(`[${industry}] 批次 ${batch + 1}: 使用 gemini-2.5-flash 生成...`)
+        console.log(`[${industry}] 批次 ${batch + 1}: 使用 ${currentModel} 生成...`)
         
         const response = await createChatCompletion({
-          model: 'gemini-2.5-flash',
+          model: currentModel,
           stream: false,
           messages: [
             { role: 'system', content: systemPrompt },

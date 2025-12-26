@@ -24,6 +24,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: '未授权' }, { status: 401 })
     }
 
+    // 检查 API Key 配置（提前检查，避免浪费资源）
+    const apiKey = process.env.GRSAI_API_KEY
+    if (!apiKey) {
+      console.error('[Admin Chat] GRSAI_API_KEY 未配置')
+      return NextResponse.json({
+        success: false,
+        error: 'API Key 未配置',
+        debug: {
+          suggestion: '请检查环境变量 GRSAI_API_KEY 是否已设置',
+        },
+      }, { status: 500 })
+    }
+
     const body = await request.json()
     const {
       sessionId,
