@@ -25,7 +25,58 @@ interface ModelConfig {
 }
 
 /**
- * 从数据库获取行业×场景的模型配置
+ * 从数据库获取场景应用模型配置（简化版，按场景应用配置）
+ */
+export async function getSceneModelConfig(
+  useCaseType: UseCaseType
+): Promise<{
+  default_model: ModelType
+  fallback_model: ModelType | null
+  ultimate_model: ModelType | null
+  hot_industry_model: ModelType | null
+  cold_industry_model: ModelType | null
+  professional_industry_model: ModelType | null
+  is_enabled: boolean
+} | null> {
+  try {
+    const supabase = await createServiceClient()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('scene_model_configs')
+      .select('default_model, fallback_model, ultimate_model, hot_industry_model, cold_industry_model, professional_industry_model, is_enabled')
+      .eq('use_case_type', useCaseType)
+      .eq('is_enabled', true)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // 没有找到配置，返回null
+        return null
+      }
+      throw error
+    }
+
+    if (!data) {
+      return null
+    }
+
+    return {
+      default_model: (data.default_model as ModelType) || 'gemini-2.5-flash',
+      fallback_model: (data.fallback_model as ModelType) || null,
+      ultimate_model: (data.ultimate_model as ModelType) || null,
+      hot_industry_model: (data.hot_industry_model as ModelType) || null,
+      cold_industry_model: (data.cold_industry_model as ModelType) || null,
+      professional_industry_model: (data.professional_industry_model as ModelType) || null,
+      is_enabled: data.is_enabled,
+    }
+  } catch (error) {
+    console.error(`[model-selector] 获取场景配置失败 (${useCaseType}):`, error)
+    return null
+  }
+}
+
+/**
+ * 从数据库获取行业×场景的模型配置（保留用于向后兼容）
  */
 export async function getIndustrySceneModelConfig(
   industry: string,
@@ -70,6 +121,7 @@ export async function getIndustrySceneModelConfig(
 
 /**
  * 根据行业和场景选择模型（带Fallback机制）
+ * 优先级：场景应用配置 > 行业×场景配置 > 默认策略
  * @param industry 行业名称
  * @param useCaseType 场景类型
  * @param currentAttempt 当前尝试次数（用于Fallback）
@@ -85,82 +137,116 @@ export async function selectModelForIndustryScene(
   shouldFallback: boolean
   nextFallback?: ModelType
 }> {
-  // 从数据库获取配置
-  const config = await getIndustrySceneModelConfig(industry, useCaseType)
-
-  // 如果没有配置，使用默认策略
-  if (!config) {
-    // 默认策略：热门行业用2.5-flash，冷门/专业用3-flash
+  // 🔥 优先使用场景应用配置（简化版）
+  const sceneConfig = await getSceneModelConfig(useCaseType)
+  
+  if (sceneConfig && sceneConfig.is_enabled) {
+    // 判断行业类型
     const isHotIndustry = isHotIndustryDefault(industry)
+    const isColdIndustry = !isHotIndustry && !isProfessionalIndustryDefault(industry)
     const isProfessionalIndustry = isProfessionalIndustryDefault(industry)
-
-    if (isProfessionalIndustry) {
+    
+    // 根据行业类型选择模型
+    let selectedModel = sceneConfig.default_model
+    let reason = `场景应用配置（${useCaseType}）`
+    
+    if (isHotIndustry && sceneConfig.hot_industry_model) {
+      selectedModel = sceneConfig.hot_industry_model
+      reason = `场景应用配置 - 热门行业模型`
+    } else if (isColdIndustry && sceneConfig.cold_industry_model) {
+      selectedModel = sceneConfig.cold_industry_model
+      reason = `场景应用配置 - 冷门行业模型`
+    } else if (isProfessionalIndustry && sceneConfig.professional_industry_model) {
+      selectedModel = sceneConfig.professional_industry_model
+      reason = `场景应用配置 - 专业行业模型`
+    }
+    
+    // 根据尝试次数选择模型
+    if (currentAttempt === 1) {
       return {
-        model: 'gemini-3-flash',
-        reason: '专业行业默认使用gemini-3-flash',
-        shouldFallback: true,
-        nextFallback: 'gemini-3-pro',
+        model: selectedModel,
+        reason: `${reason}: ${selectedModel}`,
+        shouldFallback: !!sceneConfig.fallback_model,
+        nextFallback: sceneConfig.fallback_model || undefined,
+      }
+    } else if (currentAttempt === 2 && sceneConfig.fallback_model) {
+      return {
+        model: sceneConfig.fallback_model,
+        reason: `场景应用配置 - Fallback模型: ${sceneConfig.fallback_model}`,
+        shouldFallback: !!sceneConfig.ultimate_model,
+        nextFallback: sceneConfig.ultimate_model || undefined,
+      }
+    } else if (currentAttempt === 3 && sceneConfig.ultimate_model) {
+      return {
+        model: sceneConfig.ultimate_model,
+        reason: `场景应用配置 - 终极模型: ${sceneConfig.ultimate_model}`,
+        shouldFallback: false,
       }
     }
-
-    if (!isHotIndustry) {
-      return {
-        model: 'gemini-3-flash',
-        reason: '冷门行业默认使用gemini-3-flash',
-        shouldFallback: true,
-        nextFallback: 'gemini-3-pro',
-      }
-    }
-
+    
+    // 如果所有模型都尝试过了
     return {
-      model: 'gemini-2.5-flash',
-      reason: '热门行业默认使用gemini-2.5-flash',
-      shouldFallback: true,
-      nextFallback: 'gemini-3-flash',
-    }
-  }
-
-  // 如果配置被禁用，使用默认策略
-  if (!config.is_enabled) {
-    return {
-      model: 'gemini-2.5-flash',
-      reason: '配置已禁用，使用默认模型',
-      shouldFallback: true,
-      nextFallback: 'gemini-3-flash',
-    }
-  }
-
-  // 根据尝试次数选择模型
-  if (currentAttempt === 1) {
-    // 第一次尝试：使用默认模型
-    return {
-      model: config.default_model,
-      reason: `使用配置的默认模型: ${config.default_model}`,
-      shouldFallback: !!config.fallback_model,
-      nextFallback: config.fallback_model || undefined,
-    }
-  } else if (currentAttempt === 2 && config.fallback_model) {
-    // 第二次尝试：使用Fallback模型
-    return {
-      model: config.fallback_model,
-      reason: `使用配置的Fallback模型: ${config.fallback_model}`,
-      shouldFallback: !!config.ultimate_model,
-      nextFallback: config.ultimate_model || undefined,
-    }
-  } else if (currentAttempt === 3 && config.ultimate_model) {
-    // 第三次尝试：使用终极模型
-    return {
-      model: config.ultimate_model,
-      reason: `使用配置的终极模型: ${config.ultimate_model}`,
+      model: sceneConfig.ultimate_model || sceneConfig.fallback_model || selectedModel,
+      reason: '场景应用配置 - 所有模型都已尝试',
       shouldFallback: false,
     }
   }
+  
+  // 如果没有场景应用配置，尝试行业×场景配置（向后兼容）
+  const industryConfig = await getIndustrySceneModelConfig(industry, useCaseType)
+  
+  if (industryConfig && industryConfig.is_enabled) {
+    // 根据尝试次数选择模型
+    if (currentAttempt === 1) {
+      return {
+        model: industryConfig.default_model,
+        reason: `行业×场景配置: ${industryConfig.default_model}`,
+        shouldFallback: !!industryConfig.fallback_model,
+        nextFallback: industryConfig.fallback_model || undefined,
+      }
+    } else if (currentAttempt === 2 && industryConfig.fallback_model) {
+      return {
+        model: industryConfig.fallback_model,
+        reason: `行业×场景配置 - Fallback: ${industryConfig.fallback_model}`,
+        shouldFallback: !!industryConfig.ultimate_model,
+        nextFallback: industryConfig.ultimate_model || undefined,
+      }
+    } else if (currentAttempt === 3 && industryConfig.ultimate_model) {
+      return {
+        model: industryConfig.ultimate_model,
+        reason: `行业×场景配置 - 终极: ${industryConfig.ultimate_model}`,
+        shouldFallback: false,
+      }
+    }
+  }
 
-  // 如果所有模型都尝试过了，返回最后一个模型
+  // 如果没有配置，使用默认策略
+  const isHotIndustry = isHotIndustryDefault(industry)
+  const isProfessionalIndustry = isProfessionalIndustryDefault(industry)
+
+  if (isProfessionalIndustry) {
+    return {
+      model: 'gemini-3-flash',
+      reason: '专业行业默认使用gemini-3-flash',
+      shouldFallback: true,
+      nextFallback: 'gemini-3-pro',
+    }
+  }
+
+  if (!isHotIndustry) {
+    return {
+      model: 'gemini-3-flash',
+      reason: '冷门行业默认使用gemini-3-flash',
+      shouldFallback: true,
+      nextFallback: 'gemini-3-pro',
+    }
+  }
+
   return {
-    model: config.ultimate_model || config.fallback_model || config.default_model,
-    reason: '所有配置的模型都已尝试',
-    shouldFallback: false,
+    model: 'gemini-2.5-flash',
+    reason: '热门行业默认使用gemini-2.5-flash',
+    shouldFallback: true,
+    nextFallback: 'gemini-3-flash',
   }
 }
 
