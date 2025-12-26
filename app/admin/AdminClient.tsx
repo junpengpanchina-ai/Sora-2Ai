@@ -27,6 +27,7 @@ import AdminSEOChatManager from './AdminSEOChatManager'
 import AdminChatDebug from './AdminChatDebug'
 import AdminGeoManager from './AdminGeoManager'
 import AdminIndustryModelConfig from './AdminIndustryModelConfig'
+import AdminSceneModelConfig from './AdminSceneModelConfig'
 
 interface UserStats {
   total_users: number
@@ -271,6 +272,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     | 'chat-debug'
     | 'geo'
     | 'model-config'
+    | 'scene-config'
   
   const [activeTab, setActiveTab] = useState<TabType>(
     (tabFromUrl as TabType) || 'overview'
@@ -1161,6 +1163,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                   { value: 'homepage', label: '首页管理' },
                   { value: 'geo', label: 'GEO配置' },
                   { value: 'model-config', label: '模型配置' },
+                  { value: 'scene-config', label: '场景配置' },
                 ].map((tab) => (
                   <button
                     key={tab.value}
@@ -2188,6 +2191,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
             {activeTab === 'homepage' && <AdminHomepageManager onShowBanner={showBanner} />}
             {activeTab === 'geo' && <AdminGeoManager onShowBanner={showBanner} />}
             {activeTab === 'model-config' && <AdminIndustryModelConfig onShowBanner={showBanner} />}
+            {activeTab === 'scene-config' && <AdminSceneModelConfig onShowBanner={showBanner} />}
           </>
         )}
       </main>
