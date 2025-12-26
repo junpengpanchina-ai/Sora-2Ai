@@ -135,8 +135,16 @@ export default function UseCaseBatchGenerator({ onShowBanner, onGenerated }: Use
 
   // 处理单个任务
   const processTask = async (task: BatchTask): Promise<string> => {
-    // 构建与产品高度匹配的 Prompt
-    const systemPrompt = `You are a professional SEO content writer for Sora2, an AI video generation platform. Generate high-quality, product-focused use case content that highlights Sora2's capabilities. All output must be in English.`
+    // 构建与产品高度匹配的 Prompt（优化SEO + GEO）
+    const systemPrompt = `You are a professional SEO content writer for Sora2, an AI video generation platform. Generate high-quality, product-focused use case content optimized for both SEO (Google ranking) and GEO (Generative Engine Optimization - AI search citation). Your content must be structured so that ChatGPT, Gemini, and Perplexity can directly quote it as answers. All output must be in English.
+
+CRITICAL: The AI video platform ONLY supports 10-second or 15-second videos. NEVER mention any duration longer than 15 seconds (such as 20 seconds, 30 seconds, 45 seconds, 60 seconds, 1 minute, 2 minutes, etc.). When describing video examples, ALWAYS use "10 seconds" or "15 seconds" only.
+
+GEO Optimization Requirements (for AI search citation):
+1. Answer-First Structure (GEO-1): Start with a clear, citable definition using the format: "In [industry], AI-generated videos are commonly used for [use case]."
+2. List Format (GEO-2): Use noun phrases, NOT marketing sentences (e.g., "Product demo videos", not "Boost your brand visibility")
+3. FAQ Style (GEO-4): Answer questions a non-expert would ask (e.g., "Is AI video suitable for [industry]?", "Do I need [equipment]?")
+4. Industry + Scene + Platform (GEO-5): Must clearly identify at least 2 of: industry, use case scenario, platform`
 
     // 根据行业和使用场景类型生成更具体的指导
     const industryContext = task.industry 
@@ -187,18 +195,43 @@ ${useCaseTypeContext}
 - All content in English
 - Make sure the content is specifically tailored to: ${task.keyword} + ${task.industry || 'General'} + ${task.useCaseType}
 
-【Content Structure】
+【Content Structure - SEO + GEO Optimized】
 H1: AI Video Generation for ${task.keyword} in ${task.industry || 'General'} - Sora2 Use Case
-H2: Introduction to ${task.keyword} for ${task.industry || 'General'} (explain what it is and why it matters in this industry)
-H2: Why Sora2 is perfect for ${task.keyword} in ${task.industry || 'General'} (3-5 specific reasons related to Sora2 features and ${task.industry || 'general'} industry needs)
-H2: How to use Sora2 for ${task.keyword} in ${task.industry || 'General'} (step-by-step guide tailored to ${task.useCaseType})
+
+H2: Introduction (GEO-1: Answer-First Structure - 150-200 words)
+Start with this exact format:
+"In ${task.industry || 'General'}, AI-generated videos are commonly used for ${task.keyword}."
+Follow with:
+- Typical applications include: [list of noun phrases, e.g., "Product demo videos", "Onboarding explainer clips", "Social media short-form ads"]
+- This page explains how teams use AI video tools for this purpose, which platforms are most suitable, and practical steps to get started.
+
+H2: Why Sora2 is perfect for ${task.keyword} in ${task.industry || 'General'} (3-5 specific reasons)
+Use noun phrases in lists, NOT marketing sentences:
+✅ Good: "Product demo videos", "Onboarding clips", "Social media ads"
+❌ Bad: "Boost your brand visibility", "Increase engagement dramatically"
+
+H2: How to use Sora2 for ${task.keyword} in ${task.industry || 'General'} (GEO-3: Step-by-step guide)
     H3: Step 1: Create your text prompt (with ${task.industry || 'general'} industry-specific examples)
     H3: Step 2: Choose video style and format (recommended for ${task.useCaseType})
     H3: Step 3: Generate and download
-H2: Real-world examples with Sora2 for ${task.keyword} in ${task.industry || 'General'} (specific scenarios in ${task.industry || 'general'} industry)
-H2: Benefits of using Sora2 for ${task.keyword} in ${task.industry || 'General'} (cost, speed, quality advantages for ${task.useCaseType})
-H2: Frequently Asked Questions about ${task.keyword} in ${task.industry || 'General'} (3-5 questions specific to this use case)
-H2: Get started with Sora2 for ${task.keyword} (call-to-action for ${task.industry || 'general'} industry)
+
+H2: Real-world examples with Sora2 for ${task.keyword} in ${task.industry || 'General'}
+Use noun phrases for examples:
+- [Example 1 as noun phrase]
+- [Example 2 as noun phrase]
+- [Example 3 as noun phrase]
+
+H2: Benefits of using Sora2 for ${task.keyword} in ${task.industry || 'General'}
+List format with noun phrases
+
+H2: Frequently Asked Questions (GEO-4: "傻问题化" - Answer questions non-experts would ask)
+Must include at least 3 questions like:
+- "Is AI video suitable for ${task.industry || 'this industry'}?"
+- "Do I need filming equipment for ${task.keyword}?"
+- "Which platform works best for ${task.keyword} in ${task.industry || 'this industry'}?"
+Keep answers 2-4 sentences, no marketing jargon.
+
+H2: Get started with Sora2 for ${task.keyword} (call-to-action)
 
 IMPORTANT: 
 - You MUST start with an H1 heading (single #)
