@@ -99,7 +99,8 @@ export async function generateAndSaveScenes(
   useCaseType: string,
   taskId: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any
+  supabase: any,
+  geo: string = 'US' // 添加GEO参数，默认US
 ): Promise<{
   scenes: Array<{ id: number; use_case: string }>
   savedCount: number
@@ -109,6 +110,7 @@ export async function generateAndSaveScenes(
   const { createChatCompletion } = await import('@/lib/grsai/client')
   const { isColdIndustry, needsProModel } = await import('./detect-cold-industry')
   const { checkGenerationQuality } = await import('./check-generation-quality')
+  const { selectModelForIndustryScene, getGeoDefaultModel } = await import('@/lib/model-selector/industry-scene-selector')
   
   const systemPrompt = `You are a marketing content expert specializing in high-converting video marketing scenarios. Your goal is to generate actionable, conversion-focused marketing video use cases that solve real business pain points and drive customer engagement. All output must be in English.
 
@@ -122,17 +124,31 @@ Focus on marketing scenarios that:
 - Are suitable for social media marketing (TikTok, Instagram, YouTube, Twitter/X)
 - Generate repeatable, scalable content ideas`
 
-  // 检测是否需要极端专业模型（Level 3）
-  const needsPro = needsProModel(industry)
-  if (needsPro) {
-    console.log(`[${industry}] 检测到极端专业领域，直接使用 gemini-3-pro（最高质量）`)
+  // 🔥 优先使用配置表中的模型选择（结合GEO和行业×场景）
+  const modelSelection = await selectModelForIndustryScene(
+    industry,
+    useCaseType as 'advertising-promotion' | 'social-media-content' | 'product-demo-showcase' | 'brand-storytelling' | 'education-explainer' | 'ugc-creator-content',
+    1 // 第一次尝试
+  )
+  
+  // 如果没有配置，使用GEO默认模型
+  const geoDefaultModel = await getGeoDefaultModel(geo)
+  
+  // 确定使用的模型：优先使用配置，其次使用GEO默认，最后使用默认策略
+  let currentModel = modelSelection.model
+  const fallbackModel = modelSelection.nextFallback || 'gemini-3-flash' // Fallback模型
+  const ultimateModel = 'gemini-3-pro' // 终极模型
+  
+  if (modelSelection.model === 'gemini-2.5-flash' && geoDefaultModel !== 'gemini-2.5-flash') {
+    // 如果配置是默认值，但GEO有特殊配置，使用GEO配置
+    currentModel = geoDefaultModel
   }
   
-  // 检测是否为冷门行业（Level 2）
+  console.log(`[${industry}] GEO: ${geo}, 模型选择: ${currentModel}, Fallback: ${fallbackModel}, 原因: ${modelSelection.reason}`)
+  
+  // 兼容旧的检测逻辑（如果没有配置则使用）
+  const needsPro = needsProModel(industry)
   const isCold = isColdIndustry(industry)
-  if (isCold && !needsPro) {
-    console.log(`[${industry}] 检测到冷门行业，直接使用 gemini-3-flash（联网搜索）`)
-  }
 
   // 🔥 减少批次大小，避免内存和超时问题（从50改为30）
   // 如果数量超过 30，分批生成（每批立即保存）
@@ -264,10 +280,10 @@ Do not include explanations. Output only the JSON.`
       }
       
       try {
-        console.log(`[${industry}] 批次 ${batch + 1}: 使用 gemini-2.5-flash 生成...`)
+        console.log(`[${industry}] 批次 ${batch + 1}: 使用 ${currentModel} 生成（GEO: ${geo}）...`)
         
         const response = await createChatCompletion({
-          model: 'gemini-2.5-flash',
+          model: currentModel,
           stream: false,
           messages: [
             { role: 'system', content: systemPrompt },
@@ -543,10 +559,10 @@ Do not include explanations. Output only the JSON.`
       }
       
       try {
-        console.log(`[${industry}] 批次 ${batch + 1}: 使用 gemini-3-pro（最高质量，联网搜索）...`)
+        console.log(`[${industry}] 批次 ${batch + 1}: 使用 ${ultimateModel}（终极模型）...`)
         
         const response = await createChatCompletion({
-          model: 'gemini-3-pro',
+          model: ultimateModel,
           stream: false,
           messages: [
             { role: 'system', content: systemPrompt },
@@ -759,11 +775,11 @@ Do not include explanations. Output only the JSON.`
       }
       
       try {
-        console.log(`[${industry}] 批次 ${batch + 1}: 🔄 强制切换到 gemini-3-flash（联网搜索）...`)
+        console.log(`[${industry}] 批次 ${batch + 1}: 🔄 强制切换到 ${fallbackModel}（Fallback）...`)
         console.log(`[${industry}] 批次 ${batch + 1}: 切换原因: ${scenes.length === 0 ? '空数组' : '质量检查失败或生成失败'}`)
         
         const response = await createChatCompletion({
-          model: 'gemini-3-flash',
+          model: fallbackModel,
           stream: false,
           messages: [
             { role: 'system', content: systemPrompt },
@@ -969,10 +985,10 @@ Do not include explanations. Output only the JSON.`
         }
         
         try {
-          console.log(`[${industry}] 批次 ${batch + 1}: 切换到 gemini-3-pro（最高质量，联网搜索）...`)
+          console.log(`[${industry}] 批次 ${batch + 1}: 切换到 ${ultimateModel}（终极模型）...`)
           
           const response = await createChatCompletion({
-            model: 'gemini-3-pro',
+            model: ultimateModel,
             stream: false,
             messages: [
               { role: 'system', content: systemPrompt },
