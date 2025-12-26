@@ -65,6 +65,7 @@ export default function IndustrySceneBatchGenerator({
   const [selectedIndustries, setSelectedIndustries] = useState<string[]>([])
   const [scenesPerIndustry, setScenesPerIndustry] = useState<number>(100)
   const [useCaseType, setUseCaseType] = useState<string>('advertising-promotion')
+  const [selectedGeo, setSelectedGeo] = useState<string>('US') // GEO选择，默认US
   const [tasks, setTasks] = useState<IndustryTask[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingIndex, setProcessingIndex] = useState(-1)
@@ -639,6 +640,7 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
           industries: selectedIndustries,
           scenesPerIndustry,
           useCaseType: useCaseTypeRef.current,
+          geo: selectedGeo, // 添加GEO参数
         }),
       })
 
@@ -1177,7 +1179,7 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
       </CardHeader>
       <CardContent className="space-y-4">
         {/* 配置选项 */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               每个行业生成数量
@@ -1210,6 +1212,30 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
               <option value="education-explainer">Education & Explainer</option>
               <option value="ugc-creator-content">UGC & Creator Content</option>
             </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              GEO地区
+            </label>
+            <select
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+              value={selectedGeo}
+              onChange={(e) => setSelectedGeo(e.target.value)}
+              disabled={isProcessing}
+            >
+              <option value="US">🇺🇸 United States</option>
+              <option value="CN">🇨🇳 China</option>
+              <option value="GB">🇬🇧 United Kingdom</option>
+              <option value="CA">🇨🇦 Canada</option>
+              <option value="AU">🇦🇺 Australia</option>
+              <option value="JP">🇯🇵 Japan</option>
+              <option value="DE">🇩🇪 Germany</option>
+              <option value="FR">🇫🇷 France</option>
+              <option value="IN">🇮🇳 India</option>
+              <option value="BR">🇧🇷 Brazil</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-500">用于模型选择策略</p>
           </div>
 
           <div>

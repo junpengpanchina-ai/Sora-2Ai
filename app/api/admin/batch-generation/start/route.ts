@@ -41,12 +41,14 @@ export async function POST(request: NextRequest) {
       industries,
       scenesPerIndustry = 100,
       useCaseType = 'advertising-promotion',
+      geo = 'US', // GEO参数，默认US
     } = body
 
     console.log('[batch-generation/start] 接收请求:', {
       industriesCount: industries?.length,
       scenesPerIndustry,
       useCaseType,
+      geo,
       adminUserId: adminUser.id,
       industries: industries?.slice(0, 5), // 只记录前5个，避免日志过长
     })
@@ -121,6 +123,7 @@ export async function POST(request: NextRequest) {
       industries: industriesArray, // 确保是字符串数组
       scenes_per_industry: scenesPerIndustry,
       use_case_type: useCaseType,
+      geo: geo, // 添加GEO参数
       status: 'pending',
       total_industries: industriesArray.length,
       started_at: new Date().toISOString(),

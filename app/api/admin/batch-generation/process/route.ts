@@ -121,13 +121,14 @@ export async function POST(request: NextRequest) {
     const industry = industries[currentIndex]
     const scenesPerIndustry = task.scenes_per_industry || 100
     const useCaseType = task.use_case_type || 'advertising-promotion'
+    const geo = task.geo || 'US' // 获取GEO参数，默认US
 
     // 处理当前行业
     try {
       // 🔥 使用边生成边保存的新函数，避免数据丢失和乱码
       const { generateAndSaveScenes } = await import('./generate-and-save-scenes')
       
-      console.log(`[${industry}] 开始生成 ${scenesPerIndustry} 条场景词（边生成边保存模式）...`)
+      console.log(`[${industry}] 开始生成 ${scenesPerIndustry} 条场景词（边生成边保存模式，GEO: ${geo}）...`)
       
       // 边生成边保存，每生成一批立即保存
       const result = await generateAndSaveScenes(
@@ -135,7 +136,8 @@ export async function POST(request: NextRequest) {
         scenesPerIndustry,
         useCaseType,
         taskId,
-        supabase
+        supabase,
+        geo // 传递GEO参数
       )
       
       const scenes = result.scenes
