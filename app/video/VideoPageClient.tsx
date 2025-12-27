@@ -1348,14 +1348,59 @@ export default function VideoPageClient() {
                                 const a = document.createElement('a')
                                 a.href = url
                                 a.download = `video-${currentResult.task_id}.mp4`
-                                document.body.appendChild(a)
-                                a.click()
-                                // 安全地移除元素，如果已经被移除则忽略错误
-                                if (a.parentNode) {
-                                  document.body.removeChild(a)
+                                a.style.display = 'none'
+                                
+                                // 安全地添加元素
+                                try {
+                                  document.body.appendChild(a)
+                                } catch (e) {
+                                  console.warn('Failed to append download link:', e)
                                 }
-                                window.URL.revokeObjectURL(url)
-                                setVideoLoadError(null) // Clear error on success
+                                
+                                // 触发下载
+                                try {
+                                  a.click()
+                                } catch (e) {
+                                  console.warn('Failed to trigger download:', e)
+                                }
+                                
+                                // 安全地移除元素，使用 try-catch 和多重检查
+                                try {
+                                  // 检查元素是否仍在 DOM 中
+                                  if (a.parentNode && document.body.contains(a)) {
+                                    document.body.removeChild(a)
+                                  } else if (a.parentNode) {
+                                    // 如果 parentNode 存在但不是 body，尝试从父节点移除
+                                    a.parentNode.removeChild(a)
+                                  } else {
+                                    // 如果元素已经被移除，使用 remove() 方法（更安全）
+                                    if (a.remove && typeof a.remove === 'function') {
+                                      a.remove()
+                                    }
+                                  }
+                                } catch {
+                                  // 如果所有移除方法都失败，尝试使用 remove() 方法
+                                  try {
+                                    if (a.remove && typeof a.remove === 'function') {
+                                      a.remove()
+                                    }
+                                  } catch (e) {
+                                    // 最后的手段：忽略错误，元素可能已经被 React 或其他代码移除了
+                                    console.debug('Element removal failed (safe to ignore):', e)
+                                  }
+                                }
+                                
+                                // 清理 URL
+                                try {
+                                  window.URL.revokeObjectURL(url)
+                                } catch (e) {
+                                  console.warn('Failed to revoke object URL:', e)
+                                }
+                                
+                                // 检查组件是否仍挂载再更新状态
+                                if (isMountedRef.current) {
+                                  setVideoLoadError(null) // Clear error on success
+                                }
                               } else if (response.status === 401) {
                                 setVideoLoadError('Unauthorized, please login first')
                               } else if (response.status === 404) {

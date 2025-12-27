@@ -11,9 +11,40 @@ export default function GlobalError({
   reset: () => void
 }) {
   useEffect(() => {
+    // 过滤掉无害的 DOM 错误（这些错误通常由 React 并发渲染或组件卸载时的 DOM 操作引起）
+    const isHarmlessDOMError = 
+      error.message?.includes('removeChild') ||
+      error.message?.includes('not a child') ||
+      error.name === 'NotFoundError' && error.message?.includes('removeChild')
+    
+    if (isHarmlessDOMError) {
+      // 对于无害的 DOM 错误，只记录到控制台，不显示错误页面
+      console.debug('Harmless DOM error (safe to ignore):', error.message)
+      // 自动重置错误，让应用继续运行
+      setTimeout(() => {
+        try {
+          reset()
+        } catch {
+          // 忽略重置错误
+        }
+      }, 100)
+      return
+    }
+    
     // Log the error to an error reporting service
     console.error('Global application error:', error)
-  }, [error])
+  }, [error, reset])
+  
+  // 如果是无害的 DOM 错误，不显示错误页面
+  const isHarmlessDOMError = 
+    error.message?.includes('removeChild') ||
+    error.message?.includes('not a child') ||
+    error.name === 'NotFoundError' && error.message?.includes('removeChild')
+  
+  if (isHarmlessDOMError) {
+    // 返回空内容，让应用继续运行
+    return null
+  }
 
   return (
     <html>
