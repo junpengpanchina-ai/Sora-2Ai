@@ -78,6 +78,8 @@ export default function IndustrySceneBatchGenerator({
   const isPausedRef = useRef(false)
   const useCaseTypeRef = useRef(useCaseType)
   const autoRecoverInFlightRef = useRef(false)
+  const isMountedRef = useRef(true)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   
   // 同步 useCaseType 到 ref
   useCaseTypeRef.current = useCaseType
@@ -708,18 +710,47 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
 
   // 轮询任务状态
   const startPollingTaskStatus = (taskId: string) => {
-    const pollInterval = setInterval(async () => {
+    // 如果已有轮询在运行，先清理
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
+    }
+    
+    pollingIntervalRef.current = setInterval(async () => {
+      // 检查组件是否已挂载
+      if (!isMountedRef.current) {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current)
+          pollingIntervalRef.current = null
+        }
+        return
+      }
+      
       try {
         const response = await fetch(`/api/admin/batch-generation/status/${taskId}`)
         const result = await response.json()
 
+        // 再次检查组件是否已挂载（异步操作后）
+        if (!isMountedRef.current) {
+          return
+        }
+
         if (!response.ok) {
           console.error('获取任务状态失败:', result.error)
-          clearInterval(pollInterval)
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current)
+            pollingIntervalRef.current = null
+          }
           return
         }
 
         const task = result.task
+        
+        // 再次检查组件是否已挂载
+        if (!isMountedRef.current) {
+          return
+        }
+        
         setLastUpdatedAt(task.updated_at || null)
 
         // 更新进度
@@ -729,6 +760,10 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
           // 🔥 修复：始终使用数据库中的 industries 顺序，确保显示顺序正确
           // 更新任务状态
           setTasks((prev) => {
+            // 检查组件是否已挂载
+            if (!isMountedRef.current) {
+              return prev
+            }
             // 🔥 如果任务列表为空或顺序不一致，从数据库重建（使用数据库中的顺序）
             if ((prev.length === 0 || prev.length !== task.industries?.length) && task.industries && Array.isArray(task.industries)) {
               return task.industries.map((industry: string, index: number) => {
@@ -861,35 +896,46 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
 
         // 如果任务完成或失败，停止轮询
         if (['completed', 'failed', 'cancelled'].includes(task.status)) {
-          clearInterval(pollInterval)
-          setIsProcessing(false)
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current)
+            pollingIntervalRef.current = null
+          }
           
-          // 更新所有任务状态为完成
-          if (task.status === 'completed') {
-            setTasks((prev) => prev.map((t) => ({ ...t, status: 'completed' as const })))
-            onShowBanner('success', `任务完成！共生成 ${task.total_scenes_saved || 0} 条场景词`)
-            onGenerated()
-          } else if (task.status === 'failed') {
-            onShowBanner('error', `任务失败: ${task.error_message || '未知错误'}`)
-          } else if (task.status === 'cancelled') {
-            onShowBanner('info', '任务已取消')
+          // 检查组件是否已挂载再更新状态
+          if (isMountedRef.current) {
+            setIsProcessing(false)
+          }
+          
+          // 更新所有任务状态为完成（仅在组件已挂载时）
+          if (isMountedRef.current) {
+            if (task.status === 'completed') {
+              setTasks((prev) => prev.map((t) => ({ ...t, status: 'completed' as const })))
+              onShowBanner('success', `任务完成！共生成 ${task.total_scenes_saved || 0} 条场景词`)
+              onGenerated()
+            } else if (task.status === 'failed') {
+              onShowBanner('error', `任务失败: ${task.error_message || '未知错误'}`)
+            } else if (task.status === 'cancelled') {
+              onShowBanner('info', '任务已取消')
+            }
           }
           
           // 清除 localStorage（任务已完成或失败）
           localStorage.removeItem('lastBatchTaskId')
         }
 
-        // 更新暂停状态
-        if (task.status === 'paused') {
-          setIsPaused(true)
-          isPausedRef.current = true
-        } else if (task.status === 'processing') {
-          setIsPaused(false)
-          isPausedRef.current = false
+        // 更新暂停状态（仅在组件已挂载时）
+        if (isMountedRef.current) {
+          if (task.status === 'paused') {
+            setIsPaused(true)
+            isPausedRef.current = true
+          } else if (task.status === 'processing') {
+            setIsPaused(false)
+            isPausedRef.current = false
+          }
         }
 
         // 自动恢复：超过 10 分钟未更新且仍在 processing/pending/paused
-        if (autoRecoverStuck && !autoRecoverInFlightRef.current) {
+        if (isMountedRef.current && autoRecoverStuck && !autoRecoverInFlightRef.current) {
           const updatedAtMs = task.updated_at ? new Date(task.updated_at).getTime() : 0
           const minutes = updatedAtMs ? (Date.now() - updatedAtMs) / 60000 : Infinity
           const shouldRecover =
@@ -904,8 +950,10 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
             })
               .then(async (r) => ({ ok: r.ok, data: await r.json().catch(() => ({})) }))
               .then(({ ok, data }) => {
-                if (ok) onShowBanner('info', '检测到任务长时间未更新，已自动触发恢复')
-                else onShowBanner('error', data?.error || '自动恢复失败')
+                if (isMountedRef.current) {
+                  if (ok) onShowBanner('info', '检测到任务长时间未更新，已自动触发恢复')
+                  else onShowBanner('error', data?.error || '自动恢复失败')
+                }
               })
               .catch((e) => {
                 console.error('[auto-recover] failed:', e)
@@ -921,13 +969,25 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
         console.error('轮询任务状态失败:', error)
       }
     }, 2000) // 每2秒轮询一次
-
-    // 页面卸载时清理
-    return () => clearInterval(pollInterval)
   }
+  
+  // 清理轮询的 useEffect
+  useEffect(() => {
+    isMountedRef.current = true
+    
+    return () => {
+      isMountedRef.current = false
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
+    }
+  }, [])
 
   // 恢复之前的任务（页面刷新后或新窗口打开）
   useEffect(() => {
+    let isCancelled = false
+    
     const restoreTask = async () => {
       // 首先尝试从 localStorage 恢复
       const lastTaskId = localStorage.getItem('lastBatchTaskId')
@@ -949,25 +1009,31 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
             // 任务不存在，清除 localStorage
             console.log('[恢复任务] localStorage 中的任务不存在，清除')
             localStorage.removeItem('lastBatchTaskId')
-            // 重置状态
-            setIsProcessing(false)
-            setIsPaused(false)
-            setTasks([])
+            // 重置状态（仅在组件未取消时）
+            if (!isCancelled) {
+              setIsProcessing(false)
+              setIsPaused(false)
+              setTasks([])
+            }
           } else if (!response.ok) {
             // 如果请求失败（如 500 错误），也重置状态
             console.log('[恢复任务] 获取任务状态失败，重置状态')
             localStorage.removeItem('lastBatchTaskId')
-            setIsProcessing(false)
-            setIsPaused(false)
-            setTasks([])
+            if (!isCancelled) {
+              setIsProcessing(false)
+              setIsPaused(false)
+              setTasks([])
+            }
           }
         } catch (error) {
           console.error('[恢复任务] 从 localStorage 恢复失败:', error)
           // 发生错误时也重置状态
           localStorage.removeItem('lastBatchTaskId')
-          setIsProcessing(false)
-          setIsPaused(false)
-          setTasks([])
+          if (!isCancelled) {
+            setIsProcessing(false)
+            setIsPaused(false)
+            setTasks([])
+          }
         }
       }
       
@@ -985,24 +1051,32 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
             localStorage.setItem('lastBatchTaskId', taskToRestore.id)
           } else {
             console.log('[恢复任务] 数据库中没有正在运行的任务')
-            // 确保重置状态
+            // 确保重置状态（仅在组件未取消时）
+            if (!isCancelled) {
+              setIsProcessing(false)
+              setIsPaused(false)
+              setTasks([])
+            }
+          }
+        } catch (error) {
+          console.error('[恢复任务] 从数据库查询失败:', error)
+          // 发生错误时也重置状态（仅在组件未取消时）
+          if (!isCancelled) {
             setIsProcessing(false)
             setIsPaused(false)
             setTasks([])
           }
-        } catch (error) {
-          console.error('[恢复任务] 从数据库查询失败:', error)
-          // 发生错误时也重置状态
-          setIsProcessing(false)
-          setIsPaused(false)
-          setTasks([])
         }
       }
       
-      // 如果找到了任务，恢复它
-      if (taskToRestore) {
+      // 如果找到了任务，恢复它（仅在组件未取消时）
+      if (taskToRestore && !isCancelled) {
         const task = taskToRestore
         console.log('[恢复任务] 开始恢复任务:', task.id, '状态:', task.status)
+        
+        // 再次检查组件是否已取消
+        if (isCancelled) return
+        
         setActiveTaskId(task.id)
         setLastUpdatedAt(task.updated_at || null)
         
@@ -1029,9 +1103,15 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
             }
           })
           
-          setTasks(restoredTasks)
-          console.log('[恢复任务] 已恢复任务列表，共', restoredTasks.length, '个行业')
+          // 再次检查组件是否已取消
+          if (!isCancelled) {
+            setTasks(restoredTasks)
+            console.log('[恢复任务] 已恢复任务列表，共', restoredTasks.length, '个行业')
+          }
         }
+        
+        // 再次检查组件是否已取消
+        if (isCancelled) return
         
         // 恢复暂停状态
         if (task.status === 'paused') {
@@ -1042,10 +1122,12 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
           isPausedRef.current = false
         }
         
-        // 开始轮询
-        startPollingTaskStatus(task.id)
-        onShowBanner('info', `检测到正在运行的任务，已恢复监控 (${task.current_industry_index || 0}/${task.total_industries || 0})`)
-      } else {
+        // 开始轮询（仅在组件未取消时）
+        if (!isCancelled) {
+          startPollingTaskStatus(task.id)
+          onShowBanner('info', `检测到正在运行的任务，已恢复监控 (${task.current_industry_index || 0}/${task.total_industries || 0})`)
+        }
+      } else if (!isCancelled) {
         console.log('[恢复任务] 没有找到需要恢复的任务')
         // 确保重置状态，允许用户开始新任务
         setIsProcessing(false)
@@ -1061,7 +1143,10 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
       restoreTask()
     }, 500)
     
-    return () => clearTimeout(timer)
+    return () => {
+      isCancelled = true
+      clearTimeout(timer)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
