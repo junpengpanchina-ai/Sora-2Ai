@@ -1,6 +1,29 @@
 // 视频生成失败调试工具 - 一键诊断DOM错误和生成问题
 // 粘贴到浏览器控制台运行
 
+// 检查是否已经安装，如果已安装则先清理
+if (window._videoDebugInstalled) {
+  console.log('⚠️ 检测到已安装的调试工具，正在清理...')
+  if (window._videoDebugOriginalFetch) {
+    window.fetch = window._videoDebugOriginalFetch
+  }
+  if (window._videoDebugOriginalErrorHandler) {
+    window.onerror = window._videoDebugOriginalErrorHandler
+  }
+  if (window._videoDebugOriginalUnhandledRejection) {
+    window.onunhandledrejection = window._videoDebugOriginalUnhandledRejection
+  }
+  if (window._videoDebugOriginalRemoveChild) {
+    Node.prototype.removeChild = window._videoDebugOriginalRemoveChild
+  }
+  if (window._videoDebugOriginalConsoleLog) {
+    console.log = window._videoDebugOriginalConsoleLog
+  }
+  if (window._videoDebugMountCheckInterval) {
+    clearInterval(window._videoDebugMountCheckInterval)
+  }
+}
+
 console.clear()
 console.log('%c🎬 视频生成失败诊断工具', 'font-size: 16px; font-weight: bold; color: #ef4444;')
 console.log('='.repeat(60))
@@ -12,7 +35,10 @@ const apiErrors = []
 const stateChanges = []
 
 // 1. 捕获全局错误（包括DOM错误）
-const originalErrorHandler = window.onerror
+if (!window._videoDebugOriginalErrorHandler) {
+  window._videoDebugOriginalErrorHandler = window.onerror
+}
+const originalErrorHandler = window._videoDebugOriginalErrorHandler
 window.onerror = function(message, source, lineno, colno, error) {
   const errorInfo = {
     type: 'GlobalError',
@@ -39,7 +65,10 @@ window.onerror = function(message, source, lineno, colno, error) {
 }
 
 // 2. 捕获未处理的Promise拒绝
-const originalUnhandledRejection = window.onunhandledrejection
+if (!window._videoDebugOriginalUnhandledRejection) {
+  window._videoDebugOriginalUnhandledRejection = window.onunhandledrejection
+}
+const originalUnhandledRejection = window._videoDebugOriginalUnhandledRejection
 window.onunhandledrejection = function(event) {
   const errorInfo = {
     type: 'UnhandledRejection',
@@ -58,7 +87,10 @@ window.onunhandledrejection = function(event) {
 }
 
 // 3. 监控DOM操作（特别是removeChild）
-const originalRemoveChild = Node.prototype.removeChild
+if (!window._videoDebugOriginalRemoveChild) {
+  window._videoDebugOriginalRemoveChild = Node.prototype.removeChild
+}
+const originalRemoveChild = window._videoDebugOriginalRemoveChild
 Node.prototype.removeChild = function(child) {
   try {
     // 检查节点是否真的是子节点
@@ -101,7 +133,10 @@ Node.prototype.removeChild = function(child) {
 }
 
 // 4. 监控视频生成API请求
-const originalFetch = window.fetch
+if (!window._videoDebugOriginalFetch) {
+  window._videoDebugOriginalFetch = window.fetch
+}
+const originalFetch = window._videoDebugOriginalFetch
 window.fetch = function(...args) {
   const url = args[0]
   
@@ -169,7 +204,10 @@ window.fetch = function(...args) {
 }
 
 // 5. 监控React状态更新（通过控制台日志）
-const originalConsoleLog = console.log
+if (!window._videoDebugOriginalConsoleLog) {
+  window._videoDebugOriginalConsoleLog = console.log
+}
+const originalConsoleLog = window._videoDebugOriginalConsoleLog
 console.log = function(...args) {
   const message = args[0]
   
@@ -261,7 +299,11 @@ const trackAsyncOperation = (name, promise) => {
 }
 
 // 定期检查组件状态
-const mountCheckInterval = setInterval(checkComponentMount, 500) // 更频繁的检查
+// 如果已有检查在运行，先清理
+if (window._videoDebugMountCheckInterval) {
+  clearInterval(window._videoDebugMountCheckInterval)
+}
+window._videoDebugMountCheckInterval = setInterval(checkComponentMount, 500) // 更频繁的检查
 
 // 导出异步操作追踪到全局
 window.trackAsyncOp = trackAsyncOperation
@@ -387,20 +429,36 @@ window.videoDebugReport = function() {
 // 8. 提供清理函数
 window.videoDebugClean = function() {
   // 恢复原始函数
-  window.onerror = originalErrorHandler
-  window.onunhandledrejection = originalUnhandledRejection
-  Node.prototype.removeChild = originalRemoveChild
-  window.fetch = originalFetch
-  console.log = originalConsoleLog
+  if (window._videoDebugOriginalErrorHandler) {
+    window.onerror = window._videoDebugOriginalErrorHandler
+  }
+  if (window._videoDebugOriginalUnhandledRejection) {
+    window.onunhandledrejection = window._videoDebugOriginalUnhandledRejection
+  }
+  if (window._videoDebugOriginalRemoveChild) {
+    Node.prototype.removeChild = window._videoDebugOriginalRemoveChild
+  }
+  if (window._videoDebugOriginalFetch) {
+    window.fetch = window._videoDebugOriginalFetch
+  }
+  if (window._videoDebugOriginalConsoleLog) {
+    console.log = window._videoDebugOriginalConsoleLog
+  }
   
   // 清理定时器
-  clearInterval(mountCheckInterval)
+  if (window._videoDebugMountCheckInterval) {
+    clearInterval(window._videoDebugMountCheckInterval)
+    window._videoDebugMountCheckInterval = null
+  }
   
   // 清空日志
   errorLog.length = 0
   domErrors.length = 0
   apiErrors.length = 0
   stateChanges.length = 0
+  
+  // 清除标记
+  window._videoDebugInstalled = false
   
   console.log('✅ 调试工具已清理')
 }
@@ -418,6 +476,9 @@ console.log('  videoDebugReport()  - 查看完整诊断报告')
 console.log('  videoDebugClean()   - 清理调试工具（恢复原始函数）')
 console.log('  videoDebugToggle()  - 切换实时监控')
 console.log('\n💡 现在尝试生成视频，工具会自动捕获错误\n')
+
+// 标记已安装
+window._videoDebugInstalled = true
 
 // 自动在5秒后显示初始报告
 setTimeout(() => {
