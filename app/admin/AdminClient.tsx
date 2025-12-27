@@ -287,7 +287,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
   useEffect(() => {
     console.log('activeTab 已更新为:', activeTab)
   }, [activeTab])
-  const [autoRefresh, setAutoRefresh] = useState(true)
+  const [autoRefresh, setAutoRefresh] = useState(false)
   const [issuesLoading, setIssuesLoading] = useState(true)
   const [adjustmentsLoading, setAdjustmentsLoading] = useState(true)
   const [issueNotesDrafts, setIssueNotesDrafts] = useState<Record<string, string>>({})
