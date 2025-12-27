@@ -253,6 +253,13 @@ export default function AdminChatManager({ onShowBanner }: AdminChatManagerProps
             try {
               const data = JSON.parse(trimmedLine.slice(6))
               
+              // 检查API返回的错误
+              if (data.error) {
+                const errorMessage = data.error.message || data.error.code || 'API返回错误'
+                console.error('[Admin Chat] API错误:', data.error)
+                throw new Error(errorMessage)
+              }
+              
               // 检测使用的模型
               if (data.model && !detectedModel) {
                 detectedModel = data.model
@@ -260,6 +267,13 @@ export default function AdminChatManager({ onShowBanner }: AdminChatManagerProps
               
               if (data.choices && data.choices.length > 0) {
                 const delta = data.choices[0].delta
+                const finishReason = data.choices[0].finish_reason
+                
+                // 检查是否被拒绝或过滤
+                if (finishReason === 'content_filter' || finishReason === 'safety') {
+                  throw new Error('内容被过滤或拒绝，请尝试修改消息内容')
+                }
+                
                 if (delta?.content) {
                   assistantContent += delta.content
                   // 更新最后一条消息
@@ -278,6 +292,10 @@ export default function AdminChatManager({ onShowBanner }: AdminChatManagerProps
                 }
               }
             } catch (error) {
+              // 如果是API错误，抛出以便外层处理
+              if (error instanceof Error && (error.message.includes('API') || error.message.includes('内容被过滤'))) {
+                throw error
+              }
               console.warn('解析流式响应失败:', trimmedLine, error)
             }
           }
