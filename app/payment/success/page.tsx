@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@/components/ui'
+import { getPostLoginRedirect } from '@/lib/auth/post-login-redirect'
 
 type PaymentStatus = 'checking' | 'processing' | 'completed' | 'failed' | 'error'
 
@@ -20,6 +21,7 @@ export default function PaymentSuccessPage() {
   } | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [pollCount, setPollCount] = useState(0)
+  const returnTo = getPostLoginRedirect() || '/video'
 
   // Check payment status
   const checkPaymentStatus = useCallback(async () => {
@@ -277,7 +279,7 @@ export default function PaymentSuccessPage() {
               </Button>
             </Link>
             {status === 'completed' && (
-              <Link href="/video" className="flex-1">
+              <Link href={returnTo} className="flex-1">
                 <Button variant="secondary" className="w-full">
                   Generate Video
                 </Button>

@@ -10,6 +10,7 @@ import R2Image from '@/components/R2Image'
 import PricingModal from '@/components/PricingModal'
 import { createClient } from '@/lib/supabase/client'
 import { getPublicUrl } from '@/lib/r2/client'
+import { setPostLoginRedirect } from '@/lib/auth/post-login-redirect'
 
 interface Stats {
   total: number
@@ -162,11 +163,38 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     setSupabase(createClient())
   }, [])
 
-  // 加载首页配置和支付计划
+  // Allow deep links like "/?pricing=1&redirect=/video?prompt=..." to open the recharge modal
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const shouldOpenPricing = params.get('pricing') === '1'
+      const redirect = params.get('redirect')
+
+      if (redirect) {
+        setPostLoginRedirect(redirect)
+      }
+
+      if (shouldOpenPricing) {
+        setShowPricingModal(true)
+        // prevent re-opening on refresh
+        params.delete('pricing')
+        const newQuery = params.toString()
+        const newUrl = `${window.location.pathname}${newQuery ? `?${newQuery}` : ''}${window.location.hash || ''}`
+        window.history.replaceState({}, '', newUrl)
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  // Load homepage settings and payment plans
   useEffect(() => {
     const loadData = async () => {
       try {
-        // 添加时间戳参数来破坏浏览器缓存
+        // Add a timestamp to bypass browser caches
         const timestamp = Date.now()
         const [settingsResponse, plansResponse] = await Promise.all([
           fetch(`/api/homepage?t=${timestamp}`, {
@@ -180,7 +208,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         
         const settingsData = await settingsResponse.json()
         if (settingsData.success && settingsData.settings) {
-          console.log('[首页配置] 加载配置:', {
+          console.log('[Homepage Settings] Loaded:', {
             theme_style: settingsData.settings.theme_style,
             image_count: settingsData.settings.hero_image_paths?.length || 0,
             image_paths: settingsData.settings.hero_image_paths,
@@ -193,12 +221,12 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           setPaymentPlans(plansData.plans)
         }
       } catch (error) {
-        console.error('加载首页配置失败:', error)
+        console.error('Failed to load homepage settings:', error)
       }
     }
     loadData()
     
-    // 定期刷新配置（每5分钟），确保同步最新数据
+    // Refresh settings periodically (every 5 minutes)
     const refreshInterval = setInterval(() => {
       loadData()
     }, 5 * 60 * 1000) // 5分钟
@@ -541,7 +569,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
 
   // 根据主题样式动态设置背景类
   const themeStyle = homepageSettings?.theme_style || 'cosmic'
-  console.log('[主题样式] 当前主题:', themeStyle, '配置:', homepageSettings)
+  console.log('[Theme] Current style:', themeStyle, 'settings:', homepageSettings)
   
   const getThemeClasses = () => {
     switch (themeStyle) {
@@ -1197,7 +1225,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">
-              暂无可用的支付计划
+              No payment plans available yet.
             </div>
           )}
 

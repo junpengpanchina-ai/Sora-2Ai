@@ -43,7 +43,7 @@ export default function TrendingKeywords({ geo = 'US', limit = 10 }: TrendingKey
       }
     } catch (err) {
       console.error('Failed to fetch trends:', err)
-      setError('无法加载热搜词数据')
+      setError('Unable to load trending searches.')
       // 使用示例数据
       setTrends((prevTrends) => {
         if (prevTrends.length === 0) {
@@ -72,19 +72,19 @@ export default function TrendingKeywords({ geo = 'US', limit = 10 }: TrendingKey
     return (
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">🔥 热搜词榜单</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">🔥 Trending Searches</h2>
           <a
             href="https://trends.google.com/trending"
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-energy-water hover:underline"
           >
-            查看全部 →
+            View all →
           </a>
         </div>
         <div className="flex items-center justify-center py-8">
           <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-energy-water"></div>
-          <span className="ml-2 text-sm text-gray-500">加载中...</span>
+          <span className="ml-2 text-sm text-gray-500">Loading...</span>
         </div>
       </div>
     )
@@ -94,10 +94,10 @@ export default function TrendingKeywords({ geo = 'US', limit = 10 }: TrendingKey
     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">🔥 热搜词榜单</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">🔥 Trending Searches</h2>
           {lastUpdated && (
             <p className="mt-1 text-xs text-gray-500">
-              更新时间: {lastUpdated.toLocaleTimeString('zh-CN')}
+              Updated: {lastUpdated.toLocaleTimeString('en-US')}
             </p>
           )}
         </div>
@@ -106,7 +106,7 @@ export default function TrendingKeywords({ geo = 'US', limit = 10 }: TrendingKey
             onClick={() => fetchTrends(true)}
             disabled={refreshing}
             className="text-sm text-energy-water hover:underline disabled:opacity-50"
-            title="刷新数据"
+            title="Refresh"
           >
             {refreshing ? (
               <span className="inline-flex items-center">
@@ -114,10 +114,10 @@ export default function TrendingKeywords({ geo = 'US', limit = 10 }: TrendingKey
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                刷新中
+                Refreshing
               </span>
             ) : (
-              '🔄 刷新'
+              '🔄 Refresh'
             )}
           </button>
           <a
@@ -126,7 +126,7 @@ export default function TrendingKeywords({ geo = 'US', limit = 10 }: TrendingKey
             rel="noopener noreferrer"
             className="text-sm text-energy-water hover:underline"
           >
-            查看全部 →
+            View all →
           </a>
         </div>
       </div>
@@ -138,7 +138,7 @@ export default function TrendingKeywords({ geo = 'US', limit = 10 }: TrendingKey
       )}
 
       {trends.length === 0 ? (
-        <p className="py-8 text-center text-sm text-gray-500">暂无热搜词数据</p>
+        <p className="py-8 text-center text-sm text-gray-500">No trending data available.</p>
       ) : (
         <div className="space-y-3">
           {trends.map((trend, index) => (
@@ -172,7 +172,7 @@ export default function TrendingKeywords({ geo = 'US', limit = 10 }: TrendingKey
                     rel="noopener noreferrer"
                     className="mt-2 inline-block text-xs text-energy-water hover:underline"
                   >
-                    查看详情 →
+                    View details →
                   </a>
                 )}
               </div>
@@ -183,7 +183,7 @@ export default function TrendingKeywords({ geo = 'US', limit = 10 }: TrendingKey
 
       <div className="mt-4 border-t border-gray-200 pt-4 dark:border-gray-800">
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          数据来源: <a href="https://trends.google.com" target="_blank" rel="noopener noreferrer" className="text-energy-water hover:underline">Google Trends</a>
+          Source: <a href="https://trends.google.com" target="_blank" rel="noopener noreferrer" className="text-energy-water hover:underline">Google Trends</a>
         </p>
       </div>
     </div>
