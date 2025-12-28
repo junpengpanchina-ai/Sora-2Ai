@@ -73,22 +73,33 @@ export async function GET() {
     const useCasesArray: UseCaseForSitemap[] = Array.isArray(useCases) ? useCases : []
 
     // 第二步：筛选和排序
+    // If industry values in DB don't match our tier map, tier will be 0 for all rows,
+    // which would make the core sitemap empty. Detect that situation and fallback to
+    // a broader selection (still excluding blacklisted industries).
+    const hasTieredIndustries = useCasesArray.some((uc) => getIndustryTier(uc.industry) > 0)
+
     const filteredAndSorted = useCasesArray
       .filter((useCase: UseCaseForSitemap) => {
         // 过滤：不在黑名单
         if (isBlacklistedIndustry(useCase.industry)) {
           return false
         }
-        // 优先：S/A+/A 级行业
-        return getIndustryTier(useCase.industry) >= 3
+        // 优先：S/A+/A 级行业（仅当 tier map 可用时）
+        if (hasTieredIndustries) {
+          return getIndustryTier(useCase.industry) >= 3
+        }
+        // Fallback: accept all non-blacklisted industries.
+        return true
       })
       .sort((a: UseCaseForSitemap, b: UseCaseForSitemap) => {
         // 排序规则：
         // 1. 行业优先级（S > A+ > A）
-        const tierA = getIndustryTier(a.industry)
-        const tierB = getIndustryTier(b.industry)
-        if (tierA !== tierB) {
-          return tierB - tierA // 降序
+        if (hasTieredIndustries) {
+          const tierA = getIndustryTier(a.industry)
+          const tierB = getIndustryTier(b.industry)
+          if (tierA !== tierB) {
+            return tierB - tierA // 降序
+          }
         }
 
         // 2. 转化意图优先（advertising-promotion/product-demo-showcase > 其他）
@@ -175,7 +186,7 @@ ${urls.join('\n')}
       status: 200,
       headers: {
         'Content-Type': 'application/xml; charset=utf-8',
-        'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+        'Cache-Control': 'public, max-age=300, s-maxage=300',
         'X-Content-Type-Options': 'nosniff',
       },
     })
@@ -189,7 +200,7 @@ ${urls.join('\n')}
         status: 200,
         headers: {
           'Content-Type': 'application/xml; charset=utf-8',
-          'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+          'Cache-Control': 'public, max-age=300, s-maxage=300',
           'X-Content-Type-Options': 'nosniff',
         },
       }
