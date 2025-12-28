@@ -488,9 +488,26 @@
   }
   
   // 自动输出启动信息
-  originalConsoleWarn('%c🔍 Google Translate CORS 错误检测工具已启动', 'color: green; font-weight: bold; font-size: 14px; background: #f0f0f0; padding: 5px;')
-  originalConsoleWarn('使用 translateCorsReport() 查看详细报告')
-  originalConsoleWarn('使用 translateCorsClean() 清理调试工具')
+  try {
+    originalConsoleWarn('%c🔍 Google Translate CORS 错误检测工具已启动', 'color: green; font-weight: bold; font-size: 14px; background: #f0f0f0; padding: 5px;')
+    originalConsoleWarn('使用 translateCorsReport() 查看详细报告')
+    originalConsoleWarn('使用 translateCorsClean() 清理调试工具')
+    
+    // 验证函数是否正确暴露
+    if (typeof window.translateCorsReport !== 'function') {
+      originalConsoleError('❌ 错误: translateCorsReport 函数未正确定义')
+    } else {
+      originalConsoleWarn('✅ translateCorsReport 函数已就绪')
+    }
+    
+    if (typeof window.translateCorsClean !== 'function') {
+      originalConsoleError('❌ 错误: translateCorsClean 函数未正确定义')
+    } else {
+      originalConsoleWarn('✅ translateCorsClean 函数已就绪')
+    }
+  } catch (error) {
+    console.error('工具启动时出错:', error)
+  }
   
 })()
 
