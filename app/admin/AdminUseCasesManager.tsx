@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from '@/components/ui'
 import TextRecognitionArea from '@/components/admin/TextRecognitionArea'
@@ -158,9 +158,18 @@ function parseArrayInput(input: string): string[] {
 
 export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesManagerProps) {
   const searchParams = useSearchParams()
+  const isMountedRef = useRef(true)
   const [useCases, setUseCases] = useState<UseCaseRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // 组件卸载时标记
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
 
   // 合并所有行业列表（营销场景 + 传统行业），去重，用于筛选
   const allIndustries = useMemo(() => {
@@ -193,6 +202,8 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const fetchUseCases = useCallback(async () => {
+    if (!isMountedRef.current) return
+    
     setLoading(true)
     setError(null)
     try {
@@ -211,6 +222,8 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
       const response = await fetch(`/api/admin/use-cases?${params.toString()}`)
       const payload = await response.json().catch(() => ({}))
 
+      if (!isMountedRef.current) return
+
       if (!response.ok) {
         const messageParts: string[] = []
         if (typeof payload.error === 'string' && payload.error.trim().length > 0) {
@@ -228,15 +241,20 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
         .map((item: unknown) => normalizeUseCaseRecord(item))
         .filter((item: UseCaseRecord | null): item is UseCaseRecord => Boolean(item))
 
+      if (!isMountedRef.current) return
+
       setUseCases(normalized)
       setTotalCount(typeof payload.totalCount === 'number' ? payload.totalCount : normalized.length)
     } catch (err) {
+      if (!isMountedRef.current) return
       console.error('获取使用场景列表失败:', err)
       setError(err instanceof Error ? err.message : '获取使用场景列表失败')
       setUseCases([])
       setTotalCount(0)
     } finally {
-      setLoading(false)
+      if (isMountedRef.current) {
+        setLoading(false)
+      }
     }
   }, [search, typeFilter, industryFilter, statusFilter, qualityFilter, currentPage, itemsPerPage])
 
@@ -607,7 +625,27 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
                   window.URL.revokeObjectURL(url)
                   // 安全地移除元素，如果已经被移除则忽略错误
                   if (a.parentNode) {
-                    document.body.removeChild(a)
+                    try {
+                      // 检查元素是否仍然是父节点的子节点
+                      if (a.parentNode.contains(a)) {
+                        a.parentNode.removeChild(a)
+                      } else {
+                        // 如果元素已经被移除，使用 remove() 方法（更安全）
+                        if (a.remove && typeof a.remove === 'function') {
+                          a.remove()
+                        }
+                      }
+                    } catch {
+                      // 如果所有移除方法都失败，尝试使用 remove() 方法
+                      try {
+                        if (a.remove && typeof a.remove === 'function') {
+                          a.remove()
+                        }
+                      } catch (e) {
+                        // 最后的手段：忽略错误，元素可能已经被 React 或其他代码移除
+                        console.debug('元素移除失败（可安全忽略）:', e)
+                      }
+                    }
                   }
                   onShowBanner('success', 'CSV 导出成功')
                 } catch (error) {
