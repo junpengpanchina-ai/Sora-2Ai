@@ -26,10 +26,10 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const intent = searchParams.get('intent') || 'conversion' // conversion, education, platform, brand
   const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10))
-  
-  const supabase = await createServiceClient()
 
   try {
+    const supabase = await createServiceClient()
+
     // 根据意图构建查询
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let countQuery = (supabase as any)
@@ -57,16 +57,19 @@ export async function GET(request: Request) {
 
     if (countError) {
       console.error(`Error counting use cases for intent "${intent}":`, countError)
+      // Return 503 so Google retries; don't cache transient failures.
       return new NextResponse(
         `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 </urlset>`,
         {
-          status: 200,
+          status: 503,
           headers: {
             'Content-Type': 'application/xml; charset=utf-8',
-            'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+            'Cache-Control': 'no-store',
             'X-Content-Type-Options': 'nosniff',
+            'X-Sitemap-Intent': intent,
+            'X-Sitemap-Error': 'count_error',
           },
         }
       )
@@ -83,8 +86,12 @@ export async function GET(request: Request) {
           status: 200,
           headers: {
             'Content-Type': 'application/xml; charset=utf-8',
-            'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+            'Cache-Control': 'public, max-age=300, s-maxage=300',
             'X-Content-Type-Options': 'nosniff',
+            'X-Sitemap-Intent': intent,
+            'X-Sitemap-Total-Count': String(totalCount),
+            'X-Sitemap-Page': String(page),
+            'X-Sitemap-Total-Pages': '0',
           },
         }
       )
@@ -102,8 +109,12 @@ export async function GET(request: Request) {
           status: 200,
           headers: {
             'Content-Type': 'application/xml; charset=utf-8',
-            'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+            'Cache-Control': 'public, max-age=300, s-maxage=300',
             'X-Content-Type-Options': 'nosniff',
+            'X-Sitemap-Intent': intent,
+            'X-Sitemap-Total-Count': String(totalCount),
+            'X-Sitemap-Page': String(page),
+            'X-Sitemap-Total-Pages': String(totalPages),
           },
         }
       )
@@ -138,16 +149,22 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error(`Error fetching use cases for intent "${intent}" page ${page}:`, error)
+      // Return 503 so Google retries; don't cache transient failures.
       return new NextResponse(
         `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 </urlset>`,
         {
-          status: 200,
+          status: 503,
           headers: {
             'Content-Type': 'application/xml; charset=utf-8',
-            'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+            'Cache-Control': 'no-store',
             'X-Content-Type-Options': 'nosniff',
+            'X-Sitemap-Intent': intent,
+            'X-Sitemap-Total-Count': String(totalCount),
+            'X-Sitemap-Page': String(page),
+            'X-Sitemap-Total-Pages': String(totalPages),
+            'X-Sitemap-Error': 'fetch_error',
           },
         }
       )
@@ -214,6 +231,10 @@ ${urls.join('\n')}
         // Keep reasonably fresh; reduce risk of caching an empty response for too long.
         'Cache-Control': 'public, max-age=300, s-maxage=300',
         'X-Content-Type-Options': 'nosniff',
+        'X-Sitemap-Intent': intent,
+        'X-Sitemap-Total-Count': String(totalCount),
+        'X-Sitemap-Page': String(page),
+        'X-Sitemap-Total-Pages': String(totalPages),
       },
     })
   } catch (error) {
@@ -223,11 +244,13 @@ ${urls.join('\n')}
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 </urlset>`,
       {
-        status: 200,
+        status: 503,
         headers: {
           'Content-Type': 'application/xml; charset=utf-8',
-          'Cache-Control': 'public, max-age=300, s-maxage=300',
+          'Cache-Control': 'no-store',
           'X-Content-Type-Options': 'nosniff',
+          'X-Sitemap-Intent': intent,
+          'X-Sitemap-Error': 'exception',
         },
       }
     )
