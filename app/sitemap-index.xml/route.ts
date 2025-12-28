@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getBaseUrl } from '@/lib/utils/url'
+import { escapeXml, getBaseUrl } from '@/lib/utils/url'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -14,7 +14,7 @@ export async function GET() {
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${entries
   .map((loc) => `  <sitemap>
-    <loc>${loc}</loc>
+    <loc>${escapeXml(loc)}</loc>
   </sitemap>`)
   .join('\n')}
 </sitemapindex>`

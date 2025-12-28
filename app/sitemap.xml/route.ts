@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getBaseUrl } from '@/lib/utils/url'
+import { escapeXml, getBaseUrl } from '@/lib/utils/url'
 import { createServiceClient } from '@/lib/supabase/service'
 
 export const dynamic = 'force-dynamic'
@@ -91,8 +91,9 @@ export async function GET() {
   const body = `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${entries
+  // XML requires escaping '&' in query strings (e.g. ...?a=1&amp;b=2)
   .map((loc) => `  <sitemap>
-    <loc>${loc}</loc>
+    <loc>${escapeXml(loc)}</loc>
   </sitemap>`)
   .join('\n')}
 </sitemapindex>`
