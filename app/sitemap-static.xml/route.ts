@@ -75,18 +75,9 @@ async function getDynamicPaths() {
       })
     }
 
-    // Keywords (long-tail keywords)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: keywords } = await (supabase as any)
-      .from('long_tail_keywords')
-      .select('page_slug')
-      .eq('status', 'published')
-
-    if (Array.isArray(keywords)) {
-      keywords.forEach((keyword: { page_slug: string }) => {
-        paths.push({ path: `/keywords/${keyword.page_slug}`, priority: '0.6' })
-      })
-    }
+    // NOTE: Long-tail keywords are intentionally excluded here.
+    // They must live in a dedicated, paginated sitemap (sitemap-long-tail.xml)
+    // to avoid exceeding the 50,000 URL limit per sitemap file.
 
     // Industry pages (100 industries)
     INDUSTRIES_100.forEach((industry) => {

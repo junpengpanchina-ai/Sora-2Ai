@@ -6,37 +6,68 @@ import { getKeywordPageUrl, escapeXml } from '@/lib/utils/url'
 type KeywordRow = Database['public']['Tables']['long_tail_keywords']['Row']
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 0 // 禁用缓存，确保每次请求都读取最新数据
+export const revalidate = 0 // sitemap 本身由 HTTP cache 控制
 
-export async function GET() {
+// Sitemap 协议限制：每个文件最多 50,000 个 URL
+const MAX_URLS_PER_SITEMAP = 50000
+
+const normalizeKeywordSlug = (slug: string) => slug.replace(/\.xml$/i, '')
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10))
+
+  let totalCount = 0
   let rawData: Pick<KeywordRow, 'page_slug' | 'updated_at'>[] = []
-  
+
   try {
     const supabase = await createServiceClient()
+
+    // Count total published keywords for pagination
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await (supabase as any)
+    const { count, error: countError } = await (supabase as any)
       .from('long_tail_keywords')
-      .select('page_slug, updated_at')
+      .select('id', { count: 'exact', head: true })
       .eq('status', 'published')
-      .order('updated_at', { ascending: false })
-      .limit(5000)
-    
-    if (result.error) {
-      console.error('Failed to fetch keywords for sitemap:', result.error)
+
+    if (countError) {
+      console.error('Failed to count keywords for sitemap:', countError)
     } else {
-      rawData = Array.isArray(result.data) ? result.data : []
-      console.log(`Sitemap: Found ${rawData.length} published keywords`)
+      totalCount = typeof count === 'number' ? count : 0
+    }
+
+    const totalPages = Math.max(1, Math.ceil(totalCount / MAX_URLS_PER_SITEMAP))
+    if (page > totalPages || page < 1) {
+      rawData = []
+    } else {
+      const offset = (page - 1) * MAX_URLS_PER_SITEMAP
+      const limit = MAX_URLS_PER_SITEMAP
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await (supabase as any)
+        .from('long_tail_keywords')
+        .select('page_slug, updated_at')
+        .eq('status', 'published')
+        .order('updated_at', { ascending: false })
+        .range(offset, offset + limit - 1)
+
+      if (result.error) {
+        console.error(`Failed to fetch keywords for sitemap page ${page}:`, result.error)
+      } else {
+        rawData = Array.isArray(result.data) ? result.data : []
+        console.log(`Sitemap: Found ${rawData.length} published keywords on page ${page}/${totalPages}`)
+      }
     }
   } catch (err) {
     console.error('Failed to create Supabase client for sitemap:', err)
-    // 如果环境变量未配置，返回空的 sitemap
+    // If env is missing or service client fails, return an empty sitemap (valid XML)
   }
 
   const data = rawData as Pick<KeywordRow, 'page_slug' | 'updated_at'>[]
 
   const urls = data.map((item) => {
-    const escapedSlug = escapeXml(item.page_slug)
-    // 使用统一的 URL 生成函数，确保不带 format=xml 参数
+    const normalizedSlug = normalizeKeywordSlug(item.page_slug)
+    const escapedSlug = escapeXml(normalizedSlug)
     const pageUrl = getKeywordPageUrl(escapedSlug)
     
     // 确保时间格式正确：使用 ISO 8601 格式，只包含日期部分（YYYY-MM-DD）
@@ -73,9 +104,8 @@ ${urls.length > 0 ? urls.join('\n') : '  <!-- No published keywords found -->'}
     status: 200,
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
-      'Cache-Control': 'no-cache, no-store, must-revalidate', // 禁用缓存，确保实时数据
-      'Pragma': 'no-cache',
-      'Expires': '0',
+      // Cache is safe here (the file changes when DB changes; Google will refetch periodically)
+      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
       'X-Content-Type-Options': 'nosniff',
     },
   })
