@@ -9,7 +9,7 @@ export const revalidate = 0
 // NOTE: Although the protocol allows 50k URLs per sitemap, our slugs are long and
 // the resulting XML can become very large. Keeping this smaller reduces timeouts
 // and prevents edge caches from storing empty/error responses.
-const MAX_URLS_PER_SITEMAP = 10000
+const MAX_URLS_PER_SITEMAP = 2000
 
 /**
  * 场景 sitemap - 包含所有使用场景内容（use_cases）
@@ -150,6 +150,7 @@ export async function GET(request: Request) {
     if (error) {
       console.error(`Error fetching use cases for intent "${intent}" page ${page}:`, error)
       // Return 503 so Google retries; don't cache transient failures.
+      const errorMsg = typeof error?.message === 'string' ? error.message : String(error)
       return new NextResponse(
         `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -165,6 +166,7 @@ export async function GET(request: Request) {
             'X-Sitemap-Page': String(page),
             'X-Sitemap-Total-Pages': String(totalPages),
             'X-Sitemap-Error': 'fetch_error',
+            'X-Sitemap-Error-Message': errorMsg.slice(0, 160),
           },
         }
       )
