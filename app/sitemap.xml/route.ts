@@ -8,7 +8,7 @@ export const revalidate = 0
 // Sitemap 协议限制：每个文件最多 50,000 个 URL
 const MAX_URLS_PER_SITEMAP = 50000
 // Keep scenes sitemaps smaller to reduce response size/timeouts (slugs are long).
-const MAX_SCENES_URLS_PER_SITEMAP = 10000
+const MAX_SCENES_URLS_PER_SITEMAP = 2000
 
 export async function GET() {
   const baseUrl = getBaseUrl()
