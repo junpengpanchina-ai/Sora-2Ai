@@ -22,6 +22,16 @@ export async function middleware(request: NextRequest) {
     
     // 调试日志
     console.log(`Middleware: Keyword path detected: ${pathname}, slug: ${slug}, format: ${format}`)
+
+    // Normalize legacy ".xml" slugs to canonical HTML URL (301).
+    // Example: /keywords/some-keyword.xml  -> /keywords/some-keyword
+    // Keep ?format=xml behavior intact.
+    if (format !== 'xml' && slug.toLowerCase().endsWith('.xml')) {
+      const url = request.nextUrl.clone()
+      url.pathname = `/keywords/${slug.replace(/\.xml$/i, '')}`
+      // Preserve query params (except format, which isn't xml here anyway)
+      return NextResponse.redirect(url, 301)
+    }
     
     // 只有当明确指定 format=xml 时，才返回 XML
     if (format === 'xml') {

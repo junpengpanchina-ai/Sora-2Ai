@@ -16,12 +16,12 @@ const MAX_URLS_PER_SITEMAP = 50000
  * - /sitemap-scenes.xml?intent=conversion&page=1
  * - /sitemap-scenes.xml?intent=education&page=1
  * - /sitemap-scenes.xml?intent=platform&page=1
- * - /sitemap-scenes.xml?intent=all&page=1 (所有场景)
+ * - /sitemap-scenes.xml?intent=brand&page=1
  */
 export async function GET(request: Request) {
   const baseUrl = getBaseUrl()
   const { searchParams } = new URL(request.url)
-  const intent = searchParams.get('intent') || 'all' // conversion, education, platform, all
+  const intent = searchParams.get('intent') || 'conversion' // conversion, education, platform, brand
   const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10))
   
   const supabase = await createServiceClient()
@@ -45,8 +45,10 @@ export async function GET(request: Request) {
     } else if (intent === 'platform') {
       // 平台意图：social-media-content, ugc-creator-content
       countQuery = countQuery.in('use_case_type', ['social-media-content', 'ugc-creator-content'])
+    } else if (intent === 'brand') {
+      // 品牌叙事：brand-storytelling
+      countQuery = countQuery.eq('use_case_type', 'brand-storytelling')
     }
-    // intent === 'all' 时不过滤
 
     const { count, error: countError } = await countQuery
 
@@ -125,6 +127,8 @@ export async function GET(request: Request) {
       dataQuery = dataQuery.eq('use_case_type', 'education-explainer')
     } else if (intent === 'platform') {
       dataQuery = dataQuery.in('use_case_type', ['social-media-content', 'ugc-creator-content'])
+    } else if (intent === 'brand') {
+      dataQuery = dataQuery.eq('use_case_type', 'brand-storytelling')
     }
 
     const { data: useCases, error } = await dataQuery

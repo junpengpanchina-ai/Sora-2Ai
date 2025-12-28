@@ -444,7 +444,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const { getKeywordPageUrl } = await import('@/lib/utils/url')
-  const canonical = getKeywordPageUrl(keyword.page_slug)
+  const canonical = getKeywordPageUrl(keyword.page_slug.replace(/\.xml$/i, ''))
 
   return {
     title: buildMetaTitle(keyword),

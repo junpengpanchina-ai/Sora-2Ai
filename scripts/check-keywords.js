@@ -26,30 +26,58 @@ async function checkKeywords() {
   console.log('='.repeat(60))
 
   try {
-    // 1. 获取所有长尾词（包括不同状态）
-    console.log('\n📊 统计所有长尾词\n')
-    
-    const { data: allKeywords, error: allError } = await serviceClient
-      .from('long_tail_keywords')
-      .select('id, status, page_slug, keyword, updated_at')
-    
-    if (allError) {
-      console.error('❌ 查询失败:', allError.message)
-      process.exit(1)
+    // 1) 统计长尾词（使用 COUNT，避免拉全表导致 15 万+ 数据超时）
+    console.log('\n📊 统计长尾词（COUNT 模式）\n')
+
+    const countTotal = async () => {
+      const { count, error } = await serviceClient
+        .from('long_tail_keywords')
+        .select('id', { count: 'exact', head: true })
+      return { count: typeof count === 'number' ? count : 0, error }
     }
 
-    const total = allKeywords?.length || 0
-    const published = allKeywords?.filter(k => k.status === 'published').length || 0
-    const draft = allKeywords?.filter(k => k.status === 'draft').length || 0
-    const archived = allKeywords?.filter(k => k.status === 'archived').length || 0
-    const otherStatus = total - published - draft - archived
+    const countByStatus = async (status) => {
+      const { count, error } = await serviceClient
+        .from('long_tail_keywords')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', status)
+      return { count: typeof count === 'number' ? count : 0, error }
+    }
 
-    console.log(`总数: ${total}`)
-    console.log(`✅ 已发布 (published): ${published}`)
-    console.log(`📝 草稿 (draft): ${draft}`)
-    console.log(`📦 已归档 (archived): ${archived}`)
-    if (otherStatus > 0) {
-      console.log(`❓ 其他状态: ${otherStatus}`)
+    const [{ count: total, error: totalError }, { count: published, error: pubError }, { count: draft, error: draftError }, { count: archived, error: archError }] =
+      await Promise.all([
+        countTotal(),
+        countByStatus('published'),
+        countByStatus('draft'),
+        countByStatus('archived'),
+      ])
+
+    if (totalError) {
+      console.error('❌ 查询总数失败:', totalError.message)
+      process.exit(1)
+    }
+    if (pubError) console.warn('⚠️  查询 published 失败:', pubError.message)
+    if (draftError) console.warn('⚠️  查询 draft 失败:', draftError.message)
+    if (archError) console.warn('⚠️  查询 archived 失败:', archError.message)
+
+    const otherStatus = Math.max(0, total - published - draft - archived)
+
+    console.log(`总数: ${total.toLocaleString()}`)
+    console.log(`✅ 已发布 (published): ${published.toLocaleString()}`)
+    console.log(`📝 草稿 (draft): ${draft.toLocaleString()}`)
+    console.log(`📦 已归档 (archived): ${archived.toLocaleString()}`)
+    if (otherStatus > 0) console.log(`❓ 其他状态: ${otherStatus.toLocaleString()}`)
+
+    // 1.1) 检查历史遗留 .xml slug 数量（会影响 canonical/重复页面信号）
+    const { count: xmlSlugCount, error: xmlCountError } = await serviceClient
+      .from('long_tail_keywords')
+      .select('id', { count: 'exact', head: true })
+      .ilike('page_slug', '%.xml')
+
+    if (xmlCountError) {
+      console.warn('⚠️  查询 .xml slug 数量失败:', xmlCountError.message)
+    } else {
+      console.log(`🧹 page_slug 以 .xml 结尾的记录数: ${(xmlSlugCount || 0).toLocaleString()}`)
     }
 
     // 2. 检查已发布的长尾词（用于 sitemap）
@@ -125,8 +153,9 @@ async function checkKeywords() {
     if (published > 0) {
       console.log('请在浏览器中访问以下 URL 验证 sitemap:')
       console.log('  1. 主 sitemap: https://sora2aivideos.com/sitemap.xml')
-      console.log('  2. 长尾词 sitemap: https://sora2aivideos.com/sitemap-long-tail.xml')
-      console.log(`\n长尾词 sitemap 应该包含 ${published} 个 URL`)
+      console.log('  2. 长尾词 sitemap（分页）: https://sora2aivideos.com/sitemap-long-tail.xml?page=1')
+      console.log(`\n长尾词已发布: ${published.toLocaleString()}（每页最多 50,000）`)
+      console.log(`理论分页数: ${Math.ceil(published / 50000)}`)
     }
 
     console.log('\n' + '='.repeat(60))

@@ -27,6 +27,8 @@
     "monitor:backlinks": "node scripts/monitor-backlinks.js",
     "verify:page-style": "node scripts/verify-page-style-migration.js",
     "monitor:supabase": "node scripts/monitor-supabase-usage.js"
+    ,
+    "db:stats": "node scripts/db-stats.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.927.0",
