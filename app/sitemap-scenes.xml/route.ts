@@ -9,7 +9,7 @@ export const revalidate = 0
 // NOTE: Although the protocol allows 50k URLs per sitemap, our slugs are long and
 // the resulting XML can become very large. Keeping this smaller reduces timeouts
 // and prevents edge caches from storing empty/error responses.
-const MAX_URLS_PER_SITEMAP = 2000
+const MAX_URLS_PER_SITEMAP = 500
 
 /**
  * 场景 sitemap - 包含所有使用场景内容（use_cases）
@@ -34,7 +34,8 @@ export async function GET(request: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let countQuery = (supabase as any)
       .from('use_cases')
-      .select('id', { count: 'exact', head: true })
+      // Use estimated count to avoid expensive full-table COUNTs under strict statement timeouts.
+      .select('id', { count: 'estimated', head: true })
       .eq('is_published', true)
       .eq('quality_status', 'approved')
 
@@ -58,6 +59,7 @@ export async function GET(request: Request) {
     if (countError) {
       console.error(`Error counting use cases for intent "${intent}":`, countError)
       // Return 503 so Google retries; don't cache transient failures.
+      const errorMsg = typeof countError?.message === 'string' ? countError.message : String(countError)
       return new NextResponse(
         `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -70,6 +72,7 @@ export async function GET(request: Request) {
             'X-Content-Type-Options': 'nosniff',
             'X-Sitemap-Intent': intent,
             'X-Sitemap-Error': 'count_error',
+            'X-Sitemap-Error-Message': errorMsg.slice(0, 160),
           },
         }
       )
