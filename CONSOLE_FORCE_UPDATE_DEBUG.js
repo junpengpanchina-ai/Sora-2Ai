@@ -26,6 +26,7 @@ const autoRefreshes = []
 const componentRenders = []
 const stateUpdates = []
 const domMutations = []
+const apiErrors = [] // 专门收集 API 错误
 let updateCount = 0
 
 // 1. 检测自动刷新操作
@@ -35,6 +36,7 @@ if (!window._forceUpdateDebugOriginalFetch) {
 }
 window.fetch = function(...args) {
   const url = args[0]
+  const startTime = Date.now()
   
   // 检测刷新相关的 API 调用
   if (typeof url === 'string') {
@@ -45,26 +47,109 @@ window.fetch = function(...args) {
       url.includes('refresh') ||
       url.includes('fetch')
     
+    // 特别检测使用场景列表查询
+    const isUseCasesQuery = url.includes('/api/admin/use-cases')
+    const isUseCasesListQuery = isUseCasesQuery && (
+      url.includes('limit=0') || // 统计查询
+      url.includes('status=') || // 状态筛选
+      url.includes('quality_status=') // 质量筛选
+    )
+    
     if (isRefreshCall) {
       const refreshInfo = {
         id: ++updateCount,
-        type: 'AutoRefresh',
+        type: isUseCasesQuery ? 'UseCasesQuery' : 'AutoRefresh',
         url,
         method: args[1]?.method || 'GET',
         timestamp: new Date().toISOString(),
         stack: new Error().stack,
+        isUseCasesListQuery: isUseCasesListQuery,
       }
       
       autoRefreshes.push(refreshInfo)
+      
       // 使用原始 console.log 避免递归
-      originalConsoleLog(`%c🔄 检测到自动刷新 #${updateCount}`, 'color: blue; font-weight: bold;')
+      if (isUseCasesQuery) {
+        originalConsoleLog(`%c📋 使用场景列表查询 #${updateCount}`, 'color: orange; font-weight: bold;')
+      } else {
+        originalConsoleLog(`%c🔄 检测到自动刷新 #${updateCount}`, 'color: blue; font-weight: bold;')
+      }
       originalConsoleLog('URL:', url)
       originalConsoleLog('时间:', new Date(refreshInfo.timestamp).toLocaleString())
-      originalConsoleLog('调用堆栈:', refreshInfo.stack)
+      
+      // 如果是使用场景查询，检查是否有潜在问题
+      if (isUseCasesListQuery) {
+        originalConsoleLog('⚠️ 这是使用场景列表统计查询（可能导致频繁刷新）')
+      }
     }
   }
   
+  // 包装 fetch 以检测错误响应
   return window._forceUpdateDebugOriginalFetch.apply(this, args)
+    .then((response) => {
+      const duration = Date.now() - startTime
+      
+      // 检测使用场景查询的错误
+      if (typeof url === 'string' && url.includes('/api/admin/use-cases')) {
+        if (!response.ok) {
+          const errorInfo = {
+            id: ++updateCount,
+            type: 'UseCasesQueryError',
+            url,
+            status: response.status,
+            statusText: response.statusText,
+            timestamp: new Date().toISOString(),
+            duration,
+            stack: new Error().stack,
+          }
+          
+          apiErrors.push(errorInfo)
+          
+          originalConsoleError(`%c❌ 使用场景查询失败 #${updateCount}`, 'color: red; font-weight: bold;')
+          originalConsoleError('URL:', url)
+          originalConsoleError('状态:', response.status, response.statusText)
+          originalConsoleError('耗时:', duration, 'ms')
+          
+          // 尝试读取错误详情（不阻塞主流程）
+          response.clone().json().then((data) => {
+            if (data.error || data.details) {
+              originalConsoleError('错误详情:', data.error || data.details)
+              errorInfo.errorDetails = data.error || data.details
+            }
+          }).catch(() => {
+            // 忽略 JSON 解析错误
+          })
+        } else if (duration > 5000) {
+          // 慢查询警告
+          originalConsoleWarn(`%c⚠️ 使用场景查询较慢 (${duration}ms)`, 'color: yellow;')
+          originalConsoleWarn('URL:', url)
+        }
+      }
+      
+      return response
+    })
+    .catch((error) => {
+      // 网络错误或其他错误
+      if (typeof url === 'string' && url.includes('/api/admin/use-cases')) {
+        const errorInfo = {
+          id: ++updateCount,
+          type: 'UseCasesQueryNetworkError',
+          url,
+          error: error.message || String(error),
+          timestamp: new Date().toISOString(),
+          duration: Date.now() - startTime,
+          stack: error.stack || new Error().stack,
+        }
+        
+        apiErrors.push(errorInfo)
+        
+        originalConsoleError(`%c❌ 使用场景查询网络错误 #${updateCount}`, 'color: red; font-weight: bold;')
+        originalConsoleError('URL:', url)
+        originalConsoleError('错误:', error.message || String(error))
+      }
+      
+      throw error
+    })
 }
 
 // 2. 检测 setInterval 和 setTimeout（自动刷新定时器）
@@ -108,54 +193,63 @@ window.setInterval = function(callback, delay, ...args) {
 
 // 3. 检测 React 组件渲染
 console.log = function(...args) {
-  const message = args[0]
+  // 先调用原始函数，避免任何递归问题
+  const result = originalConsoleLog.apply(console, args)
   
-  // 检测组件渲染日志
-  if (typeof message === 'string') {
-    if (message.includes('渲染') || 
-        message.includes('Render') || 
-        message.includes('组件') ||
-        message.includes('Component') ||
-        message.includes('activeTab 已更新') ||
-        message.includes('AdminUseCasesManager') ||
-        message.includes('AdminClient')) {
-      
-      const renderInfo = {
-        id: ++updateCount,
-        type: 'ComponentRender',
-        message: args.join(' '),
-        timestamp: new Date().toISOString(),
-      }
-      
-      componentRenders.push(renderInfo)
-      
-      // 使用原始 console.log 避免递归
-      if (message.includes('activeTab 已更新')) {
-        originalConsoleLog(`%c🔄 标签页切换`, 'color: purple; font-weight: bold;', ...args)
-      } else if (message.includes('渲染')) {
-        originalConsoleLog(`%c🎨 组件渲染`, 'color: cyan;', ...args)
-      }
-    }
+  // 然后检测消息内容（不影响原始输出）
+  try {
+    const message = args[0]
     
-    // 检测状态更新
-    if (message.includes('状态') || 
-        message.includes('State') || 
-        message.includes('更新') ||
-        message.includes('Update') ||
-        message.includes('setState')) {
-      
-      const stateInfo = {
-        id: ++updateCount,
-        type: 'StateUpdate',
-        message: args.join(' '),
-        timestamp: new Date().toISOString(),
+    // 检测组件渲染日志
+    if (typeof message === 'string') {
+      if (message.includes('渲染') || 
+          message.includes('Render') || 
+          message.includes('组件') ||
+          message.includes('Component') ||
+          message.includes('activeTab 已更新') ||
+          message.includes('AdminUseCasesManager') ||
+          message.includes('AdminClient')) {
+        
+        const renderInfo = {
+          id: ++updateCount,
+          type: 'ComponentRender',
+          message: args.join(' '),
+          timestamp: new Date().toISOString(),
+        }
+        
+        componentRenders.push(renderInfo)
+        
+        // 使用原始 console.log 输出额外标记（不传递原始 args，避免重复）
+        if (message.includes('activeTab 已更新')) {
+          originalConsoleLog(`%c🔄 标签页切换`, 'color: purple; font-weight: bold;')
+        } else if (message.includes('渲染')) {
+          originalConsoleLog(`%c🎨 组件渲染`, 'color: cyan;')
+        }
       }
       
-      stateUpdates.push(stateInfo)
+      // 检测状态更新
+      if (message.includes('状态') || 
+          message.includes('State') || 
+          message.includes('更新') ||
+          message.includes('Update') ||
+          message.includes('setState')) {
+        
+        const stateInfo = {
+          id: ++updateCount,
+          type: 'StateUpdate',
+          message: args.join(' '),
+          timestamp: new Date().toISOString(),
+        }
+        
+        stateUpdates.push(stateInfo)
+      }
     }
+  } catch (e) {
+    // 如果检测过程中出错，不影响原始 console.log 的输出
+    // 静默失败，避免导致更多问题
   }
   
-  return originalConsoleLog.apply(console, args)
+  return result
 }
 
 // 4. 检测 DOM 变化（MutationObserver）
@@ -284,119 +378,201 @@ window.addEventListener('blur', () => {
 
 // 8. 生成详细报告
 window.forceUpdateReport = function() {
-  console.clear()
-  console.log('%c📋 强制更新检测报告', 'font-size: 18px; font-weight: bold; color: #00d4ff;')
-  console.log('='.repeat(60))
+  if (console.clear) {
+    console.clear()
+  }
+  originalConsoleLog('%c📋 强制更新检测报告', 'font-size: 18px; font-weight: bold; color: #00d4ff;')
+  originalConsoleLog('='.repeat(60))
   
-  console.log('\n%c1. 统计信息', 'font-size: 14px; font-weight: bold; color: #4ecdc4;')
-  console.log(`总更新次数: ${forceUpdates.length}`)
-  console.log(`自动刷新次数: ${autoRefreshes.length}`)
-  console.log(`组件渲染次数: ${componentRenders.length}`)
-  console.log(`状态更新次数: ${stateUpdates.length}`)
-  console.log(`DOM 变化次数: ${domMutations.length}`)
+  // 预先计算使用场景查询统计（避免重复计算）
+  const useCasesQueries = autoRefreshes.filter(r => r.type === 'UseCasesQuery')
+  const useCasesErrors = apiErrors.filter(e => e.type === 'UseCasesQueryError' || e.type === 'UseCasesQueryNetworkError')
   
-  console.log('\n%c2. 自动刷新记录', 'font-size: 14px; font-weight: bold; color: #ff6b6b;')
+  originalConsoleLog('\n%c1. 统计信息', 'font-size: 14px; font-weight: bold; color: #4ecdc4;')
+  originalConsoleLog(`总更新次数: ${forceUpdates.length}`)
+  originalConsoleLog(`自动刷新次数: ${autoRefreshes.length}`)
+  originalConsoleLog(`组件渲染次数: ${componentRenders.length}`)
+  originalConsoleLog(`状态更新次数: ${stateUpdates.length}`)
+  originalConsoleLog(`DOM 变化次数: ${domMutations.length}`)
+  originalConsoleLog(`API 错误次数: ${apiErrors.length}`)
+  originalConsoleLog(`使用场景查询次数: ${useCasesQueries.length}`)
+  originalConsoleLog(`使用场景查询错误: ${useCasesErrors.length}`)
+  
+  originalConsoleLog('\n%c2. 自动刷新记录', 'font-size: 14px; font-weight: bold; color: #ff6b6b;')
   if (autoRefreshes.length === 0) {
-    console.log('✅ 未检测到自动刷新')
+    originalConsoleLog('✅ 未检测到自动刷新')
   } else {
-    console.log(`共 ${autoRefreshes.length} 次自动刷新:`)
-    autoRefreshes.forEach((refresh, index) => {
-      console.log(`\n刷新 #${index + 1}:`)
-      console.log('  时间:', new Date(refresh.timestamp).toLocaleString())
-      console.log('  URL:', refresh.url)
-      console.log('  方法:', refresh.method)
-    })
+    originalConsoleLog(`共 ${autoRefreshes.length} 次自动刷新:`)
+    
+    // 分别显示使用场景查询和其他刷新
+    const otherRefreshes = autoRefreshes.filter(r => r.type !== 'UseCasesQuery')
+    
+    if (useCasesQueries.length > 0) {
+      originalConsoleLog(`\n📋 使用场景查询 (${useCasesQueries.length} 次):`)
+      useCasesQueries.slice(-10).forEach((refresh, index) => {
+        originalConsoleLog(`  ${index + 1}. [${new Date(refresh.timestamp).toLocaleTimeString()}] ${refresh.url}`)
+        if (refresh.isUseCasesListQuery) {
+          originalConsoleLog('     ⚠️ 统计查询（可能导致频繁刷新）')
+        }
+      })
+      if (useCasesQueries.length > 10) {
+        originalConsoleLog(`  ... 还有 ${useCasesQueries.length - 10} 次查询`)
+      }
+    }
+    
+    if (otherRefreshes.length > 0) {
+      originalConsoleLog(`\n🔄 其他自动刷新 (${otherRefreshes.length} 次):`)
+      otherRefreshes.slice(-10).forEach((refresh, index) => {
+        originalConsoleLog(`  ${index + 1}. [${new Date(refresh.timestamp).toLocaleTimeString()}] ${refresh.url}`)
+      })
+      if (otherRefreshes.length > 10) {
+        originalConsoleLog(`  ... 还有 ${otherRefreshes.length - 10} 次刷新`)
+      }
+    }
   }
   
-  console.log('\n%c3. 定时器记录', 'font-size: 14px; font-weight: bold; color: #ffd93d;')
+  originalConsoleLog('\n%c3. 定时器记录', 'font-size: 14px; font-weight: bold; color: #ffd93d;')
   const intervals = forceUpdates.filter(u => u.type === 'SetInterval')
   if (intervals.length === 0) {
-    console.log('✅ 未检测到定时器')
+    originalConsoleLog('✅ 未检测到定时器')
   } else {
-    console.log(`共 ${intervals.length} 个定时器:`)
+    originalConsoleLog(`共 ${intervals.length} 个定时器:`)
     intervals.forEach((interval, index) => {
-      console.log(`\n定时器 #${index + 1}:`)
-      console.log('  间隔:', interval.delay, 'ms', `(${(interval.delay/1000).toFixed(1)}秒)`)
-      console.log('  回调:', interval.callback.substring(0, 100) + '...')
+      originalConsoleLog(`\n定时器 #${index + 1}:`)
+      originalConsoleLog('  间隔:', interval.delay, 'ms', `(${(interval.delay/1000).toFixed(1)}秒)`)
+      originalConsoleLog('  回调:', interval.callback.substring(0, 100) + '...')
     })
   }
   
-  console.log('\n%c4. 组件渲染记录', 'font-size: 14px; font-weight: bold; color: #95e1d3;')
+  originalConsoleLog('\n%c4. 组件渲染记录', 'font-size: 14px; font-weight: bold; color: #95e1d3;')
   if (componentRenders.length === 0) {
-    console.log('ℹ️ 未检测到组件渲染日志')
+    originalConsoleLog('ℹ️ 未检测到组件渲染日志')
   } else {
-    console.log(`共 ${componentRenders.length} 次渲染:`)
-    console.log('最近10次:')
+    originalConsoleLog(`共 ${componentRenders.length} 次渲染:`)
+    originalConsoleLog('最近10次:')
     componentRenders.slice(-10).forEach((render, index) => {
-      console.log(`  ${index + 1}. [${new Date(render.timestamp).toLocaleTimeString()}] ${render.message}`)
+      originalConsoleLog(`  ${index + 1}. [${new Date(render.timestamp).toLocaleTimeString()}] ${render.message}`)
     })
   }
   
-  console.log('\n%c5. DOM 变化记录', 'font-size: 14px; font-weight: bold; color: #a8e6cf;')
+  originalConsoleLog('\n%c5. DOM 变化记录', 'font-size: 14px; font-weight: bold; color: #a8e6cf;')
   if (domMutations.length === 0) {
-    console.log('ℹ️ 未检测到 DOM 变化')
+    originalConsoleLog('ℹ️ 未检测到 DOM 变化')
   } else {
     const removals = domMutations.filter(m => m.removedNodes > 0)
-    console.log(`共 ${domMutations.length} 次 DOM 变化`)
-    console.log(`其中 ${removals.length} 次涉及节点移除`)
+    originalConsoleLog(`共 ${domMutations.length} 次 DOM 变化`)
+    originalConsoleLog(`其中 ${removals.length} 次涉及节点移除`)
     
     if (removals.length > 0) {
-      console.log('\n节点移除记录:')
+      originalConsoleLog('\n节点移除记录:')
       removals.slice(-10).forEach((mutation, index) => {
-        console.log(`  ${index + 1}. [${new Date(mutation.timestamp).toLocaleTimeString()}] 移除 ${mutation.removedNodes} 个节点 (目标: ${mutation.target})`)
+        originalConsoleLog(`  ${index + 1}. [${new Date(mutation.timestamp).toLocaleTimeString()}] 移除 ${mutation.removedNodes} 个节点 (目标: ${mutation.target})`)
       })
     }
   }
   
-  console.log('\n%c6. removeChild 错误分析', 'font-size: 14px; font-weight: bold; color: #ef4444;')
+  originalConsoleLog('\n%c6. removeChild 错误分析', 'font-size: 14px; font-weight: bold; color: #ef4444;')
   const errors = forceUpdates.filter(u => u.type === 'removeChildError')
   if (errors.length === 0) {
-    console.log('✅ 未检测到 removeChild 错误')
+    originalConsoleLog('✅ 未检测到 removeChild 错误')
   } else {
-    console.error(`❌ 检测到 ${errors.length} 个 removeChild 错误:`)
+    originalConsoleError(`❌ 检测到 ${errors.length} 个 removeChild 错误:`)
     errors.forEach((error, index) => {
-      console.error(`\n错误 #${index + 1}:`)
-      console.error('  时间:', new Date(error.timestamp).toLocaleString())
-      console.error('  错误前自动刷新次数:', error.autoRefreshCount)
-      console.error('  错误前组件渲染次数:', error.componentRenderCount)
-      console.error('  错误前状态更新次数:', error.stateUpdateCount)
-      console.error('  错误前 DOM 变化次数:', error.domMutationCount)
+      originalConsoleError(`\n错误 #${index + 1}:`)
+      originalConsoleError('  时间:', new Date(error.timestamp).toLocaleString())
+      originalConsoleError('  错误前自动刷新次数:', error.autoRefreshCount)
+      originalConsoleError('  错误前组件渲染次数:', error.componentRenderCount)
+      originalConsoleError('  错误前状态更新次数:', error.stateUpdateCount)
+      originalConsoleError('  错误前 DOM 变化次数:', error.domMutationCount)
       
       // 分析可能的原因
       if (error.autoRefreshCount > 0) {
-        console.warn('  ⚠️ 可能原因: 自动刷新导致组件重新渲染')
+        originalConsoleWarn('  ⚠️ 可能原因: 自动刷新导致组件重新渲染')
       }
       if (error.componentRenderCount > 0) {
-        console.warn('  ⚠️ 可能原因: 组件频繁渲染导致 DOM 操作冲突')
+        originalConsoleWarn('  ⚠️ 可能原因: 组件频繁渲染导致 DOM 操作冲突')
       }
       if (error.domMutationCount > 0) {
-        console.warn('  ⚠️ 可能原因: DOM 频繁变化导致节点关系改变')
+        originalConsoleWarn('  ⚠️ 可能原因: DOM 频繁变化导致节点关系改变')
       }
     })
   }
   
-  console.log('\n%c7. 修复建议', 'font-size: 14px; font-weight: bold; color: #a8e6cf;')
+  originalConsoleLog('\n%c7. API 错误分析', 'font-size: 14px; font-weight: bold; color: #ff6b6b;')
+  if (apiErrors.length === 0) {
+    originalConsoleLog('✅ 未检测到 API 错误')
+  } else {
+    originalConsoleError(`❌ 检测到 ${apiErrors.length} 个 API 错误:`)
+    
+    if (useCasesErrors.length > 0) {
+      originalConsoleError(`\n📋 使用场景查询错误 (${useCasesErrors.length} 个):`)
+      useCasesErrors.forEach((error, index) => {
+        originalConsoleError(`\n错误 #${index + 1}:`)
+        originalConsoleError('  时间:', new Date(error.timestamp).toLocaleString())
+        originalConsoleError('  URL:', error.url)
+        if (error.status) {
+          originalConsoleError('  状态:', error.status, error.statusText)
+        }
+        if (error.error) {
+          originalConsoleError('  错误:', error.error)
+        }
+        if (error.errorDetails) {
+          originalConsoleError('  详情:', error.errorDetails)
+        }
+        if (error.duration) {
+          originalConsoleError('  耗时:', error.duration, 'ms')
+        }
+      })
+    }
+    
+    const otherErrors = apiErrors.filter(e => e.type !== 'UseCasesQueryError' && e.type !== 'UseCasesQueryNetworkError')
+    if (otherErrors.length > 0) {
+      originalConsoleError(`\n其他 API 错误 (${otherErrors.length} 个):`)
+      otherErrors.slice(-5).forEach((error, index) => {
+        originalConsoleError(`  ${index + 1}. [${new Date(error.timestamp).toLocaleTimeString()}] ${error.url || '未知URL'}`)
+      })
+    }
+  }
+  
+  originalConsoleLog('\n%c8. 修复建议', 'font-size: 14px; font-weight: bold; color: #a8e6cf;')
+  
+  if (useCasesQueries.length > 20) {
+    originalConsoleLog('🔧 使用场景查询过于频繁:')
+    originalConsoleLog('  - 检查是否有多个组件同时查询')
+    originalConsoleLog('  - 考虑使用缓存减少查询次数')
+    originalConsoleLog('  - 检查自动刷新是否在查询时触发')
+    originalConsoleLog('  - 考虑合并多个统计查询为单个请求')
+  }
   
   if (autoRefreshes.length > 10) {
-    console.log('🔧 自动刷新过于频繁:')
-    console.log('  - 检查自动刷新间隔设置')
-    console.log('  - 考虑增加刷新间隔时间')
-    console.log('  - 检查是否有多个自动刷新定时器同时运行')
+    originalConsoleLog('🔧 自动刷新过于频繁:')
+    originalConsoleLog('  - 检查自动刷新间隔设置')
+    originalConsoleLog('  - 考虑增加刷新间隔时间')
+    originalConsoleLog('  - 检查是否有多个自动刷新定时器同时运行')
+  }
+  
+  if (useCasesErrors.length > 0) {
+    originalConsoleLog('🔧 使用场景查询错误修复:')
+    originalConsoleLog('  - 检查 API 路由是否正确')
+    originalConsoleLog('  - 检查数据库连接是否正常')
+    originalConsoleLog('  - 检查查询参数是否正确')
+    originalConsoleLog('  - 检查是否有权限问题')
+    originalConsoleLog('  - 查看服务器日志获取详细错误信息')
   }
   
   if (componentRenders.length > 50) {
-    console.log('🔧 组件渲染过于频繁:')
-    console.log('  - 检查组件依赖项，避免不必要的重新渲染')
-    console.log('  - 使用 React.memo 优化组件')
-    console.log('  - 检查状态更新是否导致级联渲染')
+    originalConsoleLog('🔧 组件渲染过于频繁:')
+    originalConsoleLog('  - 检查组件依赖项，避免不必要的重新渲染')
+    originalConsoleLog('  - 使用 React.memo 优化组件')
+    originalConsoleLog('  - 检查状态更新是否导致级联渲染')
   }
   
   if (errors.length > 0) {
-    console.log('🔧 removeChild 错误修复:')
-    console.log('  - 在 removeChild 前检查节点关系')
-    console.log('  - 使用 element.remove() 替代 removeChild')
-    console.log('  - 确保组件卸载时清理所有 DOM 操作')
-    console.log('  - 检查自动刷新是否在组件卸载时仍在执行')
+    originalConsoleLog('🔧 removeChild 错误修复:')
+    originalConsoleLog('  - 在 removeChild 前检查节点关系')
+    originalConsoleLog('  - 使用 element.remove() 替代 removeChild')
+    originalConsoleLog('  - 确保组件卸载时清理所有 DOM 操作')
+    originalConsoleLog('  - 检查自动刷新是否在组件卸载时仍在执行')
   }
   
   return {
@@ -405,6 +581,9 @@ window.forceUpdateReport = function() {
     componentRenders: componentRenders.length,
     stateUpdates: stateUpdates.length,
     domMutations: domMutations.length,
+    apiErrors: apiErrors.length,
+    useCasesQueries: useCasesQueries.length,
+    useCasesErrors: useCasesErrors.length,
     errors: errors.length,
   }
 }
