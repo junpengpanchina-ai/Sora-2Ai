@@ -6,7 +6,10 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 // Sitemap 协议限制：每个文件最多 50,000 个 URL
-const MAX_URLS_PER_SITEMAP = 50000
+// NOTE: Although the protocol allows 50k URLs per sitemap, our slugs are long and
+// the resulting XML can become very large. Keeping this smaller reduces timeouts
+// and prevents edge caches from storing empty/error responses.
+const MAX_URLS_PER_SITEMAP = 10000
 
 /**
  * 场景 sitemap - 包含所有使用场景内容（use_cases）
@@ -208,7 +211,8 @@ ${urls.join('\n')}
       status: 200,
       headers: {
         'Content-Type': 'application/xml; charset=utf-8',
-        'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+        // Keep reasonably fresh; reduce risk of caching an empty response for too long.
+        'Cache-Control': 'public, max-age=300, s-maxage=300',
         'X-Content-Type-Options': 'nosniff',
       },
     })
@@ -222,7 +226,7 @@ ${urls.join('\n')}
         status: 200,
         headers: {
           'Content-Type': 'application/xml; charset=utf-8',
-          'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+          'Cache-Control': 'public, max-age=300, s-maxage=300',
           'X-Content-Type-Options': 'nosniff',
         },
       }
