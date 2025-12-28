@@ -816,8 +816,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           </div>
         )}
 
-        {!hydratedProfile && (
-          <>
+        <>
         {/* Pricing and Recharge Section */}
         <div className="mb-8">
           <Card className="!bg-white/5 border border-white/15 backdrop-blur-xl text-blue-50 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.9)]">
@@ -1241,8 +1240,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
             </ul>
           </div>
         </div>
-          </>
-        )}
+        </>
       </main>
       </div>
 
