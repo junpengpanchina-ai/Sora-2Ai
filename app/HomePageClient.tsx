@@ -3,6 +3,7 @@
 
 import { useEffect, useState, useCallback, useRef, type RefObject } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
 import LogoutButton from '@/components/LogoutButton'
 import LoginButton from '@/components/LoginButton'
@@ -127,11 +128,15 @@ interface HomepageSettings {
 }
 
 export default function HomePageClient({ userProfile }: HomePageClientProps) {
+  const router = useRouter()
   const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null)
   const [hydratedProfile, setHydratedProfile] = useState<UserProfile | null>(userProfile)
   const [stats, setStats] = useState<Stats | null>(null)
   const [credits, setCredits] = useState<number>(userProfile?.credits || 0)
   const [showPricingModal, setShowPricingModal] = useState(false)
+  const [pricingView, setPricingView] = useState<'starter' | 'packs'>('packs')
+  const [checkingOutPlanId, setCheckingOutPlanId] = useState<string | null>(null)
+  const [pricingViewInitialized, setPricingViewInitialized] = useState(false)
   const [imagesReady, setImagesReady] = useState(false)
   const [videosReady, setVideosReady] = useState(false)
   const [copiedTemplateId, setCopiedTemplateId] = useState<string | null>(null)
@@ -155,6 +160,81 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const imageSectionRef = useRef<HTMLDivElement | null>(null)
   const videoSectionRef = useRef<HTMLDivElement | null>(null)
   const accountProfile = hydratedProfile ?? userProfile
+
+  const getStarterPlan = (plans: typeof paymentPlans) => {
+    const sorted = [...plans].sort((a, b) => a.amount - b.amount)
+    return sorted.find((p) => p.amount > 0 && p.amount <= 10) ?? null
+  }
+
+  const starterPlan = getStarterPlan(paymentPlans)
+  const packPlans = [...paymentPlans]
+    .filter((p) => p.amount >= 10)
+    .sort((a, b) => {
+      if (a.is_recommended !== b.is_recommended) return a.is_recommended ? -1 : 1
+      return a.amount - b.amount
+    })
+
+  useEffect(() => {
+    if (pricingViewInitialized) return
+    if (paymentPlans.length === 0) return
+    setPricingView(starterPlan ? 'starter' : 'packs')
+    setPricingViewInitialized(true)
+  }, [paymentPlans.length, pricingViewInitialized, starterPlan])
+
+  const startPaymentLinkCheckout = async (plan: (typeof paymentPlans)[number]) => {
+    if (!plan.stripe_payment_link_id) {
+      return
+    }
+
+    const returnTo = '/#pricing-plans'
+
+    // Guests need to sign in first (checkout API requires auth)
+    if (!hydratedProfile) {
+      setPostLoginRedirect(returnTo)
+      router.push(`/login?redirect=${encodeURIComponent(returnTo)}`)
+      return
+    }
+
+    try {
+      setCheckingOutPlanId(plan.id)
+      const res = await fetch('/api/payment/payment-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payment_link_id: plan.stripe_payment_link_id }),
+      })
+      const json = await res.json()
+
+      if (res.status === 401) {
+        setPostLoginRedirect(returnTo)
+        router.push(`/login?redirect=${encodeURIComponent(returnTo)}`)
+        return
+      }
+
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || 'Failed to start checkout')
+      }
+
+      if (json?.recharge_id) {
+        try {
+          localStorage.setItem('pending_recharge_id', String(json.recharge_id))
+        } catch {
+          // ignore
+        }
+      }
+
+      if (json?.payment_link_url) {
+        window.location.assign(String(json.payment_link_url))
+        return
+      }
+
+      throw new Error('Missing payment_link_url')
+    } catch (e) {
+      console.error('Checkout failed:', e)
+      alert(e instanceof Error ? e.message : 'Checkout failed. Please try again.')
+    } finally {
+      setCheckingOutPlanId(null)
+    }
+  }
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -1156,7 +1236,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           </div>
 
         {/* Pricing Plans Section */}
-        <div className="mb-6">
+        <div id="pricing-plans" className="mb-6 scroll-mt-24">
           <div className="text-center mb-6">
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
               Choose Your Plan
@@ -1165,17 +1245,49 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               Each video generation consumes 10 credits
             </p>
         </div>
+
+          {/* Prominent toggle (Starter vs Upgrade Packs) */}
+          {(starterPlan || packPlans.length > 0) && (
+            <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
+              {starterPlan && (
+                <Button
+                  type="button"
+                  variant={pricingView === 'starter' ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setPricingView('starter')}
+                >
+                  Start for ${starterPlan.amount.toFixed(2)}
+                </Button>
+              )}
+              {packPlans.length > 0 && (
+                <Button
+                  type="button"
+                  variant={pricingView === 'packs' ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setPricingView('packs')}
+                >
+                  Upgrade Packs
+                </Button>
+              )}
+            </div>
+          )}
           
           {paymentPlans.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-              {paymentPlans.map((plan) => (
+              {(pricingView === 'starter' && starterPlan ? [starterPlan] : packPlans).map((plan) => (
                 <Card 
                   key={plan.id} 
-                  className={`relative ${plan.is_recommended ? 'border-2 border-energy-gold-mid dark:border-energy-gold-soft shadow-lg' : ''}`}
+                  className={`relative ${
+                    pricingView === 'starter' || plan.is_recommended
+                      ? 'border-2 border-energy-gold-mid dark:border-energy-gold-soft shadow-lg'
+                      : ''
+                  }`}
                 >
-                  {plan.badge_text && (
+                  {(pricingView === 'starter' || plan.badge_text || plan.is_recommended) && (
                     <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-energy-water text-white shadow-custom-md">
-                      {plan.badge_text}
+                      {pricingView === 'starter'
+                        ? 'Starter Deal'
+                        : plan.badge_text || (plan.is_recommended ? 'Recommended' : '')}
                     </Badge>
                   )}
                   <CardHeader>
@@ -1210,12 +1322,26 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                       ~ ${(plan.amount / plan.videos).toFixed(2)} / video
                     </div>
 
-                    {plan.stripe_buy_button_id && (
+                    {plan.stripe_payment_link_id ? (
+                      <Button
+                        type="button"
+                        variant="primary"
+                        className="w-full"
+                        disabled={!!checkingOutPlanId}
+                        onClick={() => startPaymentLinkCheckout(plan)}
+                      >
+                        {checkingOutPlanId === plan.id ? 'Redirecting…' : 'Continue to Checkout'}
+                      </Button>
+                    ) : plan.stripe_buy_button_id ? (
                       <div className="flex justify-center">
                         <stripe-buy-button
                           buy-button-id={plan.stripe_buy_button_id}
                           publishable-key="pk_live_51SKht2DqGbi6No9v57glxTk8MK8r0Ro9lcsHigkf3RNMzI3MLbQry0xPY4wAi5UjUkHGrQpKCBe98cwt0G7Fj1B700YGD58zbP"
                         />
+                      </div>
+                    ) : (
+                      <div className="text-center text-xs text-gray-500 dark:text-gray-400">
+                        This plan is missing a checkout configuration.
                       </div>
                     )}
                   </CardContent>
