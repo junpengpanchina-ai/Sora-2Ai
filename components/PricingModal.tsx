@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Badge } from '@/components/ui'
+import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
 
 interface PaymentLink {
   id: string
@@ -22,12 +22,30 @@ interface PricingModalProps {
 export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
   const [paymentLinks, setPaymentLinks] = useState<PaymentLink[]>([])
   const [loading, setLoading] = useState(true)
+  const [view, setView] = useState<'starter' | 'packs'>('packs')
+  const [checkingOutId, setCheckingOutId] = useState<string | null>(null)
 
   useEffect(() => {
     if (isOpen) {
       fetchPaymentLinks()
     }
   }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const starter = getStarterLink(paymentLinks)
+    setView(starter ? 'starter' : 'packs')
+  }, [isOpen, paymentLinks])
+
+  const getStarterLink = (links: PaymentLink[]) => {
+    const sorted = [...links].sort((a, b) => a.amount - b.amount)
+    return sorted.find((l) => l.amount > 0 && l.amount <= 10) ?? null
+  }
+
+  const getPackLinks = (links: PaymentLink[]) => {
+    const filtered = links.filter((l) => l.amount >= 10)
+    return filtered.sort((a, b) => a.amount - b.amount)
+  }
 
   async function fetchPaymentLinks() {
     try {
@@ -47,8 +65,45 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
     }
   }
 
+  const startCheckout = async (paymentLinkId: string) => {
+    try {
+      setCheckingOutId(paymentLinkId)
+      const res = await fetch('/api/payment/payment-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payment_link_id: paymentLinkId }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || 'Failed to start checkout')
+      }
+
+      if (json?.recharge_id) {
+        try {
+          localStorage.setItem('pending_recharge_id', String(json.recharge_id))
+        } catch {
+          // ignore
+        }
+      }
+
+      if (json?.payment_link_url) {
+        window.location.assign(String(json.payment_link_url))
+        return
+      }
+
+      throw new Error('Missing payment_link_url')
+    } catch (e) {
+      console.error('Checkout failed:', e)
+      alert(e instanceof Error ? e.message : 'Checkout failed. Please try again.')
+    } finally {
+      setCheckingOutId(null)
+    }
+  }
 
   if (!isOpen) return null
+
+  const starterLink = getStarterLink(paymentLinks)
+  const packLinks = getPackLinks(paymentLinks)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -68,6 +123,32 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
               </svg>
             </button>
           </div>
+
+          {/* Prominent Toggle */}
+          {(starterLink || packLinks.length > 0) && (
+            <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
+              {starterLink && (
+                <Button
+                  type="button"
+                  variant={view === 'starter' ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setView('starter')}
+                >
+                  Start for ${starterLink.amount.toFixed(2)}
+                </Button>
+              )}
+              {packLinks.length > 0 && (
+                <Button
+                  type="button"
+                  variant={view === 'packs' ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setView('packs')}
+                >
+                  Upgrade Packs
+                </Button>
+              )}
+            </div>
+          )}
 
           {/* Path A: Free Trial */}
           <div className="mb-6 p-6 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-200 dark:border-green-800">
@@ -107,18 +188,18 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {paymentLinks.map((link) => (
+              {(view === 'starter' && starterLink ? [starterLink] : packLinks).map((link) => (
                 <Card
                   key={link.id}
                   className={`relative ${
-                    link.amount === 299
+                    view === 'starter' || link.amount === 39
                       ? 'border-2 border-energy-gold-mid dark:border-energy-gold-soft shadow-lg'
                       : ''
                   }`}
                 >
-                  {link.amount === 299 && (
+                  {(view === 'starter' || link.amount === 39) && (
                     <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-energy-water text-white shadow-custom-md">
-                      Recommended
+                      {view === 'starter' ? 'Starter Deal' : 'Most Popular'}
                     </Badge>
                   )}
                   <CardHeader>
@@ -157,19 +238,15 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
                       ~ ${(link.amount / link.videos).toFixed(2)} / video
                     </div>
 
-                    {/* Stripe Buy Button */}
-                    <div className="flex justify-center">
-                      <stripe-buy-button
-                        buy-button-id={
-                          link.amount === 39
-                            ? 'buy_btn_1SSKRyDqGbi6No9vhYgi4niS'
-                            : link.amount === 299
-                            ? 'buy_btn_1SSKYdDqGbi6No9vbFWdJAOt'
-                            : ''
-                        }
-                        publishable-key="pk_live_51SKht2DqGbi6No9v57glxTk8MK8r0Ro9lcsHigkf3RNMzI3MLbQry0xPY4wAi5UjUkHGrQpKCBe98cwt0G7Fj1B700YGD58zbP"
-                      />
-                    </div>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      className="w-full"
+                      disabled={!!checkingOutId}
+                      onClick={() => startCheckout(link.id)}
+                    >
+                      {checkingOutId === link.id ? 'Redirecting…' : 'Continue to Checkout'}
+                    </Button>
                   </CardContent>
                 </Card>
               ))}

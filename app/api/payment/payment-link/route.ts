@@ -4,33 +4,16 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrCreateUser } from '@/lib/user'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { createServiceClient } from '@/lib/supabase/service'
 
 
 // Force dynamic rendering to prevent build-time execution
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// Payment Link configuration
-const PAYMENT_LINKS: Record<string, { amount: number; currency: string; credits: number; name: string; videos: number; description: string }> = {
-  // $39 plan: 50 videos = 500 credits (10 credits/video)
-  'dRmcN55nY4k33WXfPa0kE03': {
-    amount: 39,
-    currency: 'usd',
-    credits: 500, // 50 videos * 10 credits/video
-    name: 'Basic Plan',
-    videos: 50,
-    description: 'Perfect for individual users and small projects',
-  },
-  // $299 plan: 200 videos = 2000 credits (10 credits/video)
-  '4gMcN5eYy5o70KLauQ0kE01': {
-    amount: 299,
-    currency: 'usd',
-    credits: 2000, // 200 videos * 10 credits/video
-    name: 'Professional Plan',
-    videos: 200,
-    description: 'Perfect for professional users and large projects',
-  },
-}
+const PaymentLinkRequestSchema = z.object({
+  payment_link_id: z.string().min(1),
+})
 
 /**
  * Register Payment Link payment
@@ -53,13 +36,26 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
-    const { payment_link_id } = z.object({
-      payment_link_id: z.string(),
-    }).parse(body)
+    const { payment_link_id } = PaymentLinkRequestSchema.parse(body)
 
-    // Check Payment Link configuration
-    const linkConfig = PAYMENT_LINKS[payment_link_id]
-    if (!linkConfig) {
+    // Look up matching plan by payment link token (stored in payment_plans.stripe_payment_link_id)
+    const service = await createServiceClient()
+    const { data: plan, error: planError } = await service
+      .from('payment_plans')
+      .select('id, plan_name, amount, currency, credits, videos, description, stripe_payment_link_id, is_active')
+      .eq('stripe_payment_link_id', payment_link_id)
+      .eq('is_active', true)
+      .maybeSingle()
+
+    if (planError) {
+      console.error('Failed to look up payment plan by payment link id:', planError)
+      return NextResponse.json(
+        { error: 'Failed to look up payment plan', details: planError.message },
+        { status: 500 }
+      )
+    }
+
+    if (!plan) {
       return NextResponse.json(
         { error: 'Invalid payment link ID' },
         { status: 400 }
@@ -89,8 +85,8 @@ export async function POST(request: NextRequest) {
       .from('recharge_records')
       .insert({
         user_id: userProfile.id,
-        amount: linkConfig.amount,
-        credits: linkConfig.credits,
+        amount: plan.amount,
+        credits: plan.credits,
         payment_method: 'stripe_payment_link',
         payment_id: payment_link_id, // Save Payment Link ID
         status: 'pending',
@@ -116,9 +112,9 @@ export async function POST(request: NextRequest) {
       success: true,
       payment_link_url: paymentLinkUrl,
       recharge_id: rechargeRecord.id,
-      amount: linkConfig.amount,
-      currency: linkConfig.currency,
-      credits: linkConfig.credits,
+      amount: plan.amount,
+      currency: plan.currency,
+      credits: plan.credits,
       message: 'Payment link registered, redirecting to payment...',
     })
   } catch (error) {
@@ -143,16 +139,34 @@ export async function POST(request: NextRequest) {
  */
 export async function GET() {
   try {
-    const links = Object.entries(PAYMENT_LINKS).map(([id, config]) => ({
-      id,
-      url: `https://buy.stripe.com/${id}`,
-      amount: config.amount,
-      currency: config.currency,
-      credits: config.credits,
-      name: config.name,
-      videos: config.videos,
-      description: config.description,
-    }))
+    const service = await createServiceClient()
+    const { data, error } = await service
+      .from('payment_plans')
+      .select('plan_name, amount, currency, credits, videos, description, stripe_payment_link_id')
+      .eq('is_active', true)
+      .not('stripe_payment_link_id', 'is', null)
+      .order('amount', { ascending: true })
+
+    if (error) {
+      console.error('Failed to fetch payment plans for payment links:', error)
+      return NextResponse.json(
+        { error: 'Failed to fetch payment links', details: error.message },
+        { status: 500 }
+      )
+    }
+
+    const links = (data || [])
+      .filter((row) => row.stripe_payment_link_id)
+      .map((row) => ({
+        id: row.stripe_payment_link_id,
+        url: `https://buy.stripe.com/${row.stripe_payment_link_id}`,
+        amount: row.amount,
+        currency: row.currency,
+        credits: row.credits,
+        name: row.plan_name,
+        videos: row.videos,
+        description: row.description || '',
+      }))
 
     return NextResponse.json({
       success: true,

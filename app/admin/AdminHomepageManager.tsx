@@ -803,6 +803,15 @@ function PaymentPlansManager({ onShowBanner }: { onShowBanner: (type: 'success' 
   const [showAddForm, setShowAddForm] = useState(false)
   const [newForm, setNewForm] = useState<Partial<PaymentPlan>>({})
 
+  const normalizePaymentLinkInput = (value: string): string => {
+    const v = String(value || '').trim()
+    if (!v) return ''
+    // Accept full URL like https://buy.stripe.com/XXXXXXXX and extract the token
+    const match = v.match(/buy\.stripe\.com\/([a-zA-Z0-9]+)(?:\?|$)/)
+    if (match?.[1]) return match[1]
+    return v
+  }
+
   const loadPlans = useCallback(async () => {
     try {
       setLoading(true)
@@ -1022,8 +1031,13 @@ function PaymentPlansManager({ onShowBanner }: { onShowBanner: (type: 'success' 
                 <label className="block text-sm font-medium mb-1">Stripe Payment Link ID</label>
                 <Input
                   value={newForm.stripe_payment_link_id || ''}
-                  onChange={(e) => setNewForm((prev) => ({ ...prev, stripe_payment_link_id: e.target.value }))}
-                  placeholder="dRmcN55nY4k33WXfPa0kE03"
+                  onChange={(e) =>
+                    setNewForm((prev) => ({
+                      ...prev,
+                      stripe_payment_link_id: normalizePaymentLinkInput(e.target.value),
+                    }))
+                  }
+                  placeholder="Paste Payment Link token or full URL (e.g., https://buy.stripe.com/XXXX)"
                 />
               </div>
               <div>
@@ -1154,7 +1168,12 @@ function PaymentPlansManager({ onShowBanner }: { onShowBanner: (type: 'success' 
                     <label className="block text-sm font-medium mb-1">Stripe Payment Link ID</label>
                     <Input
                       value={editForm.stripe_payment_link_id ?? plan.stripe_payment_link_id ?? ''}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, stripe_payment_link_id: e.target.value }))}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          stripe_payment_link_id: normalizePaymentLinkInput(e.target.value),
+                        }))
+                      }
                     />
                   </div>
                   <div>
