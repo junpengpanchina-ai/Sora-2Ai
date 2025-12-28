@@ -4,6 +4,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { logError } from '@/lib/logger'
+import { clearPostLoginRedirect, getPostLoginRedirect } from '@/lib/auth/post-login-redirect'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
@@ -257,7 +258,7 @@ export default function AuthCallbackPage() {
             )
             
             // Provide helpful error messages based on error type
-            let errorMsg = '登录失败：请重试。'
+            let errorMsg = 'Login failed. Please try again.'
             
             if (exchangeError.status === 400) {
               if (
@@ -265,15 +266,17 @@ export default function AuthCallbackPage() {
                 exchangeError.message?.includes('code_verifier') ||
                 (!codeVerifierFound && exchangeError.message)
               ) {
-                errorMsg = '登录失败：PKCE 验证码丢失。请清除浏览器缓存后重试。'
+                errorMsg =
+                  'Login failed: missing PKCE verifier. Please clear site data (cookies/storage) and try again.'
               } else if (exchangeError.message?.includes('expired') || 
                          exchangeError.message?.includes('invalid')) {
-                errorMsg = '登录失败：验证码已过期或无效。请重新登录。'
+                errorMsg = 'Login failed: the verification code is expired or invalid. Please sign in again.'
               } else {
-                errorMsg = '登录失败：验证码交换失败。请清除浏览器缓存后重新登录。'
+                errorMsg =
+                  'Login failed: code exchange failed. Please clear site data (cookies/storage) and try again.'
               }
             } else {
-              errorMsg = exchangeError.message || '登录失败：未知错误。'
+              errorMsg = exchangeError.message || 'Login failed: unknown error.'
             }
             
             router.push(`/login?error=${encodeURIComponent(errorMsg)}`)
@@ -305,8 +308,10 @@ export default function AuthCallbackPage() {
         
         if (userError || !user) {
           console.error('Get user error:', userError)
-          // Redirect to home even if user fetch fails
-          router.push('/')
+          // Redirect to intended page even if user fetch fails
+          const intended = getPostLoginRedirect()
+          clearPostLoginRedirect()
+          router.replace(intended || '/')
           return
         }
 
@@ -376,8 +381,10 @@ export default function AuthCallbackPage() {
           }
         }
 
-        // Redirect to home page
-        router.push('/')
+        // Redirect back to the page user wanted before login
+        const intended = getPostLoginRedirect()
+        clearPostLoginRedirect()
+        router.replace(intended || '/')
         router.refresh()
       } catch (err) {
         console.error('Callback error:', err)

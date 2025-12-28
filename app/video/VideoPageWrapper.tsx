@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import VideoPageClient from './VideoPageClient'
 import { createClient } from '@/lib/supabase/client'
+import { setPostLoginRedirect } from '@/lib/auth/post-login-redirect'
 
 export default function VideoPageWrapper() {
   const router = useRouter()
@@ -19,7 +20,10 @@ export default function VideoPageWrapper() {
 
       if (!session) {
         setAuthorized(false)
-        router.replace('/login')
+        const intended =
+          typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : '/video'
+        setPostLoginRedirect(intended)
+        router.replace(`/login?redirect=${encodeURIComponent(intended)}`)
         return
       }
 
@@ -33,7 +37,10 @@ export default function VideoPageWrapper() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
         setAuthorized(false)
-        router.replace('/login')
+        const intended =
+          typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : '/video'
+        setPostLoginRedirect(intended)
+        router.replace(`/login?redirect=${encodeURIComponent(intended)}`)
       } else {
         setAuthorized(true)
       }

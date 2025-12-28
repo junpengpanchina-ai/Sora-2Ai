@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { logError } from '@/lib/logger'
+import { setPostLoginRedirect } from '@/lib/auth/post-login-redirect'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
@@ -18,6 +19,19 @@ export default function LoginButton({ className = '' }: LoginButtonProps) {
       setLoading(true)
       const supabase = createClient()
 
+      // Persist the post-login destination across the external OAuth redirect.
+      // Priority: /login?redirect=... -> current page (rare) -> fallback "/"
+      try {
+        const params = new URLSearchParams(window.location.search)
+        const redirectParam = params.get('redirect')
+        const isLoginPage = window.location.pathname === '/login'
+        const currentPath = `${window.location.pathname}${window.location.search}`
+        const intended = redirectParam || (isLoginPage ? '/' : currentPath) || '/'
+        setPostLoginRedirect(intended)
+      } catch {
+        // ignore
+      }
+
       // Use full URL to ensure Supabase can properly handle PKCE
       // Must match exactly with the callback URL
       const redirectTo = `${window.location.origin}/auth/callback`
@@ -32,7 +46,12 @@ export default function LoginButton({ className = '' }: LoginButtonProps) {
         console.log('✅ localStorage is available')
       } catch (e) {
         console.error('❌ localStorage is not available:', e)
-        router.push('/login?error=' + encodeURIComponent('浏览器不支持本地存储，请检查浏览器设置或使用正常浏览模式（非无痕模式）'))
+        router.push(
+          '/login?error=' +
+            encodeURIComponent(
+              'Local storage is unavailable in your browser. Please disable private browsing / strict privacy modes, or check your browser settings, then try again.'
+            )
+        )
         setLoading(false)
         return
       }

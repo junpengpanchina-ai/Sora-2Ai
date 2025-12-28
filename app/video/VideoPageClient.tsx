@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import LogoutButton from '@/components/LogoutButton'
 import { createClient } from '@/lib/supabase/client'
+import { setPostLoginRedirect } from '@/lib/auth/post-login-redirect'
 
 type ViolationType = 'input_moderation' | 'output_moderation' | 'third_party'
 
@@ -562,7 +563,10 @@ export default function VideoPageClient() {
 
       if (response.status === 401) {
         console.warn('[VideoPage] ⚠️ Unauthorized (401), redirecting to login')
-        router.push('/login')
+        const intended =
+          typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : '/video'
+        setPostLoginRedirect(intended)
+        router.push(`/login?redirect=${encodeURIComponent(intended)}`)
         return
       }
 
@@ -650,7 +654,10 @@ export default function VideoPageClient() {
         if (errorMsg.includes('Insufficient credits') || errorMsg.includes('credits')) {
           console.warn('[VideoPage] ⚠️ Insufficient credits')
           alert(`Insufficient credits! Video generation requires 10 credits. Current credits: ${credits || 0}. Please recharge first.`)
-          router.push('/')
+          const intended =
+            typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : '/video'
+          setPostLoginRedirect(intended)
+          router.push(`/?pricing=1&redirect=${encodeURIComponent(intended)}`)
         } else if (errorMsg.includes('User not found')) {
           console.error('[VideoPage] ❌ User not found')
           alert(`User not found: ${errorDetails || 'Please try logging in again'}\n\nIf the problem persists, please contact support.`)
@@ -729,21 +736,21 @@ export default function VideoPageClient() {
   // Handle image upload
   const handleImageUpload = async (file: File) => {
     if (!supabase) {
-      alert('请先登录')
+      alert('Please sign in first.')
       return
     }
 
     // Validate file type
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
     if (!validTypes.includes(file.type)) {
-      alert('不支持的文件格式，请上传 JPG、JPEG、PNG 或 WEBP 格式的图片')
+      alert('Unsupported file format. Please upload a JPG, JPEG, PNG, or WEBP image.')
       return
     }
 
     // Validate file size (10MB)
     const maxSize = 10 * 1024 * 1024
     if (file.size > maxSize) {
-      alert('文件大小超过限制，最大支持10MB')
+      alert('File is too large. Maximum supported size is 10MB.')
       return
     }
 
@@ -765,8 +772,11 @@ export default function VideoPageClient() {
       })
 
       if (response.status === 401) {
-        alert('未授权，请先登录')
-        router.push('/login')
+        alert('Unauthorized. Please sign in first.')
+        const intended =
+          typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : '/video'
+        setPostLoginRedirect(intended)
+        router.push(`/login?redirect=${encodeURIComponent(intended)}`)
         // Clean up temp preview
         URL.revokeObjectURL(tempPreviewUrl)
         setPreviewImage(null)
@@ -776,7 +786,7 @@ export default function VideoPageClient() {
       const data = await response.json()
 
       if (!response.ok || !data.success) {
-        throw new Error(data.error || '上传失败')
+        throw new Error(data.error || 'Upload failed.')
       }
 
       // Set the uploaded image URL and use it as preview
@@ -788,8 +798,8 @@ export default function VideoPageClient() {
       // Clean up temporary preview URL
       URL.revokeObjectURL(tempPreviewUrl)
     } catch (error) {
-      console.error('上传图片失败:', error)
-      alert(error instanceof Error ? error.message : '上传失败，请重试')
+      console.error('Image upload failed:', error)
+      alert(error instanceof Error ? error.message : 'Upload failed. Please try again.')
       // Clean up temp preview on error
       URL.revokeObjectURL(tempPreviewUrl)
       setPreviewImage(null)
