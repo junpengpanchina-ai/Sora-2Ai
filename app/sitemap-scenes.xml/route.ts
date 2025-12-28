@@ -131,7 +131,6 @@ export async function GET(request: Request) {
       .select('slug, updated_at, use_case_type')
       .eq('is_published', true)
       .eq('quality_status', 'approved')
-      .order('updated_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
     // 根据意图过滤数据
