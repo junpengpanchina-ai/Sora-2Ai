@@ -1164,9 +1164,10 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                     type="button"
                     onClick={() => {
                       console.log('切换标签页:', tab.value)
-                      setActiveTab(
-                        tab.value as typeof activeTab
-                      )
+                      const newTab = tab.value as typeof activeTab
+                      setActiveTab(newTab)
+                      // 更新 URL 以保持状态，即使错误边界重置也能恢复
+                      router.push(`/admin?tab=${newTab}`, { scroll: false })
                     }}
                     className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                       activeTab === tab.value
