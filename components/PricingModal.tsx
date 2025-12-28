@@ -50,7 +50,7 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
   async function fetchPaymentLinks() {
     try {
       setLoading(true)
-      const response = await fetch('/api/payment/payment-link')
+      const response = await fetch('/api/payment/payment-link?t=' + Date.now(), { cache: 'no-store' })
       const data = await response.json()
       
       if (data.success && data.payment_links) {

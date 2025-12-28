@@ -283,7 +283,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               'Cache-Control': 'no-cache',
             },
           }),
-          fetch('/api/payment-plans'),
+          fetch(`/api/payment-plans?t=${timestamp}`, { cache: 'no-store' }),
         ])
         
         const settingsData = await settingsResponse.json()
