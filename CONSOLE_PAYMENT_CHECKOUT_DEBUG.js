@@ -271,75 +271,132 @@
   // ==================== 7. 诊断工具 ====================
   console.group('🛠️ 诊断工具')
   
-  window.paymentCheckoutDebug = {
-    // 查看 API 调用历史
-    getApiCalls: () => {
-      console.table(apiCalls)
-      return apiCalls
-    },
+  // 确保在全局作用域创建对象，添加错误处理
+  try {
+    // 保存变量引用，确保闭包正常工作
+    const debugApiCalls = apiCalls
+    const debugOriginalFetch = originalFetch
     
-    // 检查支付计划
-    checkPlans: checkPaymentPlans,
-    
-    // 检查用户状态
-    checkAuth: checkUserAuth,
-    
-    // 测试支付链接 API（需要替换为真实的 payment_link_id）
-    testCheckout: async (paymentLinkId) => {
-      if (!paymentLinkId) {
-        console.error('❌ 请提供 payment_link_id')
-        return
-      }
+    window.paymentCheckoutDebug = {
+      // 查看 API 调用历史
+      getApiCalls: () => {
+        console.table(debugApiCalls)
+        return debugApiCalls
+      },
       
-      console.log('🧪 测试支付链接 API:', paymentLinkId)
+      // 检查支付计划
+      checkPlans: checkPaymentPlans,
       
-      try {
-        const res = await fetch('/api/payment/payment-link', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ payment_link_id: paymentLinkId }),
-        })
-        
-        const json = await res.json()
-        
-        console.log('测试结果:', {
-          status: res.status,
-          ok: res.ok,
-          data: json
-        })
-        
-        if (res.status === 401) {
-          console.error('❌ 401 未授权 - 需要登录')
-        } else if (!res.ok) {
-          console.error('❌ 请求失败:', json.error)
-        } else if (json.success) {
-          console.log('✅ 支付链接生成成功:', json.payment_link_url)
+      // 检查用户状态
+      checkAuth: checkUserAuth,
+      
+      // 测试支付链接 API（需要替换为真实的 payment_link_id）
+      testCheckout: async (paymentLinkId) => {
+        if (!paymentLinkId) {
+          console.error('❌ 请提供 payment_link_id')
+          return
         }
         
-        return { status: res.status, data: json }
-      } catch (error) {
-        console.error('❌ 测试失败:', error)
-        return { error: error.message }
+        console.log('🧪 测试支付链接 API:', paymentLinkId)
+        
+        try {
+          const res = await fetch('/api/payment/payment-link', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ payment_link_id: paymentLinkId }),
+          })
+          
+          const json = await res.json()
+          
+          console.log('测试结果:', {
+            status: res.status,
+            ok: res.ok,
+            data: json
+          })
+          
+          if (res.status === 401) {
+            console.error('❌ 401 未授权 - 需要登录')
+          } else if (!res.ok) {
+            console.error('❌ 请求失败:', json.error)
+          } else if (json.success) {
+            console.log('✅ 支付链接生成成功:', json.payment_link_url)
+          }
+          
+          return { status: res.status, data: json }
+        } catch (error) {
+          console.error('❌ 测试失败:', error)
+          return { error: error.message }
+        }
+      },
+      
+      // 清除监控
+      clear: () => {
+        if (debugOriginalFetch) {
+          window.fetch = debugOriginalFetch
+        }
+        console.log('✅ 已清除监控')
       }
-    },
+    }
     
-    // 清除监控
-    clear: () => {
-      window.fetch = originalFetch
-      console.log('✅ 已清除监控')
+    console.log('✅ 诊断工具已创建')
+    console.log('💡 使用 window.paymentCheckoutDebug 访问工具')
+    console.log('   示例: window.paymentCheckoutDebug.getApiCalls()')
+    console.log('   示例: window.paymentCheckoutDebug.checkPlans()')
+    console.log('   示例: window.paymentCheckoutDebug.testCheckout("payment_link_id")')
+    
+    // 验证对象已创建
+    if (window.paymentCheckoutDebug && typeof window.paymentCheckoutDebug.checkPlans === 'function') {
+      console.log('✅ window.paymentCheckoutDebug 对象已成功创建')
+    } else {
+      console.error('❌ window.paymentCheckoutDebug 对象创建失败')
+      // 创建备用对象
+      window.paymentCheckoutDebug = {
+        error: '对象创建失败',
+        getApiCalls: () => {
+          console.error('诊断工具未正确初始化')
+          return []
+        },
+        checkPlans: () => {
+          console.error('诊断工具未正确初始化')
+        },
+        checkAuth: () => {
+          console.error('诊断工具未正确初始化')
+        },
+        testCheckout: () => {
+          console.error('诊断工具未正确初始化')
+        },
+        clear: () => {}
+      }
+    }
+  } catch (error) {
+    console.error('❌ 创建诊断工具失败:', error)
+    // 即使出错也创建一个基本对象，避免 undefined 错误
+    window.paymentCheckoutDebug = {
+      error: error.message,
+      getApiCalls: () => {
+        console.error('诊断工具初始化失败:', error.message)
+        return []
+      },
+      checkPlans: () => {
+        console.error('诊断工具初始化失败:', error.message)
+      },
+      checkAuth: () => {
+        console.error('诊断工具初始化失败:', error.message)
+      },
+      testCheckout: () => {
+        console.error('诊断工具初始化失败:', error.message)
+      },
+      clear: () => {
+        console.log('诊断工具未正确初始化，无法清除监控')
+      }
     }
   }
-  
-  console.log('✅ 诊断工具已创建')
-  console.log('💡 使用 window.paymentCheckoutDebug 访问工具')
-  console.log('   示例: window.paymentCheckoutDebug.getApiCalls()')
-  console.log('   示例: window.paymentCheckoutDebug.checkPlans()')
-  console.log('   示例: window.paymentCheckoutDebug.testCheckout("payment_link_id")')
   
   console.groupEnd()
   
   console.log('\n✅ 支付按钮调试脚本已加载完成！')
   console.log('💡 现在点击支付按钮，查看调试信息')
+  console.log('💡 如果 window.paymentCheckoutDebug 未定义，请刷新页面后重新执行脚本')
   
 })();
 
