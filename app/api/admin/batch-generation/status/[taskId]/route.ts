@@ -59,27 +59,35 @@ export async function GET(
       return NextResponse.json({ error: '无权访问此任务' }, { status: 403 })
     }
 
-    return NextResponse.json({
-      success: true,
-      task: {
-        id: task.id,
-        status: task.status,
-        progress: task.progress,
-        current_industry_index: task.current_industry_index,
-        total_industries: task.total_industries,
-        total_scenes_generated: task.total_scenes_generated,
-        total_scenes_saved: task.total_scenes_saved,
-        industries: task.industries,
-        scenes_per_industry: task.scenes_per_industry,
-        use_case_type: task.use_case_type,
-        error_message: task.error_message,
-        last_error: task.last_error,
-        created_at: task.created_at,
-        updated_at: task.updated_at,
-        started_at: task.started_at,
-        completed_at: task.completed_at,
+    return NextResponse.json(
+      {
+        success: true,
+        task: {
+          id: task.id,
+          status: task.status,
+          progress: task.progress,
+          current_industry_index: task.current_industry_index,
+          total_industries: task.total_industries,
+          total_scenes_generated: task.total_scenes_generated,
+          total_scenes_saved: task.total_scenes_saved,
+          industries: task.industries,
+          scenes_per_industry: task.scenes_per_industry,
+          use_case_type: task.use_case_type,
+          error_message: task.error_message,
+          last_error: task.last_error,
+          created_at: task.created_at,
+          updated_at: task.updated_at,
+          started_at: task.started_at,
+          completed_at: task.completed_at,
+        },
       },
-    })
+      {
+        // This is a frequently-polled endpoint; never cache at the edge.
+        headers: {
+          'Cache-Control': 'no-store',
+        },
+      }
+    )
   } catch (error) {
     console.error('[batch-generation/status] 异常:', error)
     return NextResponse.json(
