@@ -157,6 +157,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     is_recommended: boolean
     display_order: number
   }>>([])
+  const [hasRechargeRecords, setHasRechargeRecords] = useState<boolean | null>(null)
   const imageSectionRef = useRef<HTMLDivElement | null>(null)
   const videoSectionRef = useRef<HTMLDivElement | null>(null)
   const accountProfile = hydratedProfile ?? userProfile
@@ -174,12 +175,40 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       return a.amount - b.amount
     })
 
+  // Check recharge records for new users
+  useEffect(() => {
+    if (!hydratedProfile || hasRechargeRecords !== null) return
+
+    async function checkRechargeRecords() {
+      try {
+        const res = await fetch('/api/payment/recharge-records')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success) {
+            const hasRecords = data.records && data.records.length > 0
+            setHasRechargeRecords(hasRecords)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check recharge records:', error)
+        setHasRechargeRecords(false) // Default to false on error
+      }
+    }
+
+    checkRechargeRecords()
+  }, [hydratedProfile, hasRechargeRecords])
+
   useEffect(() => {
     if (pricingViewInitialized) return
     if (paymentPlans.length === 0) return
-    setPricingView(starterPlan ? 'starter' : 'packs')
+    
+    // For new users (no recharge records + low credits), default to starter
+    const isNewUser = hasRechargeRecords === false && credits <= 30
+    const shouldShowStarter = starterPlan && (isNewUser || !hasRechargeRecords)
+    
+    setPricingView(shouldShowStarter ? 'starter' : 'packs')
     setPricingViewInitialized(true)
-  }, [paymentPlans.length, pricingViewInitialized, starterPlan])
+  }, [paymentPlans.length, pricingViewInitialized, starterPlan, hasRechargeRecords, credits])
 
   const startPaymentLinkCheckout = async (plan: (typeof paymentPlans)[number]) => {
     if (!plan.stripe_payment_link_id) {
@@ -896,7 +925,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           </div>
         )}
 
-        <>
+          <>
         {/* Pricing and Recharge Section */}
         <div className="mb-8">
           <Card className="!bg-white/5 border border-white/15 backdrop-blur-xl text-blue-50 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.9)]">
@@ -1347,6 +1376,22 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                   </CardContent>
                 </Card>
               ))}
+              
+              {/* Comparison hint for upgrade packs */}
+              {pricingView === 'packs' && starterPlan && packPlans.length > 0 && (
+                <div className="col-span-full mt-4 text-center">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Or{' '}
+                    <button
+                      onClick={() => setPricingView('starter')}
+                      className="font-semibold text-energy-water hover:text-energy-water-deep underline"
+                    >
+                      start with the ${starterPlan.amount.toFixed(2)} starter pack
+                    </button>
+                    {' '}first →
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">
@@ -1366,7 +1411,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
             </ul>
           </div>
         </div>
-        </>
+          </>
       </main>
       </div>
 
