@@ -716,6 +716,34 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
       pollingIntervalRef.current = null
     }
     
+    let consecutiveErrors = 0
+    const MAX_CONSECUTIVE_ERRORS = 5
+
+    const safeReadJson = async (response: Response, contextUrl: string) => {
+      const contentType = response.headers.get('content-type') || ''
+      const rawText = await response.text().catch(() => '')
+      try {
+        return {
+          ok: response.ok,
+          status: response.status,
+          contentType,
+          data: rawText ? JSON.parse(rawText) : null,
+          rawText,
+        }
+      } catch (e) {
+        // This is the exact root cause of "Unterminated string in JSON..." loops.
+        // Log enough to debug without spamming full HTML or huge payloads.
+        console.error('[batch-generation/poll] Invalid JSON response:', {
+          url: contextUrl,
+          status: response.status,
+          ok: response.ok,
+          contentType,
+          preview: rawText.slice(0, 500),
+        })
+        throw new Error(`Invalid JSON from ${contextUrl} (status ${response.status})`)
+      }
+    }
+
     pollingIntervalRef.current = setInterval(async () => {
       // 检查组件是否已挂载
       if (!isMountedRef.current) {
@@ -727,8 +755,12 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
       }
       
       try {
-        const response = await fetch(`/api/admin/batch-generation/status/${taskId}`)
-        const result = await response.json()
+        const url = `/api/admin/batch-generation/status/${taskId}`
+        const response = await fetch(url, {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        const resultWrapper = await safeReadJson(response, url)
+        const result = resultWrapper.data
 
         // 再次检查组件是否已挂载（异步操作后）
         if (!isMountedRef.current) {
@@ -736,7 +768,12 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
         }
 
         if (!response.ok) {
-          console.error('获取任务状态失败:', result.error)
+          // Common case: admin session expired and API returns 401/403 (sometimes HTML).
+          if (response.status === 401 || response.status === 403) {
+            onShowBanner('error', '登录状态已失效，请刷新页面并重新登录管理员后台。')
+          } else {
+            console.error('获取任务状态失败:', result?.error || result)
+          }
           if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current)
             pollingIntervalRef.current = null
@@ -745,6 +782,9 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
         }
 
         const task = result.task
+
+        // Reset consecutive error counter on success
+        consecutiveErrors = 0
         
         // 再次检查组件是否已挂载
         if (!isMountedRef.current) {
@@ -966,7 +1006,24 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
           }
         }
       } catch (error) {
-        console.error('轮询任务状态失败:', error)
+        consecutiveErrors++
+        console.error('轮询任务状态失败:', {
+          error: error instanceof Error ? error.message : String(error),
+          taskId,
+          consecutiveErrors,
+        })
+
+        // Prevent infinite "busy-loop" polling when the response is broken (network/HTML/partial).
+        if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current)
+            pollingIntervalRef.current = null
+          }
+          onShowBanner(
+            'error',
+            '任务状态轮询连续失败（可能网络/登录状态/服务异常）。已停止自动轮询，请刷新页面后重试。'
+          )
+        }
       }
     }, 2000) // 每2秒轮询一次
   }
@@ -999,8 +1056,24 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
         // 如果有 localStorage 中的任务 ID，先尝试恢复它
         try {
           console.log('[恢复任务] 从 localStorage 获取任务状态:', lastTaskId)
-          const response = await fetch(`/api/admin/batch-generation/status/${lastTaskId}`)
-          const result = await response.json()
+          const url = `/api/admin/batch-generation/status/${lastTaskId}`
+          const response = await fetch(url, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          })
+          const contentType = response.headers.get('content-type') || ''
+          const rawText = await response.text().catch(() => '')
+          let result: any = null
+          try {
+            result = rawText ? JSON.parse(rawText) : null
+          } catch (e) {
+            console.error('[恢复任务] Invalid JSON response:', {
+              url,
+              status: response.status,
+              ok: response.ok,
+              contentType,
+              preview: rawText.slice(0, 300),
+            })
+          }
           
           if (response.ok && result.task && ['pending', 'processing', 'paused'].includes(result.task.status)) {
             taskToRestore = { ...result.task, id: lastTaskId }
