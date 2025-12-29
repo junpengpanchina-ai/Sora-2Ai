@@ -74,6 +74,8 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
     try {
       setCheckingOutId(paymentLinkId)
       
+      console.log('[PricingModal] Starting checkout:', { paymentLinkId })
+      
       // Get current URL for redirect after login
       const returnTo = typeof window !== 'undefined' ? window.location.href : '/'
       
@@ -82,10 +84,15 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ payment_link_id: paymentLinkId }),
       })
+      
+      console.log('[PricingModal] API response status:', res.status)
+      
       const json = await res.json()
+      console.log('[PricingModal] API response data:', json)
       
       // Handle 401 Unauthorized - redirect to login
       if (res.status === 401) {
+        console.warn('[PricingModal] 401 Unauthorized - redirecting to login')
         setPostLoginRedirect(returnTo)
         onClose() // Close modal first
         router.push(`/login?redirect=${encodeURIComponent(returnTo)}`)
@@ -93,26 +100,37 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
       }
       
       if (!res.ok || !json?.success) {
-        throw new Error(json?.error || 'Failed to start checkout')
+        const errorMsg = json?.error || json?.details || 'Failed to start checkout'
+        console.error('[PricingModal] Checkout failed:', {
+          status: res.status,
+          error: errorMsg,
+          fullResponse: json
+        })
+        throw new Error(errorMsg)
       }
 
       if (json?.recharge_id) {
         try {
           localStorage.setItem('pending_recharge_id', String(json.recharge_id))
+          console.log('[PricingModal] Saved recharge_id:', json.recharge_id)
         } catch {
           // ignore
         }
       }
 
       if (json?.payment_link_url) {
+        console.log('[PricingModal] Redirecting to payment link:', json.payment_link_url)
         window.location.assign(String(json.payment_link_url))
         return
       }
 
-      throw new Error('Missing payment_link_url')
+      throw new Error('Missing payment_link_url in response')
     } catch (e) {
-      console.error('Checkout failed:', e)
-      alert(e instanceof Error ? e.message : 'Checkout failed. Please try again.')
+      console.error('[PricingModal] Checkout error:', e)
+      const errorMessage = e instanceof Error ? e.message : 'Checkout failed. Please try again.'
+      
+      // Use a more visible error display
+      alert(`Payment Error: ${errorMessage}\n\nPlease check the console for more details.`)
     } finally {
       setCheckingOutId(null)
     }
