@@ -28,8 +28,36 @@ GEO Optimization Requirements (for AI search citation):
 3. FAQ Style (GEO-4): Answer questions a non-expert would ask (e.g., "Is AI video suitable for [industry]?", "Do I need [equipment]?")
 4. Industry + Scene + Platform (GEO-5): Must clearly identify at least 2 of: industry, use case scenario, platform`
 
-// 构建 GEO 优化的 User Prompt
+// 构建 GEO 优化的 User Prompt（含随机结构池）
 function buildGEOPrompt(useCase) {
+  // 🔥 随机选择结构变体（降低同构风险）
+  // H1: 3 种变体（避免 "for X in Y" 全站统一模式）
+  const h1Variant = ['A', 'B', 'C'][Math.floor(Math.random() * 3)]
+  const answerFirstVariant = ['A', 'B', 'C'][Math.floor(Math.random() * 3)]
+  // 痛点类型加权概率：Understanding 40%, Scale 30%, Time 20%, Cost 10%
+  const rand = Math.random()
+  const painPointType = rand < 0.4 ? 'understanding' : rand < 0.7 ? 'scale' : rand < 0.9 ? 'time' : 'cost'
+  // 应用介绍句式池（避免固定的 "Typical applications include..."）
+  const applicationPhrases = [
+    'Common ways teams apply this include',
+    'This approach is often used for',
+    'In practice, these videos support tasks such as'
+  ]
+  const selectedApplicationPhrase = applicationPhrases[Math.floor(Math.random() * applicationPhrases.length)]
+  
+  const answerFirstOpenings = {
+    A: `In the ${useCase.industry || 'General'} sector, AI-generated video is often used to support ${useCase.title}, especially in scenarios such as [scene 1], [scene 2], and [scene 3].`,
+    B: `Many teams in the ${useCase.industry || 'General'} field use AI-generated video for ${useCase.title}, especially when they need to [scene 1], [scene 2], or [scene 3].`,
+    C: `${useCase.title} is one of the most common ways AI-generated video is applied in the ${useCase.industry || 'General'} industry, particularly for [scene 1], [scene 2], and [scene 3].`
+  }
+  
+  const painPointTemplates = {
+    time: `Focus on TIME-related challenges: takes time, delays communication, manual effort. Write 2-3 sentences about how ${useCase.title} in ${useCase.industry || 'this industry'} often takes significant time to communicate effectively, and how AI-generated video helps address this.`,
+    understanding: `Focus on UNDERSTANDING challenges: hard to explain, misunderstandings, lack of clarity. Write 2-3 sentences about how explaining ${useCase.title} in ${useCase.industry || 'this industry'} is often challenging, and how AI-generated video helps address this.`,
+    scale: `Focus on SCALE challenges: difficult to reuse, inconsistent delivery, hard to standardize. Write 2-3 sentences about how ${useCase.title} in ${useCase.industry || 'this industry'} is difficult to reuse and standardize, and how AI-generated video helps address this.`,
+    cost: `Focus on COST challenges: production cost, external vendors, update overhead. Write 2-3 sentences about how ${useCase.title} in ${useCase.industry || 'this industry'} often requires significant production cost, and how AI-generated video helps address this.`
+  }
+  
   const industryContext = useCase.industry 
     ? `This use case is specifically for the ${useCase.industry} industry. Focus on how AI video generation addresses unique challenges and opportunities in this industry.`
     : 'This is a general use case applicable across multiple industries.'
@@ -43,7 +71,9 @@ function buildGEOPrompt(useCase) {
     'ugc-creator-content': 'Focus on UGC and creator content. Emphasize user-generated content, influencer marketing, and authentic content.',
   }[useCase.use_case_type] || 'Focus on general video creation needs.'
   
-  return `Generate a use case page for Sora2 AI video generation platform with GEO optimization.
+  return `Assume this page is written by a different industry specialist each time, with a slightly different explanatory focus and writing intent.
+
+Generate a use case page for Sora2 AI video generation platform with GEO optimization.
 
 【Platform Core: AI Video Generation】
 Sora2 is a professional AI video generation platform that specializes in creating high-quality videos from text and images.
@@ -72,24 +102,45 @@ ${useCaseTypeContext}
 - Emphasize how Sora2 solves real problems specific to ${useCase.industry || 'this'} industry
 - Include specific use cases that Sora2 can handle for ${useCase.title} in ${useCase.industry || 'general'} contexts
 - Use natural, engaging language that resonates with ${useCase.industry || 'general'} industry professionals
-- Each paragraph: 60-120 words
+- Answer-first section: 120-160 words (NOT 150-200, avoid padding)
+- Other paragraphs: Focus on information points, not word count
 - All content in English
 - Make sure the content is specifically tailored to: ${useCase.title} + ${useCase.industry || 'General'} + ${useCase.use_case_type}
 
-【Content Structure - SEO + GEO Optimized】
-H1: AI Video Generation for ${useCase.title} in ${useCase.industry || 'General'} - Sora2 Use Case
+🔥 CRITICAL: Avoid repeating the same sentence or phrase more than 2 times throughout the entire content
+🔥 CRITICAL: Use varied expressions and synonyms instead of mechanical repetition
+🔥 CRITICAL: Each section should use different wording while maintaining the same meaning
 
-H2: Introduction (GEO-1: Answer-First Structure - 150-200 words)
-Start with this exact format:
-"In ${useCase.industry || 'General'}, AI-generated videos are commonly used for ${useCase.title}."
+【Content Structure - SEO + GEO Optimized with Random Variants】
+
+🔥 YOU MUST USE THESE EXACT VARIANTS (assigned randomly):
+- H1 Format: ${h1Variant === 'A' ? 'Format A' : h1Variant === 'B' ? 'Format B' : 'Format C'}
+- Answer-first Opening: ${answerFirstVariant === 'A' ? 'Opening A' : answerFirstVariant === 'B' ? 'Opening B' : 'Opening C'}
+- Application Introduction: "${selectedApplicationPhrase}"
+- Why This Matters: ${painPointType} type only (weighted: Understanding 40%, Scale 30%, Time 20%, Cost 10%)
+
+H1: ${h1Variant === 'A' 
+  ? `AI Video Generation for ${useCase.industry || 'General'} – ${useCase.title}`
+  : h1Variant === 'B'
+  ? `AI Video Use Cases in ${useCase.industry || 'General'}: ${useCase.title}`
+  : `How ${useCase.industry || 'General'} Teams Apply AI Video to ${useCase.title}`
+}
+
+H2: Introduction (GEO-1: Answer-First Structure - 120-160 words)
+Start with this exact opening:
+"${answerFirstOpenings[answerFirstVariant]}"
 Follow with:
-- Typical applications include: [list of noun phrases, e.g., "Product demo videos", "Onboarding explainer clips", "Social media short-form ads"]
+- ${selectedApplicationPhrase}: [list of noun phrases, e.g., "Product demo videos", "Onboarding explainer clips", "Social media short-form ads"]
 - This page explains how teams use AI video tools for this purpose, which platforms are most suitable, and practical steps to get started.
 
 H2: Why Sora2 is perfect for ${useCase.title} in ${useCase.industry || 'General'} (3-5 specific reasons)
 Use noun phrases in lists, NOT marketing sentences:
 ✅ Good: "Product demo videos", "Onboarding clips", "Social media ads"
 ❌ Bad: "Boost your brand visibility", "Increase engagement dramatically"
+
+H2: Why This Matters
+${painPointTemplates[painPointType]}
+Write 2-3 sentences only, do NOT write all 4 types.
 
 H2: How to use Sora2 for ${useCase.title} in ${useCase.industry || 'General'} (GEO-3: Step-by-step guide)
     H3: Step 1: Create your text prompt (with ${useCase.industry || 'general'} industry-specific examples)
@@ -106,13 +157,24 @@ H2: Benefits of using Sora2 for ${useCase.title} in ${useCase.industry || 'Gener
 List format with noun phrases
 
 H2: Frequently Asked Questions (GEO-4: "傻问题化" - Answer questions non-experts would ask)
-Must include at least 3 questions like:
-- "Is AI video suitable for ${useCase.industry || 'this industry'}?"
+Must include at least 3 questions. Priority questions (AI search prefers these):
+- "How is AI video typically used in ${useCase.industry || 'this industry'}?"
+- "Is AI-generated video suitable for non-technical teams?"
+- "Can these videos be reused across different contexts?"
 - "Do I need filming equipment for ${useCase.title}?"
-- "Which platform works best for ${useCase.title} in ${useCase.industry || 'this industry'}?"
+- "Is this expensive?"
+- "Can small teams use this?"
+
+Avoid or use sparingly:
+- "Which platform works best..." (comparison/evaluation questions are less preferred by AI search)
+
 Keep answers 2-4 sentences, no marketing jargon.
 
-H2: Get started with Sora2 for ${useCase.title} (call-to-action)
+H2: Using Sora2 for ${useCase.title} in ${useCase.industry || 'General'}
+(Neutral informational heading, not "Get started with Sora2")
+
+Final CTA (One sentence only):
+Get started with Sora2 to create AI-generated videos for ${useCase.industry || 'General'} use cases.
 
 IMPORTANT: 
 - You MUST start with an H1 heading (single #)
