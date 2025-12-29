@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input } from '@/components/ui'
 import { INDUSTRIES_100 } from '@/lib/data/industries-100'
 import { INDUSTRIES_TRADITIONAL } from '@/lib/data/industries-traditional'
@@ -708,6 +708,30 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
     }
   }
 
+  // Admin session can expire mid-run; try auto-refresh once and retry.
+  const tryRefreshAdminSession = useCallback(async (): Promise<boolean> => {
+    try {
+      const r = await fetch('/api/auth/admin-refresh-session', { method: 'POST' })
+      return r.ok
+    } catch {
+      return false
+    }
+  }, [])
+
+  const fetchWithSessionRetry = useCallback(
+    async (url: string, init?: RequestInit): Promise<Response> => {
+      const resp = await fetch(url, init)
+      if (resp.status === 401 || resp.status === 403) {
+        const refreshed = await tryRefreshAdminSession()
+        if (refreshed) {
+          return await fetch(url, init)
+        }
+      }
+      return resp
+    },
+    [tryRefreshAdminSession]
+  )
+
   // 轮询任务状态
   const startPollingTaskStatus = (taskId: string) => {
     // 如果已有轮询在运行，先清理
@@ -718,27 +742,6 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
     
     let consecutiveErrors = 0
     const MAX_CONSECUTIVE_ERRORS = 5
-
-    const tryRefreshAdminSession = async (): Promise<boolean> => {
-      try {
-        const r = await fetch('/api/auth/admin-refresh-session', { method: 'POST' })
-        return r.ok
-      } catch {
-        return false
-      }
-    }
-
-    const fetchWithSessionRetry = async (url: string, init?: RequestInit): Promise<Response> => {
-      const resp = await fetch(url, init)
-      if (resp.status === 401 || resp.status === 403) {
-        // Try to refresh admin session once, then retry the original request.
-        const refreshed = await tryRefreshAdminSession()
-        if (refreshed) {
-          return await fetch(url, init)
-        }
-      }
-      return resp
-    }
 
     const safeReadJson = async (response: Response, contextUrl: string) => {
       const contentType = response.headers.get('content-type') || ''
@@ -751,7 +754,7 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
           data: rawText ? JSON.parse(rawText) : null,
           rawText,
         }
-      } catch (e) {
+      } catch (err) {
         // This is the exact root cause of "Unterminated string in JSON..." loops.
         // Log enough to debug without spamming full HTML or huge payloads.
         console.error('[batch-generation/poll] Invalid JSON response:', {
@@ -760,6 +763,7 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
           ok: response.ok,
           contentType,
           preview: rawText.slice(0, 500),
+          error: err instanceof Error ? err.message : String(err),
         })
         throw new Error(`Invalid JSON from ${contextUrl} (status ${response.status})`)
       }
@@ -1084,21 +1088,28 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
           })
           const contentType = response.headers.get('content-type') || ''
           const rawText = await response.text().catch(() => '')
-          let result: any = null
+          let result: { task?: unknown } | null = null
           try {
-            result = rawText ? JSON.parse(rawText) : null
-          } catch (e) {
+            result = rawText ? (JSON.parse(rawText) as { task?: unknown }) : null
+          } catch (err) {
             console.error('[恢复任务] Invalid JSON response:', {
               url,
               status: response.status,
               ok: response.ok,
               contentType,
               preview: rawText.slice(0, 300),
+              error: err instanceof Error ? err.message : String(err),
             })
           }
           
-          if (response.ok && result.task && ['pending', 'processing', 'paused'].includes(result.task.status)) {
-            taskToRestore = { ...result.task, id: lastTaskId }
+          const taskVal = (result && typeof result === 'object' ? result.task : null) as unknown
+          const isRecord = (v: unknown): v is Record<string, unknown> =>
+            !!v && typeof v === 'object' && !Array.isArray(v)
+          const taskObj = isRecord(taskVal) ? taskVal : null
+          const taskStatus = taskObj && typeof taskObj['status'] === 'string' ? (taskObj['status'] as string) : null
+
+          if (response.ok && taskObj && taskStatus && ['pending', 'processing', 'paused'].includes(taskStatus)) {
+            taskToRestore = { ...taskObj, id: lastTaskId }
             console.log('[恢复任务] 从 localStorage 找到任务:', taskToRestore.id)
           } else if (response.status === 404) {
             // 任务不存在，清除 localStorage
