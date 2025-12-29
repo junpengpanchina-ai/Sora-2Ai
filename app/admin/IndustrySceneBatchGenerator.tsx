@@ -719,6 +719,27 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
     let consecutiveErrors = 0
     const MAX_CONSECUTIVE_ERRORS = 5
 
+    const tryRefreshAdminSession = async (): Promise<boolean> => {
+      try {
+        const r = await fetch('/api/auth/admin-refresh-session', { method: 'POST' })
+        return r.ok
+      } catch {
+        return false
+      }
+    }
+
+    const fetchWithSessionRetry = async (url: string, init?: RequestInit): Promise<Response> => {
+      const resp = await fetch(url, init)
+      if (resp.status === 401 || resp.status === 403) {
+        // Try to refresh admin session once, then retry the original request.
+        const refreshed = await tryRefreshAdminSession()
+        if (refreshed) {
+          return await fetch(url, init)
+        }
+      }
+      return resp
+    }
+
     const safeReadJson = async (response: Response, contextUrl: string) => {
       const contentType = response.headers.get('content-type') || ''
       const rawText = await response.text().catch(() => '')
@@ -756,7 +777,7 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
       
       try {
         const url = `/api/admin/batch-generation/status/${taskId}`
-        const response = await fetch(url, {
+        const response = await fetchWithSessionRetry(url, {
           headers: { 'X-Requested-With': 'XMLHttpRequest' },
         })
         const resultWrapper = await safeReadJson(response, url)
@@ -770,7 +791,8 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
         if (!response.ok) {
           // Common case: admin session expired and API returns 401/403 (sometimes HTML).
           if (response.status === 401 || response.status === 403) {
-            onShowBanner('error', '登录状态已失效，请刷新页面并重新登录管理员后台。')
+            // At this point refresh+retry has already been attempted.
+            onShowBanner('error', '管理员会话已过期且无法自动续期，请重新登录。')
           } else {
             console.error('获取任务状态失败:', result?.error || result)
           }
@@ -1021,7 +1043,7 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
           }
           onShowBanner(
             'error',
-            '任务状态轮询连续失败（可能网络/登录状态/服务异常）。已停止自动轮询，请刷新页面后重试。'
+            '任务状态轮询连续失败（可能网络/服务异常）。已停止自动轮询，请稍后刷新页面继续。'
           )
         }
       }
@@ -1057,7 +1079,7 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
         try {
           console.log('[恢复任务] 从 localStorage 获取任务状态:', lastTaskId)
           const url = `/api/admin/batch-generation/status/${lastTaskId}`
-          const response = await fetch(url, {
+          const response = await fetchWithSessionRetry(url, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
           })
           const contentType = response.headers.get('content-type') || ''
