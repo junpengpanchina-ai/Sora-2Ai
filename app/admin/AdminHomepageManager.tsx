@@ -849,10 +849,23 @@ function PaymentPlansManager({ onShowBanner }: { onShowBanner: (type: 'success' 
   const handleSave = useCallback(async (plan: PaymentPlan) => {
     try {
       setSaving((prev) => ({ ...prev, [plan.id]: true }))
+      
+      // 清理 editForm：将空字符串转换为 null，避免覆盖数据库中的有效值
+      const cleanedEditForm: Partial<Record<keyof PaymentPlan, string | number | boolean | null>> = {}
+      Object.keys(editForm).forEach((key) => {
+        const value = editForm[key as keyof PaymentPlan]
+        // 对于字符串字段，空字符串转换为 null
+        if (typeof value === 'string' && value.trim() === '') {
+          cleanedEditForm[key as keyof PaymentPlan] = null
+        } else if (value !== undefined) {
+          cleanedEditForm[key as keyof PaymentPlan] = value as string | number | boolean | null
+        }
+      })
+      
       const response = await fetch('/api/admin/payment-plans', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...plan, ...editForm }),
+        body: JSON.stringify({ id: plan.id, ...cleanedEditForm }),
       })
 
       // 检查 401 错误

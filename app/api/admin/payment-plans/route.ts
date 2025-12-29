@@ -166,10 +166,26 @@ export async function PUT(request: NextRequest) {
     if (updates.currency !== undefined) updateData.currency = updates.currency
     if (updates.credits !== undefined) updateData.credits = parseInt(updates.credits)
     if (updates.videos !== undefined) updateData.videos = parseInt(updates.videos)
-    if (updates.description !== undefined) updateData.description = updates.description
-    if (updates.badge_text !== undefined) updateData.badge_text = updates.badge_text
-    if (updates.stripe_buy_button_id !== undefined) updateData.stripe_buy_button_id = updates.stripe_buy_button_id
-    if (updates.stripe_payment_link_id !== undefined) updateData.stripe_payment_link_id = updates.stripe_payment_link_id
+    if (updates.description !== undefined) updateData.description = updates.description || null
+    if (updates.badge_text !== undefined) updateData.badge_text = updates.badge_text || null
+    // 对于 Stripe 相关字段，空字符串转换为 null，避免清空有效值
+    if (updates.stripe_buy_button_id !== undefined) {
+      updateData.stripe_buy_button_id = updates.stripe_buy_button_id && String(updates.stripe_buy_button_id).trim() !== '' 
+        ? String(updates.stripe_buy_button_id).trim() 
+        : null
+    }
+    if (updates.stripe_payment_link_id !== undefined) {
+      // 处理 Payment Link ID：支持完整 URL 或仅 ID
+      const value = updates.stripe_payment_link_id
+      if (value && String(value).trim() !== '') {
+        const normalized = String(value).trim()
+        // 如果是完整 URL，提取 ID
+        const match = normalized.match(/buy\.stripe\.com\/([a-zA-Z0-9]+)(?:\?|$)/)
+        updateData.stripe_payment_link_id = match ? match[1] : normalized
+      } else {
+        updateData.stripe_payment_link_id = null
+      }
+    }
     if (updates.is_active !== undefined) updateData.is_active = updates.is_active
     if (updates.is_recommended !== undefined) updateData.is_recommended = updates.is_recommended
 

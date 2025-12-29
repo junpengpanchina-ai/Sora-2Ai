@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
 import { setPostLoginRedirect } from '@/lib/auth/post-login-redirect'
+import { createClient } from '@/lib/supabase/client'
 
 interface PaymentLink {
   id: string
@@ -27,6 +28,20 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<'starter' | 'packs'>('packs')
   const [checkingOutId, setCheckingOutId] = useState<string | null>(null)
+  const [redirectingToLogin, setRedirectingToLogin] = useState(false) // 防止无限循环
+  
+  // 懒加载 supabase client，只在客户端需要时创建
+  const getSupabaseClient = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return null
+    }
+    try {
+      return createClient()
+    } catch (error) {
+      console.error('[PricingModal] Failed to create Supabase client:', error)
+      return null
+    }
+  }, [])
 
   useEffect(() => {
     if (isOpen) {
@@ -70,39 +85,122 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
     }
   }
 
+  // 获取认证 headers
+  const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    try {
+      const supabase = getSupabaseClient()
+      if (!supabase) {
+        return {
+          'Content-Type': 'application/json',
+        }
+      }
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        return {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        }
+      }
+    } catch (error) {
+      console.error('[PricingModal] Failed to get session:', error)
+    }
+    return {
+      'Content-Type': 'application/json',
+    }
+  }, [getSupabaseClient])
+
   const startCheckout = async (paymentLinkId: string) => {
     try {
       setCheckingOutId(paymentLinkId)
       
       console.log('[PricingModal] Starting checkout:', { paymentLinkId })
       
+      // 防止无限循环：如果已经在重定向，不再重定向
+      if (redirectingToLogin) {
+        console.warn('[PricingModal] Already redirecting to login, skipping')
+        return
+      }
+      
+      // 获取认证 headers
+      const headers = await getAuthHeaders()
+      
       // Get current URL for redirect after login
       const returnTo = typeof window !== 'undefined' ? window.location.href : '/'
       
       const res = await fetch('/api/payment/payment-link', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ payment_link_id: paymentLinkId }),
       })
       
       console.log('[PricingModal] API response status:', res.status)
+      console.log('[PricingModal] API response headers:', Object.fromEntries(res.headers.entries()))
       
-      const json = await res.json()
-      console.log('[PricingModal] API response data:', json)
+      // 先读取响应文本，以便调试
+      const responseText = await res.text()
+      console.log('[PricingModal] API response text:', responseText)
+      
+      interface PaymentLinkResponse {
+        success?: boolean
+        payment_link_url?: string
+        recharge_id?: string
+        error?: string
+        details?: string
+      }
+      
+      let json: PaymentLinkResponse
+      try {
+        json = JSON.parse(responseText) as PaymentLinkResponse
+        console.log('[PricingModal] API response data:', json)
+      } catch (parseError) {
+        console.error('[PricingModal] Failed to parse JSON response:', parseError)
+        throw new Error(`Invalid response from server: ${responseText.substring(0, 100)}`)
+      }
       
       // Handle 401 Unauthorized - redirect to login
       if (res.status === 401) {
         console.warn('[PricingModal] 401 Unauthorized - redirecting to login')
+        
+        // 防止无限循环：检查是否已经重定向过
+        const redirectKey = 'payment_checkout_redirect_attempt'
+        const redirectAttempt = sessionStorage.getItem(redirectKey)
+        const now = Date.now()
+        
+        if (redirectAttempt) {
+          const lastAttempt = parseInt(redirectAttempt, 10)
+          // 如果 5 秒内已经重定向过，不再重定向
+          if (now - lastAttempt < 5000) {
+            console.error('[PricingModal] 检测到无限循环，停止重定向')
+            alert('登录状态异常，请刷新页面后重试')
+            return
+          }
+        }
+        
+        // 记录重定向尝试
+        sessionStorage.setItem(redirectKey, now.toString())
+        
+        setRedirectingToLogin(true)
         setPostLoginRedirect(returnTo)
         onClose() // Close modal first
-        router.push(`/login?redirect=${encodeURIComponent(returnTo)}`)
+        
+        // 延迟重定向，避免立即触发
+        setTimeout(() => {
+          router.push(`/login?redirect=${encodeURIComponent(returnTo)}`)
+        }, 100)
         return
       }
+      
+      // 清除重定向尝试记录（成功时）
+      sessionStorage.removeItem('payment_checkout_redirect_attempt')
       
       if (!res.ok || !json?.success) {
         const errorMsg = json?.error || json?.details || 'Failed to start checkout'
         console.error('[PricingModal] Checkout failed:', {
           status: res.status,
+          ok: res.ok,
+          success: json?.success,
           error: errorMsg,
           fullResponse: json
         })
@@ -119,8 +217,21 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
       }
 
       if (json?.payment_link_url) {
-        console.log('[PricingModal] Redirecting to payment link:', json.payment_link_url)
-        window.location.assign(String(json.payment_link_url))
+        const paymentUrl = String(json.payment_link_url).trim()
+        console.log('[PricingModal] Redirecting to payment link:', paymentUrl)
+        console.log('[PricingModal] Payment URL validation:', {
+          url: paymentUrl,
+          isValid: paymentUrl.startsWith('http'),
+          length: paymentUrl.length
+        })
+        
+        // 确保 URL 有效
+        if (!paymentUrl || !paymentUrl.startsWith('http')) {
+          throw new Error(`Invalid payment URL: ${paymentUrl}`)
+        }
+        
+        // 使用 window.location.href 而不是 assign，更可靠
+        window.location.href = paymentUrl
         return
       }
 
