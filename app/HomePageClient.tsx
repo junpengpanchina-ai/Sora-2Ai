@@ -226,18 +226,43 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
 
     try {
       setCheckingOutPlanId(plan.id)
+      
+      // 获取认证 headers
+      const headers = await getAuthHeaders()
+      
       const res = await fetch('/api/payment/payment-link', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ payment_link_id: plan.stripe_payment_link_id }),
       })
       const json = await res.json()
 
       if (res.status === 401) {
+        // 防止无限循环
+        const redirectKey = 'payment_checkout_redirect_attempt'
+        const redirectAttempt = sessionStorage.getItem(redirectKey)
+        const now = Date.now()
+        
+        if (redirectAttempt) {
+          const lastAttempt = parseInt(redirectAttempt, 10)
+          if (now - lastAttempt < 5000) {
+            console.error('[HomePage] 检测到无限循环，停止重定向')
+            alert('登录状态异常，请刷新页面后重试')
+            return
+          }
+        }
+        
+        sessionStorage.setItem(redirectKey, now.toString())
         setPostLoginRedirect(returnTo)
         router.push(`/login?redirect=${encodeURIComponent(returnTo)}`)
         return
       }
+      
+      // 清除重定向尝试记录（成功时）
+      sessionStorage.removeItem('payment_checkout_redirect_attempt')
 
       if (!res.ok || !json?.success) {
         throw new Error(json?.error || 'Failed to start checkout')
@@ -259,6 +284,8 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       throw new Error('Missing payment_link_url')
     } catch (e) {
       console.error('Checkout failed:', e)
+      // 清除重定向尝试记录（错误时）
+      sessionStorage.removeItem('payment_checkout_redirect_attempt')
       alert(e instanceof Error ? e.message : 'Checkout failed. Please try again.')
     } finally {
       setCheckingOutPlanId(null)
