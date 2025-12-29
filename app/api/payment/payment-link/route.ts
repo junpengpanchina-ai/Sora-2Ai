@@ -166,7 +166,7 @@ export async function GET() {
         name: row.plan_name,
         videos: row.videos,
         description: row.description || '',
-      }))
+    }))
 
     return NextResponse.json({
       success: true,

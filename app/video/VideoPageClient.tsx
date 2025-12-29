@@ -81,6 +81,8 @@ export default function VideoPageClient() {
   const [pollingTaskId, setPollingTaskId] = useState<string | null>(null)
   const [currentPrompt, setCurrentPrompt] = useState<string>('') // Save current prompt
   const [credits, setCredits] = useState<number | null>(null)
+  const [hasRechargeRecords, setHasRechargeRecords] = useState<boolean | null>(null)
+  const [showNewUserBanner, setShowNewUserBanner] = useState(false)
   const [videoLoadError, setVideoLoadError] = useState<string | null>(null)
   // Pixel-perfect (1:1) display: prevent upscaling beyond intrinsic resolution (adjusted for DPR)
   const [videoMaxCssWidth, setVideoMaxCssWidth] = useState<number | null>(null)
@@ -198,6 +200,37 @@ export default function VideoPageClient() {
     }, 30000) // Refresh every 30 seconds
     return () => clearInterval(interval)
   }, [getAuthHeaders, supabase])
+
+  // Check recharge records to determine if user is new
+  useEffect(() => {
+    if (!supabase || !isMountedRef.current) return
+
+    async function checkRechargeRecords() {
+      try {
+        const headers = await getAuthHeaders()
+        const res = await fetch('/api/payment/recharge-records', { headers })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success) {
+            const hasRecords = data.records && data.records.length > 0
+            setHasRechargeRecords(hasRecords)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check recharge records:', error)
+      }
+    }
+
+    checkRechargeRecords()
+  }, [supabase, getAuthHeaders])
+
+  // Determine if should show new user banner
+  useEffect(() => {
+    if (credits !== null && hasRechargeRecords !== null) {
+      const shouldShow = !hasRechargeRecords && credits <= 30
+      setShowNewUserBanner(shouldShow)
+    }
+  }, [credits, hasRechargeRecords])
 
   // Read prompt from URL query parameter (only once)
   useEffect(() => {
@@ -653,7 +686,11 @@ export default function VideoPageClient() {
 
         if (errorMsg.includes('Insufficient credits') || errorMsg.includes('credits')) {
           console.warn('[VideoPage] ⚠️ Insufficient credits')
-          alert(`Insufficient credits! Video generation requires 10 credits. Current credits: ${credits || 0}. Please recharge first.`)
+          const isNewUser = !hasRechargeRecords && credits !== null && credits <= 30
+          const message = isNewUser
+            ? `You're out of credits! Try the $4.9 starter pack (10 videos) or upgrade to larger packs. Current credits: ${credits || 0}.`
+            : `Insufficient credits! Video generation requires 10 credits. Current credits: ${credits || 0}. Please recharge first.`
+          alert(message)
           const intended =
             typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : '/video'
           setPostLoginRedirect(intended)
@@ -934,6 +971,32 @@ export default function VideoPageClient() {
             </>
           )}
         </div>
+
+        {/* New User Starter Banner */}
+        {showNewUserBanner && (
+          <div className="mb-6 rounded-2xl border-2 border-energy-water/50 bg-gradient-to-r from-energy-water/20 via-energy-water/10 to-transparent p-6 shadow-[0_25px_80px_-45px_rgba(33,122,255,0.5)] backdrop-blur-xl">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-white mb-2">
+                  🎉 Get Started with 10 More AI Videos for $4.9
+                </h3>
+                <p className="text-blue-100/90 text-sm sm:text-base">
+                  Perfect for new users! Get 100 credits (10 videos) with our starter pack. Try it now and continue creating amazing videos.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  const intended = typeof window !== 'undefined' ? window.location.href : '/video'
+                  setPostLoginRedirect(intended)
+                  router.push(`/#pricing-plans`)
+                }}
+                className="whitespace-nowrap rounded-xl bg-gradient-to-r from-energy-water to-energy-water-deep px-6 py-3 text-sm font-semibold text-white shadow-lg transition-transform hover:scale-105 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-energy-water focus:ring-offset-2 focus:ring-offset-transparent"
+              >
+                Go to Starter Pack →
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Generation Form - Display first, highest priority */}
         <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">

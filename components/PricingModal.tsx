@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
+import { setPostLoginRedirect } from '@/lib/auth/post-login-redirect'
 
 interface PaymentLink {
   id: string
@@ -20,6 +22,7 @@ interface PricingModalProps {
 }
 
 export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
+  const router = useRouter()
   const [paymentLinks, setPaymentLinks] = useState<PaymentLink[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<'starter' | 'packs'>('packs')
@@ -34,6 +37,8 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
   useEffect(() => {
     if (!isOpen) return
     const starter = getStarterLink(paymentLinks)
+    // Default to starter for new users (we'll check this via localStorage or API if needed)
+    // For now, default to starter if it exists
     setView(starter ? 'starter' : 'packs')
   }, [isOpen, paymentLinks])
 
@@ -68,12 +73,25 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
   const startCheckout = async (paymentLinkId: string) => {
     try {
       setCheckingOutId(paymentLinkId)
+      
+      // Get current URL for redirect after login
+      const returnTo = typeof window !== 'undefined' ? window.location.href : '/'
+      
       const res = await fetch('/api/payment/payment-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ payment_link_id: paymentLinkId }),
       })
       const json = await res.json()
+      
+      // Handle 401 Unauthorized - redirect to login
+      if (res.status === 401) {
+        setPostLoginRedirect(returnTo)
+        onClose() // Close modal first
+        router.push(`/login?redirect=${encodeURIComponent(returnTo)}`)
+        return
+      }
+      
       if (!res.ok || !json?.success) {
         throw new Error(json?.error || 'Failed to start checkout')
       }
@@ -250,6 +268,22 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
                   </CardContent>
                 </Card>
               ))}
+              
+              {/* Comparison hint for upgrade packs */}
+              {view === 'packs' && starterLink && packLinks.length > 0 && (
+                <div className="col-span-full mt-4 text-center">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Or{' '}
+                    <button
+                      onClick={() => setView('starter')}
+                      className="font-semibold text-energy-water hover:text-energy-water-deep underline"
+                    >
+                      start with the ${starterLink.amount.toFixed(2)} starter pack
+                    </button>
+                    {' '}first →
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
