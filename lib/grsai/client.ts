@@ -429,6 +429,18 @@ export interface ChatCompletionResponse {
   created: number
   model: string
   choices: ChatCompletionChoice[]
+  error?: {
+    message?: string
+    type?: string
+    code?: string
+    [key: string]: unknown
+  }
+}
+
+interface InvalidChunkInfo {
+  chunk: ChatCompletionResponse
+  rawLine: string
+  chunkNumber: number
 }
 
 /**
@@ -671,6 +683,16 @@ export async function* createChatCompletionStream(
   if (!response.ok) {
     const errorText = await response.text()
     
+    // 🔥 详细记录错误响应
+    console.error('[Grsai Chat API Stream] 请求失败:', {
+      status: response.status,
+      statusText: response.statusText,
+      model: params.model,
+      messagesCount: params.messages.length,
+      errorText: errorText.substring(0, 500),
+      retryCount,
+    })
+    
     // 如果是服务器错误（5xx）且还有重试次数，进行重试
     if ((response.status >= 500 && response.status < 600) && retryCount < MAX_RETRIES) {
       console.warn(`[Grsai Chat API Stream] 服务器错误 ${response.status}，${RETRY_DELAY}ms 后重试...`)
@@ -681,6 +703,13 @@ export async function* createChatCompletionStream(
     
     throw new Error(`Grsai Chat API 错误: ${response.status} - ${errorText}`)
   }
+  
+  // 🔥 记录成功的响应开始
+  console.log('[Grsai Chat API Stream] 流式响应开始:', {
+    status: response.status,
+    model: params.model,
+    contentType: response.headers.get('content-type'),
+  })
 
   const reader = response.body?.getReader()
   if (!reader) {
@@ -689,6 +718,9 @@ export async function* createChatCompletionStream(
 
   const decoder = new TextDecoder()
   let buffer = ''
+  let chunkCount = 0
+  let hasValidChunk = false
+  let firstInvalidChunk: InvalidChunkInfo | null = null
 
   try {
     while (true) {
@@ -708,13 +740,72 @@ export async function* createChatCompletionStream(
         if (trimmedLine.startsWith('data: ')) {
           try {
             const data = JSON.parse(trimmedLine.slice(6)) as ChatCompletionResponse
-            yield data
+            chunkCount++
+            
+            // 🔥 检查是否有choices
+            if (data.choices && data.choices.length > 0) {
+              hasValidChunk = true
+              yield data
+            } else {
+              // 🔥 记录第一个无效chunk的详细信息
+              if (!firstInvalidChunk) {
+                firstInvalidChunk = {
+                  chunk: data,
+                  rawLine: trimmedLine.substring(0, 500),
+                  chunkNumber: chunkCount,
+                }
+              }
+              
+              // 🔥 详细记录无choices的chunk
+              console.error(`[Grsai Chat API Stream] ⚠️⚠️⚠️ Chunk #${chunkCount} 无choices！`, {
+                model: params.model,
+                hasChoices: !!data.choices,
+                choicesLength: data.choices?.length || 0,
+                hasError: !!data.error,
+                error: data.error,
+                hasId: !!data.id,
+                hasModel: !!data.model,
+                fullChunk: JSON.stringify(data, null, 2),
+                rawLine: trimmedLine.substring(0, 300),
+              })
+              
+              // 如果chunk包含错误信息，抛出错误
+              if (data.error) {
+                const errorMsg = data.error.message || JSON.stringify(data.error)
+                throw new Error(`Grsai Chat API 返回错误: ${errorMsg}`)
+              }
+              
+              // 仍然yield这个chunk，让上层处理
+              yield data
+            }
           } catch (error) {
-            // 忽略解析错误，继续处理下一行
-            console.warn('解析流式响应失败:', trimmedLine, error)
+            // 解析错误，记录详细信息
+            console.error('[Grsai Chat API Stream] 解析流式响应失败:', {
+              error: error instanceof Error ? error.message : String(error),
+              rawLine: trimmedLine.substring(0, 200),
+              lineLength: trimmedLine.length,
+            })
+            // 如果是我们抛出的错误（API错误），继续抛出
+            if (error instanceof Error && error.message.includes('Grsai Chat API')) {
+              throw error
+            }
+            // 其他解析错误，继续处理下一行
           }
         }
       }
+    }
+    
+    // 🔥 如果所有chunk都没有choices，记录警告
+    if (chunkCount > 0 && !hasValidChunk) {
+      console.error('[Grsai Chat API Stream] ⚠️⚠️⚠️ 所有chunk都没有choices！', {
+        totalChunks: chunkCount,
+        firstInvalidChunk: firstInvalidChunk ? {
+          chunkNumber: firstInvalidChunk.chunkNumber,
+          hasError: !!firstInvalidChunk.chunk.error,
+          error: firstInvalidChunk.chunk.error,
+          fullChunk: JSON.stringify(firstInvalidChunk.chunk, null, 2),
+        } : null,
+      })
     }
 
     // 处理剩余的 buffer
