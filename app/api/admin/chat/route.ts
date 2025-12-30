@@ -5,7 +5,7 @@ import {
   createChatCompletionStream,
   type ChatCompletionRequest,
 } from '@/lib/grsai/client'
-import { selectModel } from '@/lib/admin-chat/model-selector'
+import { selectModel, getChatSystemPrompt } from '@/lib/admin-chat/model-selector'
 import { createServiceClient } from '@/lib/supabase/service'
 
 // Force dynamic rendering
@@ -68,25 +68,11 @@ export async function POST(request: NextRequest) {
       content: string
     }> = []
 
-    // 构建用户消息内容
-    let userContent = message || ''
-    
-    // 如果有图片，将图片信息添加到文本中（作为描述）
-    // 注意：如果 Gemini API 支持多模态，可以在这里修改格式
-    if (images && images.length > 0) {
-      if (userContent) {
-        userContent += `\n\n[包含 ${images.length} 张图片]`
-      } else {
-        userContent = `[包含 ${images.length} 张图片，请分析这些图片]`
-      }
-      // 将图片 base64 数据附加到消息中（如果 API 支持）
-      // 这里我们暂时将图片信息作为文本描述，实际使用时需要根据 API 文档调整
-      console.log(`[Admin Chat] 用户上传了 ${images.length} 张图片`)
-    }
-    
-    messages.push({ role: 'user', content: userContent })
+    // 添加系统提示词（智能体配置）
+    const systemPrompt = getChatSystemPrompt()
+    messages.push({ role: 'system', content: systemPrompt })
 
-    // 如果有 sessionId，加载历史消息
+    // 如果有 sessionId，先加载历史消息
     let historyMessages: Array<{ role: string; content: string | null; images: unknown }> = []
     if (sessionId && saveHistory) {
       const supabase = await createServiceClient()
@@ -100,13 +86,15 @@ export async function POST(request: NextRequest) {
 
       if (!historyError && loadedHistory && loadedHistory.length > 0) {
         historyMessages = loadedHistory as Array<{ role: string; content: string | null; images: unknown }>
-        // 将历史消息转换为 API 格式
+        // 将历史消息转换为 API 格式（排除 system 消息，因为我们已经有了）
         const formattedHistory: Array<{
-          role: 'system' | 'user' | 'assistant'
+          role: 'user' | 'assistant'
           content: string
         }> = []
 
         for (const msg of historyMessages) {
+          if (msg.role === 'system') continue // 跳过系统消息
+          
           let content = (msg.content || '') as string
           
           // 如果有图片，添加到内容描述中
@@ -124,10 +112,29 @@ export async function POST(request: NextRequest) {
           })
         }
 
-        // 将历史消息插入到当前消息之前
-        messages.unshift(...formattedHistory)
+        // 将历史消息插入到系统提示词之后
+        messages.splice(1, 0, ...formattedHistory)
       }
     }
+
+    // 构建当前用户消息内容
+    let userContent = message || ''
+    
+    // 如果有图片，将图片信息添加到文本中（作为描述）
+    // 注意：如果 Gemini API 支持多模态，可以在这里修改格式
+    if (images && images.length > 0) {
+      if (userContent) {
+        userContent += `\n\n[包含 ${images.length} 张图片]`
+      } else {
+        userContent = `[包含 ${images.length} 张图片，请分析这些图片]`
+      }
+      // 将图片 base64 数据附加到消息中（如果 API 支持）
+      // 这里我们暂时将图片信息作为文本描述，实际使用时需要根据 API 文档调整
+      console.log(`[Admin Chat] 用户上传了 ${images.length} 张图片`)
+    }
+    
+    // 添加当前用户消息（在历史消息之后）
+    messages.push({ role: 'user', content: userContent })
 
     // 构建 API 请求参数
     const chatParams: ChatCompletionRequest = {
