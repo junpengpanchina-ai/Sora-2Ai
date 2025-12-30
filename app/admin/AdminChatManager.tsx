@@ -270,7 +270,18 @@ export default function AdminChatManager({ onShowBanner }: AdminChatManagerProps
               // 检查API返回的错误
               if (data.error) {
                 const errorMessage = data.error.message || data.error.code || 'API返回错误'
-                console.error('[Admin Chat] API错误:', data.error)
+                const errorType = data.error.type || data.error.finishReason || 'unknown'
+                console.error('[Admin Chat] API错误:', {
+                  message: errorMessage,
+                  type: errorType,
+                  fullError: data.error,
+                })
+                
+                // 如果是内容被过滤，显示更友好的错误信息
+                if (errorType === 'content_filter' || errorType === 'safety' || data.error.finishReason) {
+                  throw new Error(`内容被过滤，请尝试修改消息内容或使用不同的表达方式`)
+                }
+                
                 throw new Error(errorMessage)
               }
               
