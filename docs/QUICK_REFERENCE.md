@@ -1,7 +1,8 @@
 # GEO-A v2 快速参考指南
 
 > **一句话总结**：冻结模板、降速发布、优先 A 类行业、不碰热点词  
-> **当前状态**：✅ 限速期（正常阶段）- Google 已发现 25,462 个 URL
+> **当前状态**：✅ 限速期（正常阶段）- Google 已发现 25,462 个 URL  
+> **📖 完整策略指南**：`docs/COMPLETE_STRATEGY_GUIDE.md` ⭐⭐⭐
 
 ---
 
@@ -109,6 +110,7 @@ Google Trends: "AI safety training" 上升
 
 ## 📚 详细文档
 
+- **`docs/COMPLETE_STRATEGY_GUIDE.md`** - 完整策略指南（所有内容总结）⭐⭐⭐⭐⭐
 - **`docs/GEO_INDEX_AUTO_PRODUCTION_TABLE.md`** - GEO × Index Health 自动排产表（最终执行版）⭐⭐⭐
 - **`docs/INDEX_HEALTH_DASHBOARD_SHEETS.md`** - Index Health Dashboard（表格版 · 执行级）⭐⭐⭐
 - **`docs/SHEETS_TEMPLATE_CSV.md`** - 表格模板（CSV 格式，可直接导入）⭐
