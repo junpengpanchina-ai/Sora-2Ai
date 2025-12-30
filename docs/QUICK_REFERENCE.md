@@ -1,6 +1,7 @@
 # GEO-A v2 快速参考指南
 
-> **一句话总结**：冻结模板、降速发布、优先 A 类行业、不碰热点词
+> **一句话总结**：冻结模板、降速发布、优先 A 类行业、不碰热点词  
+> **当前状态**：✅ 限速期（正常阶段）- Google 已发现 25,462 个 URL
 
 ---
 
@@ -9,6 +10,23 @@
 1. ✅ **冻结 GEO-A v2 模板**（30 天内不再修改）
 2. ✅ **发布速度降到 20–40/天**（不是 150-300）
 3. ✅ **只看 GSC 的 3 个数**（Discovered / Crawled / Indexed）
+
+---
+
+## 🧭 当前阶段：限速期（Healthy Throttling）
+
+**✅ 你已经拿到 Google 的"入场券"**
+
+- ✅ Google 已发现 25,462 个 URL（已进入 Crawl Queue）
+- ✅ sitemap 被持续读取（上次读取：2025/12/28）
+- ✅ `site:` 数量 7 天内明显增长（+300%）
+
+**👉 这是 Google 在"慢慢吃你"，完全正常！**
+
+**❌ 千万别做**：
+- ❌ 看到 2.5 万就加速发布（会触发 Hard Crawl Throttle）
+- ❌ 疯狂看 `site:`（只会焦虑，不准确）
+- ❌ 追热点词（会改变 URL/结构，给 Google 添麻烦）
 
 ---
 
@@ -91,7 +109,17 @@ Google Trends: "AI safety training" 上升
 
 ## 📚 详细文档
 
+- **`docs/GEO_INDEX_AUTO_PRODUCTION_TABLE.md`** - GEO × Index Health 自动排产表（最终执行版）⭐⭐⭐
+- **`docs/INDEX_HEALTH_DASHBOARD_SHEETS.md`** - Index Health Dashboard（表格版 · 执行级）⭐⭐⭐
+- **`docs/SHEETS_TEMPLATE_CSV.md`** - 表格模板（CSV 格式，可直接导入）⭐
+- **`docs/BATCH_SGE_PROMPT.md`** - 批量 SGE Prompt（10 万页不漂移版）⭐
+- **`docs/GSC_THROTTLING_PERIOD_STRATEGY.md`** - 限速期策略（当前必读）⭐
 - **`docs/INDEX_HEALTH_DASHBOARD.md`** - 索引健康仪表盘（5 个数判断一切）⭐
+- **`docs/AI_SUMMARY_SGE_EXTRACTABLE_TEMPLATE.md`** - AI Summary / SGE 引用专用结构模板 ⭐
+- **`docs/LIGHT_TREND_PAGE_REDLINE.md`** - 轻趋势专题页红线清单 ⭐
+- **`docs/TREND_LIGHT_INTEGRATION.md`** - 趋势轻接入 Prompt（不动 URL，不伤索引）⭐
+- **`docs/TREND_MAPPING_LEXICON.md`** - 趋势映射词库（Anti-Hotspot 安全版）⭐
+- **`docs/GEO_PRIORITY_PRODUCTION_TABLE.md`** - GEO 命中率 × 索引率 双优先排产表 ⭐
 - `docs/GEO_V2_EXECUTION_GUIDE.md` - 执行级操作手册
 - `docs/INDUSTRY_PRIORITY_TIERS.md` - 行业优先级分类
 - `docs/TREND_MAPPING_GUIDE.md` - 趋势映射法详细指南
