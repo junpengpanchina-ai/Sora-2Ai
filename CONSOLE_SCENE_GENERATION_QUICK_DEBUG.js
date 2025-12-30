@@ -109,7 +109,7 @@
       // 等待后检查状态
       setTimeout(() => {
         console.log('\n📊 检查恢复后的状态...')
-        getStatus(id)
+        window.getStatus(id)
       }, 2000)
       
       return data
@@ -129,11 +129,12 @@
   window._progressHistory = window._progressHistory || []
   const progressHistory = window._progressHistory
   
-  // 获取当前任务ID的辅助函数
-  const getCurrentTaskId = function() {
+  // 获取当前任务ID的辅助函数（也暴露到全局）
+  window.getCurrentTaskId = function() {
     return localStorage.getItem('lastBatchTaskId') || 
            new URLSearchParams(window.location.search).get('taskId')
   }
+  const getCurrentTaskId = window.getCurrentTaskId
   
   // 快速诊断
   window.quickCheck = async function() {
@@ -289,9 +290,41 @@
   // 自动运行快速检查
   if (taskId) {
     setTimeout(() => {
-      window.quickCheck()
+      if (window.quickCheck) {
+        window.quickCheck()
+      }
     }, 500)
   }
   
+  // 验证所有函数都已加载
+  const requiredFunctions = ['quickCheck', 'getStatus', 'recover', 'setTaskId', 'clearTask', 'startMonitor', 'stopMonitor', 'showHistory']
+  const missingFunctions = requiredFunctions.filter(fn => !window[fn])
+  
+  if (missingFunctions.length > 0) {
+    console.error('❌ 以下函数未正确加载:', missingFunctions)
+    console.error('请重新复制整个脚本并执行')
+  } else {
+    console.log('\n✅ 所有函数已成功加载到全局作用域')
+    console.log('💡 现在可以直接使用: quickCheck(), getStatus(), recover() 等命令')
+    
+    // 测试函数是否真的可用
+    try {
+      if (typeof window.quickCheck === 'function') {
+        console.log('✅ quickCheck 函数验证成功')
+      } else {
+        console.error('❌ quickCheck 不是函数:', typeof window.quickCheck)
+      }
+    } catch (e) {
+      console.error('❌ 验证函数时出错:', e.message)
+    }
+  }
+  
 })()
+
+// 确保函数在全局作用域可用（双重保险）
+if (typeof window.quickCheck === 'undefined') {
+  console.error('❌ 警告: quickCheck 函数未加载！请检查脚本是否完整执行')
+} else {
+  console.log('✅ 全局作用域验证: quickCheck 可用')
+}
 
