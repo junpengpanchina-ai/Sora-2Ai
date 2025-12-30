@@ -824,62 +824,35 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
           setProcessingIndex(task.current_industry_index)
           
           // 🔥 修复：始终使用数据库中的 industries 顺序，确保显示顺序正确
+          // 🔥 添加防护：防止无限循环和递归调用
           // 更新任务状态
           setTasks((prev) => {
             // 检查组件是否已挂载
             if (!isMountedRef.current) {
               return prev
             }
-            // 🔥 如果任务列表为空或顺序不一致，从数据库重建（使用数据库中的顺序）
-            if ((prev.length === 0 || prev.length !== task.industries?.length) && task.industries && Array.isArray(task.industries)) {
-              return task.industries.map((industry: string, index: number) => {
-                const isCompleted = index < task.current_industry_index
-                const isProcessing = index === task.current_industry_index
-                const scenesPerIndustry = task.scenes_per_industry || 100
-                
-                // 计算当前行业已保存的数量
-                let savedCount: number | undefined = undefined
-                if (isCompleted) {
-                  // 已完成的行业：固定保存 scenesPerIndustry 条
-                  savedCount = scenesPerIndustry
-                } else if (isProcessing && task.total_scenes_saved !== undefined) {
-                  // 当前正在处理的行业：计算当前行业已保存的数量
-                  const completedIndustriesCount = task.current_industry_index
-                  // 防御性处理：如果数据库统计异常，避免显示超过每行业上限的数字
-                  savedCount = Math.min(
-                    scenesPerIndustry,
-                    Math.max(0, task.total_scenes_saved - (completedIndustriesCount * scenesPerIndustry))
-                  )
-                }
-                
-                return {
-                  id: `${index}`,
-                  industry,
-                  status: isCompleted ? 'completed' : isProcessing ? 'processing' : 'pending',
-                  savedCount,
-                }
-              })
+            
+            // 🔥 防护：检查 task.industries 是否有效
+            if (!task.industries || !Array.isArray(task.industries)) {
+              console.warn('[batch-generation/poll] task.industries 无效，跳过更新')
+              return prev
             }
             
-            // 🔥 更新现有任务列表（确保顺序与数据库一致）
-            // 如果数据库中的 industries 顺序与前端不一致，重新排序
-            const dbIndustries = task.industries || []
+            const dbIndustries = task.industries
             const scenesPerIndustry = task.scenes_per_industry || 100
+            const currentIndex = task.current_industry_index
             
-            // 如果顺序不一致，重建列表
-            if (prev.length !== dbIndustries.length || 
-                prev.some((t, i) => t.industry !== dbIndustries[i])) {
+            // 🔥 防护：如果任务列表为空或长度不匹配，重建列表
+            if (prev.length === 0 || prev.length !== dbIndustries.length) {
               return dbIndustries.map((industry: string, index: number) => {
-                const isCompleted = index < task.current_industry_index
-                const isProcessing = index === task.current_industry_index
+                const isCompleted = index < currentIndex
+                const isProcessing = index === currentIndex
                 
-                // 计算当前行业已保存的数量
                 let savedCount: number | undefined = undefined
                 if (isCompleted) {
                   savedCount = scenesPerIndustry
                 } else if (isProcessing && task.total_scenes_saved !== undefined) {
-                  const completedIndustriesCount = task.current_industry_index
-                  // 防御性处理：如果数据库统计异常，避免显示超过每行业上限的数字
+                  const completedIndustriesCount = currentIndex
                   savedCount = Math.min(
                     scenesPerIndustry,
                     Math.max(0, task.total_scenes_saved - (completedIndustriesCount * scenesPerIndustry))
@@ -895,27 +868,46 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
               })
             }
             
-            // 顺序一致，更新现有任务列表
-            const updated = [...prev]
-            
-            // 🔥 修复：正确计算每个行业的保存数量
-            // total_scenes_saved 是全局累计的，需要计算每个行业的实际数量
-            // 🔥 生成逻辑是按顺序从上往下处理的（current_industry_index 递增）
-            // 🔥 边生成边保存模式：generateAndSaveScenes 函数在生成一批后立即保存，所以当函数返回时，所有场景词都已保存完成
-            for (let i = 0; i < updated.length; i++) {
-              if (i < task.current_industry_index) {
-                // 已完成的行业：每个行业应该保存 scenesPerIndustry 条
-                // 🔥 边生成边保存模式下，当 current_industry_index 递增时，前一个行业的生成和保存都已完成
-                updated[i] = { 
-                  ...updated[i], 
-                  status: 'completed', // 已完成（生成和保存都已完成）
-                  savedCount: scenesPerIndustry // 每个行业固定保存 scenesPerIndustry 条
+            // 🔥 防护：检查顺序是否一致（避免无限重建）
+            const orderMismatch = prev.some((t, i) => t.industry !== dbIndustries[i])
+            if (orderMismatch) {
+              // 只在顺序确实不一致时才重建
+              return dbIndustries.map((industry: string, index: number) => {
+                const isCompleted = index < currentIndex
+                const isProcessing = index === currentIndex
+                
+                let savedCount: number | undefined = undefined
+                if (isCompleted) {
+                  savedCount = scenesPerIndustry
+                } else if (isProcessing && task.total_scenes_saved !== undefined) {
+                  const completedIndustriesCount = currentIndex
+                  savedCount = Math.min(
+                    scenesPerIndustry,
+                    Math.max(0, task.total_scenes_saved - (completedIndustriesCount * scenesPerIndustry))
+                  )
                 }
-              } else if (i === task.current_industry_index) {
-                // 当前正在处理的行业：计算当前行业已生成和已保存的数量
-                // 当前行业已保存 = total_scenes_saved - (已完成行业数 * scenesPerIndustry)
-                // 当前行业已生成 = total_scenes_generated - (已完成行业数 * scenesPerIndustry)
-                const completedIndustriesCount = task.current_industry_index
+                
+                return {
+                  id: `${index}`,
+                  industry,
+                  status: isCompleted ? 'completed' : isProcessing ? 'processing' : 'pending',
+                  savedCount,
+                }
+              })
+            }
+            
+            // 🔥 顺序一致，增量更新现有任务列表（避免不必要的重新创建）
+            const updated = prev.map((t, i) => {
+              if (i < currentIndex) {
+                // 已完成的行业
+                return { 
+                  ...t, 
+                  status: 'completed' as const,
+                  savedCount: scenesPerIndustry
+                }
+              } else if (i === currentIndex) {
+                // 当前正在处理的行业
+                const completedIndustriesCount = currentIndex
                 const currentIndustrySaved = task.total_scenes_saved !== undefined
                   ? Math.min(
                       scenesPerIndustry,
@@ -929,34 +921,54 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
                     )
                   : undefined
                 
-                // 🔥 判断当前行业的状态
-                // 如果已生成数量 > 已保存数量，说明正在保存中
-                // 如果已生成数量 = 已保存数量，说明保存完成（但 current_industry_index 还未更新）
-                // 如果已生成数量 < scenesPerIndustry，说明还在生成中
                 const isSaving = currentIndustryGenerated !== undefined && 
                                  currentIndustrySaved !== undefined &&
                                  currentIndustryGenerated > currentIndustrySaved
                 const isCompleted = currentIndustrySaved !== undefined && 
                                    currentIndustrySaved >= scenesPerIndustry
                 
-                updated[i] = {
-                  ...updated[i],
-                  status: isCompleted ? 'completed' : 'processing',
+                // 🔥 防护：只在状态确实需要更新时才更新
+                const newStatus = isCompleted ? 'completed' : 'processing'
+                const needsUpdate = t.status !== newStatus || 
+                                   t.savedCount !== currentIndustrySaved ||
+                                   t.generatedCount !== currentIndustryGenerated ||
+                                   t.isSaving !== isSaving
+                
+                if (!needsUpdate) {
+                  return t // 返回原对象，避免不必要的重新渲染
+                }
+                
+                return {
+                  ...t,
+                  status: (isCompleted ? 'completed' : 'processing') as 'completed' | 'processing',
                   savedCount: currentIndustrySaved,
-                  generatedCount: currentIndustryGenerated, // 添加已生成数量，用于显示
-                  isSaving, // 标记是否正在保存
+                  generatedCount: currentIndustryGenerated,
+                  isSaving,
                 }
               } else {
-                // 还未开始的行业：保持 pending 状态
-                updated[i] = {
-                  ...updated[i],
-                  status: 'pending',
+                // 还未开始的行业
+                if (t.status === 'pending' && t.savedCount === undefined) {
+                  return t // 状态未变化，返回原对象
+                }
+                return {
+                  ...t,
+                  status: 'pending' as const,
                   savedCount: undefined,
                 }
               }
-            }
+            })
             
-            return updated
+            // 🔥 防护：深度比较，避免不必要的更新
+            const hasChanges = updated.some((newTask, i) => {
+              const oldTask = prev[i]
+              return !oldTask ||
+                     oldTask.status !== newTask.status ||
+                     oldTask.savedCount !== newTask.savedCount ||
+                     oldTask.generatedCount !== newTask.generatedCount ||
+                     oldTask.isSaving !== newTask.isSaving
+            })
+            
+            return hasChanges ? updated : prev
           })
         }
 
@@ -1033,8 +1045,40 @@ Start creating professional ${scene.use_case} videos for ${industry} today with 
         }
       } catch (error) {
         consecutiveErrors++
+        
+        // 🔥 防护：检测栈溢出错误
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        const isStackOverflow = errorMessage.includes('Maximum call stack size exceeded') ||
+                               errorMessage.includes('stack overflow') ||
+                               errorMessage.includes('too much recursion')
+        
+        if (isStackOverflow) {
+          console.error('🚨 检测到栈溢出错误！停止轮询以防止无限循环:', {
+            error: errorMessage,
+            taskId,
+            consecutiveErrors,
+            stack: error instanceof Error ? error.stack : undefined,
+          })
+          
+          // 立即停止轮询
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current)
+            pollingIntervalRef.current = null
+          }
+          
+          onShowBanner(
+            'error',
+            '检测到递归调用错误，已停止自动轮询。请刷新页面后重试。'
+          )
+          
+          // 清除 localStorage，防止自动恢复
+          localStorage.removeItem('lastBatchTaskId')
+          
+          return // 立即返回，不再继续
+        }
+        
         console.error('轮询任务状态失败:', {
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessage,
           taskId,
           consecutiveErrors,
         })
