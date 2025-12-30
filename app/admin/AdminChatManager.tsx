@@ -253,6 +253,20 @@ export default function AdminChatManager({ onShowBanner }: AdminChatManagerProps
             try {
               const data = JSON.parse(trimmedLine.slice(6))
               
+              // 🔥 调试：记录前几个chunk的详细信息
+              if (assistantContent.length === 0) {
+                console.log('[Admin Chat Client] 第一个chunk:', {
+                  hasError: !!data.error,
+                  hasChoices: !!data.choices,
+                  choicesLength: data.choices?.length || 0,
+                  hasDelta: !!data.choices?.[0]?.delta,
+                  hasContent: !!data.choices?.[0]?.delta?.content,
+                  finishReason: data.choices?.[0]?.finish_reason,
+                  model: data.model,
+                  fullData: JSON.stringify(data, null, 2),
+                })
+              }
+              
               // 检查API返回的错误
               if (data.error) {
                 const errorMessage = data.error.message || data.error.code || 'API返回错误'
@@ -263,6 +277,7 @@ export default function AdminChatManager({ onShowBanner }: AdminChatManagerProps
               // 检测使用的模型
               if (data.model && !detectedModel) {
                 detectedModel = data.model
+                console.log('[Admin Chat Client] 检测到模型:', data.model)
               }
               
               if (data.choices && data.choices.length > 0) {
@@ -289,7 +304,13 @@ export default function AdminChatManager({ onShowBanner }: AdminChatManagerProps
                     }
                     return newMessages
                   })
+                } else if (delta && Object.keys(delta).length > 0) {
+                  // 🔥 调试：记录有delta但没有content的情况
+                  console.warn('[Admin Chat Client] Delta无content:', delta, 'finishReason:', finishReason)
                 }
+              } else {
+                // 🔥 调试：记录没有choices的情况
+                console.warn('[Admin Chat Client] 无choices:', data)
               }
             } catch (error) {
               // 如果是API错误，抛出以便外层处理
@@ -301,6 +322,20 @@ export default function AdminChatManager({ onShowBanner }: AdminChatManagerProps
           }
         }
       }
+
+      // 🔥 调试：检查最终内容
+      if (assistantContent.length === 0) {
+        console.error('[Admin Chat Client] ⚠️⚠️⚠️ 流式响应完成但内容为空！', {
+          detectedModel,
+          totalChunks: assistantContent.length,
+        })
+        throw new Error('AI没有返回任何内容，请检查服务器日志')
+      }
+      
+      console.log('[Admin Chat Client] 流式响应完成:', {
+        contentLength: assistantContent.length,
+        model: detectedModel,
+      })
 
       // 重新加载消息以确保数据库同步
       if (sessionId) {

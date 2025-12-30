@@ -147,6 +147,16 @@ export async function POST(request: NextRequest) {
     if (selectedModel === 'gemini-3-flash' || selectedModel === 'gemini-3-pro') {
       chatParams.tools = [{ type: 'google_search_retrieval' }]
     }
+    
+    // 🔥 调试：记录请求详情
+    console.log('[Admin Chat] 发送请求:', {
+      model: selectedModel,
+      stream,
+      messagesCount: messages.length,
+      systemPromptLength: messages[0]?.role === 'system' ? messages[0].content.length : 0,
+      userMessageLength: messages[messages.length - 1]?.content?.length || 0,
+      hasTools: !!chatParams.tools,
+    })
 
     // 如果是流式响应
     if (stream) {
@@ -157,7 +167,24 @@ export async function POST(request: NextRequest) {
             let fullResponse = ''
             const chatStream = createChatCompletionStream(chatParams)
             
+            let chunkCount = 0
             for await (const chunk of chatStream) {
+              chunkCount++
+              
+              // 🔥 详细记录每个chunk，用于调试
+              if (chunkCount <= 3 || !chunk.choices?.[0]?.delta?.content) {
+                console.log(`[Admin Chat Stream] Chunk #${chunkCount}:`, {
+                  hasChoices: !!chunk.choices,
+                  choicesLength: chunk.choices?.length || 0,
+                  hasDelta: !!chunk.choices?.[0]?.delta,
+                  hasContent: !!chunk.choices?.[0]?.delta?.content,
+                  contentLength: chunk.choices?.[0]?.delta?.content?.length || 0,
+                  finishReason: chunk.choices?.[0]?.finish_reason,
+                  model: chunk.model,
+                  fullChunk: chunkCount <= 2 ? JSON.stringify(chunk, null, 2) : undefined,
+                })
+              }
+              
               const data = `data: ${JSON.stringify(chunk)}\n\n`
               controller.enqueue(encoder.encode(data))
               
@@ -168,6 +195,20 @@ export async function POST(request: NextRequest) {
                   fullResponse += delta.content
                 }
               }
+            }
+            
+            console.log(`[Admin Chat Stream] 流式响应完成:`, {
+              totalChunks: chunkCount,
+              fullResponseLength: fullResponse.length,
+              hasContent: fullResponse.length > 0,
+            })
+            
+            if (fullResponse.length === 0) {
+              console.error('[Admin Chat Stream] ⚠️⚠️⚠️ 流式响应为空！', {
+                model: selectedModel,
+                messagesCount: messages.length,
+                systemPrompt: messages[0]?.role === 'system' ? messages[0].content.substring(0, 100) : '无',
+              })
             }
             
             controller.enqueue(encoder.encode('data: [DONE]\n\n'))
