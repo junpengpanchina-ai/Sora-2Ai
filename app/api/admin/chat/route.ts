@@ -4,9 +4,18 @@ import {
   createChatCompletion,
   createChatCompletionStream,
   type ChatCompletionRequest,
+  type ChatCompletionResponse,
 } from '@/lib/grsai/client'
 import { selectModel, getChatSystemPrompt } from '@/lib/admin-chat/model-selector'
 import { createServiceClient } from '@/lib/supabase/service'
+
+// Extended type for chunks that may contain error information
+type ChatCompletionChunk = ChatCompletionResponse & {
+  error?: {
+    message?: string
+    [key: string]: unknown
+  }
+}
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -168,11 +177,40 @@ export async function POST(request: NextRequest) {
             const chatStream = createChatCompletionStream(chatParams)
             
             let chunkCount = 0
+            let finishReason: string | null = null
+            let hasError = false
+            let errorMessage: string | null = null
+            
             for await (const chunk of chatStream) {
               chunkCount++
               
-              // 🔥 详细记录每个chunk，用于调试
-              if (chunkCount <= 3 || !chunk.choices?.[0]?.delta?.content) {
+              // 🔥 检查错误
+              const chunkWithError = chunk as ChatCompletionChunk
+              if (chunkWithError.error) {
+                hasError = true
+                errorMessage = chunkWithError.error.message || JSON.stringify(chunkWithError.error)
+                console.error('[Admin Chat Stream] API返回错误:', chunkWithError.error)
+              }
+              
+              // 🔥 检查finish_reason
+              if (chunk.choices?.[0]?.finish_reason) {
+                finishReason = chunk.choices[0].finish_reason
+                console.log(`[Admin Chat Stream] 完成原因: ${finishReason}`)
+                
+                // 如果内容被过滤，记录详细信息
+                if (finishReason === 'content_filter' || finishReason === 'safety') {
+                  console.error('[Admin Chat Stream] ⚠️⚠️⚠️ 内容被过滤！', {
+                    finishReason,
+                    model: selectedModel,
+                    userMessage: messages[messages.length - 1]?.content?.substring(0, 100),
+                  })
+                  hasError = true
+                  errorMessage = `内容被过滤（${finishReason}），请尝试修改消息内容`
+                }
+              }
+              
+              // 🔥 详细记录前几个chunk和所有无content的chunk
+              if (chunkCount <= 3 || !chunk.choices?.[0]?.delta?.content || finishReason) {
                 console.log(`[Admin Chat Stream] Chunk #${chunkCount}:`, {
                   hasChoices: !!chunk.choices,
                   choicesLength: chunk.choices?.length || 0,
@@ -201,14 +239,35 @@ export async function POST(request: NextRequest) {
               totalChunks: chunkCount,
               fullResponseLength: fullResponse.length,
               hasContent: fullResponse.length > 0,
+              finishReason,
+              hasError,
+              errorMessage,
             })
             
             if (fullResponse.length === 0) {
+              const error = hasError && errorMessage 
+                ? errorMessage 
+                : finishReason === 'content_filter' || finishReason === 'safety'
+                  ? `内容被过滤（${finishReason}），请尝试修改消息内容`
+                  : 'AI没有返回任何内容，可能是API响应格式异常'
+              
               console.error('[Admin Chat Stream] ⚠️⚠️⚠️ 流式响应为空！', {
                 model: selectedModel,
                 messagesCount: messages.length,
+                finishReason,
+                errorMessage,
                 systemPrompt: messages[0]?.role === 'system' ? messages[0].content.substring(0, 100) : '无',
               })
+              
+              // 发送错误消息给客户端
+              const errorChunk = {
+                error: {
+                  message: error,
+                  type: finishReason || 'empty_response',
+                  finishReason,
+                }
+              }
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorChunk)}\n\n`))
             }
             
             controller.enqueue(encoder.encode('data: [DONE]\n\n'))
