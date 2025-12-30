@@ -27,7 +27,10 @@
   }
   
   // 获取任务状态
-  window.getStatus = async function(id = taskId) {
+  window.getStatus = async function(id = null) {
+    if (!id) {
+      id = getCurrentTaskId()
+    }
     if (!id) {
       console.error('❌ 请提供任务ID或先设置: setTaskId("your-task-id")')
       return null
@@ -76,7 +79,10 @@
   }
   
   // 恢复任务
-  window.recover = async function(id = taskId, force = false) {
+  window.recover = async function(id = null, force = false) {
+    if (!id) {
+      id = getCurrentTaskId()
+    }
     if (!id) {
       console.error('❌ 请提供任务ID或先设置: setTaskId("your-task-id")')
       return null
@@ -119,19 +125,28 @@
     console.log('✅ 已清除任务ID')
   }
   
-  // 进度监控历史
-  const progressHistory = []
+  // 进度监控历史（暴露到 window 以便跨调用访问）
+  window._progressHistory = window._progressHistory || []
+  const progressHistory = window._progressHistory
+  
+  // 获取当前任务ID的辅助函数
+  const getCurrentTaskId = function() {
+    return localStorage.getItem('lastBatchTaskId') || 
+           new URLSearchParams(window.location.search).get('taskId')
+  }
   
   // 快速诊断
   window.quickCheck = async function() {
     console.log('\n🔍 快速诊断...')
     
-    if (!taskId) {
+    const currentTaskId = getCurrentTaskId()
+    if (!currentTaskId) {
       console.warn('⚠️ 未找到任务ID')
+      console.log('💡 请先运行: setTaskId("your-task-id")')
       return
     }
     
-    const task = await getStatus(taskId)
+    const task = await window.getStatus(currentTaskId)
     
     if (!task) {
       console.error('❌ 无法获取任务状态')
@@ -221,11 +236,11 @@
     console.log('运行 stopMonitor() 停止监控')
     
     window._monitorInterval = setInterval(() => {
-      quickCheck()
+      window.quickCheck()
     }, interval)
     
     // 立即检查一次
-    quickCheck()
+    window.quickCheck()
   }
   
   window.stopMonitor = function() {
@@ -240,13 +255,14 @@
   
   // 查看进度历史
   window.showHistory = function() {
-    if (progressHistory.length === 0) {
+    const history = window._progressHistory || []
+    if (history.length === 0) {
       console.log('ℹ️ 暂无进度历史')
       return
     }
     
-    console.log(`\n📊 进度历史（最近${progressHistory.length}次）:`)
-    progressHistory.forEach((record, index) => {
+    console.log(`\n📊 进度历史（最近${history.length}次）:`)
+    history.forEach((record, index) => {
       const time = new Date(record.timestamp).toLocaleTimeString()
       console.log(`${index + 1}. [${time}] 进度: ${record.progress}% | 行业: ${record.currentIndex}/${record.totalIndustries} | 已保存: ${record.totalScenesSaved}`)
     })
@@ -273,7 +289,7 @@
   // 自动运行快速检查
   if (taskId) {
     setTimeout(() => {
-      quickCheck()
+      window.quickCheck()
     }, 500)
   }
   
