@@ -111,6 +111,7 @@ Google Trends: "AI safety training" 上升
 ## 📚 详细文档
 
 - **`docs/COMPLETE_STRATEGY_GUIDE.md`** - 完整策略指南（所有内容总结）⭐⭐⭐⭐⭐
+- **`docs/BUSINESS_INTEGRATED_STRATEGY.md`** - 业务整合策略（从"发布内容"转向"经营资产"）⭐⭐⭐⭐⭐
 - **`docs/GEO_INDEX_AUTO_PRODUCTION_TABLE.md`** - GEO × Index Health 自动排产表（最终执行版）⭐⭐⭐
 - **`docs/INDEX_HEALTH_DASHBOARD_SHEETS.md`** - Index Health Dashboard（表格版 · 执行级）⭐⭐⭐
 - **`docs/SHEETS_TEMPLATE_CSV.md`** - 表格模板（CSV 格式，可直接导入）⭐
