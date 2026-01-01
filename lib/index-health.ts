@@ -7,6 +7,8 @@
  * 3. 更新每日快照
  */
 
+import type { DatabaseClient } from './db-client-types'
+
 export interface IndexHealthSnapshot {
   day: Date
   discovered: number
@@ -35,7 +37,7 @@ export function calculateIndexHealth(
  * 获取当前 Index Health（从数据库）
  */
 export async function getCurrentIndexHealth(
-  db?: any // 你的数据库客户端
+  db?: DatabaseClient
 ): Promise<number | null> {
   if (!db) {
     // 如果没有数据库客户端，返回 null
@@ -58,11 +60,11 @@ export async function getCurrentIndexHealth(
     return null
   }
   
-  const row = result.rows[0]
+  const row = result.rows[0] as Record<string, unknown>
   return calculateIndexHealth(
-    row.discovered,
-    row.crawled,
-    row.indexed
+    row.discovered as number,
+    row.crawled as number,
+    row.indexed as number
   )
 }
 
@@ -70,7 +72,7 @@ export async function getCurrentIndexHealth(
  * 更新 Index Health 快照
  */
 export async function updateIndexHealthSnapshot(
-  db: any,
+  db: DatabaseClient,
   snapshot: IndexHealthSnapshot
 ): Promise<void> {
   const query = `
@@ -112,7 +114,7 @@ export async function updateIndexHealthSnapshot(
  * 获取最近 N 天的 Index Health 趋势
  */
 export async function getIndexHealthTrend(
-  db: any,
+  db: DatabaseClient,
   days: number = 7
 ): Promise<Array<{ day: Date; indexHealth: number }>> {
   const query = `
@@ -128,12 +130,12 @@ export async function getIndexHealthTrend(
   
   const result = await db.query(query, [days])
   
-  return result.rows.map((row: any) => ({
-    day: new Date(row.day),
+  return result.rows.map((row: Record<string, unknown>) => ({
+    day: new Date(row.day as string | Date),
     indexHealth: calculateIndexHealth(
-      row.discovered,
-      row.crawled,
-      row.indexed
+      row.discovered as number,
+      row.crawled as number,
+      row.indexed as number
     ),
   }))
 }

@@ -29,7 +29,7 @@ export interface IntentCalculation {
   intentScore: PurchaseIntent
   geoScore: number
   conversionAllowed: boolean
-  layer: 'asset' | 'conversion' | 'core-sample'
+  layer: 'asset' | 'conversion' | 'core_sample'
 }
 
 /**
@@ -164,7 +164,7 @@ export function allowConversion(
 export function determinePageLayer(
   intentScore: PurchaseIntent,
   geoScore: number
-): 'asset' | 'conversion' | 'core-sample' {
+): 'asset' | 'conversion' | 'core_sample' {
   if (intentScore >= 2 && geoScore >= 80) {
     return 'conversion' // 转化层
   }

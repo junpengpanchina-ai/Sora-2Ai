@@ -7,13 +7,27 @@
  * 3. 测试查询 page_meta
  */
 
+// 加载环境变量
+import { config } from 'dotenv'
+import { resolve } from 'path'
+config({ path: resolve(process.cwd(), '.env.local') })
+
 import { createClient } from '@supabase/supabase-js'
 
+// 检查环境变量
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!supabaseUrl || !serviceRoleKey) {
+  console.error('❌ 错误: Supabase 环境变量未配置！')
+  console.error('\n请确保 .env.local 文件中包含：')
+  console.error('  - NEXT_PUBLIC_SUPABASE_URL')
+  console.error('  - SUPABASE_SERVICE_ROLE_KEY\n')
+  process.exit(1)
+}
+
 // 创建 Supabase 客户端
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+const supabase = createClient(supabaseUrl, serviceRoleKey)
 
 /**
  * 创建数据库客户端包装（适配 page-meta-helper.ts）
@@ -136,16 +150,6 @@ async function testPageMetaWithSupabase() {
 
 // 如果直接运行此脚本
 if (require.main === module) {
-  // 检查环境变量
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    console.error('❌ 缺少环境变量: NEXT_PUBLIC_SUPABASE_URL')
-    process.exit(1)
-  }
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.error('❌ 缺少环境变量: SUPABASE_SERVICE_ROLE_KEY')
-    process.exit(1)
-  }
-
   testPageMetaWithSupabase()
     .then(() => process.exit(0))
     .catch((error) => {

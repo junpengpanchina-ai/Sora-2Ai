@@ -7,6 +7,8 @@
  * 3. 批量操作
  */
 
+import type { DatabaseClient } from './db-client-types'
+
 export interface PageMetaData {
   pageType: 'use_case' | 'keyword' | 'industry' | 'core_sample'
   pageId: string
@@ -36,7 +38,7 @@ export interface PageMetaData {
  * 获取或创建 page_meta 记录
  */
 export async function getOrCreatePageMeta(
-  db: any,
+  db: DatabaseClient,
   pageType: string,
   pageId: string,
   pageSlug?: string | null
@@ -73,13 +75,13 @@ export async function getOrCreatePageMeta(
  * 更新 page_meta 字段
  */
 export async function updatePageMeta(
-  db: any,
+  db: DatabaseClient,
   pageType: string,
   pageId: string,
   updates: Partial<PageMetaData>
 ): Promise<PageMetaData | null> {
   const fields: string[] = []
-  const values: any[] = []
+  const values: unknown[] = []
   let paramIndex = 1
   
   // 构建更新字段
@@ -160,7 +162,7 @@ export async function updatePageMeta(
  * 批量更新 page_meta
  */
 export async function batchUpdatePageMeta(
-  db: any,
+  db: DatabaseClient,
   updates: Array<{ pageType: string; pageId: string; data: Partial<PageMetaData> }>
 ): Promise<void> {
   // 使用事务批量更新
@@ -172,30 +174,30 @@ export async function batchUpdatePageMeta(
 /**
  * 将数据库行映射为 PageMetaData
  */
-function mapRowToPageMeta(row: any): PageMetaData {
+function mapRowToPageMeta(row: Record<string, unknown>): PageMetaData {
   return {
-    pageType: row.page_type,
-    pageId: row.page_id,
-    pageSlug: row.page_slug,
-    variantId: row.variant_id,
-    geoScore: row.geo_score,
-    geoLevel: row.geo_level,
-    purchaseIntent: row.purchase_intent,
-    trendPressure: row.trend_pressure,
-    layer: row.layer,
-    status: row.status,
-    promptPreviewEnabled: row.prompt_preview_enabled,
-    promptPreviewText: row.prompt_preview_text,
-    ctaVariant: row.cta_variant,
-    paywallVariant: row.paywall_variant,
-    publishBatch: row.publish_batch,
-    publishDate: row.publish_date ? new Date(row.publish_date) : null,
-    indexState: row.index_state,
-    lastIndexCheckAt: row.last_index_check_at ? new Date(row.last_index_check_at) : null,
-    dupHash: row.dup_hash,
-    dupCluster: row.dup_cluster,
-    contentLen: row.content_len,
-    lastGeneratedAt: row.last_generated_at ? new Date(row.last_generated_at) : null,
+    pageType: row.page_type as PageMetaData['pageType'],
+    pageId: row.page_id as string,
+    pageSlug: row.page_slug as string | null | undefined,
+    variantId: row.variant_id as string | null | undefined,
+    geoScore: row.geo_score as number | undefined,
+    geoLevel: row.geo_level as PageMetaData['geoLevel'],
+    purchaseIntent: row.purchase_intent as number | undefined,
+    trendPressure: row.trend_pressure as number | undefined,
+    layer: row.layer as PageMetaData['layer'],
+    status: row.status as PageMetaData['status'],
+    promptPreviewEnabled: row.prompt_preview_enabled as boolean | undefined,
+    promptPreviewText: row.prompt_preview_text as string | null | undefined,
+    ctaVariant: row.cta_variant as PageMetaData['ctaVariant'],
+    paywallVariant: row.paywall_variant as PageMetaData['paywallVariant'],
+    publishBatch: row.publish_batch as number | null | undefined,
+    publishDate: row.publish_date ? new Date(row.publish_date as string | Date) : null,
+    indexState: row.index_state as PageMetaData['indexState'],
+    lastIndexCheckAt: row.last_index_check_at ? new Date(row.last_index_check_at as string | Date) : null,
+    dupHash: row.dup_hash as string | null | undefined,
+    dupCluster: row.dup_cluster as number | null | undefined,
+    contentLen: row.content_len as number | null | undefined,
+    lastGeneratedAt: row.last_generated_at ? new Date(row.last_generated_at as string | Date) : null,
   }
 }
 

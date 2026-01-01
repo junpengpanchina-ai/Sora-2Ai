@@ -7,7 +7,8 @@
  * 3. 标记已发布页面
  */
 
-import { PickResult, ScoredPage } from './page-priority-picker'
+import type { DatabaseClient } from './db-client-types'
+import type { PickResult } from './page-priority-picker'
 
 export interface QueueItem {
   id: bigint
@@ -19,7 +20,7 @@ export interface QueueItem {
   scoreIntent: number
   scoreIndex: number
   scoreRisk: number
-  reason: any
+  reason: Record<string, unknown>
   createdAt: Date
 }
 
@@ -27,7 +28,7 @@ export interface QueueItem {
  * 将挑选结果写入队列
  */
 export async function writeToQueue(
-  db: any, // 你的数据库客户端（Supabase / Prisma）
+  db: DatabaseClient,
   result: PickResult
 ): Promise<void> {
   const insertQuery = `
@@ -66,7 +67,7 @@ export async function writeToQueue(
  * 从队列中读取待发布页面（按分数排序）
  */
 export async function readFromQueue(
-  db: any,
+  db: DatabaseClient,
   limit: number = 50
 ): Promise<QueueItem[]> {
   const query = `
@@ -91,18 +92,18 @@ export async function readFromQueue(
   `
   
   const result = await db.query(query, [limit])
-  return result.rows.map((row: any) => ({
-    id: BigInt(row.id),
-    runId: row.run_id,
-    pageType: row.page_type,
-    pageId: row.page_id,
-    scoreTotal: parseFloat(row.score_total),
-    scoreGeo: parseFloat(row.score_geo),
-    scoreIntent: parseFloat(row.score_intent),
-    scoreIndex: parseFloat(row.score_index),
-    scoreRisk: parseFloat(row.score_risk),
-    reason: row.reason,
-    createdAt: new Date(row.created_at),
+  return result.rows.map((row: Record<string, unknown>) => ({
+    id: BigInt(row.id as string | number),
+    runId: row.run_id as string,
+    pageType: row.page_type as string,
+    pageId: row.page_id as string,
+    scoreTotal: parseFloat(String(row.score_total)),
+    scoreGeo: parseFloat(String(row.score_geo)),
+    scoreIntent: parseFloat(String(row.score_intent)),
+    scoreIndex: parseFloat(String(row.score_index)),
+    scoreRisk: parseFloat(String(row.score_risk)),
+    reason: row.reason as Record<string, unknown>,
+    createdAt: new Date(row.created_at as string | Date),
   }))
 }
 
@@ -110,7 +111,7 @@ export async function readFromQueue(
  * 标记页面已发布（可选：创建 published_pages 表）
  */
 export async function markAsPublished(
-  db: any,
+  db: DatabaseClient,
   queueId: bigint,
   pageId: string,
   pageType: string
@@ -139,7 +140,7 @@ export async function markAsPublished(
  * 清理旧队列数据（保留最近 30 天）
  */
 export async function cleanupOldQueue(
-  db: any,
+  db: DatabaseClient,
   daysToKeep: number = 30
 ): Promise<void> {
   const query = `
