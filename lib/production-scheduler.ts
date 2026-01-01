@@ -10,15 +10,19 @@
 export type GEOScore = 'G-A' | 'G-B' | 'G-C'
 export type IndexHealthStatus = 'healthy' | 'digesting' | 'risk'
 export type ProductionAction = 'scale' | 'stable' | 'slow' | 'sample' | 'stop'
+export type PurchaseIntent = 0 | 1 | 2 | 3
+export type PageLayer = 'asset' | 'conversion' | 'core-sample'
 
 export interface ProductionDecision {
   geoScore: GEOScore
   indexHealth: number // 0-100
   trendPressure: number // 0-4
+  purchaseIntent: PurchaseIntent // 0-3
   action: ProductionAction
   dailyLimit: number
   reason: string
   status: IndexHealthStatus
+  layer: PageLayer
 }
 
 export interface ContentType {
@@ -86,19 +90,85 @@ export function calculateTrendPressure(contentType: ContentType): number {
 }
 
 /**
- * 自动排产决策
+ * 计算购买意图分（Purchase Intent）
+ * 
+ * @param useCase - 用例描述或关键词
+ * @returns Purchase Intent (0-3)
+ */
+export function calculatePurchaseIntent(useCase: string): PurchaseIntent {
+  const lowerCase = useCase.toLowerCase()
+  
+  // 3 分：明确交付任务
+  if (
+    lowerCase.includes('demo') ||
+    lowerCase.includes('listing') ||
+    lowerCase.includes('promo') ||
+    lowerCase.includes('recruitment') ||
+    lowerCase.includes('product demo') ||
+    lowerCase.includes('course promo')
+  ) {
+    return 3
+  }
+  
+  // 2 分：工作场景强，但不立即交付
+  if (
+    lowerCase.includes('onboarding') ||
+    lowerCase.includes('training') ||
+    lowerCase.includes('internal') ||
+    lowerCase.includes('compliance') ||
+    lowerCase.includes('safety training')
+  ) {
+    return 2
+  }
+  
+  // 1 分：学习/解释型
+  if (
+    lowerCase.includes('what is') ||
+    lowerCase.includes('why') ||
+    lowerCase.includes('how') ||
+    lowerCase.includes('explain') ||
+    lowerCase.includes('education')
+  ) {
+    return 1
+  }
+  
+  // 0 分：纯泛营销/空泛场景
+  return 0
+}
+
+/**
+ * 确定页面层级
+ * 
+ * @param purchaseIntent - 购买意图分
+ * @returns Page Layer
+ */
+export function determinePageLayer(purchaseIntent: PurchaseIntent): PageLayer {
+  if (purchaseIntent >= 2) {
+    return 'conversion' // 转化层
+  }
+  if (purchaseIntent === 1) {
+    return 'asset' // 资产层
+  }
+  return 'asset' // 0 分也归为资产层（但禁止发布）
+}
+
+/**
+ * 自动排产决策（更新版：加入 Purchase Intent）
  * 
  * @param geoScore - GEO Score
  * @param indexHealth - Index Health 百分比 (0-100)
  * @param trendPressure - Trend Pressure (0-4)
+ * @param purchaseIntent - Purchase Intent (0-3)
  * @returns Production Decision
  */
 export function makeProductionDecision(
   geoScore: GEOScore,
   indexHealth: number,
-  trendPressure: number
+  trendPressure: number,
+  purchaseIntent: PurchaseIntent = 1 // 默认 1 分（解释型）
 ): ProductionDecision {
   const status = getIndexHealthStatus(indexHealth)
+  const layer = determinePageLayer(purchaseIntent)
   
   // 🔴 暂停发布（不争论）
   if (geoScore === 'G-C') {
@@ -106,10 +176,26 @@ export function makeProductionDecision(
       geoScore,
       indexHealth,
       trendPressure,
+      purchaseIntent,
       action: 'stop',
       dailyLimit: 0,
       reason: 'G-C 内容禁止发布',
       status,
+      layer,
+    }
+  }
+  
+  if (purchaseIntent === 0) {
+    return {
+      geoScore,
+      indexHealth,
+      trendPressure,
+      purchaseIntent,
+      action: 'stop',
+      dailyLimit: 0,
+      reason: 'Purchase Intent = 0（无商业价值）',
+      status,
+      layer,
     }
   }
   
@@ -118,10 +204,12 @@ export function makeProductionDecision(
       geoScore,
       indexHealth,
       trendPressure,
+      purchaseIntent,
       action: 'stop',
       dailyLimit: 0,
       reason: 'Index Health <40% + Trend Pressure ≥1',
       status,
+      layer,
     }
   }
   
@@ -130,84 +218,243 @@ export function makeProductionDecision(
       geoScore,
       indexHealth,
       trendPressure,
+      purchaseIntent,
       action: 'stop',
       dailyLimit: 0,
       reason: 'Trend Pressure ≥3',
       status,
+      layer,
+    }
+  }
+  
+  // 🟢 全速区（可以加速）
+  // G-A + Index ≥65% + Pressure ≤1 + Intent ≥2
+  if (geoScore === 'G-A' && indexHealth >= 65 && trendPressure <= 1 && purchaseIntent >= 2) {
+    return {
+      geoScore,
+      indexHealth,
+      trendPressure,
+      purchaseIntent,
+      action: 'scale',
+      dailyLimit: 70, // 全速区：60-80 页
+      reason: '全速区：G-A + Index ≥65% + Pressure ≤1 + Intent ≥2',
+      status,
+      layer,
+    }
+  }
+  
+  // G-A + Index ≥65% + Pressure ≤2 + Intent = 3（高商业价值）
+  if (geoScore === 'G-A' && indexHealth >= 65 && trendPressure <= 2 && purchaseIntent === 3) {
+    return {
+      geoScore,
+      indexHealth,
+      trendPressure,
+      purchaseIntent,
+      action: 'scale',
+      dailyLimit: 70, // 全速区：60-80 页
+      reason: '全速区：G-A + Index ≥65% + Pressure ≤2 + Intent = 3（高商业价值）',
+      status,
+      layer,
     }
   }
   
   // 🟢 优先发布（放心发）
-  if (geoScore === 'G-A' && indexHealth >= 60 && trendPressure <= 2) {
+  // G-A + Index ≥60% + Pressure ≤2 + Intent ≥2
+  if (geoScore === 'G-A' && indexHealth >= 60 && indexHealth < 65 && trendPressure <= 2 && purchaseIntent >= 2) {
     return {
       geoScore,
       indexHealth,
       trendPressure,
+      purchaseIntent,
       action: 'scale',
       dailyLimit: 50, // 可以放量
-      reason: 'G-A + Index ≥60% + Pressure ≤2',
+      reason: 'G-A + Index ≥60% + Pressure ≤2 + Intent ≥2',
       status,
+      layer,
     }
   }
   
-  if (geoScore === 'G-A' && indexHealth >= 40 && indexHealth < 60 && trendPressure <= 1) {
+  // G-A + Index 40-59% + Pressure 0-1 + Intent ≥2
+  if (geoScore === 'G-A' && indexHealth >= 40 && indexHealth < 60 && trendPressure <= 1 && purchaseIntent >= 2) {
     return {
       geoScore,
       indexHealth,
       trendPressure,
+      purchaseIntent,
       action: 'stable',
       dailyLimit: 30, // 稳定节奏
-      reason: 'G-A + Index 40-59% + Pressure 0-1',
+      reason: 'G-A + Index 40-59% + Pressure 0-1 + Intent ≥2',
       status,
+      layer,
     }
   }
   
-  if (geoScore === 'G-B' && indexHealth >= 60 && trendPressure === 0) {
+  // G-A + Index ≥60% + Pressure ≤2 + Intent = 1（资产层）
+  if (geoScore === 'G-A' && indexHealth >= 60 && trendPressure <= 2 && purchaseIntent === 1) {
     return {
       geoScore,
       indexHealth,
       trendPressure,
+      purchaseIntent,
+      action: 'stable',
+      dailyLimit: 20, // 资产层
+      reason: 'G-A + Index ≥60% + Pressure ≤2 + Intent = 1（资产层）',
+      status,
+      layer,
+    }
+  }
+  
+  // G-B + Index ≥60% + Pressure 0 + Intent ≥2
+  if (geoScore === 'G-B' && indexHealth >= 60 && trendPressure === 0 && purchaseIntent >= 2) {
+    return {
+      geoScore,
+      indexHealth,
+      trendPressure,
+      purchaseIntent,
       action: 'stable',
       dailyLimit: 10, // 少量补充
-      reason: 'G-B + Index ≥60% + Pressure 0',
+      reason: 'G-B + Index ≥60% + Pressure 0 + Intent ≥2',
       status,
+      layer,
+    }
+  }
+  
+  // 🟡 稳定区（推荐区）
+  // G-A + Index 45-64% + Pressure ≤1 + Intent ≥2
+  if (geoScore === 'G-A' && indexHealth >= 45 && indexHealth < 65 && trendPressure <= 1 && purchaseIntent >= 2) {
+    return {
+      geoScore,
+      indexHealth,
+      trendPressure,
+      purchaseIntent,
+      action: 'stable',
+      dailyLimit: 30, // 稳定区：20-40 页
+      reason: '稳定区：G-A + Index 45-64% + Pressure ≤1 + Intent ≥2',
+      status,
+      layer,
+    }
+  }
+  
+  // G-A + Index ≥65% + Pressure 0 + Intent = 1（资产层）
+  if (geoScore === 'G-A' && indexHealth >= 65 && trendPressure === 0 && purchaseIntent === 1) {
+    return {
+      geoScore,
+      indexHealth,
+      trendPressure,
+      purchaseIntent,
+      action: 'stable',
+      dailyLimit: 30, // 稳定区：20-40 页
+      reason: '稳定区：G-A + Index ≥65% + Pressure 0 + Intent = 1（资产层）',
+      status,
+      layer,
     }
   }
   
   // 🟡 控制发布（慢一点）
-  if (geoScore === 'G-A' && indexHealth >= 40 && indexHealth < 60 && trendPressure === 2) {
+  // G-A + Index 40-59% + Pressure 2 + Intent ≥2
+  if (geoScore === 'G-A' && indexHealth >= 40 && indexHealth < 60 && trendPressure === 2 && purchaseIntent >= 2) {
     return {
       geoScore,
       indexHealth,
       trendPressure,
+      purchaseIntent,
       action: 'slow',
-      dailyLimit: 20, // 减速 30%
-      reason: 'G-A + Index 40-59% + Pressure 2',
+      dailyLimit: 15, // 减速 30%
+      reason: 'G-A + Index 40-59% + Pressure 2 + Intent ≥2',
       status,
+      layer,
     }
   }
   
-  if (geoScore === 'G-B' && indexHealth >= 40 && indexHealth < 60 && trendPressure <= 1) {
+  // G-A + Index 40-59% + Pressure 0-1 + Intent = 1（资产层）
+  if (geoScore === 'G-A' && indexHealth >= 40 && indexHealth < 60 && trendPressure <= 1 && purchaseIntent === 1) {
     return {
       geoScore,
       indexHealth,
       trendPressure,
+      purchaseIntent,
+      action: 'slow',
+      dailyLimit: 10, // 资产层
+      reason: 'G-A + Index 40-59% + Pressure 0-1 + Intent = 1（资产层）',
+      status,
+      layer,
+    }
+  }
+  
+  // 🟠 观察区（谨慎）
+  // G-A + Index 35-44% + Pressure 0 + Intent ≥2
+  if (geoScore === 'G-A' && indexHealth >= 35 && indexHealth < 45 && trendPressure === 0 && purchaseIntent >= 2) {
+    return {
+      geoScore,
+      indexHealth,
+      trendPressure,
+      purchaseIntent,
+      action: 'slow',
+      dailyLimit: 8, // 观察区：5-10 页
+      reason: '观察区：G-A + Index 35-44% + Pressure 0 + Intent ≥2',
+      status,
+      layer,
+    }
+  }
+  
+  // G-A + Index 45-64% + Pressure 1 + Intent = 1
+  if (geoScore === 'G-A' && indexHealth >= 45 && indexHealth < 65 && trendPressure === 1 && purchaseIntent === 1) {
+    return {
+      geoScore,
+      indexHealth,
+      trendPressure,
+      purchaseIntent,
+      action: 'slow',
+      dailyLimit: 8, // 观察区：5-10 页
+      reason: '观察区：G-A + Index 45-64% + Pressure 1 + Intent = 1',
+      status,
+      layer,
+    }
+  }
+  
+  // G-B + Index 40-59% + Pressure 0-1 + Intent ≥2
+  if (geoScore === 'G-B' && indexHealth >= 40 && indexHealth < 60 && trendPressure <= 1 && purchaseIntent >= 2) {
+    return {
+      geoScore,
+      indexHealth,
+      trendPressure,
+      purchaseIntent,
       action: 'slow',
       dailyLimit: 5, // 观察
-      reason: 'G-B + Index 40-59% + Pressure 0-1',
+      reason: 'G-B + Index 40-59% + Pressure 0-1 + Intent ≥2',
       status,
+      layer,
     }
   }
   
-  if (geoScore === 'G-A' && indexHealth < 40 && trendPressure === 0) {
+  // 🔴 冻结区（绝不新增）
+  // Index <35% 或 Intent = 0 或 Trend ≥2
+  if (indexHealth < 35) {
     return {
       geoScore,
       indexHealth,
       trendPressure,
+      purchaseIntent,
+      action: 'stop',
+      dailyLimit: 0,
+      reason: '冻结区：Index Health <35%',
+      status,
+      layer,
+    }
+  }
+  
+  // G-A + Index <40% + Pressure 0 + Intent ≥2（样本区）
+  if (geoScore === 'G-A' && indexHealth >= 35 && indexHealth < 40 && trendPressure === 0 && purchaseIntent >= 2) {
+    return {
+      geoScore,
+      indexHealth,
+      trendPressure,
+      purchaseIntent,
       action: 'sample',
       dailyLimit: 5, // 只发样本
-      reason: 'G-A + Index <40% + Pressure 0',
+      reason: '观察区：G-A + Index 35-40% + Pressure 0 + Intent ≥2',
       status,
+      layer,
     }
   }
   
@@ -216,10 +463,12 @@ export function makeProductionDecision(
     geoScore,
     indexHealth,
     trendPressure,
+    purchaseIntent,
     action: 'stop',
     dailyLimit: 0,
     reason: '不符合任何发布条件',
     status,
+    layer,
   }
 }
 
@@ -279,7 +528,7 @@ export function getActionDescription(action: ProductionAction): string {
 }
 
 /**
- * 完整决策流程
+ * 完整决策流程（更新版：加入 Purchase Intent）
  */
 export function makeFullDecision(params: {
   indexed: number
@@ -287,6 +536,8 @@ export function makeFullDecision(params: {
   crawled: number
   geoHitRate: number
   contentType: ContentType
+  useCase?: string // 用于计算 Purchase Intent
+  purchaseIntent?: PurchaseIntent // 可选：直接提供 Purchase Intent
 }): ProductionDecision & {
   distribution: {
     evergreen: number
@@ -302,8 +553,10 @@ export function makeFullDecision(params: {
   
   const geoScore = calculateGEOScore(params.geoHitRate)
   const trendPressure = calculateTrendPressure(params.contentType)
+  const purchaseIntent = params.purchaseIntent ?? 
+    (params.useCase ? calculatePurchaseIntent(params.useCase) : 1)
   
-  const decision = makeProductionDecision(geoScore, indexHealth, trendPressure)
+  const decision = makeProductionDecision(geoScore, indexHealth, trendPressure, purchaseIntent)
   const distribution = calculateDailyDistribution(decision.dailyLimit)
   
   return {

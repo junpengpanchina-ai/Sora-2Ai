@@ -1,0 +1,158 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Enums
+// ============================================
+
+enum GeoLevel {
+  G_A
+  G_B
+  G_C
+  G_NONE
+}
+
+enum PageLayer {
+  asset
+  conversion
+  core_sample
+}
+
+enum IndexState {
+  unknown
+  discovered
+  crawled
+  indexed
+  excluded
+}
+
+enum PageType {
+  use_case
+  keyword
+  industry
+  core_sample
+}
+
+enum CtaVariant {
+  continue
+  generate
+  turn_into_video
+}
+
+enum PaywallVariant {
+  export_lock
+  style_lock
+  full_lock
+}
+
+enum PageStatus {
+  draft
+  published
+  paused
+}
+
+// ============================================
+// 统一页面运营元数据表（不动原表）
+// ============================================
+
+model PageMeta {
+  pageType  PageType   @map("page_type")
+  pageId    String     @map("page_id") @db.Uuid
+  pageSlug  String?    @map("page_slug")
+
+  // GEO / 结构
+  variantId String?    @map("variant_id")
+  geoScore  Int        @default(0) @map("geo_score")
+  geoLevel  GeoLevel   @default(G_NONE) @map("geo_level")
+
+  // 商业转化
+  purchaseIntent Int   @default(0) @map("purchase_intent") // 0-3
+  trendPressure  Int   @default(0) @map("trend_pressure")  // 0-4
+  layer          PageLayer @default(asset)
+
+  // 转化模块
+  promptPreviewEnabled Boolean @default(false) @map("prompt_preview_enabled")
+  promptPreviewText    String? @map("prompt_preview_text") @db.Text
+  ctaVariant           CtaVariant @default(continue) @map("cta_variant")
+  paywallVariant       PaywallVariant @default(export_lock) @map("paywall_variant")
+
+  // 发布与索引
+  status            PageStatus @default(draft)
+  publishBatch      Int?       @map("publish_batch")
+  publishDate       DateTime?  @map("publish_date")
+  indexState        IndexState @default(unknown) @map("index_state")
+  lastIndexCheckAt  DateTime?  @map("last_index_check_at")
+
+  // 同构/质量
+  dupHash          String?    @map("dup_hash")
+  dupCluster       Int?       @map("dup_cluster")
+  contentLen       Int?       @map("content_len")
+  lastGeneratedAt  DateTime?  @map("last_generated_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@id([pageType, pageId])
+  @@index([layer])
+  @@index([status])
+  @@index([geoScore(sort: Desc)])
+  @@index([purchaseIntent(sort: Desc)])
+  @@index([publishDate(sort: Desc)])
+  @@index([dupCluster])
+  @@index([pageSlug])
+  @@map("page_meta")
+}
+
+// ============================================
+// 新增表：Index Health 日报快照
+// ============================================
+
+model IndexHealthDaily {
+  day                 DateTime @id @db.Date
+  discovered          Int      @default(0)
+  crawled             Int      @default(0)
+  indexed             Int      @default(0)
+  crawlRequestsPerDay Int?     @map("crawl_requests_per_day")
+  sitemapLastReadAt   DateTime? @map("sitemap_last_read_at")
+  sitemapSuccess      Boolean? @map("sitemap_success")
+  notes               String?  @db.Text
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  @@index([day(sort: Desc)])
+  @@map("index_health_daily")
+}
+
+// ============================================
+// 新增表：页面优先队列表（高转化挑选输出）
+// ============================================
+
+model PagePriorityQueue {
+  id         BigInt   @id @default(autoincrement())
+  runId      String   @map("run_id") @db.Uuid
+  pageType   String   @map("page_type") // use_case / keyword / industry / core_sample
+  pageId     String   @map("page_id") @db.Uuid
+
+  scoreTotal Decimal  @map("score_total") @db.Decimal(6,2)
+  scoreGeo   Decimal  @map("score_geo") @db.Decimal(6,2)
+  scoreIntent Decimal @map("score_intent") @db.Decimal(6,2)
+  scoreIndex Decimal  @map("score_index") @db.Decimal(6,2)
+  scoreRisk  Decimal  @map("score_risk") @db.Decimal(6,2)
+
+  reason     Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([runId])
+  @@index([scoreTotal(sort: Desc)])
+  @@index([pageType, pageId])
+  @@map("page_priority_queue")
+}
+
