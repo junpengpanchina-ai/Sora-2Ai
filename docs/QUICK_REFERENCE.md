@@ -110,6 +110,18 @@ Google Trends: "AI safety training" 上升
 
 ## 📚 详细文档
 
+### 核心执行模板（今天就能用）
+
+- **`docs/EXECUTION_TEMPLATES.md`** - 执行模板（完整交付版）⭐⭐⭐⭐⭐
+  - Index Health Dashboard 表格模板
+  - Purchase Intent 自动算分逻辑
+  - 7 天放量试运行计划表
+- **`docs/HOMEPAGE_INFORMATION_ARCHITECTURE.md`** - 首页信息架构（SEO + 转化共存）⭐⭐⭐⭐⭐
+
+### 策略文档
+
+- **`docs/RHYTHM_CONTROLLER.md`** - 节奏控制器（Index Health × Intent 联动决策表）⭐⭐⭐⭐⭐
+- **`docs/COMPLETE_GEO_SEO_GUIDE.md`** - 完整 GEO & SEO 指南（综合版）⭐⭐⭐⭐⭐
 - **`docs/COMPLETE_STRATEGY_GUIDE.md`** - 完整策略指南（所有内容总结）⭐⭐⭐⭐⭐
 - **`docs/BUSINESS_INTEGRATED_STRATEGY.md`** - 业务整合策略（从"发布内容"转向"经营资产"）⭐⭐⭐⭐⭐
 - **`docs/GEO_INDEX_AUTO_PRODUCTION_TABLE.md`** - GEO × Index Health 自动排产表（最终执行版）⭐⭐⭐

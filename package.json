@@ -26,8 +26,9 @@
     "add:christmas": "node scripts/add-christmas-keyword.js",
     "monitor:backlinks": "node scripts/monitor-backlinks.js",
     "verify:page-style": "node scripts/verify-page-style-migration.js",
-    "monitor:supabase": "node scripts/monitor-supabase-usage.js"
-    ,
+    "monitor:supabase": "node scripts/monitor-supabase-usage.js",
+    "test:page-meta": "tsx scripts/test-page-meta-supabase.ts",
+    "pick-pages": "tsx scripts/daily-page-picker.ts",
     "db:stats": "node scripts/db-stats.js"
   },
   "dependencies": {
@@ -59,6 +60,7 @@
     "eslint-config-next": "^14.2.35",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.3.3"
   }
 }

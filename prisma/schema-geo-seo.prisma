@@ -1,0 +1,194 @@
+// ============================================
+// GEO & SEO 运营字段增量 Schema
+// ============================================
+// 说明：不推翻现有表，只增量加字段
+// 适用表：UseCase, LongTailKeyword
+// ============================================
+
+// ============================================
+// Enums
+// ============================================
+
+enum GeoLevel {
+  G_A
+  G_B
+  G_C
+  G_NONE
+}
+
+enum PageLayer {
+  asset
+  conversion
+  core_sample
+}
+
+enum IndexState {
+  unknown
+  discovered
+  crawled
+  indexed
+  excluded
+}
+
+enum PageType {
+  use_case
+  keyword
+  industry
+  core_sample
+}
+
+enum CtaVariant {
+  continue
+  generate
+  turn_into_video
+}
+
+enum PaywallVariant {
+  export_lock
+  style_lock
+  full_lock
+}
+
+// ============================================
+// 新增表：Index Health 日报快照
+// ============================================
+
+model IndexHealthDaily {
+  day                 DateTime @id @db.Date
+  discovered          Int      @default(0)
+  crawled             Int      @default(0)
+  indexed             Int      @default(0)
+  crawlRequestsPerDay Int?
+  sitemapLastReadAt   DateTime? @map("sitemap_last_read_at")
+  sitemapSuccess      Boolean? @map("sitemap_success")
+  notes               String?  @db.Text
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  @@index([day(sort: Desc)])
+  @@map("index_health_daily")
+}
+
+// ============================================
+// 新增表：页面优先队列表（高转化挑选输出）
+// ============================================
+
+model PagePriorityQueue {
+  id         BigInt   @id @default(autoincrement())
+  runId      String   @map("run_id") @db.Uuid
+  pageType   String   @map("page_type") // use_case / keyword / industry / core_sample
+  pageId     String   @map("page_id") @db.Uuid
+
+  scoreTotal Decimal  @map("score_total") @db.Decimal(6,2)
+  scoreGeo   Decimal  @map("score_geo") @db.Decimal(6,2)
+  scoreIntent Decimal @map("score_intent") @db.Decimal(6,2)
+  scoreIndex Decimal  @map("score_index") @db.Decimal(6,2)
+  scoreRisk  Decimal  @map("score_risk") @db.Decimal(6,2)
+
+  reason     Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([runId])
+  @@index([scoreTotal(sort: Desc)])
+  @@index([pageType, pageId])
+  @@map("page_priority_queue")
+}
+
+// ============================================
+// 示例：在你现有 UseCase 表上增量加字段
+// ============================================
+// 注意：以下字段需要添加到你的现有 UseCase model 中
+// ============================================
+
+/*
+model UseCase {
+  id        String   @id @default(uuid()) @db.Uuid
+  title     String?
+  content   String?
+  pageSlug  String?  @map("page_slug")
+
+  // --- 新增字段（增量） ---
+  pageType  PageType @default(use_case) @map("page_type")
+  variantId String?  @map("variant_id")
+
+  geoScore  Int      @default(0) @map("geo_score")
+  geoLevel  GeoLevel @default(G_NONE) @map("geo_level")
+
+  purchaseIntent Int @default(0) @map("purchase_intent") // 0-3
+  trendPressure  Int @default(0) @map("trend_pressure")  // 0-4
+
+  layer     PageLayer @default(asset)
+  status    String    @default("draft")
+
+  promptPreviewEnabled Boolean @default(false) @map("prompt_preview_enabled")
+  promptPreviewText    String? @map("prompt_preview_text") @db.Text
+  ctaVariant           CtaVariant @default(continue) @map("cta_variant")
+  paywallVariant       PaywallVariant @default(export_lock) @map("paywall_variant")
+
+  publishBatch   Int?      @map("publish_batch")
+  publishDate    DateTime? @map("publish_date")
+  indexState     IndexState @default(unknown) @map("index_state")
+  lastIndexCheckAt DateTime? @map("last_index_check_at")
+
+  dupHash     String?  @map("dup_hash")
+  dupCluster  Int?     @map("dup_cluster")
+  contentLen  Int?     @map("content_len")
+  lastGeneratedAt DateTime? @map("last_generated_at")
+
+  @@index([geoLevel])
+  @@index([purchaseIntent])
+  @@index([layer])
+  @@index([status])
+  @@index([dupCluster])
+  @@index([publishDate])
+  @@map("use_cases")
+}
+*/
+
+// ============================================
+// 示例：LongTailKeyword 同样加一套字段
+// ============================================
+
+/*
+model LongTailKeyword {
+  id        String   @id @default(uuid()) @db.Uuid
+  keyword   String?
+  slug      String?
+
+  // --- 新增字段（增量） ---
+  pageType  PageType @default(keyword) @map("page_type")
+  variantId String?  @map("variant_id")
+
+  geoScore  Int      @default(0) @map("geo_score")
+  geoLevel  GeoLevel @default(G_NONE) @map("geo_level")
+
+  purchaseIntent Int @default(0) @map("purchase_intent") // 0-3
+  trendPressure  Int @default(0) @map("trend_pressure")  // 0-4
+
+  layer     PageLayer @default(asset)
+  status    String    @default("draft")
+
+  promptPreviewEnabled Boolean @default(false) @map("prompt_preview_enabled")
+  promptPreviewText    String? @map("prompt_preview_text") @db.Text
+  ctaVariant           CtaVariant @default(continue) @map("cta_variant")
+  paywallVariant       PaywallVariant @default(export_lock) @map("paywall_variant")
+
+  publishBatch   Int?      @map("publish_batch")
+  publishDate    DateTime? @map("publish_date")
+  indexState     IndexState @default(unknown) @map("index_state")
+  lastIndexCheckAt DateTime? @map("last_index_check_at")
+
+  dupHash     String?  @map("dup_hash")
+  dupCluster  Int?     @map("dup_cluster")
+  contentLen  Int?     @map("content_len")
+  lastGeneratedAt DateTime? @map("last_generated_at")
+
+  @@index([geoLevel])
+  @@index([purchaseIntent])
+  @@index([layer])
+  @@index([status])
+  @@index([dupCluster])
+  @@index([publishDate])
+  @@map("long_tail_keywords")
+}
+*/
+
