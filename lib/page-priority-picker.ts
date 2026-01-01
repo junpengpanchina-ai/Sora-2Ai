@@ -171,7 +171,7 @@ function deduplicateByCluster(
   
   // 每个簇最多保留 3 条（按分数排序）
   const deduped: ScoredPage[] = []
-  for (const [clusterKey, items] of grouped.entries()) {
+  for (const [, items] of grouped.entries()) {
     const sorted = items.sort((a, b) => b.scoreTotal - a.scoreTotal)
     deduped.push(...sorted.slice(0, 3)) // 每个簇最多 3 条/天
   }
@@ -285,7 +285,7 @@ export function enrichPagesWithIntent(
       return {
         ...page,
         purchaseIntent: intentCalc.intentScore,
-        layer: intentCalc.layer,
+        layer: intentCalc.layer as PageLayer,
       }
     }
     
@@ -298,8 +298,10 @@ export function enrichPagesWithIntent(
  * 
  * 方案 A：使用 page_meta 表，不依赖原表结构
  */
+import type { DatabaseClient } from './db-client-types'
+
 export async function queryCandidatePages(
-  db: any, // 你的数据库客户端
+  db: DatabaseClient,
   limit: number = 1000
 ): Promise<PageCandidate[]> {
   // 查询所有已发布、GEO ≥ 80、Intent ≥ 2 的页面
@@ -332,20 +334,20 @@ export async function queryCandidatePages(
   // 执行查询并转换为 PageCandidate[]
   const result = await db.query(query, [limit])
   
-  return result.rows.map((row: any) => ({
-    id: row.id,
+  return result.rows.map((row: Record<string, unknown>) => ({
+    id: row.id as string,
     pageType: row.page_type as PageType,
-    geoScore: row.geo_score,
+    geoScore: row.geo_score as number,
     geoLevel: row.geo_level as GeoLevel,
-    purchaseIntent: row.purchase_intent,
-    trendPressure: row.trend_pressure,
+    purchaseIntent: row.purchase_intent as number,
+    trendPressure: row.trend_pressure as number,
     layer: row.layer as PageLayer,
-    status: row.status,
-    dupHash: row.dup_hash,
-    dupCluster: row.dup_cluster,
-    contentLen: row.content_len,
-    lastGeneratedAt: row.last_generated_at ? new Date(row.last_generated_at) : null,
-    publishDate: row.publish_date ? new Date(row.publish_date) : null,
+    status: row.status as string,
+    dupHash: row.dup_hash as string | null | undefined,
+    dupCluster: row.dup_cluster as number | null | undefined,
+    contentLen: row.content_len as number | null | undefined,
+    lastGeneratedAt: row.last_generated_at ? new Date(row.last_generated_at as string | Date) : null,
+    publishDate: row.publish_date ? new Date(row.publish_date as string | Date) : null,
   }))
 }
 

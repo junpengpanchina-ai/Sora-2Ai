@@ -12,7 +12,7 @@
  * - 或手动执行：npm run pick-pages
  */
 
-import { pickHighConversionPages, queryCandidatePages, enrichPagesWithIntent } from '../lib/page-priority-picker'
+import { pickHighConversionPages, queryCandidatePages, enrichPagesWithIntent, type PageCandidate } from '../lib/page-priority-picker'
 import { writeToQueue } from '../lib/page-priority-queue'
 import { getCurrentIndexHealth } from '../lib/index-health'
 
@@ -24,7 +24,9 @@ export async function dailyPagePicker() {
   
   try {
     // 1. 获取当前 Index Health
-    const indexHealth = await getCurrentIndexHealth()
+    // TODO: 传入实际的数据库客户端
+    // const indexHealth = await getCurrentIndexHealth(db)
+    const indexHealth = 0.5 // 临时占位符
     if (!indexHealth) {
       console.error('❌ 无法获取 Index Health，请先更新 index_health_daily 表')
       return
@@ -34,7 +36,10 @@ export async function dailyPagePicker() {
     
     // 2. 查询候选页面
     console.log('🔍 查询候选页面...')
-    const candidates = await queryCandidatePages(/* 你的数据库客户端 */)
+    // TODO: 传入实际的数据库客户端
+    // const db = await createDatabaseClient()
+    // const candidates = await queryCandidatePages(db)
+    const candidates: PageCandidate[] = [] // 临时占位符
     console.log(`📄 找到 ${candidates.length} 个候选页面`)
     
     // 3. 丰富页面数据（计算 Purchase Intent 如果缺失）
@@ -48,8 +53,10 @@ export async function dailyPagePicker() {
     
     // 5. 写入队列
     console.log('💾 写入队列...')
-    await writeToQueue(/* 你的数据库客户端 */, result)
-    console.log(`✅ 队列写入完成（Run ID: ${result.runId}）`)
+    // TODO: 传入实际的数据库客户端
+    // await writeToQueue(db, result)
+    console.log(`⚠️  队列写入已跳过（需要数据库客户端）`)
+    console.log(`   Run ID: ${result.runId}`)
     
     // 6. 输出统计
     console.log('\n📊 挑选统计：')
