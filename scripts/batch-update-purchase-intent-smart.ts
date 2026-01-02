@@ -86,7 +86,7 @@ async function batchUpdatePurchaseIntent() {
     console.log(`📊 第 ${iteration} 批: 找到 ${pageMetaList.length} 条记录`)
 
     // 2. 查询对应的 use_cases 数据
-    const pageIds = pageMetaList.map(p => p.page_id)
+    const pageIds = (pageMetaList as Array<{ page_id: string }>).map(p => p.page_id)
     const { data: useCases, error: useCasesError } = await supabase
       .from('use_cases')
       .select('id, use_case_type')
@@ -98,7 +98,7 @@ async function batchUpdatePurchaseIntent() {
     }
 
     // 3. 构建更新数据
-    const updates = useCases.map(uc => {
+    const updates = (useCases as Array<{ id: string; use_case_type: string }>).map(uc => {
       const { intent, layer } = calculatePurchaseIntent(uc.use_case_type)
       return {
         page_id: uc.id,
@@ -109,7 +109,7 @@ async function batchUpdatePurchaseIntent() {
 
     // 4. 批量更新（使用 RPC 存储过程，更高效）
     // 先创建存储过程（如果还没有）
-    const { data: rpcResult, error: rpcError } = await supabase.rpc('batch_update_purchase_intent_single', {
+    const { data: rpcResult, error: rpcError } = await (supabase.rpc as any)('batch_update_purchase_intent_single', {
       p_batch_size: batchSize,
     })
 
@@ -118,8 +118,8 @@ async function batchUpdatePurchaseIntent() {
       // 如果 RPC 不存在，使用逐条更新（降级方案）
       console.log('⚠️  RPC 函数不存在，使用逐条更新...')
       for (const update of updates) {
-        const { error: updateError } = await supabase
-          .from('page_meta')
+        const { error: updateError } = await (supabase
+          .from('page_meta') as any)
           .update({
             purchase_intent: update.purchase_intent,
             layer: update.layer,
@@ -155,7 +155,7 @@ async function batchUpdatePurchaseIntent() {
     .gt('purchase_intent', 0)
 
   if (distribution) {
-    const stats = distribution.reduce((acc, row) => {
+    const stats = (distribution as Array<{ purchase_intent: number; layer: string }>).reduce((acc, row) => {
       const key = `${row.purchase_intent}-${row.layer}`
       acc[key] = (acc[key] || 0) + 1
       return acc

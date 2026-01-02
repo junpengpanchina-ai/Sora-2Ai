@@ -58,7 +58,7 @@ BEGIN
   ) VALUES (
     'use_case',
     NEW.id,
-    NEW.page_slug,
+    NEW.slug,
     v_purchase_intent,
     v_layer,
     CASE WHEN NEW.is_published THEN 'published' ELSE 'draft' END,
@@ -87,11 +87,11 @@ CREATE TRIGGER trigger_sync_page_meta_on_insert
 -- 创建触发器：在 use_cases 更新时自动同步
 DROP TRIGGER IF EXISTS trigger_sync_page_meta_on_update ON use_cases;
 CREATE TRIGGER trigger_sync_page_meta_on_update
-  AFTER UPDATE OF use_case_type, is_published, page_slug ON use_cases
+  AFTER UPDATE OF use_case_type, is_published, slug ON use_cases
   FOR EACH ROW
   WHEN (OLD.use_case_type IS DISTINCT FROM NEW.use_case_type 
      OR OLD.is_published IS DISTINCT FROM NEW.is_published
-     OR OLD.page_slug IS DISTINCT FROM NEW.page_slug)
+     OR OLD.slug IS DISTINCT FROM NEW.slug)
   EXECUTE FUNCTION sync_page_meta_from_use_case();
 
 -- ============================================
@@ -109,7 +109,7 @@ DECLARE
   v_layer TEXT;
 BEGIN
   -- 获取 use_case 信息
-  SELECT use_case_type, is_published, page_slug
+  SELECT use_case_type, is_published, slug
   INTO v_use_case_type, v_is_published, v_page_slug
   FROM use_cases
   WHERE id = p_use_case_id;
@@ -166,7 +166,7 @@ DECLARE
   v_record RECORD;
 BEGIN
   FOR v_record IN 
-    SELECT id, use_case_type, is_published, page_slug
+    SELECT id, use_case_type, is_published, slug
     FROM use_cases
   LOOP
     -- 使用 INSERT ... ON CONFLICT 自动处理
@@ -182,7 +182,7 @@ BEGIN
     ) VALUES (
       'use_case',
       v_record.id,
-      v_record.page_slug,
+      v_record.slug,
       calculate_purchase_intent(v_record.use_case_type),
       calculate_layer(v_record.use_case_type),
       CASE WHEN v_record.is_published THEN 'published' ELSE 'draft' END,
@@ -211,7 +211,7 @@ $$ LANGUAGE plpgsql;
 -- ============================================
 
 -- 测试：插入一个新的 use_case（触发器会自动创建 page_meta）
--- INSERT INTO use_cases (id, use_case_type, is_published, page_slug)
+-- INSERT INTO use_cases (id, use_case_type, is_published, slug)
 -- VALUES (gen_random_uuid(), 'product-demo-showcase', true, 'test-slug');
 
 -- 检查是否自动创建了 page_meta
