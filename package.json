@@ -29,6 +29,8 @@
     "monitor:supabase": "node scripts/monitor-supabase-usage.js",
     "test:page-meta": "tsx scripts/test-page-meta-supabase.ts",
     "batch-update-intent": "tsx scripts/batch-update-purchase-intent.ts",
+    "batch-update-intent-smart": "tsx scripts/batch-update-purchase-intent-smart.ts",
+    "batch-update-intent-final": "tsx scripts/batch-update-intent-final.ts",
     "pick-pages": "tsx scripts/daily-page-picker.ts",
     "db:stats": "node scripts/db-stats.js"
   },
