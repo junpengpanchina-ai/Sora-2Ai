@@ -131,6 +131,9 @@ Google Trends: "AI safety training" 上升
 - **`docs/COMPLETE_GEO_SEO_GUIDE.md`** - 完整 GEO & SEO 指南（综合版）⭐⭐⭐⭐⭐
 - **`docs/COMPLETE_STRATEGY_GUIDE.md`** - 完整策略指南（所有内容总结）⭐⭐⭐⭐⭐
 - **`docs/BUSINESS_INTEGRATED_STRATEGY.md`** - 业务整合策略（从"发布内容"转向"经营资产"）⭐⭐⭐⭐⭐
+- **`docs/LIGHT_CONVERSION_MODULE_GUIDE.md`** - 轻转化模块指南（Safe Conversion Blocks）⭐⭐⭐⭐⭐
+- **`docs/SEARCH_SYSTEM_MODELING.md`** - 搜索系统建模指南（核心认知）⭐⭐⭐⭐⭐
+- **`docs/AI_CITATION_OBSERVATION.md`** - AI 引用观察池（验证 GEO 成功）⭐⭐⭐
 - **`docs/GEO_INDEX_AUTO_PRODUCTION_TABLE.md`** - GEO × Index Health 自动排产表（最终执行版）⭐⭐⭐
 - **`docs/INDEX_HEALTH_DASHBOARD_SHEETS.md`** - Index Health Dashboard（表格版 · 执行级）⭐⭐⭐
 - **`docs/SHEETS_TEMPLATE_CSV.md`** - 表格模板（CSV 格式，可直接导入）⭐
