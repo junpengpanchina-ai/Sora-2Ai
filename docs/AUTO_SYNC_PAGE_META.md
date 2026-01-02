@@ -31,7 +31,7 @@
 
 1. **插入新 use_case**：
    ```sql
-   INSERT INTO use_cases (id, use_case_type, is_published, page_slug)
+   INSERT INTO use_cases (id, use_case_type, is_published, slug)
    VALUES (gen_random_uuid(), 'product-demo-showcase', true, 'demo-slug');
    ```
    → 自动创建 `page_meta` 记录，`purchase_intent = 3`, `layer = 'conversion'`
@@ -108,12 +108,12 @@ WHERE trigger_name LIKE '%sync_page_meta%';
 
 ```sql
 -- 插入测试记录
-INSERT INTO use_cases (id, use_case_type, is_published, page_slug)
+INSERT INTO use_cases (id, use_case_type, is_published, slug)
 VALUES (gen_random_uuid(), 'product-demo-showcase', true, 'test-auto-sync');
 
 -- 检查是否自动创建了 page_meta
 SELECT * FROM page_meta 
-WHERE page_id = (SELECT id FROM use_cases WHERE page_slug = 'test-auto-sync');
+WHERE page_id = (SELECT id FROM use_cases WHERE slug = 'test-auto-sync');
 ```
 
 应该看到：
@@ -127,12 +127,12 @@ WHERE page_id = (SELECT id FROM use_cases WHERE page_slug = 'test-auto-sync');
 -- 更新 use_case_type
 UPDATE use_cases 
 SET use_case_type = 'education-explainer'
-WHERE page_slug = 'test-auto-sync';
+WHERE slug = 'test-auto-sync';
 
 -- 检查 page_meta 是否自动更新
 SELECT purchase_intent, layer 
 FROM page_meta 
-WHERE page_id = (SELECT id FROM use_cases WHERE page_slug = 'test-auto-sync');
+WHERE page_id = (SELECT id FROM use_cases WHERE slug = 'test-auto-sync');
 ```
 
 应该看到：

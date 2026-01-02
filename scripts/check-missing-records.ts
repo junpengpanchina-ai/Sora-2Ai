@@ -55,7 +55,7 @@ async function checkMissing() {
 
     if (!batch || batch.length === 0) break
 
-    const pageIds = batch.map(p => p.page_id)
+    const pageIds = (batch as Array<{ page_id: string }>).map(p => p.page_id)
     const { data: useCases } = await supabase
       .from('use_cases')
       .select('id')

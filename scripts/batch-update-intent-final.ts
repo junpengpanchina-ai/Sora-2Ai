@@ -41,7 +41,7 @@ async function batchUpdatePurchaseIntent() {
     iteration++
 
     // 调用存储过程
-    const { data, error } = await supabase.rpc('batch_update_purchase_intent_single', {
+    const { data, error } = await (supabase.rpc as any)('batch_update_purchase_intent_single', {
       p_batch_size: batchSize,
     })
 
@@ -82,7 +82,7 @@ async function batchUpdatePurchaseIntent() {
     .gt('purchase_intent', 0)
 
   if (distribution) {
-    const stats = distribution.reduce((acc, row) => {
+    const stats = (distribution as Array<{ purchase_intent: number; layer: string }>).reduce((acc, row) => {
       const key = `${row.purchase_intent}-${row.layer}`
       acc[key] = (acc[key] || 0) + 1
       return acc

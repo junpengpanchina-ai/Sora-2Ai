@@ -51,18 +51,18 @@ async function checkDetails() {
 
     if (!batch || batch.length === 0) break
 
-    const pageIds = batch.map(p => p.page_id)
+    const pageIds = (batch as Array<{ page_id: string }>).map(p => p.page_id)
     const { data: useCases } = await supabase
       .from('use_cases')
       .select('use_case_type')
       .in('id', pageIds)
 
     if (useCases) {
-      useCases.forEach(uc => {
+      (useCases as Array<{ use_case_type: string }>).forEach(uc => {
         typeStats[uc.use_case_type] = (typeStats[uc.use_case_type] || 0) + 1
         withUseCase++
       })
-      withoutUseCase += (batch.length - useCases.length)
+      withoutUseCase += (batch.length - (useCases?.length || 0))
     } else {
       withoutUseCase += batch.length
     }
