@@ -134,6 +134,10 @@ Google Trends: "AI safety training" 上升
 - **`docs/LIGHT_CONVERSION_MODULE_GUIDE.md`** - 轻转化模块指南（Safe Conversion Blocks）⭐⭐⭐⭐⭐
 - **`docs/SEARCH_SYSTEM_MODELING.md`** - 搜索系统建模指南（核心认知）⭐⭐⭐⭐⭐
 - **`docs/AI_CITATION_OBSERVATION.md`** - AI 引用观察池（验证 GEO 成功）⭐⭐⭐
+- **`docs/AI_PRIME_TO_CONVERSION_GUIDE.md`** - AI-Prime → Conversion 完整执行指南（可监控、可预测、可放量）⭐⭐⭐⭐⭐
+- **`docs/STEADY_STATE_AMPLIFICATION.md`** - 稳态放大执行方案（不再抽象、不再加系统复杂度）⭐⭐⭐⭐⭐
+- **`docs/BRIDGE_TO_CONVERSION_TEMPLATES.md`** - Bridge → Conversion 模板库（真正可用）⭐⭐⭐⭐
+- **`docs/QUICK_START_TOP_10_UPGRADE.md`** - 快速开始：Top 10 页面升级（3 步执行流程）⭐⭐⭐⭐⭐
 - **`docs/GEO_INDEX_AUTO_PRODUCTION_TABLE.md`** - GEO × Index Health 自动排产表（最终执行版）⭐⭐⭐
 - **`docs/INDEX_HEALTH_DASHBOARD_SHEETS.md`** - Index Health Dashboard（表格版 · 执行级）⭐⭐⭐
 - **`docs/SHEETS_TEMPLATE_CSV.md`** - 表格模板（CSV 格式，可直接导入）⭐

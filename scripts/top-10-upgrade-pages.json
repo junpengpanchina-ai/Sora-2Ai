@@ -1,0 +1,13 @@
+[
+  {
+    "page_id": "00000000-0000-0000-0000-000000000001",
+    "page_slug": "test-use-case",
+    "industry": null,
+    "purchase_intent": 3,
+    "geo_score": 85,
+    "geo_level": "G-A",
+    "index_state": "unknown",
+    "layer": "conversion",
+    "priority": 2.25
+  }
+]
