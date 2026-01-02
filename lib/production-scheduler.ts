@@ -528,7 +528,68 @@ export function getActionDescription(action: ProductionAction): string {
 }
 
 /**
- * 完整决策流程（更新版：加入 Purchase Intent）
+ * 冷却机制：检测是否需要暂停发布
+ * 
+ * 如果 3 天内：
+ * - Indexed 不增长
+ * - Crawled 快速上升
+ * 
+ * 则自动暂停 48 小时
+ */
+export interface CoolingPeriod {
+  shouldCool: boolean
+  reason: string
+  cooldownHours: number
+}
+
+export function checkCoolingPeriod(params: {
+  currentIndexed: number
+  previousIndexed: number // 3 天前
+  currentCrawled: number
+  previousCrawled: number // 3 天前
+  daysSinceLastCheck: number
+}): CoolingPeriod {
+  const indexedGrowth = params.currentIndexed - params.previousIndexed
+  const crawledGrowth = params.currentCrawled - params.previousCrawled
+  const crawledGrowthRate = params.previousCrawled > 0 
+    ? (crawledGrowth / params.previousCrawled) * 100 
+    : 0
+  
+  // 条件 1：Indexed 不增长（或下降）
+  const indexedStagnant = indexedGrowth <= 0
+  
+  // 条件 2：Crawled 快速上升（超过 50%）
+  const crawledSpike = crawledGrowthRate > 50
+  
+  if (indexedStagnant && crawledSpike) {
+    return {
+      shouldCool: true,
+      reason: `Indexed 未增长（${indexedGrowth}），但 Crawled 快速上升（${crawledGrowthRate.toFixed(1)}%）`,
+      cooldownHours: 48
+    }
+  }
+  
+  // 如果 Indexed 下降超过 10%，也需要冷却
+  if (params.previousIndexed > 0) {
+    const indexedDropRate = ((params.currentIndexed - params.previousIndexed) / params.previousIndexed) * 100
+    if (indexedDropRate < -10) {
+      return {
+        shouldCool: true,
+        reason: `Indexed 下降 ${Math.abs(indexedDropRate).toFixed(1)}%`,
+        cooldownHours: 48
+      }
+    }
+  }
+  
+  return {
+    shouldCool: false,
+    reason: '指标正常，无需冷却',
+    cooldownHours: 0
+  }
+}
+
+/**
+ * 完整决策流程（更新版：加入 Purchase Intent + 冷却机制）
  */
 export function makeFullDecision(params: {
   indexed: number
@@ -538,12 +599,17 @@ export function makeFullDecision(params: {
   contentType: ContentType
   useCase?: string // 用于计算 Purchase Intent
   purchaseIntent?: PurchaseIntent // 可选：直接提供 Purchase Intent
+  // 冷却机制参数（可选）
+  previousIndexed?: number
+  previousCrawled?: number
+  daysSinceLastCheck?: number
 }): ProductionDecision & {
   distribution: {
     evergreen: number
     industryScene: number
     trendMapping: number
   }
+  cooling?: CoolingPeriod
 } {
   const indexHealth = calculateIndexHealth(
     params.indexed,
@@ -556,12 +622,48 @@ export function makeFullDecision(params: {
   const purchaseIntent = params.purchaseIntent ?? 
     (params.useCase ? calculatePurchaseIntent(params.useCase) : 1)
   
+  // 检查冷却机制
+  let cooling: CoolingPeriod | undefined
+  if (params.previousIndexed !== undefined && 
+      params.previousCrawled !== undefined &&
+      params.daysSinceLastCheck !== undefined) {
+    cooling = checkCoolingPeriod({
+      currentIndexed: params.indexed,
+      previousIndexed: params.previousIndexed,
+      currentCrawled: params.crawled,
+      previousCrawled: params.previousCrawled,
+      daysSinceLastCheck: params.daysSinceLastCheck
+    })
+    
+    // 如果需要冷却，强制停止发布
+    if (cooling.shouldCool) {
+      return {
+        geoScore,
+        indexHealth,
+        trendPressure,
+        purchaseIntent,
+        action: 'stop',
+        dailyLimit: 0,
+        reason: `冷却期：${cooling.reason}`,
+        status: 'risk',
+        layer: 'asset',
+        distribution: {
+          evergreen: 0,
+          industryScene: 0,
+          trendMapping: 0
+        },
+        cooling
+      }
+    }
+  }
+  
   const decision = makeProductionDecision(geoScore, indexHealth, trendPressure, purchaseIntent)
   const distribution = calculateDailyDistribution(decision.dailyLimit)
   
   return {
     ...decision,
     distribution,
+    cooling
   }
 }
 
