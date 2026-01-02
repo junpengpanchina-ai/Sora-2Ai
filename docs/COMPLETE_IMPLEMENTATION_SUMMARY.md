@@ -678,6 +678,12 @@ Google → 高可信解释页 → 场景理解 → 轻提示 → 行为触发
 
 **AI 引用观察池**：👉 [`AI_CITATION_OBSERVATION.md`](./AI_CITATION_OBSERVATION.md)
 
+**AI-Prime → Conversion 完整执行指南**：👉 [`AI_PRIME_TO_CONVERSION_GUIDE.md`](./AI_PRIME_TO_CONVERSION_GUIDE.md)
+
+**稳态放大执行方案**：👉 [`STEADY_STATE_AMPLIFICATION.md`](./STEADY_STATE_AMPLIFICATION.md)
+
+**Bridge → Conversion 模板库**：👉 [`BRIDGE_TO_CONVERSION_TEMPLATES.md`](./BRIDGE_TO_CONVERSION_TEMPLATES.md)
+
 ---
 
 ## 🧠 最后一句（重要）
