@@ -81,6 +81,9 @@ export async function GET(request: Request) {
     const limit = Math.min(Number(searchParams.get('limit')) || 50, 1000)
     const offset = Math.max(Number(searchParams.get('offset')) || 0, 0)
 
+    // 查询超时设置（30秒）
+    const QUERY_TIMEOUT = 30000
+
     // 首先获取总数（用于分页）
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let countQuery = (supabase as any)
@@ -120,16 +123,51 @@ export async function GET(request: Request) {
       countQuery = countQuery.or(`title.ilike.${searchPattern},description.ilike.${searchPattern},slug.ilike.${searchPattern}`)
     }
 
-    const { count, error: countError } = await countQuery
+    // 添加查询超时保护
+    const countPromise = countQuery
+    const countTimeoutPromise = new Promise<{ count: number | null; error: unknown }>((resolve) => {
+      setTimeout(() => {
+        resolve({ count: null, error: { message: '查询超时（30秒）', code: 'TIMEOUT' } })
+      }, QUERY_TIMEOUT)
+    })
+
+    const { count, error: countError } = await Promise.race([
+      countPromise,
+      countTimeoutPromise,
+    ]) as { count: number | null; error: unknown }
+
     if (countError) {
       console.error('[use-cases GET] 获取总数错误:', countError)
     }
 
     // 获取分页数据
+    // 注意：列表查询不包含 content 字段（可能很大），只获取列表需要的字段
+    // 如果需要完整数据，可以通过单独的路由获取单个记录
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let query = (supabase as any)
       .from('use_cases')
-      .select('*')
+      .select(`
+        id,
+        slug,
+        title,
+        h1,
+        description,
+        use_case_type,
+        industry,
+        featured_prompt_ids,
+        related_use_case_ids,
+        seo_keywords,
+        is_published,
+        quality_status,
+        quality_issues,
+        quality_score,
+        quality_notes,
+        reviewed_by_admin_id,
+        reviewed_at,
+        created_by_admin_id,
+        created_at,
+        updated_at
+      `)
       .order('updated_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
@@ -165,7 +203,18 @@ export async function GET(request: Request) {
       query = query.or(`title.ilike.${searchPattern},description.ilike.${searchPattern},slug.ilike.${searchPattern}`)
     }
 
-    const { data, error } = await query
+    // 添加查询超时保护（30秒）
+    const dataPromise = query
+    const dataTimeoutPromise = new Promise<{ data: unknown[] | null; error: unknown }>((resolve) => {
+      setTimeout(() => {
+        resolve({ data: null, error: { message: '查询超时（30秒）', code: 'TIMEOUT' } })
+      }, QUERY_TIMEOUT)
+    })
+
+    const { data, error } = await Promise.race([
+      dataPromise,
+      dataTimeoutPromise,
+    ]) as { data: unknown[] | null; error: unknown }
     if (error) {
       const info = extractSupabaseErrorInfo(error)
       console.error('[use-cases GET] Supabase 查询错误:', { ...info })

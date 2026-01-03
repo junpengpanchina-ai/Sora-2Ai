@@ -266,3 +266,4 @@ console.log(selection.nextFallback) // 'gemini-3-flash'
 3. 根据效果优化模型选择策略
 4. 扩展更多行业和场景配置
 
+

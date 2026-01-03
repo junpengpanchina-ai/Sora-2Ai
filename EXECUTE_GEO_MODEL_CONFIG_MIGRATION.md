@@ -264,3 +264,4 @@ updated_at: TIMESTAMP
 - `app/admin/AdminIndustryModelConfig.tsx` - 模型配置组件
 - `lib/model-selector/industry-scene-selector.ts` - 模型选择逻辑
 
+
