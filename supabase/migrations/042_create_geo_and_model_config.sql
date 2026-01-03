@@ -118,3 +118,4 @@ INSERT INTO geo_configs (geo_code, geo_name, default_model, priority) VALUES
   ('AU', 'Australia', 'gemini-2.5-flash', 60)
 ON CONFLICT (geo_code) DO NOTHING;
 
+
