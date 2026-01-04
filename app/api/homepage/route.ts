@@ -61,10 +61,10 @@ export async function GET() {
 
 function getDefaultSettings() {
   return {
-    hero_badge_text: 'Sora 2 AI Control Center',
-    hero_h1_text: 'Turn cinematic ideas into deployable Sora 2.0 workflows.',
-    hero_h1_text_logged_in: 'Welcome back, Creator!',
-    hero_description: 'Operate from a focused dashboard that keeps the cosmic atmosphere but prioritizes productivity. Track pipeline health, credits, and the next action without leaving your control surface.',
+    hero_badge_text: 'AI Video Generator',
+    hero_h1_text: 'Create High-Quality AI Videos from Text — Fast, Simple, No Editing Skills',
+    hero_h1_text_logged_in: 'Welcome back, {name}! Ready to Create Your Next Video?',
+    hero_description: 'Generate marketing videos, social media clips, product demos, and explainer videos using AI. No camera. No editing software. Just type and create.',
     hero_image_paths: [
       '2b827a33e43a48b2b583ed428977712c.png',
       '460bef39f6e34f82912a27e357827963.png',
@@ -97,9 +97,9 @@ function getDefaultSettings() {
     secondary_color: '#8B5CF6',
     accent_color: '#F59E0B',
     background_gradient: 'cosmic-space',
-    cta_primary_text: 'Open Video Console',
-    cta_primary_text_logged_out: 'Sign in to Start',
-    cta_secondary_text: 'Browse Prompt Library',
+    cta_primary_text: 'Start Generating Videos Free',
+    cta_primary_text_logged_out: 'Start Generating Videos Free',
+    cta_secondary_text: 'View AI Video Examples',
   }
 }
 
