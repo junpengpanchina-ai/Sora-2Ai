@@ -105,6 +105,78 @@ const USE_CASE_SHOWCASE = [
   },
 ] as const
 
+// Use Cases for non-logged-in users (simplified, conversion-focused)
+const USE_CASES_FOR_VISITORS = [
+  {
+    title: 'For Marketing Teams',
+    description: 'Create ad creatives, landing page videos, and campaign visuals in minutes.',
+    link: '/use-cases?type=advertising-promotion',
+  },
+  {
+    title: 'For E-commerce Sellers',
+    description: 'Generate product demo videos and UGC-style content at scale.',
+    link: '/use-cases?type=product-demo-showcase',
+  },
+  {
+    title: 'For Educators & Trainers',
+    description: 'Turn lessons and scripts into engaging educational videos.',
+    link: '/use-cases?type=education-explainer',
+  },
+  {
+    title: 'For Social Media Creators',
+    description: 'Produce TikTok, YouTube Shorts, and Instagram videos daily with AI.',
+    link: '/use-cases?type=social-media-content',
+  },
+] as const
+
+// How It Works steps
+const HOW_IT_WORKS_STEPS = [
+  {
+    step: 1,
+    title: 'Enter Your Text or Prompt',
+    description: 'Describe your video idea or upload a script.',
+  },
+  {
+    step: 2,
+    title: 'Choose Video Style',
+    description: 'Select format, style, and resolution.',
+  },
+  {
+    step: 3,
+    title: 'Generate with AI',
+    description: 'Sora2 automatically creates the video.',
+  },
+  {
+    step: 4,
+    title: 'Download or Share',
+    description: 'Export and publish anywhere.',
+  },
+] as const
+
+// FAQ items
+const FAQ_ITEMS = [
+  {
+    question: 'Is Sora2 free to use?',
+    answer: 'Yes. You can start for free and upgrade for advanced features.',
+  },
+  {
+    question: 'Do videos have watermarks?',
+    answer: 'Free plans may include watermarks. Paid plans export clean videos.',
+  },
+  {
+    question: 'Do I need editing skills?',
+    answer: 'No. Everything is generated automatically by AI.',
+  },
+  {
+    question: 'Can I use videos commercially?',
+    answer: 'Yes. Paid users get full commercial usage rights.',
+  },
+  {
+    question: 'What platforms are supported?',
+    answer: 'TikTok, YouTube, Instagram, websites, ads, and more.',
+  },
+] as const
+
 interface HomePageClientProps {
   userProfile: UserProfile | null
 }
@@ -868,26 +940,16 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
             {homepageSettings?.hero_description || 'Find the best Sora alternatives for creating stunning text-to-video content. Our free AI video generator lets you create professional videos from text prompts in seconds. Compare top Sora alternatives and start creating today.'}
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
-            <Link href={hydratedProfile ? '/use-cases' : '/login'}>
+            <Link href={hydratedProfile ? '/video' : '/login'}>
               <Button variant="primary" size="lg" className="shadow-energy-focus">
-                {hydratedProfile 
-                  ? 'Browse Use Cases'
-                  : (homepageSettings?.cta_primary_text_logged_out || 'Sign in to Start')}
+                {homepageSettings?.cta_primary_text_logged_out || homepageSettings?.cta_primary_text || 'Start Generating Videos Free'}
               </Button>
             </Link>
-            {hydratedProfile ? (
-              <Link href="/use-cases">
-                <Button variant="secondary" size="lg">
-                  View All Scenarios
-                </Button>
-              </Link>
-            ) : (
-            <Link href="/prompts">
+            <Link href="/use-cases">
               <Button variant="secondary" size="lg">
-                {homepageSettings?.cta_secondary_text || 'Browse Prompt Library'}
+                {homepageSettings?.cta_secondary_text || 'View AI Video Examples'}
               </Button>
             </Link>
-            )}
           </div>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
@@ -1122,6 +1184,51 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
             />
           )}
         </div>
+
+        {/* Use Cases Section - For non-logged-in users */}
+        {!hydratedProfile && (
+          <section className="mb-12">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-white mb-2">Built for Creators, Marketers, and Businesses</h2>
+            </div>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {USE_CASES_FOR_VISITORS.map((useCase) => (
+                <Link
+                  key={useCase.title}
+                  href={useCase.link}
+                  className="rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-energy-water hover:bg-white/10"
+                >
+                  <h3 className="text-lg font-semibold text-white mb-2">{useCase.title}</h3>
+                  <p className="text-sm text-blue-100/80">{useCase.description}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* How It Works Section */}
+        <section className="mb-12">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-white mb-2">How It Works</h2>
+            <p className="text-blue-100/80">Create professional videos in 4 simple steps</p>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {HOW_IT_WORKS_STEPS.map((step) => (
+              <div
+                key={step.step}
+                className="rounded-2xl border border-white/10 bg-white/5 p-6"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-energy-water text-white font-bold text-lg">
+                    {step.step}
+                  </div>
+                  <h3 className="text-lg font-semibold text-white">{step.title}</h3>
+                </div>
+                <p className="text-sm text-blue-100/80">{step.description}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {/* Prompt Templates and Feature Highlights */}
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-8 mt-10 items-start">
@@ -1438,6 +1545,36 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
             </ul>
           </div>
         </div>
+
+        {/* FAQ Section */}
+        <section id="faq" className="mb-12 scroll-mt-24">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-white mb-2">Frequently Asked Questions</h2>
+          </div>
+          <div className="max-w-4xl mx-auto space-y-4">
+            {FAQ_ITEMS.map((faq, index) => (
+              <div
+                key={index}
+                className="rounded-2xl border border-white/10 bg-white/5 p-6"
+              >
+                <h3 className="text-lg font-semibold text-white mb-3">{faq.question}</h3>
+                <p className="text-sm text-blue-100/80 leading-relaxed">{faq.answer}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Final CTA Section */}
+        <section className="mb-12 text-center">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-12">
+            <h2 className="text-3xl font-bold text-white mb-4">Start Creating AI Videos Today</h2>
+            <Link href={hydratedProfile ? '/video' : '/login'}>
+              <Button variant="primary" size="lg" className="shadow-energy-focus">
+                Generate Your First Video Free
+              </Button>
+            </Link>
+          </div>
+        </section>
           </>
       </main>
       </div>

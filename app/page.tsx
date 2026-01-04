@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import HomePageClient from './HomePageClient'
 
 export const metadata: Metadata = {
-  title: 'Sora Alternative – Best Text to Video AI Tools Like OpenAI Sora',
-  description: 'Find the best Sora alternatives for creating AI videos from text. Compare top text-to-video AI tools like Sora, Runway, Pika, and Luma. Start creating professional videos with 30 free credits.',
+  title: 'Create High-Quality AI Videos from Text — Fast, Simple, No Editing Skills | Sora2Ai',
+  description: 'Generate marketing videos, social media clips, product demos, and explainer videos using AI. No camera. No editing software. Just type and create. Start with 30 free credits.',
 }
 
 export default function HomePage() {
@@ -11,12 +11,12 @@ export default function HomePage() {
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: 'Best Sora Alternatives for AI Video Generation',
-    description: 'Find the best Sora alternatives for creating AI videos from text. Compare top text-to-video AI tools and start creating professional videos with 30 free credits.',
+    name: 'Create High-Quality AI Videos from Text — Fast, Simple, No Editing Skills',
+    description: 'Generate marketing videos, social media clips, product demos, and explainer videos using AI. No camera. No editing software. Start with 30 free credits.',
     url: 'https://sora2aivideos.com',
     mainEntity: {
       '@type': 'SoftwareApplication',
-      name: 'Best Sora Alternative',
+      name: 'Sora2Ai Video Generator',
       applicationCategory: 'MultimediaApplication',
       operatingSystem: 'Web',
       offers: {
@@ -38,7 +38,7 @@ export default function HomePage() {
       
       {/* SEO-friendly text content for better text-HTML ratio */}
       <section className="sr-only">
-        <h2>Best Sora Alternatives for AI Video Generation</h2>
+        <h2>Create High-Quality AI Videos from Text — Text to Video AI Generator</h2>
         <p>
           Looking for the best Sora alternatives? Our platform is one of the top text-to-video AI tools that 
           creates stunning, professional-quality videos from text prompts in seconds. Whether you&apos;re 
