@@ -5,7 +5,9 @@ import UseCasesPageClient from './UseCasesPageClient'
 
 type UseCaseRow = Database['public']['Tables']['use_cases']['Row']
 
-export const revalidate = 600
+// 🔥 Performance optimization: Increase cache time for better TTFB
+// Use cases don't change frequently, so 1 hour cache is safe
+export const revalidate = 3600
 
 export const metadata: Metadata = {
   title: 'Use Cases Library - AI Video Generation Applications',
@@ -18,7 +20,9 @@ export default async function UseCasesIndexPage({
   searchParams?: { page?: string; type?: string; industry?: string; q?: string }
 }) {
   const supabase = await createSupabaseServerClient()
-  const pageSize = 48
+  // 🔥 Performance optimization: Reduce initial page size for better LCP
+  // Desktop: 24 items, Mobile: 12 items (handled client-side)
+  const pageSize = 24
   const page = Math.max(1, Number(searchParams?.page ?? '1') || 1)
   const offset = (page - 1) * pageSize
 
