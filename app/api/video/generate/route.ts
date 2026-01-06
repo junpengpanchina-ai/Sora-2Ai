@@ -1,7 +1,7 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 import { createClient } from '@/lib/supabase/server'
-import { createSoraVideoTask } from '@/lib/grsai/client'
+import { createSoraVideoTask, createVeoVideoTask } from '@/lib/grsai/client'
 import { formatGrsaiFriendlyError } from '@/lib/grsai/error-utils'
 import { deductCredits, refundCredits } from '@/lib/credits'
 import { getOrCreateUser } from '@/lib/user'
@@ -32,6 +32,10 @@ const generateVideoSchema = z.object({
   duration: z.enum(['10', '15']).optional().default('10'),
   // size参数已移除，API只支持small，固定使用small
   useWebhook: z.boolean().optional().default(false),
+  model: z.enum(['sora-2', 'veo3.1-fast', 'veo3.1-pro']).optional().default('sora-2'),
+  firstFrameUrl: z.string().url().optional().or(z.literal('')),
+  lastFrameUrl: z.string().url().optional().or(z.literal('')),
+  urls: z.array(z.string().url()).optional().default([]),
 })
 
 export async function POST(request: NextRequest) {
@@ -131,17 +135,21 @@ export async function POST(request: NextRequest) {
       ? `${baseUrl}/api/video/callback`
       : '-1' // Use polling method
 
+    // Determine model type
+    const model = validatedData.model || 'sora-2'
+    const isVeoModel = model.startsWith('veo')
+    
     // Create video task record first (before calling API)
     const { data: videoTask, error: taskError } = await supabase
       .from('video_tasks')
       .insert({
         user_id: userProfile.id,
-        model: 'sora-2',
+        model: model,
         prompt: validatedData.prompt,
         reference_url: validatedData.url || null,
         aspect_ratio: validatedData.aspectRatio,
-        duration: parseInt(validatedData.duration),
-        size: 'small', // API只支持small，固定值
+        duration: isVeoModel ? null : parseInt(validatedData.duration), // Veo models don't support duration
+        size: isVeoModel ? null : 'small', // Veo models don't support size
         status: 'pending',
         webhook_url: webhookUrl !== '-1' ? webhookUrl : null,
       })
@@ -179,21 +187,36 @@ export async function POST(request: NextRequest) {
 
     const consumptionId = deductResult.consumptionId
 
-    // Call Grsai API
-    const grsaiParams = {
-      model: 'sora-2',
-      prompt: validatedData.prompt,
-      url: validatedData.url || undefined,
-      aspectRatio: validatedData.aspectRatio,
-      duration: parseInt(validatedData.duration) as 10 | 15,
-      size: 'small' as const, // API只支持small，固定值
-      webHook: webhookUrl,
-      shutProgress: false,
-    }
-
+    // Call Grsai API based on model type
     let grsaiResponse
     try {
-      grsaiResponse = await createSoraVideoTask(grsaiParams)
+      if (isVeoModel) {
+        // Veo API parameters
+        const veoParams = {
+          model: model as 'veo3.1-fast' | 'veo3.1-pro' | 'veo3-fast' | 'veo3-pro',
+          prompt: validatedData.prompt,
+          aspectRatio: validatedData.aspectRatio as '16:9' | '9:16',
+          webHook: webhookUrl,
+          shutProgress: false,
+          ...(validatedData.firstFrameUrl && { firstFrameUrl: validatedData.firstFrameUrl }),
+          ...(validatedData.lastFrameUrl && { lastFrameUrl: validatedData.lastFrameUrl }),
+          ...(validatedData.urls && validatedData.urls.length > 0 && { urls: validatedData.urls.slice(0, 3) }), // Max 3 reference images
+        }
+        grsaiResponse = await createVeoVideoTask(veoParams)
+      } else {
+        // Sora API parameters
+        const soraParams = {
+          model: 'sora-2',
+          prompt: validatedData.prompt,
+          url: validatedData.url || undefined,
+          aspectRatio: validatedData.aspectRatio,
+          duration: parseInt(validatedData.duration) as 10 | 15,
+          size: 'small' as const, // API只支持small，固定值
+          webHook: webhookUrl,
+          shutProgress: false,
+        }
+        grsaiResponse = await createSoraVideoTask(soraParams)
+      }
     } catch (apiError) {
       // Log detailed error for debugging
       const errorMessage = apiError instanceof Error ? apiError.message : 'Unknown error'
@@ -271,8 +294,20 @@ export async function POST(request: NextRequest) {
 
     // If using streaming response and completed, return result directly
     if (!validatedData.useWebhook && 'status' in grsaiResponse) {
-      if (grsaiResponse.status === 'succeeded' && grsaiResponse.results?.[0]) {
-        const originalVideoUrl = grsaiResponse.results[0].url
+      // Handle different response formats for Sora vs Veo
+      let videoUrl: string | undefined
+      if (isVeoModel) {
+        // Veo response has url directly
+        const veoResponse = grsaiResponse as { url?: string; status: string }
+        videoUrl = veoResponse.url
+      } else {
+        // Sora response has results array
+        const soraResponse = grsaiResponse as { results?: Array<{ url: string }>; status: string }
+        videoUrl = soraResponse.results?.[0]?.url
+      }
+      
+      if (grsaiResponse.status === 'succeeded' && videoUrl) {
+        const originalVideoUrl = videoUrl
         let finalVideoUrl = originalVideoUrl
         
         // Try to download and upload to R2 to preserve original quality (if enabled)
@@ -306,26 +341,38 @@ export async function POST(request: NextRequest) {
         }
         
         // Update task with result
+        const updateData: Record<string, unknown> = {
+          status: 'succeeded',
+          video_url: finalVideoUrl,
+          completed_at: new Date().toISOString(),
+          progress: 100,
+        }
+        
+        // Sora-specific fields
+        if (!isVeoModel && 'results' in grsaiResponse && grsaiResponse.results?.[0]) {
+          updateData.remove_watermark = grsaiResponse.results[0].removeWatermark ?? true
+          updateData.pid = grsaiResponse.results[0].pid || null
+        }
+        
         await supabase
           .from('video_tasks')
-          .update({
-            status: 'succeeded',
-            video_url: finalVideoUrl,
-            remove_watermark: grsaiResponse.results[0].removeWatermark ?? true,
-            pid: grsaiResponse.results[0].pid || null,
-            completed_at: new Date().toISOString(),
-            progress: 100,
-          })
+          .update(updateData)
           .eq('id', videoTask.id)
 
-        return jsonResponse({
+        const responseData: Record<string, unknown> = {
           success: true,
           status: 'succeeded',
           video_url: finalVideoUrl,
-          remove_watermark: grsaiResponse.results[0].removeWatermark,
-          pid: grsaiResponse.results[0].pid,
           task_id: videoTask.id,
-        })
+        }
+        
+        // Sora-specific fields
+        if (!isVeoModel && 'results' in grsaiResponse && grsaiResponse.results?.[0]) {
+          responseData.remove_watermark = grsaiResponse.results[0].removeWatermark
+          responseData.pid = grsaiResponse.results[0].pid
+        }
+        
+        return jsonResponse(responseData)
       } else if (grsaiResponse.status === 'failed') {
         // Log detailed failure information
         console.error('[video/generate] Video generation failed:', {

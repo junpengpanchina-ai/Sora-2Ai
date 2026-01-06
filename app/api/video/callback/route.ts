@@ -11,14 +11,17 @@ import type { Database } from '@/types/database'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// Webhook callback data validation schema
+// Webhook callback data validation schema (supports both Sora and Veo formats)
 const webhookCallbackSchema = z.object({
   id: z.string(),
+  // Sora format: results array
   results: z.array(z.object({
     url: z.string(),
     removeWatermark: z.boolean().optional(),
     pid: z.string().optional(),
   })).optional(),
+  // Veo format: direct url
+  url: z.string().optional(),
   progress: z.number().min(0).max(100),
   status: z.enum(['running', 'succeeded', 'failed']),
   failure_reason: z.enum(['output_moderation', 'input_moderation', 'error']).optional(),
@@ -36,7 +39,7 @@ export async function POST(request: NextRequest) {
     // Find task by grsai_task_id
     const { data: videoTask, error: findError } = await supabase
       .from('video_tasks')
-      .select('*')
+      .select('*, model')
       .eq('grsai_task_id', callbackData.id)
       .single()
 
@@ -56,8 +59,24 @@ export async function POST(request: NextRequest) {
 
     // If task completed, optionally download and upload to R2 to preserve quality
     // Controlled by R2_AUTO_UPLOAD_VIDEOS environment variable (default: false to save storage)
-    if (callbackData.status === 'succeeded' && callbackData.results?.[0]) {
-      const originalVideoUrl = callbackData.results[0].url
+    const isVeoModel = videoTask?.model?.startsWith('veo') || false
+    
+    // Handle different response formats for Sora vs Veo
+    let originalVideoUrl: string | undefined
+    let removeWatermark: boolean | undefined
+    let pid: string | undefined
+    
+    if (isVeoModel) {
+      // Veo format: direct url
+      originalVideoUrl = callbackData.url
+    } else {
+      // Sora format: results array
+      originalVideoUrl = callbackData.results?.[0]?.url
+      removeWatermark = callbackData.results?.[0]?.removeWatermark
+      pid = callbackData.results?.[0]?.pid
+    }
+    
+    if (callbackData.status === 'succeeded' && originalVideoUrl) {
       const autoUploadToR2 = process.env.R2_AUTO_UPLOAD_VIDEOS === 'true'
       
       if (autoUploadToR2) {
@@ -102,8 +121,11 @@ export async function POST(request: NextRequest) {
         })
       }
       
-      updateData.remove_watermark = callbackData.results[0].removeWatermark ?? true
-      updateData.pid = callbackData.results[0].pid || null
+      // Sora-specific fields
+      if (!isVeoModel) {
+        updateData.remove_watermark = removeWatermark ?? true
+        updateData.pid = pid || null
+      }
       updateData.completed_at = new Date().toISOString()
     }
 

@@ -40,7 +40,7 @@ export async function GET(
     if (isUUID) {
       const { data: videoTask, error: taskError } = await supabase
         .from('video_tasks')
-        .select('grsai_task_id, status, progress, video_url, error_message')
+        .select('grsai_task_id, status, progress, video_url, error_message, model')
         .eq('id', taskIdParam)
         .single()
 
@@ -123,9 +123,27 @@ export async function GET(
 
       if (grsaiResult.code === 0 && grsaiResult.data) {
         const data = grsaiResult.data
+        const isVeoModel = videoTask?.model?.startsWith('veo') || false
 
-        if (data.status === 'succeeded' && data.results?.[0]) {
-          const originalVideoUrl = data.results[0].url
+        // Handle different response formats for Sora vs Veo
+        let videoUrl: string | undefined
+        let removeWatermark: boolean | undefined
+        let pid: string | undefined
+        
+        if (isVeoModel) {
+          // Veo response has url directly
+          const veoData = data as { url?: string; status: string; progress: number }
+          videoUrl = veoData.url
+        } else {
+          // Sora response has results array
+          const soraData = data as { results?: Array<{ url: string; removeWatermark?: boolean; pid?: string }>; status: string; progress: number }
+          videoUrl = soraData.results?.[0]?.url
+          removeWatermark = soraData.results?.[0]?.removeWatermark
+          pid = soraData.results?.[0]?.pid
+        }
+
+        if (data.status === 'succeeded' && videoUrl) {
+          const originalVideoUrl = videoUrl
           let finalVideoUrl = originalVideoUrl
           
           // Try to download and upload to R2 to preserve original quality (if enabled)
@@ -160,28 +178,42 @@ export async function GET(
           
           // Update database if we have internal task ID
           if (internalTaskId) {
+            const updateData: Record<string, unknown> = {
+              status: 'succeeded',
+              progress: data.progress,
+              video_url: finalVideoUrl,
+              completed_at: new Date().toISOString(),
+            }
+            
+            // Sora-specific fields
+            if (!isVeoModel && removeWatermark !== undefined) {
+              updateData.remove_watermark = removeWatermark
+            }
+            if (!isVeoModel && pid) {
+              updateData.pid = pid
+            }
+            
             await supabase
               .from('video_tasks')
-              .update({
-                status: 'succeeded',
-                progress: data.progress,
-                video_url: finalVideoUrl,
-                remove_watermark: data.results[0].removeWatermark ?? true,
-                pid: data.results[0].pid || null,
-                completed_at: new Date().toISOString(),
-              })
+              .update(updateData)
               .eq('id', internalTaskId)
           }
 
-          return NextResponse.json({
+          const responseData: Record<string, unknown> = {
             success: true,
             status: 'succeeded',
             progress: data.progress,
             video_url: finalVideoUrl,
-            remove_watermark: data.results[0].removeWatermark ?? true,
-            pid: data.results[0].pid,
             task_id: internalTaskId || grsaiTaskId,
-          })
+          }
+          
+          // Sora-specific fields
+          if (!isVeoModel) {
+            responseData.remove_watermark = removeWatermark ?? true
+            if (pid) responseData.pid = pid
+          }
+          
+          return NextResponse.json(responseData)
         } else if (data.status === 'failed') {
           const friendlyError = formatGrsaiFriendlyError({
             failureReason: data.failure_reason,
