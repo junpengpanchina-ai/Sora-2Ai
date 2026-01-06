@@ -192,14 +192,18 @@ export function createClient(): SupabaseClient<Database> {
   }
 
   if (!browserClient) {
+    // 🔥 浏览器登录专用 client - 绝对不能传 accessToken
+    // 只用于：登录/登出/获取 session/监听 auth 状态
     browserClient = createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
-    auth: {
+      auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
         flowType: 'pkce',
         storage: browserStorage,
       },
+      // 🔥 明确不传任何 global headers（避免 accessToken 污染）
+      // 不传 global 配置，确保不会意外传入 Authorization header
     })
   }
 
