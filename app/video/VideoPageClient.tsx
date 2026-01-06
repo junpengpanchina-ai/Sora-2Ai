@@ -76,6 +76,9 @@ export default function VideoPageClient() {
   const [duration, setDuration] = useState<'10' | '15'>('10')
   // size parameter removed, API only supports small, backend uses small fixed
   const [useWebhook, setUseWebhook] = useState(false)
+  const [model, setModel] = useState<'sora-2' | 'veo3.1-fast' | 'veo3.1-pro'>('sora-2')
+  const [firstFrameUrl, setFirstFrameUrl] = useState('')
+  const [lastFrameUrl, setLastFrameUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [currentResult, setCurrentResult] = useState<VideoResult | null>(null)
   const [pollingTaskId, setPollingTaskId] = useState<string | null>(null)
@@ -531,13 +534,25 @@ export default function VideoPageClient() {
         return
       }
       
-      const requestBody = {
+      const requestBody: Record<string, unknown> = {
         prompt: cleanedPrompt,
-        url: referenceUrl || undefined,
         aspectRatio,
-        duration,
-        // size parameter removed, API only supports small, backend uses small fixed
         useWebhook,
+        model,
+      }
+      
+      // Add model-specific parameters
+      if (model === 'sora-2') {
+        requestBody.url = referenceUrl || undefined
+        requestBody.duration = duration
+      } else {
+        // Veo models
+        if (firstFrameUrl) requestBody.firstFrameUrl = firstFrameUrl
+        if (lastFrameUrl) requestBody.lastFrameUrl = lastFrameUrl
+        if (referenceUrl) {
+          // For Veo, reference image goes into urls array
+          requestBody.urls = [referenceUrl]
+        }
       }
       
       console.log('[VideoPage] 📤 Starting video generation request:', {
@@ -1006,7 +1021,11 @@ export default function VideoPageClient() {
             </h2>
             {credits !== null && (
               <div className="text-sm text-blue-100/80">
-                Credits Cost: <span className="font-semibold text-energy-water">10 credits/video</span>
+                Credits Cost: <span className="font-semibold text-energy-water">
+                  {model === 'sora-2' && '1600 credits/video'}
+                  {model === 'veo3.1-fast' && '8000 credits/video'}
+                  {model === 'veo3.1-pro' && '40000 credits/video'}
+                </span>
               </div>
             )}
           </div>
@@ -1184,6 +1203,34 @@ export default function VideoPageClient() {
               
             </div>
 
+            <div>
+              <label className="mb-2 block text-sm font-medium text-blue-100/80">
+                Model <span className="text-yellow-400">*</span>
+              </label>
+              <select
+                value={model}
+                onChange={(e) => {
+                  const newModel = e.target.value as 'sora-2' | 'veo3.1-fast' | 'veo3.1-pro'
+                  setModel(newModel)
+                  // Reset Veo-specific fields when switching to Sora
+                  if (newModel === 'sora-2') {
+                    setFirstFrameUrl('')
+                    setLastFrameUrl('')
+                  }
+                }}
+                className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
+              >
+                <option value="sora-2" className="text-black">Sora-2 (OpenAI) - 1600 credits</option>
+                <option value="veo3.1-fast" className="text-black">Veo 3.1 Fast (Google) - 8000 credits</option>
+                <option value="veo3.1-pro" className="text-black">Veo 3.1 Pro (Google) - 40000 credits</option>
+              </select>
+              <p className="mt-1 text-xs text-blue-100/50">
+                {model === 'sora-2' && 'OpenAI Sora 2.0 - Best for general use, supports remix and character creation'}
+                {model === 'veo3.1-fast' && 'Google Veo 3.1 Fast - High quality with audio, faster generation'}
+                {model === 'veo3.1-pro' && 'Google Veo 3.1 Pro - Highest quality with audio, best for professional work'}
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-medium text-blue-100/80">
@@ -1199,21 +1246,59 @@ export default function VideoPageClient() {
                 </select>
               </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-blue-100/80">
-                  Duration (seconds)
-                </label>
-                <select
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value as '10' | '15')}
-                  className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
-                >
-                  <option value="10" className="text-black">10 seconds</option>
-                  <option value="15" className="text-black">15 seconds</option>
-                </select>
-              </div>
+              {model === 'sora-2' && (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-blue-100/80">
+                    Duration (seconds)
+                  </label>
+                  <select
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value as '10' | '15')}
+                    className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
+                  >
+                    <option value="10" className="text-black">10 seconds</option>
+                    <option value="15" className="text-black">15 seconds</option>
+                  </select>
+                </div>
+              )}
 
             </div>
+
+            {/* Veo-specific fields */}
+            {(model === 'veo3.1-fast' || model === 'veo3.1-pro') && (
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-blue-100/80">
+                    First Frame URL (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={firstFrameUrl}
+                    onChange={(e) => setFirstFrameUrl(e.target.value)}
+                    className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white placeholder:text-blue-100/50 shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
+                    placeholder="https://example.com/firstFrame.png"
+                  />
+                  <p className="mt-1 text-xs text-blue-100/50">
+                    First frame image URL for video generation
+                  </p>
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-blue-100/80">
+                    Last Frame URL (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={lastFrameUrl}
+                    onChange={(e) => setLastFrameUrl(e.target.value)}
+                    className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white placeholder:text-blue-100/50 shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
+                    placeholder="https://example.com/lastFrame.png"
+                  />
+                  <p className="mt-1 text-xs text-blue-100/50">
+                    Last frame image URL (requires first frame URL)
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center">
               <input

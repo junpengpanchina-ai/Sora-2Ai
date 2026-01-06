@@ -128,6 +128,26 @@ export interface SoraVideoRequest {
   shutProgress?: boolean
 }
 
+export interface VeoVideoRequest {
+  model: 'veo3.1-fast' | 'veo3.1-pro' | 'veo3-fast' | 'veo3-pro'
+  prompt: string
+  firstFrameUrl?: string
+  lastFrameUrl?: string
+  urls?: string[] // 参考图片URL数组，最多3张
+  aspectRatio?: '16:9' | '9:16'
+  webHook?: string
+  shutProgress?: boolean
+}
+
+export interface VeoVideoResponse {
+  id: string
+  url?: string
+  progress: number
+  status: 'running' | 'succeeded' | 'failed'
+  failure_reason?: 'output_moderation' | 'input_moderation' | 'error'
+  error?: string
+}
+
 export interface SoraVideoResponse {
   id: string
   results?: Array<{
@@ -383,6 +403,211 @@ export async function getTaskResult(taskId: string): Promise<GrsaiResultResponse
   }
 
   return await response.json() as GrsaiResultResponse
+}
+
+/**
+ * 创建 Veo 视频生成任务（带重试机制）
+ * 支持 veo3.1-fast, veo3.1-pro, veo3-fast, veo3-pro
+ */
+export async function createVeoVideoTask(
+  params: VeoVideoRequest,
+  retryCount = 0
+): Promise<VeoVideoResponse | GrsaiTaskIdResponse> {
+  const MAX_RETRIES = 3
+  const RETRY_DELAY = 1000 * (retryCount + 1) // 递增延迟：1s, 2s, 3s
+  const TIMEOUT = 60000 // 60秒超时
+  
+  const apiKey = getGrsaiApiKey()
+  const host = getGrsaiHost()
+  
+  // Log request details for debugging (without sensitive info)
+  if (retryCount === 0) {
+    console.log('[Grsai API] Creating Veo video task:', {
+      host,
+      model: params.model,
+      aspectRatio: params.aspectRatio,
+      hasPrompt: !!params.prompt,
+      promptLength: params.prompt?.length,
+      hasFirstFrame: !!params.firstFrameUrl,
+      hasLastFrame: !!params.lastFrameUrl,
+      referenceUrlsCount: params.urls?.length || 0,
+      webHook: params.webHook ? (params.webHook === '-1' ? 'polling' : 'webhook') : 'none',
+      apiKeyPrefix: apiKey.substring(0, 10) + '...',
+    })
+  } else {
+    console.log(`[Grsai API] Retrying Veo video task (attempt ${retryCount + 1}/${MAX_RETRIES}):`, {
+      host,
+      retryCount,
+      delay: RETRY_DELAY,
+    })
+  }
+  
+  // 添加超时控制（60秒）
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT)
+
+  let response: Response
+  try {
+    response = await fetch(`${host}/v1/video/veo`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(params),
+      signal: controller.signal,
+      keepalive: true,
+    })
+    clearTimeout(timeoutId)
+  } catch (fetchError) {
+    clearTimeout(timeoutId)
+    
+    // 如果是网络错误且还有重试次数，进行重试
+    const isNetworkError = fetchError instanceof Error && (
+      fetchError.name === 'AbortError' ||
+      fetchError.message.includes('fetch failed') ||
+      fetchError.message.includes('ECONNREFUSED') ||
+      fetchError.message.includes('ENOTFOUND') ||
+      fetchError.message.includes('getaddrinfo') ||
+      fetchError.message.includes('ECONNRESET') ||
+      fetchError.message.includes('socket hang up')
+    )
+    
+    if (isNetworkError && retryCount < MAX_RETRIES) {
+      console.warn(`[Grsai API] Network error detected, retrying in ${RETRY_DELAY}ms...`, {
+        error: fetchError instanceof Error ? fetchError.message : String(fetchError),
+        retryCount: retryCount + 1,
+        maxRetries: MAX_RETRIES,
+      })
+      
+      // 等待后重试
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
+      return createVeoVideoTask(params, retryCount + 1)
+    }
+    
+    // 处理网络错误（不再重试）
+    if (fetchError instanceof Error) {
+      if (fetchError.name === 'AbortError') {
+        throw new Error(`Grsai Veo API 请求超时（${TIMEOUT / 1000}秒），请检查网络连接或稍后重试`)
+      } else if (fetchError.message.includes('fetch failed') || fetchError.message.includes('ECONNREFUSED')) {
+        throw new Error('Grsai Veo API 连接失败，请检查网络连接或 API 服务是否可用')
+      } else if (fetchError.message.includes('ENOTFOUND') || fetchError.message.includes('getaddrinfo')) {
+        throw new Error('Grsai Veo API 域名解析失败，请检查网络连接')
+      } else if (fetchError.message.includes('ECONNRESET') || fetchError.message.includes('socket hang up')) {
+        throw new Error('Grsai Veo API 连接被重置，可能是网络不稳定，请稍后重试')
+      }
+    }
+    
+    throw new Error(`Grsai Veo API 请求失败: ${fetchError instanceof Error ? fetchError.message : '未知错误'}`)
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    let errorMessage = `Grsai Veo API 错误: ${response.status}`
+    
+    // Log full error response for debugging
+    console.error('[Grsai API] Veo request failed:', {
+      status: response.status,
+      statusText: response.statusText,
+      url: `${host}/v1/video/veo`,
+      errorText,
+      headers: Object.fromEntries(response.headers.entries()),
+    })
+    
+    // Try to parse error details if available
+    try {
+      const errorJson = JSON.parse(errorText)
+      console.error('[Grsai API] Parsed error response:', errorJson)
+      
+      if (errorJson.msg) {
+        errorMessage += ` - ${errorJson.msg}`
+      } else if (errorJson.error) {
+        errorMessage += ` - ${errorJson.error}`
+      } else if (errorJson.message) {
+        errorMessage += ` - ${errorJson.message}`
+      } else {
+        errorMessage += ` - ${JSON.stringify(errorJson)}`
+      }
+    } catch {
+      // If not JSON, use raw text
+      errorMessage += ` - ${errorText}`
+    }
+    
+    // Add helpful context based on status code
+    if (response.status === 401) {
+      errorMessage += ' (提示: 请检查 GRSAI_API_KEY 是否正确配置)'
+    } else if (response.status === 403) {
+      errorMessage += ' (提示: API Key 可能没有权限或已过期)'
+    } else if (response.status === 429) {
+      errorMessage += ' (提示: API 请求频率过高，请稍后重试)'
+    } else if (response.status === 500 || response.status === 502 || response.status === 503) {
+      errorMessage += ' (提示: API 服务暂时不可用，请稍后重试)'
+    }
+    
+    throw new Error(errorMessage)
+  }
+  
+  // Log successful response
+  console.log('[Grsai API] Veo request successful, processing response...')
+
+  // 如果使用 webHook: "-1"，会立即返回 id
+  if (params.webHook === '-1') {
+    return await response.json() as GrsaiTaskIdResponse
+  }
+
+  // 否则返回流式响应或回调
+  // 如果是流式响应，需要特殊处理
+  const contentType = response.headers.get('content-type')
+  if (contentType?.includes('text/event-stream') || contentType?.includes('application/x-ndjson')) {
+    // 处理流式响应
+    return await handleVeoStreamResponse(response)
+  }
+
+  return await response.json() as VeoVideoResponse
+}
+
+/**
+ * 处理 Veo 流式响应
+ */
+async function handleVeoStreamResponse(response: Response): Promise<VeoVideoResponse> {
+  const reader = response.body?.getReader()
+  if (!reader) {
+    throw new Error('无法读取流式响应')
+  }
+
+  const decoder = new TextDecoder()
+  let lastChunk: VeoVideoResponse | null = null
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    const chunk = decoder.decode(value, { stream: true })
+    const lines = chunk.split('\n').filter(line => line.trim())
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        try {
+          const data = JSON.parse(line.slice(6)) as VeoVideoResponse
+          lastChunk = data
+          
+          // 如果任务完成，返回最终结果
+          if (data.status === 'succeeded' || data.status === 'failed') {
+            return data
+          }
+        } catch {
+          // 忽略解析错误，继续处理下一行
+        }
+      }
+    }
+  }
+
+  // 如果没有收到最终结果，返回最后一个块
+  if (lastChunk) {
+    return lastChunk
+  }
+
+  throw new Error('流式响应未返回有效数据')
 }
 
 // ==================== Chat API ====================
