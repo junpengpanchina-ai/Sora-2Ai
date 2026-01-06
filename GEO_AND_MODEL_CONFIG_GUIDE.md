@@ -267,3 +267,4 @@ console.log(selection.nextFallback) // 'gemini-3-flash'
 4. 扩展更多行业和场景配置
 
 
+
