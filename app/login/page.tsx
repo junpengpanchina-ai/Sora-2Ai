@@ -3,6 +3,11 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import LoginVisual from '@/components/LoginVisual'
 
+// Lazy load debug panel
+const LoginDebugPanel = dynamic(() => import('@/components/LoginDebugPanel'), {
+  ssr: false,
+})
+
 // Lazy load login components to improve initial page load
 const LoginButton = dynamic(() => import('@/components/LoginButton'), {
   loading: () => (
@@ -119,6 +124,9 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
                   Your email is used solely to create your account.
                 </p>
               </div>
+              
+              {/* Debug Panel (only shown with ?debug=1 or in dev mode) */}
+              <LoginDebugPanel />
             </div>
             
             <p className="celestial-terms text-center text-xs leading-relaxed">
