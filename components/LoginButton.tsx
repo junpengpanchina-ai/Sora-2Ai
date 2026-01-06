@@ -72,7 +72,21 @@ export default function LoginButton({ className = '' }: LoginButtonProps) {
 
       if (error) {
         console.error('OAuth error:', error)
-        router.push(`/login?error=${encodeURIComponent(error.message)}`)
+        
+        // Provide more helpful error messages
+        let errorMsg = error.message || 'Login failed. Please try again.'
+        
+        if (error.message?.includes('redirect_uri_mismatch')) {
+          errorMsg = 'Login configuration error: Redirect URI mismatch. Please contact support or try email login instead.'
+        } else if (error.message?.includes('access_denied')) {
+          errorMsg = 'Login cancelled. Please try again or use email magic link.'
+        } else if (error.message?.includes('popup_blocked')) {
+          errorMsg = 'Popup blocked. Please allow popups for this site and try again, or use email magic link.'
+        } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+          errorMsg = 'Network error. Please check your internet connection and try again, or use email magic link.'
+        }
+        
+        router.push(`/login?error=${encodeURIComponent(errorMsg)}`)
         setLoading(false)
         return
       }
