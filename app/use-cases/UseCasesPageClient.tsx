@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import type { Database } from '@/types/database'
+import CosmicBackground from '@/components/CosmicBackground'
 
 type UseCaseRow = Database['public']['Tables']['use_cases']['Row']
 
@@ -63,10 +64,8 @@ export default function UseCasesPageClient({
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#050b18] text-white">
-      <div className="cosmic-space absolute inset-0" aria-hidden="true" />
-      <div className="cosmic-glow absolute inset-0" aria-hidden="true" />
-      <div className="cosmic-stars absolute inset-0" aria-hidden="true" />
-      <div className="cosmic-noise absolute inset-0" aria-hidden="true" />
+      {/* 🔥 Performance optimization: Lazy load background effects */}
+      <CosmicBackground />
       <div className="relative z-10 cosmic-content">
         <nav className="border-b border-white/10 bg-white/5 backdrop-blur-lg">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
