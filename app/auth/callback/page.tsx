@@ -229,19 +229,88 @@ export default function AuthCallbackPage() {
             .find(pair => pair.startsWith(`sb-`))?.split('=')[1]
           console.log('Cookie PKCE verifier presence:', !!cookieVerifier)
 
+          // 🔍 详细记录 exchange 请求信息
+          console.log('🔍 [OAuth Exchange] 开始交换 code...')
+          console.log('📋 [OAuth Exchange] Code 信息:', {
+            codeLength: code?.length || 0,
+            codePreview: code ? code.substring(0, 30) + '...' : 'none',
+            hasCodeVerifier: codeVerifierFound,
+            codeVerifierSource: codeVerifierSource,
+          })
+          
+          // 记录 Supabase 项目 URL（用于识别请求）
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'unknown'
+          console.log('📋 [OAuth Exchange] Supabase URL:', supabaseUrl)
+          console.log('📋 [OAuth Exchange] 预期请求 URL:', `${supabaseUrl}/auth/v1/token?grant_type=pkce`)
+          
+          const exchangeStartTime = Date.now()
           const exchangeResult = await supabase.auth.exchangeCodeForSession(code)
+          const exchangeDuration = Date.now() - exchangeStartTime
+          
           sessionData = exchangeResult.data
           exchangeError = exchangeResult.error
           
+          // 🔍 详细记录 exchange 响应
+          console.log('📊 [OAuth Exchange] 响应信息:', {
+            duration: `${exchangeDuration}ms`,
+            hasSession: !!sessionData?.session,
+            hasError: !!exchangeError,
+            errorStatus: exchangeError?.status,
+            errorMessage: exchangeError?.message,
+            errorName: exchangeError?.name,
+          })
+          
           if (exchangeError) {
+            // 🔍 提取完整的错误详情
             const errorDetails = {
               message: exchangeError.message,
               status: exchangeError.status,
               name: exchangeError.name,
+              // 尝试提取 error_description（如果存在）
+              errorDescription: exchangeError.message?.match(/error_description[:\s]+([^,}]+)/i)?.[1] || null,
+              // 尝试提取 error code（如果存在）
+              errorCode: exchangeError.message?.match(/error[:\s]+([^,}]+)/i)?.[1] || null,
+              // 完整错误对象（如果可序列化）
+              fullError: exchangeError,
             }
-            console.error('❌ Manual exchange error:', errorDetails)
-            console.error('Storage state at error time:', storageCheck)
-            console.error('Supabase storage key dump:', {
+            
+            console.error('❌ [OAuth Exchange] 交换失败 - 详细错误信息:')
+            console.error('   Status Code:', errorDetails.status)
+            console.error('   Error Name:', errorDetails.name)
+            console.error('   Error Message:', errorDetails.message)
+            console.error('   Error Code:', errorDetails.errorCode || 'N/A')
+            console.error('   Error Description:', errorDetails.errorDescription || 'N/A')
+            console.error('   完整错误对象:', errorDetails.fullError)
+            
+            // 🔍 根据错误类型提供诊断建议
+            console.error('\n🔍 [OAuth Exchange] 错误诊断建议:')
+            if (errorDetails.status === 400) {
+              if (errorDetails.message?.includes('invalid_client')) {
+                console.error('   ⚠️  可能原因: Google Client ID/Secret 配置错误')
+                console.error('   ✅ 检查: Supabase Dashboard → Authentication → Providers → Google')
+                console.error('   ✅ 检查: Google Cloud Console → OAuth client credentials')
+              } else if (errorDetails.message?.includes('redirect_uri') || errorDetails.message?.includes('redirect')) {
+                console.error('   ⚠️  可能原因: 重定向 URL 不匹配')
+                console.error('   ✅ 检查: Google Cloud Console → Authorized redirect URIs')
+                console.error('   ✅ 必须包含: https://<project-ref>.supabase.co/auth/v1/callback')
+                console.error('   ✅ 检查: Supabase → Authentication → URL Configuration')
+              } else if (errorDetails.message?.includes('invalid_grant') || errorDetails.message?.includes('already redeemed')) {
+                console.error('   ⚠️  可能原因: Code 已过期或被重复使用')
+                console.error('   ✅ 检查: 是否多次执行 exchangeCodeForSession')
+                console.error('   ✅ 检查: middleware 是否导致重复回调')
+              } else if (errorDetails.message?.includes('Unable to exchange external code')) {
+                console.error('   ⚠️  可能原因: Supabase 无法与 Google 交换 token')
+                console.error('   ✅ 检查: Supabase Dashboard → Logs Explorer → 搜索 "oauth" / "google"')
+                console.error('   ✅ 检查: Google Cloud Console → OAuth client 状态')
+              }
+            } else if (errorDetails.status === 500) {
+              console.error('   ⚠️  可能原因: Supabase 服务器端错误')
+              console.error('   ✅ 检查: Supabase Dashboard → Logs Explorer')
+              console.error('   ✅ 检查: Network 标签中的完整响应（可能包含更详细的错误）')
+            }
+            
+            console.error('\n📋 [OAuth Exchange] 存储状态:', storageCheck)
+            console.error('📋 [OAuth Exchange] Supabase storage keys:', {
               pkceKeys: Object.keys(localStorage).filter(key => key.includes('code') || key.includes('verifier')),
             })
             
