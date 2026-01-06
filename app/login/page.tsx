@@ -1,10 +1,24 @@
 import type { Metadata } from 'next'
-import LoginButton from '@/components/LoginButton'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
+import LoginVisual from '@/components/LoginVisual'
+
+// Lazy load login components to improve initial page load
+const LoginButton = dynamic(() => import('@/components/LoginButton'), {
+  loading: () => (
+    <div className="w-full h-12 rounded-xl bg-white/10 animate-pulse" />
+  ),
+})
+
+const EmailLoginForm = dynamic(() => import('@/components/EmailLoginForm'), {
+  loading: () => (
+    <div className="w-full h-32 rounded-xl bg-white/10 animate-pulse" />
+  ),
+})
 
 export const metadata: Metadata = {
   title: 'Sign In - Login to Create AI Videos',
-  description: 'Login to Sora2Ai Videos with Google authentication. New users receive 30 free credits immediately - no credit card required. Start generating AI videos now.',
+  description: 'Login to Sora2Ai Videos with Google authentication or email magic link. New users receive 30 free credits immediately - no credit card required. Start generating AI videos now.',
 }
 
 interface LoginPageProps {
@@ -18,20 +32,8 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#030b2c] text-white">
-      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-        <div className="login-visual login-visual--canvas">
-          <div className="login-visual__grid" />
-          <div className="login-visual__glow" />
-          <div className="login-visual__orb" />
-          <div className="login-visual__orb login-visual__orb--small" />
-          <div className="login-visual__ring" />
-          <div className="login-visual__ring login-visual__ring--delay" />
-          <div className="login-visual__wave" />
-          <span className="login-visual__spark login-visual__spark--one" />
-          <span className="login-visual__spark login-visual__spark--two" />
-          <span className="login-visual__spark login-visual__spark--three" />
-        </div>
-      </div>
+      {/* Lazy load visual effects to improve LCP */}
+      <LoginVisual />
 
       <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 py-12 sm:px-10">
         <div className="w-full max-w-3xl text-center space-y-6">
@@ -83,13 +85,30 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
         <div className="celestial-panel mt-12 w-full max-w-xl p-10">
           {errorMessage && (
             <div className="mb-6 rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-100">
-              <strong className="font-semibold">Sign in failed:</strong> {errorMessage}
+              <strong className="font-semibold">⚠️ Sign in failed:</strong>
+              <p className="mt-2">{errorMessage}</p>
+              <p className="mt-2 text-xs opacity-90">
+                Having trouble? Try using email magic link instead, or check your browser settings.
+              </p>
             </div>
           )}
 
           <div className="space-y-6">
             <div className="space-y-4">
               <LoginButton className="celestial-cta shadow-[0_30px_100px_-45px_rgba(59,130,246,1)] hover:-translate-y-1" />
+              
+              {/* Divider */}
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/20"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-[#030b2c] px-2 text-white/60">Or continue with</span>
+                </div>
+              </div>
+
+              {/* Email Magic Link Login */}
+              <EmailLoginForm />
               
               {/* Free Trial Info */}
               <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30 backdrop-blur-sm">
