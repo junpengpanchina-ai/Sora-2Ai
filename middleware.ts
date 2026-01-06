@@ -5,6 +5,19 @@ import { getLanguageFromRequest } from './lib/i18n'
 export async function middleware(request: NextRequest) {
   const { pathname, hostname, searchParams } = request.nextUrl
 
+  // 🔥 防回归护栏 #1: OAuth callback 路径绝对放行
+  // 防止未来改 middleware 导致 OAuth 回调失败
+  const oauthExcludedPaths = [
+    '/auth/callback',        // Supabase OAuth 回调
+    '/api/auth/callback',     // NextAuth 回调（如果使用）
+    '/api/auth/callback/[...nextauth]', // NextAuth 动态路由
+  ]
+  
+  // 如果路径匹配 OAuth 回调，直接放行，不执行任何中间件逻辑
+  if (oauthExcludedPaths.some(path => pathname.startsWith(path))) {
+    return NextResponse.next()
+  }
+
   // 处理 www 子域名重定向到非 www 版本
   if (hostname.startsWith('www.')) {
     const url = request.nextUrl.clone()
@@ -68,8 +81,10 @@ export const config = {
      * - sitemap 文件 (sitemap.xml, sitemap-*.xml)
      * - robots.txt
      * - public 文件夹中的静态资源
+     * - /auth/callback (OAuth 回调 - 绝对放行)
+     * - /api/auth/* (NextAuth 回调 - 绝对放行)
      */
-    '/((?!_next/static|_next/image|favicon.ico|icon.svg|sitemap|robots\\.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|html|xml)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icon.svg|sitemap|robots\\.txt|auth/callback|api/auth/.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|html|xml)$).*)',
   ],
 }
 
