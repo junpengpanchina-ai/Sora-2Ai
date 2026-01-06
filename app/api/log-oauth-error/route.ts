@@ -32,7 +32,9 @@ export async function POST(request: NextRequest) {
     // 记录到 Supabase（如果表存在）
     // 如果没有表，只记录到 console（不影响功能）
     try {
-      const { error: insertError } = await supabase
+      // 使用类型断言，因为表可能不在 Database 类型定义中
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: insertError } = await (supabase as any)
         .from('oauth_error_logs')
         .insert({
           error: error.substring(0, 200), // 限制长度
