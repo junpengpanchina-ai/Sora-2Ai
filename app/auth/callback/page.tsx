@@ -268,6 +268,13 @@ export default function AuthCallbackPage() {
               ) {
                 errorMsg =
                   'Login failed: missing PKCE verifier. Please clear site data (cookies/storage) and try again.'
+              } else if (
+                exchangeError.message?.includes('Unable to exchange external code') ||
+                exchangeError.message?.includes('exchange external code')
+              ) {
+                // This usually means code expired or code_verifier mismatch
+                errorMsg =
+                  'Login failed: The verification code has expired or doesn\'t match. This usually happens if you waited too long or tried to login multiple times. Please clear your browser storage and try again.'
               } else if (exchangeError.message?.includes('expired') || 
                          exchangeError.message?.includes('invalid')) {
                 errorMsg = 'Login failed: the verification code is expired or invalid. Please sign in again.'
