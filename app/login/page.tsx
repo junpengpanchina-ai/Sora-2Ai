@@ -8,6 +8,11 @@ const LoginDebugPanel = dynamic(() => import('@/components/LoginDebugPanel'), {
   ssr: false,
 })
 
+// Lazy load error logger
+const OAuthErrorLogger = dynamic(() => import('@/components/OAuthErrorLogger'), {
+  ssr: false,
+})
+
 // Lazy load login components to improve initial page load
 const LoginButton = dynamic(() => import('@/components/LoginButton'), {
   loading: () => (
@@ -36,6 +41,9 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
   const errorMessage = searchParams?.error
 
   return (
+    <>
+      {/* 🔥 防回归护栏 #2: OAuth 错误可观测性 */}
+      <OAuthErrorLogger error={errorMessage} pathname="/login" />
     <div className="relative min-h-screen overflow-hidden bg-[#030b2c] text-white">
       {/* Lazy load visual effects to improve LCP */}
       <LoginVisual />
@@ -161,6 +169,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
         </div>
       </div>
     </div>
+    </>
   )
 }
 

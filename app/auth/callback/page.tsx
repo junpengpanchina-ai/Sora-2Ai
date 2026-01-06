@@ -7,6 +7,7 @@ import { logError } from '@/lib/logger'
 import { clearPostLoginRedirect, getPostLoginRedirect } from '@/lib/auth/post-login-redirect'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import OAuthErrorLogger from '@/components/OAuthErrorLogger'
 
 export default function AuthCallbackPage() {
   const router = useRouter()
@@ -355,6 +356,27 @@ export default function AuthCallbackPage() {
               errorMsg = exchangeError.message || 'Login failed: unknown error.'
             }
             
+            // 🔥 防回归护栏 #2: 记录 OAuth 错误到日志系统
+            const errorToLog = exchangeError.message || 'Unknown exchange error'
+            try {
+              await fetch('/api/log-oauth-error', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  error: errorToLog.substring(0, 200),
+                  error_description: errorDetails.errorDescription || null,
+                  error_code: errorDetails.errorCode || exchangeError.status?.toString() || null,
+                  origin: typeof window !== 'undefined' ? window.location.origin : null,
+                  pathname: '/auth/callback',
+                  user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+                  timestamp: new Date().toISOString(),
+                }),
+              })
+            } catch (logErr) {
+              // 静默失败，不影响用户体验
+              console.error('[OAuth Error Logger] Failed to log:', logErr)
+            }
+            
             router.push(`/login?error=${encodeURIComponent(errorMsg)}`)
             return
           }
@@ -476,31 +498,37 @@ export default function AuthCallbackPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
-          <p className="mt-4 text-gray-600">Processing login...</p>
+      <>
+        <OAuthErrorLogger error={null} pathname="/auth/callback" />
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
+            <p className="mt-4 text-gray-600">Processing login...</p>
+          </div>
         </div>
-      </div>
+      </>
     )
   }
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center text-red-600">
-          <p>Login failed: {error}</p>
-          <button
-            onClick={() => router.push('/login')}
-            className="mt-4 rounded bg-blue-600 px-4 py-2 text-white"
-          >
-            Back to Login
-          </button>
+      <>
+        <OAuthErrorLogger error={error} pathname="/auth/callback" />
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center text-red-600">
+            <p>Login failed: {error}</p>
+            <button
+              onClick={() => router.push('/login')}
+              className="mt-4 rounded bg-blue-600 px-4 py-2 text-white"
+            >
+              Back to Login
+            </button>
+          </div>
         </div>
-      </div>
+      </>
     )
   }
 
-  return null
+  return <OAuthErrorLogger error={null} pathname="/auth/callback" />
 }
 
