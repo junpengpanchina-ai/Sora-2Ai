@@ -11,10 +11,30 @@ import { PRICING_CONFIG, type PlanId } from "@/lib/billing/config";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: auth } = await supabase.auth.getUser();
+    // Log request headers for debugging
+    const authHeader = request.headers.get("authorization");
+    console.log("[create-plan-checkout] Request received", {
+      hasAuthHeader: !!authHeader,
+      authHeaderPrefix: authHeader?.substring(0, 20) || "none",
+      origin: request.headers.get("origin"),
+      referer: request.headers.get("referer"),
+    });
+
+    // Create Supabase client with request headers (for auth)
+    const supabase = await createClient(request.headers);
+    const { data: auth, error: authError } = await supabase.auth.getUser();
+    
+    console.log("[create-plan-checkout] Auth check", {
+      hasUser: !!auth.user,
+      userId: auth.user?.id,
+      email: auth.user?.email,
+      authError: authError?.message,
+    });
     
     if (!auth.user) {
+      console.error("[create-plan-checkout] Unauthorized - no user", {
+        authError: authError?.message,
+      });
       return NextResponse.json(
         { error: "Unauthorized, please login first" },
         { status: 401 }
@@ -73,13 +93,23 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    console.log("[create-plan-checkout] Checkout session created", {
+      sessionId: session.id,
+      checkoutUrl: session.url,
+      userId: auth.user.id,
+      planId,
+    });
+
     return NextResponse.json({
       success: true,
       checkout_url: session.url,
       session_id: session.id,
     });
   } catch (error) {
-    console.error("[create-plan-checkout] Error:", error);
+    console.error("[create-plan-checkout] Error:", error, {
+      message: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
       {
         error: "Failed to create checkout session",
