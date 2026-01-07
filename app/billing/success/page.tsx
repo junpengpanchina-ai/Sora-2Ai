@@ -2,11 +2,11 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
-export default function BillingSuccessPage() {
+function BillingSuccessContent() {
   const sp = useSearchParams();
   const router = useRouter();
   const sessionId = sp.get("session_id");
@@ -91,6 +91,27 @@ export default function BillingSuccessPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function BillingSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-gradient-to-b from-[#0a0a0a] via-[#1a1a1a] to-[#0a0a0a] text-white flex items-center justify-center">
+          <div className="max-w-md mx-auto px-4 py-16 text-center">
+            <h1 className="text-3xl font-bold mb-4">Payment successful</h1>
+            <p className="text-lg text-white/80 mb-8">Loading...</p>
+            <div className="flex items-center justify-center gap-2">
+              <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-white"></div>
+              <span className="text-sm text-white/60">Processing...</span>
+            </div>
+          </div>
+        </main>
+      }
+    >
+      <BillingSuccessContent />
+    </Suspense>
   );
 }
 
