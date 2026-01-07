@@ -285,8 +285,19 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const startPaymentLinkCheckout = async (plan: (typeof paymentPlans)[number]) => {
     const returnTo = '/#pricing-plans'
 
-    // Guests need to sign in first (checkout API requires auth)
-    if (!hydratedProfile) {
+    // Check actual auth status, not just hydratedProfile (which may be stale after login)
+    let isAuthenticated = false
+    if (supabase) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        isAuthenticated = !!session?.user
+      } catch (err) {
+        console.error('Failed to check auth status:', err)
+      }
+    }
+
+    // If not authenticated, redirect to login
+    if (!isAuthenticated && !hydratedProfile) {
       setPostLoginRedirect(returnTo)
       router.push(`/login?redirect=${encodeURIComponent(returnTo)}`)
       return
@@ -313,10 +324,33 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         
         if (redirectAttempt) {
           const lastAttempt = parseInt(redirectAttempt, 10)
-          if (now - lastAttempt < 5000) {
+          if (now - lastAttempt < 10000) { // 增加到 10 秒
             console.error('[HomePage] 检测到无限循环，停止重定向')
             alert('登录状态异常，请刷新页面后重试')
             return
+          }
+        }
+        
+        // 尝试刷新认证状态
+        if (supabase) {
+          try {
+            const { data: { session: newSession } } = await supabase.auth.getSession()
+            if (newSession?.user) {
+              // 认证状态已更新，重试一次
+              sessionStorage.removeItem(redirectKey)
+              // 重新调用（但限制递归深度）
+              const retryKey = 'payment_checkout_retry'
+              if (!sessionStorage.getItem(retryKey)) {
+                sessionStorage.setItem(retryKey, '1')
+                setTimeout(() => {
+                  sessionStorage.removeItem(retryKey)
+                  startPaymentLinkCheckout(plan)
+                }, 500)
+                return
+              }
+            }
+          } catch (refreshErr) {
+            console.error('Failed to refresh auth:', refreshErr)
           }
         }
         
@@ -328,6 +362,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       
       // 清除重定向尝试记录（成功时）
       sessionStorage.removeItem('payment_checkout_redirect_attempt')
+      sessionStorage.removeItem('payment_checkout_retry')
 
       if (!res.ok || !json?.success) {
         throw new Error(json?.error || 'Failed to start checkout')
@@ -343,6 +378,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       console.error('Checkout failed:', e)
       // 清除重定向尝试记录（错误时）
       sessionStorage.removeItem('payment_checkout_redirect_attempt')
+      sessionStorage.removeItem('payment_checkout_retry')
       alert(e instanceof Error ? e.message : 'Checkout failed. Please try again.')
     } finally {
       setCheckingOutPlanId(null)
