@@ -87,34 +87,33 @@
     const testPlanId = 'starter';
     console.log(`测试计划: ${testPlanId}`);
 
-    // 获取认证 token（从 localStorage）
-    let authToken = null;
-    const authKeys = Object.keys(localStorage).filter(k => 
-      k.includes('supabase') && (k.includes('token') || k.includes('access'))
+    // Supabase 使用 Cookie 进行认证，而不是 Authorization header
+    // 浏览器会自动发送 Cookie，所以我们不需要手动添加
+    // 但我们可以检查是否有认证相关的 Cookie
+    const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+      const [key, value] = cookie.trim().split('=');
+      acc[key] = value;
+      return acc;
+    }, {});
+    
+    const supabaseCookies = Object.keys(cookies).filter(k => 
+      k.includes('supabase') || k.includes('sb-')
     );
     
-    if (authKeys.length > 0) {
-      try {
-        const tokenData = localStorage.getItem(authKeys[0]);
-        if (tokenData) {
-          const parsed = JSON.parse(tokenData);
-          authToken = parsed?.access_token || parsed?.token;
-        }
-      } catch (e) {
-        // 忽略解析错误
-      }
+    if (supabaseCookies.length > 0) {
+      console.log('✅ 找到 Supabase Cookie:', supabaseCookies.length, '个');
+      console.log('Cookie 键:', supabaseCookies);
+    } else {
+      console.log('⚠️ 未找到 Supabase Cookie');
+      console.log('💡 提示: 浏览器会自动发送 Cookie，如果仍然 401，可能需要重新登录');
     }
 
+    // 浏览器会自动发送 Cookie，我们只需要设置 Content-Type
     const headers = {
       'Content-Type': 'application/json',
     };
     
-    if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`;
-      console.log('✅ 已添加认证头');
-    } else {
-      console.log('⚠️ 未找到认证 token，可能返回 401');
-    }
+    console.log('📤 发送 API 请求（Cookie 会自动包含）...');
 
     const response = await fetch('/api/payment/create-plan-checkout', {
       method: 'POST',
