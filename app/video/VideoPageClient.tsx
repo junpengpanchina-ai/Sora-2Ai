@@ -91,6 +91,8 @@ export default function VideoPageClient() {
   const [hasRechargeRecords, setHasRechargeRecords] = useState<boolean | null>(null)
   const [showNewUserBanner, setShowNewUserBanner] = useState(false)
   const [videoLoadError, setVideoLoadError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0) // Track retry count for Veo Pro recommendation
+  const [showVeoProRecommendation, setShowVeoProRecommendation] = useState(false) // Show Veo Pro recommendation
   // Pixel-perfect (1:1) display: prevent upscaling beyond intrinsic resolution (adjusted for DPR)
   const [videoMaxCssWidth, setVideoMaxCssWidth] = useState<number | null>(null)
   const hasReadPromptFromUrl = useRef(false)
@@ -105,10 +107,13 @@ export default function VideoPageClient() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   // Growth tracking states
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [timeOnResultSec, setTimeOnResultSec] = useState(0) // Track time spent viewing result
   const [didDownloadOrShare, setDidDownloadOrShare] = useState(false) // Track download/share actions
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`) // Unique session ID
   const [soraGenerationsSession, setSoraGenerationsSession] = useState(0) // Track Sora generations in this session
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [userId, setUserId] = useState<string | undefined>(undefined) // User ID for tracking
   const [soraRenders7d, setSoraRenders7d] = useState(0) // Approximate Sora usage for triggers
   const [remixSamePrompt24h, setRemixSamePrompt24h] = useState(0) // Approximate remix count for same prompt
@@ -1702,7 +1707,7 @@ export default function VideoPageClient() {
 
                       {/* 无感升级提示（Starter → Veo Pro） */}
                       <UpgradeNudge
-                        planId={hasRechargeRecords ? 'creator' : (credits !== null && credits <= 30 ? 'starter' : 'free')}
+                        planId={hasRechargeRecords ? 'creator' : 'starter'}
                         soraRendersThisSession={soraGenerationsSession}
                         promptText={currentResult.prompt}
                         onUpgrade={() => {

@@ -31,7 +31,7 @@ export default function FAQPage() {
               <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
                 <h3 className="text-xl font-semibold mb-3">Can I buy credits multiple times?</h3>
                 <p className="text-white/80 leading-relaxed">
-                  Yes. Credits stack in your account. You can purchase additional packs anytime, and they'll be added to your existing balance.
+                  Yes. Credits stack in your account. You can purchase additional packs anytime, and they&apos;ll be added to your existing balance.
                 </p>
               </div>
             </div>
@@ -42,9 +42,9 @@ export default function FAQPage() {
             <h2 className="text-3xl font-bold mb-8">Models & Quality</h2>
             <div className="space-y-6">
               <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
-                <h3 className="text-xl font-semibold mb-3">What's the difference between Sora, Veo Flash, and Veo Pro?</h3>
+                <h3 className="text-xl font-semibold mb-3">What&apos;s the difference between Sora, Veo Flash, and Veo Pro?</h3>
                 <p className="text-white/80 leading-relaxed mb-3">
-                  <strong className="text-white">Sora</strong> is best for drafts and rapid iterations. It's fast, consistent, and perfect for exploring ideas.
+                  <strong className="text-white">Sora</strong> is best for drafts and rapid iterations. It&apos;s fast, consistent, and perfect for exploring ideas.
                 </p>
                 <p className="text-white/80 leading-relaxed mb-3">
                   <strong className="text-white">Veo Flash</strong> is a quality upgrade that offers better detail while still being fast.
@@ -57,7 +57,7 @@ export default function FAQPage() {
               <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
                 <h3 className="text-xl font-semibold mb-3">Which plan should I choose?</h3>
                 <p className="text-white/80 leading-relaxed mb-3">
-                  If you're exploring and iterating, start with <strong className="text-white">Sora and Creator</strong>. This gives you plenty of credits for drafts and a few upgrades.
+                  If you&apos;re exploring and iterating, start with <strong className="text-white">Sora and Creator</strong>. This gives you plenty of credits for drafts and a few upgrades.
                 </p>
                 <p className="text-white/80 leading-relaxed mb-3">
                   If you publish regularly, <strong className="text-white">Studio</strong> is the best balance of credits and access to Veo Pro.
@@ -76,7 +76,7 @@ export default function FAQPage() {
               <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
                 <h3 className="text-xl font-semibold mb-3">What is Starter Access?</h3>
                 <p className="text-white/80 leading-relaxed">
-                  Starter Access is a 7-day trial-style pack with time-limited credits and daily limits. It's designed to let you try the workflow while preventing automated abuse.
+                  Starter Access is a 7-day trial-style pack with time-limited credits and daily limits. It&apos;s designed to let you try the workflow while preventing automated abuse.
                 </p>
               </div>
 
@@ -103,7 +103,7 @@ export default function FAQPage() {
               <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
                 <h3 className="text-xl font-semibold mb-3">Do you offer refunds?</h3>
                 <p className="text-white/80 leading-relaxed">
-                  If you encounter a technical issue that prevents usage, contact support and we'll help resolve it. Purchases are generally non-refundable once credits are consumed.
+                  If you encounter a technical issue that prevents usage, contact support and we&apos;ll help resolve it. Purchases are generally non-refundable once credits are consumed.
                 </p>
               </div>
 

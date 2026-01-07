@@ -201,19 +201,19 @@ BEGIN
      AND wallet_record.bonus_expires_at IS NOT NULL 
      AND wallet_record.bonus_expires_at > NOW() THEN
     IF wallet_record.bonus_credits >= remaining THEN
-      bonus_used := remaining
-      remaining := 0
+      bonus_used := remaining;
+      remaining := 0;
     ELSE
-      bonus_used := wallet_record.bonus_credits
-      remaining := remaining - bonus_used
+      bonus_used := wallet_record.bonus_credits;
+      remaining := remaining - bonus_used;
     END IF;
   END IF;
   
   -- 使用永久积分
   IF remaining > 0 THEN
     IF wallet_record.permanent_credits >= remaining THEN
-      permanent_used := remaining
-      remaining := 0
+      permanent_used := remaining;
+      remaining := 0;
     ELSE
       RETURN jsonb_build_object('success', false, 'error', 'Insufficient credits');
     END IF;

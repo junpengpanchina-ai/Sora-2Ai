@@ -3,7 +3,7 @@ import type { PricingConfig } from "@/lib/billing/types";
 export function CreditUsageTable({ config }: { config: PricingConfig }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
-      <div className="text-lg font-semibold text-white">How credits work</div>
+      <div className="text-lg font-semibold text-white">How many credits does each render take?</div>
       <p className="mt-2 text-sm text-white/70">
         Bonus credits are spent first. Permanent credits never expire.
       </p>

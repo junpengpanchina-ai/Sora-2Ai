@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe'
 import { NextRequest, NextResponse } from 'next/server'
 import { addCreditsToWallet } from '@/lib/credit-wallet'
+import { identifyTierFromAmount, calculateBonusExpiresAt } from '@/lib/billing/tier-identification'
 
 
 // Force dynamic rendering to prevent build-time execution
@@ -87,21 +88,50 @@ export async function POST(request: NextRequest) {
 
     // If payment verified, update database
     if (paymentVerified) {
-      const creditsToAdd = rechargeRecord.credits ?? 0
+      // 识别充值档位（根据金额）
+      const amountUsd = parseFloat(rechargeRecord.amount?.toString() || '0')
+      const tierConfig = identifyTierFromAmount(amountUsd)
 
-      // 使用钱包系统添加积分（全部作为永久积分；后续可按档位拆分为 permanent + bonus）
-      if (creditsToAdd > 0) {
+      if (!tierConfig) {
+        // 未识别的金额，使用旧逻辑（全部作为永久积分）
+        console.warn(`[verify-payment] Unrecognized payment amount: $${amountUsd}, using fallback logic`)
+        const creditsToAdd = rechargeRecord.credits ?? 0
+        if (creditsToAdd > 0) {
+          const walletResult = await addCreditsToWallet(
+            supabase,
+            rechargeRecord.user_id,
+            creditsToAdd,
+            0,
+            null,
+            false
+          )
+
+          if (!walletResult.success) {
+            console.error('Failed to add credits to wallet (fallback):', walletResult.error)
+          }
+        }
+      } else {
+        // 使用新钱包系统：永久积分 + Bonus 积分
+        const bonusExpiresAt = calculateBonusExpiresAt(tierConfig.bonusExpiresDays)
+
         const walletResult = await addCreditsToWallet(
           supabase,
           rechargeRecord.user_id,
-          creditsToAdd,
-          0,
-          null,
-          false
+          tierConfig.permanentCredits,
+          tierConfig.bonusCredits,
+          bonusExpiresAt,
+          tierConfig.isStarter
         )
 
         if (!walletResult.success) {
-          console.error('Failed to add credits to wallet in verify-payment:', walletResult.error)
+          console.error('Failed to add credits to wallet:', walletResult.error)
+        } else {
+          console.log(`[verify-payment] Added credits for tier ${tierConfig.planId}:`, {
+            permanent: tierConfig.permanentCredits,
+            bonus: tierConfig.bonusCredits,
+            expiresDays: tierConfig.bonusExpiresDays,
+            isStarter: tierConfig.isStarter,
+          })
         }
       }
 

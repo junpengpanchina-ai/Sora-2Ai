@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { track } from "@/lib/analytics/track";
 import type { PlanId } from "@/lib/billing/types";
+import { UPGRADE_NUDGE_COPY } from "./UpgradeNudgeCopy";
 
 type Trigger =
   | "after_2_sora_renders"
@@ -10,7 +11,9 @@ type Trigger =
   | "quality_intent_click"
   | "high_iteration"
   | "prompt_high_intent"
-  | "veo_locked_click";
+  | "veo_locked_click"
+  | "commercial_format"
+  | "retry_same_prompt_3";
 
 type Props = {
   planId: PlanId;
@@ -66,33 +69,18 @@ export function UpgradeNudge({
 
   if (!open || !trigger) return null;
 
-  const title = "Ready for a cleaner final export?";
-  const bodyA =
-    "Sora is great for drafts. If this is the version you want to publish, Veo Pro can improve motion realism and detail.";
-  const bodyB =
-    "If you're exporting this one, Veo Pro typically delivers smoother motion and higher fidelity for the final cut.";
-
-  // Simple AB bucket (client-side only). Replace with real AB system later.
-  const getVariant = () => {
-    if (typeof window === "undefined") return "A";
-    const stored = window.localStorage.getItem("ab_upsell_variant");
-    if (stored) return stored;
-    const variant = Math.random() < 0.5 ? "A" : "B";
-    window.localStorage.setItem("ab_upsell_variant", variant);
-    return variant;
-  };
-
-  const variant = getVariant();
+  const copy = UPGRADE_NUDGE_COPY[trigger];
+  if (!copy) return null;
 
   return (
     <div className="fixed bottom-4 left-0 right-0 z-50 mx-auto max-w-xl px-4">
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg backdrop-blur-sm">
-        <div className="text-sm font-semibold text-white">{title}</div>
-        <div className="mt-2 text-sm text-white/80">{variant === "A" ? bodyA : bodyB}</div>
+        <div className="text-sm font-semibold text-white">{copy.title}</div>
+        <div className="mt-2 text-sm text-white/80">{copy.body}</div>
 
-        {planId === "starter" ? (
+        {planId === "starter" && trigger === "veo_locked_click" ? (
           <div className="mt-2 text-xs text-white/60">
-            Veo Pro is available on paid packs with higher limits and priority.
+            Starter is designed for testing the workflow. Upgrade to unlock Veo Pro and higher limits.
           </div>
         ) : null}
 
@@ -100,22 +88,22 @@ export function UpgradeNudge({
           <button
             className="flex-1 rounded-xl bg-gradient-to-r from-[#1f75ff] to-[#3f8cff] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
             onClick={() => {
-              track("upsell_nudge_accept", { trigger, planId, variant });
+              track("upsell_nudge_accept", { trigger, planId });
               onUpgrade();
               setOpen(false);
             }}
           >
-            Upgrade this render with Veo Pro
+            {copy.primary}
           </button>
           <button
             className="rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/5 transition-colors"
             onClick={() => {
-              track("upsell_nudge_dismiss", { trigger, planId, variant });
+              track("upsell_nudge_dismiss", { trigger, planId });
               setOpen(false);
               onDismiss?.();
             }}
           >
-            Keep drafting with Sora
+            {copy.secondary}
           </button>
         </div>
       </div>

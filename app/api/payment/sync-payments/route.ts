@@ -5,6 +5,7 @@ import { getOrCreateUser } from '@/lib/user'
 import { getStripe } from '@/lib/stripe'
 import { NextResponse } from 'next/server'
 import { addCreditsToWallet } from '@/lib/credit-wallet'
+import { identifyTierFromAmount, calculateBonusExpiresAt } from '@/lib/billing/tier-identification'
 
 
 // Force dynamic rendering to prevent build-time execution
@@ -92,12 +93,41 @@ export async function POST() {
     const syncedPayments: SyncedPayment[] = []
     const errors: SyncError[] = []
 
-    // Helper: 将充值记录同步到钱包（当前全部作为永久积分；后续可按档位拆分为 permanent + bonus）
-    async function syncCreditsToWallet(userId: string, credits: number) {
-      if (!credits || credits <= 0) return
-      const result = await addCreditsToWallet(supabase, userId, credits, 0, null, false)
-      if (!result.success) {
-        console.error('Failed to add credits to wallet in sync-payments:', result.error)
+    // Helper: 将充值记录同步到钱包（根据金额识别档位，设置永久积分和 Bonus 积分）
+    async function syncCreditsToWallet(userId: string, amountUsd: number) {
+      if (!amountUsd || amountUsd <= 0) return
+
+      const tierConfig = identifyTierFromAmount(amountUsd)
+
+      if (!tierConfig) {
+        // 未识别的金额，使用旧逻辑（全部作为永久积分）
+        console.warn(`[sync-payments] Unrecognized payment amount: $${amountUsd}, using fallback logic`)
+        const credits = Math.round(amountUsd * CREDITS_PER_USD)
+        const result = await addCreditsToWallet(supabase, userId, credits, 0, null, false)
+        if (!result.success) {
+          console.error('Failed to add credits to wallet (fallback):', result.error)
+        }
+      } else {
+        // 使用新钱包系统：永久积分 + Bonus 积分
+        const bonusExpiresAt = calculateBonusExpiresAt(tierConfig.bonusExpiresDays)
+        const result = await addCreditsToWallet(
+          supabase,
+          userId,
+          tierConfig.permanentCredits,
+          tierConfig.bonusCredits,
+          bonusExpiresAt,
+          tierConfig.isStarter
+        )
+        if (!result.success) {
+          console.error('Failed to add credits to wallet:', result.error)
+        } else {
+          console.log(`[sync-payments] Added credits for tier ${tierConfig.planId}:`, {
+            permanent: tierConfig.permanentCredits,
+            bonus: tierConfig.bonusCredits,
+            expiresDays: tierConfig.bonusExpiresDays,
+            isStarter: tierConfig.isStarter,
+          })
+        }
       }
     }
 
@@ -175,7 +205,7 @@ export async function POST() {
 
             // Add credits if not already added
             if (existingRecordByAmount.status !== 'completed') {
-              await syncCreditsToWallet(userProfile.id, existingRecordByAmount.credits)
+              await syncCreditsToWallet(userProfile.id, sessionAmount)
             }
 
             syncedPayments.push({
@@ -192,7 +222,7 @@ export async function POST() {
           // Record exists, check if it needs updating
           if (existingRecord.status !== 'completed') {
               // Update to completed and add credits if not already done
-              await syncCreditsToWallet(userProfile.id, existingRecord.credits)
+              await syncCreditsToWallet(userProfile.id, sessionAmount)
 
             await supabase
               .from('recharge_records')
@@ -250,7 +280,7 @@ export async function POST() {
 
             // Add credits if not already added
             if (existingRecord.status !== 'completed') {
-              await syncCreditsToWallet(userProfile.id, existingRecord.credits)
+              await syncCreditsToWallet(userProfile.id, amount)
             }
 
             syncedPayments.push({
@@ -277,7 +307,7 @@ export async function POST() {
 
             if (newRecord && !createError) {
               // Add credits to wallet
-              await syncCreditsToWallet(userProfile.id, credits)
+              await syncCreditsToWallet(userProfile.id, amount)
 
               syncedPayments.push({
                 session_id: session.id,
