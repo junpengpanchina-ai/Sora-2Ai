@@ -5,6 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import LogoutButton from '@/components/LogoutButton'
+import VeoProRecommendation from '@/components/VeoProRecommendation'
+import SoraToVeoGuide from '@/components/SoraToVeoGuide'
+import VeoUpgradeNudge from '@/components/growth/VeoUpgradeNudge'
+import { UpgradeNudge } from '@/components/upsell/UpgradeNudge'
 import { createClient } from '@/lib/supabase/client'
 import { setPostLoginRedirect } from '@/lib/auth/post-login-redirect'
 
@@ -76,7 +80,7 @@ export default function VideoPageClient() {
   const [duration, setDuration] = useState<'10' | '15'>('10')
   // size parameter removed, API only supports small, backend uses small fixed
   const [useWebhook, setUseWebhook] = useState(false)
-  const [model, setModel] = useState<'sora-2' | 'veo3.1-fast' | 'veo3.1-pro'>('sora-2')
+  const [model, setModel] = useState<'sora-2' | 'veo-flash' | 'veo-pro'>('sora-2')
   const [firstFrameUrl, setFirstFrameUrl] = useState('')
   const [lastFrameUrl, setLastFrameUrl] = useState('')
   const [loading, setLoading] = useState(false)
@@ -99,6 +103,16 @@ export default function VideoPageClient() {
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [imageError, setImageError] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // Growth tracking states
+  const [timeOnResultSec, setTimeOnResultSec] = useState(0) // Track time spent viewing result
+  const [didDownloadOrShare, setDidDownloadOrShare] = useState(false) // Track download/share actions
+  const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`) // Unique session ID
+  const [soraGenerationsSession, setSoraGenerationsSession] = useState(0) // Track Sora generations in this session
+  const [userId, setUserId] = useState<string | undefined>(undefined) // User ID for tracking
+  const [soraRenders7d, setSoraRenders7d] = useState(0) // Approximate Sora usage for triggers
+  const [remixSamePrompt24h, setRemixSamePrompt24h] = useState(0) // Approximate remix count for same prompt
+  const lastSubmittedPromptRef = useRef<string | null>(null)
 
   const MIN_PROMPT_LENGTH = 5
   const cleanedPrompt = prompt
@@ -117,8 +131,18 @@ export default function VideoPageClient() {
     if (typeof window === 'undefined') {
       return
     }
-    setSupabase(createClient())
+    const client = createClient()
+    setSupabase(client)
     isMountedRef.current = true
+    
+    // Get user ID for tracking
+    client.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUserId(user.id)
+      }
+    }).catch(() => {
+      // Ignore errors
+    })
     
     return () => {
       isMountedRef.current = false
@@ -475,6 +499,11 @@ export default function VideoPageClient() {
               prompt: prev?.prompt || currentPrompt,
               violationType: parseViolationType(data.violation_type),
             }))
+            // Increment retry count and show Veo Pro recommendation for non-Veo Pro models
+            if (model !== 'veo-pro') {
+              setRetryCount(prev => prev + 1)
+              setShowVeoProRecommendation(true)
+            }
             setPollingTaskId(null)
           }
         }
@@ -514,6 +543,27 @@ export default function VideoPageClient() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    // Reset retry count and recommendation on new submission
+    setRetryCount(0)
+    setShowVeoProRecommendation(false)
+    setTimeOnResultSec(0)
+    setDidDownloadOrShare(false)
+    
+    // Increment Sora generation count if using Sora
+    if (model === 'sora-2') {
+      setSoraGenerationsSession(prev => prev + 1)
+      setSoraRenders7d(prev => prev + 1)
+      
+      // Track remix count for same prompt (approximation for 24h window)
+      const current = cleanedPrompt
+      if (lastSubmittedPromptRef.current && lastSubmittedPromptRef.current === current) {
+        setRemixSamePrompt24h(prev => prev + 1)
+      } else {
+        setRemixSamePrompt24h(1)
+        lastSubmittedPromptRef.current = current
+      }
+    }
+    
     if (!supabase) {
       console.error('[VideoPage] ❌ Supabase client not initialized')
       return
@@ -736,6 +786,12 @@ export default function VideoPageClient() {
             responseData: data,
             requestBody: requestBody,
           })
+          
+          // Increment retry count and show Veo Pro recommendation for non-Veo Pro models
+          if (model !== 'veo-pro') {
+            setRetryCount(prev => prev + 1)
+            setShowVeoProRecommendation(true)
+          }
           
           alert(`Generation failed: ${errorMsg}${errorDetails ? '\n\n' + errorDetails : ''}`)
         }
@@ -961,10 +1017,10 @@ export default function VideoPageClient() {
           {prompt && prompt.trim() ? (
             <>
               <h1 className="text-4xl font-bold text-white mb-2">
-                Generate Video: {prompt.length > 60 ? prompt.substring(0, 60) + '...' : prompt}
+                Create a Quick Video Preview
               </h1>
               <p className="text-lg text-blue-100/80 mb-4">
-                Create an AI-generated video from this prompt using OpenAI Sora 2.0. This video will showcase: {prompt.length > 100 ? prompt.substring(0, 100) + '...' : prompt}
+                Start with a fast visual draft to explore your idea.
               </p>
               <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10">
                 <p className="text-sm text-blue-100/70 mb-2">
@@ -1021,11 +1077,17 @@ export default function VideoPageClient() {
             </h2>
             {credits !== null && (
               <div className="text-sm text-blue-100/80">
-                Credits Cost: <span className="font-semibold text-energy-water">
-                  {model === 'sora-2' && '1600 credits/video'}
-                  {model === 'veo3.1-fast' && '8000 credits/video'}
-                  {model === 'veo3.1-pro' && '40000 credits/video'}
-                </span>
+                {model === 'sora-2' && (
+                  <span className="text-blue-100/70">
+                    Preview credits are used for exploration. Unused credits remain available.
+                  </span>
+                )}
+                {model !== 'sora-2' && (
+                  <span>
+                        {model === 'veo-flash' && 'This generation uses Flash credits (50 credits).'}
+                        {model === 'veo-pro' && 'This generation uses Pro credits (250 credits).'}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -1210,7 +1272,7 @@ export default function VideoPageClient() {
               <select
                 value={model}
                 onChange={(e) => {
-                  const newModel = e.target.value as 'sora-2' | 'veo3.1-fast' | 'veo3.1-pro'
+                  const newModel = e.target.value as 'sora-2' | 'veo-flash' | 'veo-pro'
                   setModel(newModel)
                   // Reset Veo-specific fields when switching to Sora
                   if (newModel === 'sora-2') {
@@ -1220,14 +1282,14 @@ export default function VideoPageClient() {
                 }}
                 className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
               >
-                <option value="sora-2" className="text-black">Sora-2 (OpenAI) - 1600 credits</option>
-                <option value="veo3.1-fast" className="text-black">Veo 3.1 Fast (Google) - 8000 credits</option>
-                <option value="veo3.1-pro" className="text-black">Veo 3.1 Pro (Google) - 40000 credits</option>
+                <option value="sora-2" className="text-black">Sora Preview</option>
+                <option value="veo-flash" className="text-black">Veo Flash</option>
+                <option value="veo-pro" className="text-black">Veo Pro</option>
               </select>
               <p className="mt-1 text-xs text-blue-100/50">
-                {model === 'sora-2' && 'OpenAI Sora 2.0 - Best for general use, supports remix and character creation'}
-                {model === 'veo3.1-fast' && 'Google Veo 3.1 Fast - High quality with audio, faster generation'}
-                {model === 'veo3.1-pro' && 'Google Veo 3.1 Pro - Highest quality with audio, best for professional work'}
+                {model === 'sora-2' && 'Fast, lightweight video generation for early exploration.'}
+                {model === 'veo-flash' && 'Quality upgrade with audio, still fast for drafts and testing.'}
+                {model === 'veo-pro' && 'Preferred when final quality and sound matter.'}
               </p>
             </div>
 
@@ -1265,7 +1327,7 @@ export default function VideoPageClient() {
             </div>
 
             {/* Veo-specific fields */}
-            {(model === 'veo3.1-fast' || model === 'veo3.1-pro') && (
+            {(model === 'veo-flash' || model === 'veo-pro') && (
               <div className="space-y-4">
                 <div>
                   <label className="mb-2 block text-sm font-medium text-blue-100/80">
@@ -1318,7 +1380,7 @@ export default function VideoPageClient() {
               disabled={!canSubmit}
               className="w-full rounded-2xl bg-gradient-to-r from-[#1f75ff] via-[#3f8cff] to-[#6fd6ff] px-4 py-3 text-base font-semibold text-white shadow-[0_25px_55px_-25px_rgba(33,122,255,0.9)] transition-transform hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-energy-water disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {!supabase ? 'Initializing...' : loading ? 'Generating...' : 'Generate Video'}
+              {!supabase ? 'Initializing...' : loading ? 'Generating Preview...' : 'Generate Preview'}
             </button>
               <p className="mt-2 text-xs text-blue-100/70 text-center">
               {!supabase
@@ -1494,6 +1556,7 @@ export default function VideoPageClient() {
                             // Always download via fetch + blob with Authorization header.
                             // This avoids "无法从网站上提取文件" caused by missing cookies in some download flows.
                             e.preventDefault()
+                            setDidDownloadOrShare(true) // Track download action
                             try {
                               const authHeaders = await getAuthHeaders()
                               const response = await fetch(`/api/video/download/${currentResult.task_id}`, {
@@ -1602,25 +1665,87 @@ export default function VideoPageClient() {
                       Clear
                     </button>
                   </div>
+                  
+                  {/* Sora → Veo 无感引导（只在 Sora 成功时显示） */}
+                  {model === 'sora-2' && (
+                    <>
+                      <SoraToVeoGuide
+                        onRefine={() => {
+                          // 保持当前 prompt，重新生成
+                          setCurrentResult(null)
+                        }}
+                        onUpgrade={() => {
+                          // 切换到 Veo Pro，保持当前 prompt
+                          setModel('veo-pro')
+                          setCurrentResult(null)
+                        }}
+                        prompt={currentResult.prompt}
+                      />
+                      
+                      {/* Veo 升级提示（基于简单触发点：第2次 Sora + 导出行为） */}
+                      <div className="mt-4">
+                        <VeoUpgradeNudge
+                          soraRenders7d={soraRenders7d}
+                          remixSamePrompt24h={remixSamePrompt24h}
+                          bonusUsageRatio={0} // TODO: 从钱包信息计算 Bonus 使用比例
+                          exportIntent={didDownloadOrShare}
+                          prompt={currentResult.prompt}
+                          aspectRatio={aspectRatio}
+                          onUpgradeToVeoPro={() => {
+                            setModel('veo-pro')
+                          }}
+                          onDismiss={() => {
+                            // no-op for now
+                          }}
+                        />
+                      </div>
+
+                      {/* 无感升级提示（Starter → Veo Pro） */}
+                      <UpgradeNudge
+                        planId={hasRechargeRecords ? 'creator' : (credits !== null && credits <= 30 ? 'starter' : 'free')}
+                        soraRendersThisSession={soraGenerationsSession}
+                        promptText={currentResult.prompt}
+                        onUpgrade={() => {
+                          router.push('/pricing')
+                        }}
+                        onDismiss={() => {
+                          // 用户选择继续用 Sora
+                        }}
+                      />
+                    </>
+                  )}
                 </>
               )}
 
               {currentResult.status === 'failed' && (
-                <div className="mt-4 rounded-md bg-red-50 p-4 dark:bg-red-900/20">
-                  <p className="text-sm font-medium text-red-800 dark:text-red-200">
-                    Generation Failed
+                <div className="mt-4 rounded-md bg-blue-50 p-4 dark:bg-blue-900/20">
+                  <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                    Trying a different variation to improve the result…
                   </p>
                   <div className="mt-2 space-y-2">
                     <p className="text-sm text-red-600 dark:text-red-300">
                       {currentResult.error || 'Unknown error'}
                     </p>
+                    
+                    {/* Show Veo Pro recommendation for non-Veo Pro models on failure or retry */}
+                    {model !== 'veo-pro' && (retryCount >= 1 || showVeoProRecommendation) && (
+                      <div className="mt-3">
+                        <VeoProRecommendation 
+                          onClose={() => setShowVeoProRecommendation(false)}
+                        />
+                      </div>
+                    )}
+                    
                     {/* Show credits refunded message for all failures */}
                     <div className="mt-3 rounded-md bg-green-50 p-3 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
                       <p className="text-xs font-medium text-green-800 dark:text-green-200 flex items-center gap-1">
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        Credits have been automatically refunded. You can try again with a different prompt.
+                        {model === 'veo-pro' 
+                          ? 'Credits have been automatically refunded (Veo Pro auto-refund on failure). You can try again with a different prompt.'
+                          : 'Credits have been automatically refunded. You can try again with a different prompt.'
+                        }
                       </p>
                     </div>
                     {violationInfo && (

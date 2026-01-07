@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe'
 import { NextRequest, NextResponse } from 'next/server'
+import { addCreditsToWallet } from '@/lib/credit-wallet'
 
 
 // Force dynamic rendering to prevent build-time execution
@@ -86,22 +87,25 @@ export async function POST(request: NextRequest) {
 
     // If payment verified, update database
     if (paymentVerified) {
-      const { data: userProfile } = await supabase
-        .from('users')
-        .select('credits')
-        .eq('id', rechargeRecord.user_id)
-        .single()
+      const creditsToAdd = rechargeRecord.credits ?? 0
 
-      const currentCredits = userProfile?.credits ?? 0
-      const newCredits = currentCredits + rechargeRecord.credits
+      // 使用钱包系统添加积分（全部作为永久积分；后续可按档位拆分为 permanent + bonus）
+      if (creditsToAdd > 0) {
+        const walletResult = await addCreditsToWallet(
+          supabase,
+          rechargeRecord.user_id,
+          creditsToAdd,
+          0,
+          null,
+          false
+        )
 
-      // Update user credits
-      await supabase
-        .from('users')
-        .update({ credits: newCredits })
-        .eq('id', rechargeRecord.user_id)
+        if (!walletResult.success) {
+          console.error('Failed to add credits to wallet in verify-payment:', walletResult.error)
+        }
+      }
 
-      // Update recharge record
+      // 标记充值记录已完成
       await supabase
         .from('recharge_records')
         .update({
@@ -114,7 +118,6 @@ export async function POST(request: NextRequest) {
         success: true,
         payment_verified: true,
         recharge_status: 'completed',
-        user_credits: newCredits,
         message: 'Payment verified and credits added',
       })
     }
