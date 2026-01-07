@@ -1,21 +1,22 @@
-import Stripe from 'stripe'
-
 /**
- * Get Stripe client instance
- * Lazy initialization to avoid build-time errors when env vars are not available
+ * Stripe client initialization
  */
-let stripeInstance: Stripe | null = null
+import Stripe from "stripe";
+
+let stripeInstance: Stripe | null = null;
 
 export function getStripe(): Stripe {
   if (!stripeInstance) {
-    const secretKey = process.env.STRIPE_SECRET_KEY
+    const secretKey = process.env.STRIPE_SECRET_KEY;
     if (!secretKey) {
-      throw new Error('STRIPE_SECRET_KEY is not set')
+      throw new Error("STRIPE_SECRET_KEY is not set in environment variables");
     }
     stripeInstance = new Stripe(secretKey, {
-      apiVersion: '2025-10-29.clover',
-    })
+      apiVersion: "2024-06-20",
+    });
   }
-  return stripeInstance
+  return stripeInstance;
 }
 
+// Also export as default for convenience
+export const stripe = getStripe();
