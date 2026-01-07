@@ -283,10 +283,6 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   }, [paymentPlans.length, pricingViewInitialized, starterPlan, hasRechargeRecords, credits])
 
   const startPaymentLinkCheckout = async (plan: (typeof paymentPlans)[number]) => {
-    if (!plan.stripe_payment_link_id) {
-      return
-    }
-
     const returnTo = '/#pricing-plans'
 
     // Guests need to sign in first (checkout API requires auth)
@@ -299,16 +295,13 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     try {
       setCheckingOutPlanId(plan.id)
       
-      // 获取认证 headers
-      const headers = await getAuthHeaders()
-      
-      const res = await fetch('/api/payment/payment-link', {
+      // 使用新的 Checkout Session API
+      const res = await fetch('/api/payment/create-plan-checkout', {
         method: 'POST',
         headers: {
-          ...headers,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ payment_link_id: plan.stripe_payment_link_id }),
+        body: JSON.stringify({ planId: plan.id }),
       })
       const json = await res.json()
 
@@ -340,20 +333,12 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         throw new Error(json?.error || 'Failed to start checkout')
       }
 
-      if (json?.recharge_id) {
-        try {
-          localStorage.setItem('pending_recharge_id', String(json.recharge_id))
-        } catch {
-          // ignore
-        }
-      }
-
-      if (json?.payment_link_url) {
-        window.location.assign(String(json.payment_link_url))
+      if (json?.checkout_url) {
+        window.location.href = json.checkout_url
         return
       }
 
-      throw new Error('Missing payment_link_url')
+      throw new Error('Missing checkout_url')
     } catch (e) {
       console.error('Checkout failed:', e)
       // 清除重定向尝试记录（错误时）
