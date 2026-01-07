@@ -306,17 +306,36 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     try {
       setCheckingOutPlanId(plan.id)
       
+      // 获取认证头
+      const authHeaders = await getAuthHeaders()
+      console.log('[Checkout] Starting checkout for plan:', plan.id, {
+        hasAuth: !!authHeaders.Authorization,
+        isAuthenticated,
+        hasHydratedProfile: !!hydratedProfile,
+      })
+      
       // 使用新的 Checkout Session API
       const res = await fetch('/api/payment/create-plan-checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders, // 添加认证头
         },
         body: JSON.stringify({ planId: plan.id }),
       })
+      
+      console.log('[Checkout] API response status:', res.status)
       const json = await res.json()
+      console.log('[Checkout] API response:', json)
 
       if (res.status === 401) {
+        console.error('[Checkout] 401 Unauthorized - Authentication failed', {
+          planId: plan.id,
+          hasAuthHeader: !!authHeaders.Authorization,
+          authHeaderLength: authHeaders.Authorization?.length || 0,
+          error: json.error || 'Unknown error',
+        })
+        
         // 防止无限循环
         const redirectKey = 'payment_checkout_redirect_attempt'
         const redirectAttempt = sessionStorage.getItem(redirectKey)
@@ -325,7 +344,11 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         if (redirectAttempt) {
           const lastAttempt = parseInt(redirectAttempt, 10)
           if (now - lastAttempt < 10000) { // 增加到 10 秒
-            console.error('[HomePage] 检测到无限循环，停止重定向')
+            console.error('[Checkout] 检测到无限循环，停止重定向', {
+              lastAttempt,
+              now,
+              diff: now - lastAttempt,
+            })
             alert('登录状态异常，请刷新页面后重试')
             return
           }
@@ -334,13 +357,20 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         // 尝试刷新认证状态
         if (supabase) {
           try {
-            const { data: { session: newSession } } = await supabase.auth.getSession()
+            const { data: { session: newSession }, error: sessionError } = await supabase.auth.getSession()
+            console.log('[Checkout] Refreshing auth session', {
+              hasSession: !!newSession,
+              hasUser: !!newSession?.user,
+              error: sessionError,
+            })
+            
             if (newSession?.user) {
               // 认证状态已更新，重试一次
               sessionStorage.removeItem(redirectKey)
               // 重新调用（但限制递归深度）
               const retryKey = 'payment_checkout_retry'
               if (!sessionStorage.getItem(retryKey)) {
+                console.log('[Checkout] Retrying checkout with refreshed session')
                 sessionStorage.setItem(retryKey, '1')
                 setTimeout(() => {
                   sessionStorage.removeItem(retryKey)
@@ -350,7 +380,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               }
             }
           } catch (refreshErr) {
-            console.error('Failed to refresh auth:', refreshErr)
+            console.error('[Checkout] Failed to refresh auth:', refreshErr)
           }
         }
         
@@ -365,17 +395,34 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       sessionStorage.removeItem('payment_checkout_retry')
 
       if (!res.ok || !json?.success) {
+        console.error('[Checkout] API returned error', {
+          status: res.status,
+          ok: res.ok,
+          success: json?.success,
+          error: json?.error,
+          details: json?.details,
+        })
         throw new Error(json?.error || 'Failed to start checkout')
       }
 
       if (json?.checkout_url) {
+        console.log('[Checkout] Success! Redirecting to Stripe Checkout', {
+          checkoutUrl: json.checkout_url,
+          sessionId: json.session_id,
+        })
         window.location.href = json.checkout_url
         return
       }
 
+      console.error('[Checkout] Missing checkout_url in response', json)
       throw new Error('Missing checkout_url')
     } catch (e) {
-      console.error('Checkout failed:', e)
+      console.error('[Checkout] Checkout failed with exception', {
+        error: e,
+        message: e instanceof Error ? e.message : String(e),
+        stack: e instanceof Error ? e.stack : undefined,
+        planId: plan.id,
+      })
       // 清除重定向尝试记录（错误时）
       sessionStorage.removeItem('payment_checkout_redirect_attempt')
       sessionStorage.removeItem('payment_checkout_retry')
