@@ -11,9 +11,14 @@ export function getStripe(): Stripe {
     if (!secretKey) {
       throw new Error("STRIPE_SECRET_KEY is not set in environment variables");
     }
-    stripeInstance = new Stripe(secretKey, {
-      apiVersion: "2025-10-29.clover",
-    });
+    try {
+      stripeInstance = new Stripe(secretKey, {
+        apiVersion: "2024-06-20", // Use stable API version
+      });
+    } catch (error) {
+      console.error("[Stripe] Failed to initialize Stripe client:", error);
+      throw new Error(`Failed to initialize Stripe: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
   }
   return stripeInstance;
 }
