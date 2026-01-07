@@ -3,7 +3,6 @@
 import { PlanCard } from "./PlanCard";
 import { CreditUsageTable } from "./CreditUsageTable";
 import { FAQAccordion, type FAQItem } from "./FAQAccordion";
-import { track } from "@/lib/analytics/track";
 import type { PricingConfig } from "@/lib/billing/types";
 
 type Props = {
@@ -14,23 +13,27 @@ type Props = {
 const faq: FAQItem[] = [
   {
     q: "Do credits expire?",
-    a: "Permanent credits never expire. Bonus credits are time-limited and display an expiration date at purchase.",
+    a: "Purchased credits never expire. Bonus credits (from Starter or promotions) may have an expiry, and we always show the expiry date.",
   },
   {
     q: "What are bonus credits?",
-    a: "Bonus credits are temporary boosts designed to help you create more during a short window. They are spent first.",
+    a: "Bonus credits are temporary credits that help you test the workflow. They&apos;re limited-time by design to keep pricing fair.",
   },
   {
-    q: "Do I need a subscription?",
-    a: "No. All packs are one-time purchases. Credits remain in your account and you can upgrade anytime.",
+    q: "Can I use Veo Pro on Starter?",
+    a: "Starter is for testing the workflow with fair-use limits. Veo Pro is available on paid packs.",
   },
   {
-    q: "Can I use Veo Pro on Starter Access?",
-    a: "Starter Access is designed for trying the workflow with daily limits. Veo Pro is available on paid packs with higher limits and priority.",
+    q: "What happens if a render fails?",
+    a: "Failed renders are credited back automatically.",
   },
   {
-    q: "Is payment secure?",
-    a: "Payments are processed by our payment provider. We do not store your full card details.",
+    q: "Which model should I use?",
+    a: "Use Sora for drafts and iteration. Use Veo Fast for quick quality upgrades. Use Veo Pro for the final export.",
+  },
+  {
+    q: "Is there a daily limit?",
+    a: "Starter includes daily limits to keep the service reliable for everyone. Paid packs have higher limits and priority.",
   },
 ];
 
@@ -40,10 +43,13 @@ export function PricingPage({ config, onCheckout }: Props) {
       <div className="mx-auto max-w-5xl px-4 py-10">
         <header className="text-center">
           <h1 className="text-3xl md:text-4xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-            Pricing — Credits that fit your workflow
+            Pricing that fits your workflow — draft fast, finish clean
           </h1>
           <p className="mt-3 text-base text-white/70">
-            Create at your own pace. Use Sora for drafts and iterations, then upgrade with Veo when you&apos;re ready to export.
+            Use Sora for everyday iteration. Upgrade the final cut with Veo when quality matters.
+          </p>
+          <p className="mt-2 text-sm text-white/50">
+            Credits never expire. Bonus credits may have an expiry (clearly labeled).
           </p>
         </header>
 
@@ -54,59 +60,59 @@ export function PricingPage({ config, onCheckout }: Props) {
             price="$4.90"
             badge="Try the workflow"
             bullets={[
-              "200 bonus credits (expires in 7 days)",
-              "Sora drafts included",
-              "Daily limits apply (to prevent automated abuse)",
-              "Veo Pro not included in Starter",
+              "120 bonus credits (expires in 7 days)",
+              "Great for testing the workflow",
+              "Daily limits keep the service reliable and fair",
+              "Sora + Veo Fast available, Veo Pro locked",
             ]}
-            ctaLabel="Start Starter Access"
+            ctaLabel="Start with Starter Access"
             onCta={(id) => onCheckout(id)}
-            footnote="Includes 30 free credits for new accounts (up to 3 Sora renders)."
+            footnote="One-time purchase. New users also get 30 bonus credits (7 days)."
           />
 
           <PlanCard
             planId="creator"
-            title="Creator"
+            title="Creator Pack"
             price="$39"
             badge="Recommended"
             bullets={[
-              "2,000 permanent credits",
-              "+600 bonus credits (expires in 14 days)",
-              "Access to Veo Flash",
-              "Higher limits and priority than Starter",
+              "600 permanent credits",
+              "+60 bonus credits (expires in 30 days)",
+              "Access to Sora, Veo Fast, and Veo Pro",
+              "Better limits + smoother queue",
             ]}
-            ctaLabel="Get Creator"
+            ctaLabel="Get Creator Pack"
             onCta={(id) => onCheckout(id)}
             variant="primary"
           />
 
           <PlanCard
             planId="studio"
-            title="Studio"
+            title="Studio Pack"
             price="$99"
-            badge="Best balance"
+            badge="Best value for Veo Pro"
             bullets={[
-              "6,000 permanent credits",
-              "+1,500 bonus credits (expires in 30 days)",
-              "Access to Veo Flash and Veo Pro",
-              "Higher limits and priority",
+              "1,800 permanent credits",
+              "+270 bonus credits (expires in 45 days)",
+              "Built for final exports and client work",
+              "Priority queue + higher concurrency",
             ]}
-            ctaLabel="Get Studio"
+            ctaLabel="Get Studio Pack"
             onCta={(id) => onCheckout(id)}
           />
 
           <PlanCard
             planId="pro"
-            title="Pro"
+            title="Pro Pack"
             price="$299"
-            badge="High volume"
+            badge="For teams & heavy usage"
             bullets={[
-              "20,000 permanent credits",
-              "+4,000 bonus credits (expires in 60 days)",
-              "Best limits and priority",
-              "Built for teams and agencies",
+              "6,000 permanent credits",
+              "+1,200 bonus credits (expires in 60 days)",
+              "Highest value per credit",
+              "Best limits + fastest queue",
             ]}
-            ctaLabel="Get Pro"
+            ctaLabel="Get Pro Pack"
             onCta={(id) => onCheckout(id)}
           />
         </section>
@@ -116,27 +122,20 @@ export function PricingPage({ config, onCheckout }: Props) {
         </section>
 
         <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
-          <div className="text-lg font-semibold text-white">A simple 2-step workflow</div>
+          <div className="text-lg font-semibold text-white">A workflow you can scale</div>
           <div className="mt-3 grid gap-3 text-sm text-white/80 md:grid-cols-2">
             <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <div className="font-semibold text-white">1) Draft quickly with Sora</div>
-              <p className="mt-1 text-white/70">Iterate fast, explore styles, and build a draft library.</p>
+              <div className="font-semibold text-white">Step 1: Draft with Sora</div>
+              <p className="mt-1 text-white/70">Iterate fast and explore ideas.</p>
             </div>
             <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <div className="font-semibold text-white">2) Upgrade with Veo Pro for final export</div>
-              <p className="mt-1 text-white/70">When you&apos;re ready to publish, upgrade the best take.</p>
+              <div className="font-semibold text-white">Step 2: Finalize with Veo Pro</div>
+              <p className="mt-1 text-white/70">Upgrade the version you ship.</p>
             </div>
           </div>
-
-          <button
-            className="mt-5 rounded-xl bg-gradient-to-r from-[#1f75ff] to-[#3f8cff] px-4 py-3 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
-            onClick={() => {
-              track("pricing_workflow_cta_click");
-              window.location.href = "/veo-pro";
-            }}
-          >
-            See Veo Pro
-          </button>
+          <p className="mt-3 text-sm text-white/60">
+            You don&apos;t need Veo Pro for every render — only for the final cut.
+          </p>
         </section>
 
         <section className="mt-10">

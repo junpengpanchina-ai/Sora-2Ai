@@ -5,6 +5,8 @@ import { getStripe } from '@/lib/stripe'
 import Stripe from 'stripe'
 import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
+import { addCreditsToWallet } from '@/lib/credit-wallet'
+import { identifyTierFromAmount, calculateBonusExpiresAt } from '@/lib/billing/tier-identification'
 
 // 禁用 Next.js 的 body 解析，因为我们需要原始 body 来验证签名
 export const runtime = 'nodejs'
@@ -20,7 +22,7 @@ function getWebhookSecret(): string {
   return secret
 }
 
-// Credits exchange rate
+// Credits exchange rate (legacy, for fallback)
 const CREDITS_PER_USD = 100 // 1 USD = 100 credits
 
 export async function POST(request: NextRequest) {
@@ -189,33 +191,56 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, message: 'Already processed' })
       }
 
-      // 获取用户当前积分
-      const { data: user, error: userError } = await supabase
-        .from('users')
-        .select('credits')
-        .eq('id', userId)
-        .single()
+      // 识别充值档位（根据金额）
+      const amountUsd = amount
+      const tierConfig = identifyTierFromAmount(amountUsd)
 
-      if (userError || !user) {
-        console.error('User not found:', userId, userError)
-        return NextResponse.json(
-          { error: 'User not found' },
-          { status: 404 }
+      if (!tierConfig) {
+        // 未识别的金额，使用旧逻辑（全部作为永久积分）
+        console.warn(`[webhook] Unrecognized payment amount: $${amountUsd}, using fallback logic`)
+        const walletResult = await addCreditsToWallet(
+          supabase,
+          userId,
+          credits, // 全部作为永久积分
+          0,
+          null,
+          false
         )
-      }
 
-      // 更新用户积分
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ credits: (user.credits || 0) + credits })
-        .eq('id', userId)
+        if (!walletResult.success) {
+          console.error('Failed to add credits to wallet (fallback):', walletResult.error)
+          return NextResponse.json(
+            { error: 'Failed to add credits to wallet', details: walletResult.error },
+            { status: 500 }
+          )
+        }
+      } else {
+        // 使用新钱包系统：永久积分 + Bonus 积分
+        const bonusExpiresAt = calculateBonusExpiresAt(tierConfig.bonusExpiresDays)
 
-      if (updateError) {
-        console.error('Failed to update user credits:', updateError)
-        return NextResponse.json(
-          { error: 'Failed to update user credits', details: updateError.message },
-          { status: 500 }
+        const walletResult = await addCreditsToWallet(
+          supabase,
+          userId,
+          tierConfig.permanentCredits,
+          tierConfig.bonusCredits,
+          bonusExpiresAt,
+          tierConfig.isStarter
         )
+
+        if (!walletResult.success) {
+          console.error('Failed to add credits to wallet:', walletResult.error)
+          return NextResponse.json(
+            { error: 'Failed to add credits to wallet', details: walletResult.error },
+            { status: 500 }
+          )
+        }
+
+        console.log(`[webhook] Added credits for tier ${tierConfig.planId}:`, {
+          permanent: tierConfig.permanentCredits,
+          bonus: tierConfig.bonusCredits,
+          expiresDays: tierConfig.bonusExpiresDays,
+          isStarter: tierConfig.isStarter,
+        })
       }
 
       // 更新充值记录状态

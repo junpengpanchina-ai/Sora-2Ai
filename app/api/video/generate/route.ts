@@ -280,7 +280,7 @@ export async function POST(request: NextRequest) {
     // Log Veo usage for analytics (only for Veo models)
     let veoUsageLogId: string | undefined
     if (isVeoModel) {
-      const { hasPack, rechargeRecordId } = await hasActiveStarterPack(supabase, userProfile.id)
+      const { hasPack } = await hasActiveStarterPack(supabase, userProfile.id)
       // 映射到日志使用的模型名称
       const logModelType = model === 'veo-flash' ? 'veo-flash' : 'veo-pro'
       const logResult = await logVeoUsage(

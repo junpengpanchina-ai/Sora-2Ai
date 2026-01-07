@@ -16,6 +16,7 @@ interface SoraToVeoGuideProps {
 export default function SoraToVeoGuide({ 
   onRefine, 
   onUpgrade,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   prompt 
 }: SoraToVeoGuideProps) {
   const router = useRouter()

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { decideVeoHint, type VeoIntentInput, type Reason } from '@/lib/growth/veoIntent'
+import { decideVeoHint, type VeoIntentInput } from '@/lib/growth/veoIntent'
 import { assignVariant, getStableBucketingId } from '@/lib/growth/ab'
 import { canShowHint, markDismiss, markShown } from '@/lib/growth/frequency'
 import { track } from '@/lib/growth/track'
