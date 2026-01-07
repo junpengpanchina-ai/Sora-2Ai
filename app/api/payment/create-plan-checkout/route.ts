@@ -66,9 +66,23 @@ export async function POST(request: NextRequest) {
       "http://localhost:3000";
 
     // Create Stripe Checkout Session
-    const stripe = getStripe();
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
+    let stripe;
+    try {
+      stripe = getStripe();
+      console.log("[create-plan-checkout] Stripe client initialized");
+    } catch (stripeError) {
+      console.error("[create-plan-checkout] Failed to initialize Stripe:", stripeError);
+      return NextResponse.json(
+        {
+          error: "Stripe configuration error",
+          details: stripeError instanceof Error ? stripeError.message : "Failed to initialize Stripe client",
+        },
+        { status: 500 }
+      );
+    }
+
+    const sessionConfig = {
+      payment_method_types: ["card"] as const,
       line_items: [
         {
           price_data: {
@@ -82,7 +96,7 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      mode: "payment",
+      mode: "payment" as const,
       success_url: `${baseUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/pricing?canceled=1`,
       customer_email: auth.user.email || undefined,
@@ -91,7 +105,37 @@ export async function POST(request: NextRequest) {
         plan_id: planId,
         amount_usd: plan.priceUsd.toString(),
       },
+    };
+
+    console.log("[create-plan-checkout] Creating Stripe session", {
+      planId,
+      amount: plan.priceUsd,
+      baseUrl,
+      customerEmail: auth.user.email,
     });
+
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create(sessionConfig);
+    } catch (stripeError: any) {
+      console.error("[create-plan-checkout] Stripe API error:", {
+        error: stripeError,
+        message: stripeError?.message,
+        type: stripeError?.type,
+        code: stripeError?.code,
+        statusCode: stripeError?.statusCode,
+        raw: stripeError?.raw,
+      });
+      return NextResponse.json(
+        {
+          error: "Failed to create checkout session",
+          details: stripeError?.message || "Stripe API error",
+          stripeErrorType: stripeError?.type,
+          stripeErrorCode: stripeError?.code,
+        },
+        { status: 500 }
+      );
+    }
 
     console.log("[create-plan-checkout] Checkout session created", {
       sessionId: session.id,
