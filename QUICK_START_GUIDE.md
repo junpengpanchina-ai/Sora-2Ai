@@ -51,42 +51,42 @@ ORDER BY routine_name;
 
 ### 2.2 配置每个 Payment Link
 
-#### Payment Link 1: Starter ($4.9)
+#### Payment Link 1: Starter ($*.**)
 1. 在左侧菜单点击 **"Payment Links"**
-2. 找到或创建金额为 **$4.90** 的 Payment Link
+2. 找到或创建金额为 **$*.*** 的 Payment Link
 3. 点击编辑（或创建新链接）
 4. 在 **"After payment"** 部分设置：
    - **Success URL**: 
      ```
-     https://sora2aivideos.com/billing/success?session_id={CHECKOUT_SESSION_ID}
+     https://*****/billing/success?session_id={CHECKOUT_SESSION_ID}
      ```
    - **Cancel URL**: 
      ```
-     https://sora2aivideos.com/pricing?canceled=1
+     https://*****/pricing?canceled=1
      ```
 5. 保存
 
-#### Payment Link 2: Creator ($39)
-- 金额：**$39.00**
+#### Payment Link 2: Creator ($**)
+- 金额：**$**.***
 - 使用相同的 Success URL 和 Cancel URL
 - 保存
 
-#### Payment Link 3: Studio ($99)
-- 金额：**$99.00**
+#### Payment Link 3: Studio ($**)
+- 金额：**$**.***
 - 使用相同的 Success URL 和 Cancel URL
 - 保存
 
-#### Payment Link 4: Pro ($299)
-- 金额：**$299.00**
+#### Payment Link 4: Pro ($***)
+- 金额：**$**.***
 - 使用相同的 Success URL 和 Cancel URL
 - 保存
 
 ### 2.3 验证 Payment Links
 确保你的 4 个 Payment Links 是：
-- ✅ $4.9: https://buy.stripe.com/28EbJ14jUg2L6550Ug0kE05
-- ✅ $39: https://buy.stripe.com/dRmcN55nY4k33WXfPa0kE03
-- ✅ $99: https://buy.stripe.com/6oU7sL17IdUD51132o0kE06
-- ✅ $299: https://buy.stripe.com/4gMcN5eYy5o70KLauQ0kE01
+- ✅ $*.**: https://buy.stripe.com/*****
+- ✅ $**: https://buy.stripe.com/*****
+- ✅ $**: https://buy.stripe.com/*****
+- ✅ $***: https://buy.stripe.com/*****
 
 **重要**: 如果这些链接的金额不匹配，需要更新 `app/pricing/page.tsx` 中的链接。
 
@@ -106,8 +106,8 @@ ORDER BY routine_name;
    **变量名**: `STRIPE_SECRET_KEY`
    
    **值**: 
-   - 生产环境：`sk_live_...`（从 Stripe Dashboard → Developers → API keys 获取）
-   - 测试环境：`sk_test_...`（用于开发测试）
+   - 生产环境：`sk_live_*****`（从 Stripe Dashboard → Developers → API keys 获取）
+   - 测试环境：`sk_test_*****`（用于开发测试）
    
    **环境**: 选择 **Production**, **Preview**, **Development**（全选）
 

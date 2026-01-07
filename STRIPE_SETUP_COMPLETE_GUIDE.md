@@ -19,10 +19,10 @@
 
 ### 2.3 配置每个 Payment Link
 
-#### 🔹 Payment Link 1: Starter ($4.9)
+#### 🔹 Payment Link 1: Starter ($*.**)
 
 **找到对应的链接**:
-- 金额应该是 **$4.90**
+- 金额应该是 **$*.***
 - 或链接 ID 包含你之前创建的标识
 
 **编辑配置**:
@@ -33,48 +33,48 @@
 
    **Success URL** (成功跳转):
    ```
-   https://sora2aivideos.com/billing/success?session_id={CHECKOUT_SESSION_ID}
+   https://*****/billing/success?session_id={CHECKOUT_SESSION_ID}
    ```
    - 注意：`{CHECKOUT_SESSION_ID}` 是 Stripe 的占位符，不要修改
-   - 如果你的域名不是 `sora2aivideos.com`，请替换为你的实际域名
+   - 请替换为你的实际域名
 
    **Cancel URL** (取消跳转):
    ```
-   https://sora2aivideos.com/pricing?canceled=1
+   https://*****/pricing?canceled=1
    ```
    - 同样，替换为你的实际域名
 
 5. 点击 **"Save"** 或 **"Update"** 保存
 
-#### 🔹 Payment Link 2: Creator ($39)
+#### 🔹 Payment Link 2: Creator ($**)
 
-1. 找到金额为 **$39.00** 的 Payment Link
+1. 找到金额为 **$**.** 的 Payment Link
 2. 点击进入详情页
 3. 点击 **"Edit"** 或 **"Settings"**
 4. 在 **"After payment"** 部分设置：
-   - **Success URL**: `https://sora2aivideos.com/billing/success?session_id={CHECKOUT_SESSION_ID}`
-   - **Cancel URL**: `https://sora2aivideos.com/pricing?canceled=1`
+   - **Success URL**: `https://*****/billing/success?session_id={CHECKOUT_SESSION_ID}`
+   - **Cancel URL**: `https://*****/pricing?canceled=1`
 5. 保存
 
-#### 🔹 Payment Link 3: Studio ($99)
+#### 🔹 Payment Link 3: Studio ($**)
 
-1. 找到金额为 **$99.00** 的 Payment Link
+1. 找到金额为 **$**.** 的 Payment Link
 2. 重复上述步骤，设置相同的 Success URL 和 Cancel URL
 3. 保存
 
-#### 🔹 Payment Link 4: Pro ($299)
+#### 🔹 Payment Link 4: Pro ($***)
 
-1. 找到金额为 **$299.00** 的 Payment Link
+1. 找到金额为 **$**.** 的 Payment Link
 2. 重复上述步骤，设置相同的 Success URL 和 Cancel URL
 3. 保存
 
 ### 2.4 验证 Payment Links
 
 **确认链接正确**:
-- ✅ $4.9: https://buy.stripe.com/28EbJ14jUg2L6550Ug0kE05
-- ✅ $39: https://buy.stripe.com/dRmcN55nY4k33WXfPa0kE03
-- ✅ $99: https://buy.stripe.com/6oU7sL17IdUD51132o0kE06
-- ✅ $299: https://buy.stripe.com/4gMcN5eYy5o70KLauQ0kE01
+- ✅ $*.**: https://buy.stripe.com/*****
+- ✅ $**: https://buy.stripe.com/*****
+- ✅ $**: https://buy.stripe.com/*****
+- ✅ $***: https://buy.stripe.com/*****
 
 **如果链接不匹配**:
 1. 检查 Stripe Dashboard 中每个 Payment Link 的 **"Share"** 或 **"Link"** 部分
@@ -83,10 +83,10 @@
 ```typescript
 const STRIPE_PAYMENT_LINKS: Record<PlanId, string> = {
   free: "",
-  starter: "你的实际 $4.9 链接",
-  creator: "你的实际 $39 链接",
-  studio: "你的实际 $99 链接",
-  pro: "你的实际 $299 链接",
+  starter: "你的实际 $*.** 链接",
+  creator: "你的实际 $** 链接",
+  studio: "你的实际 $** 链接",
+  pro: "你的实际 $*** 链接",
 };
 ```
 
@@ -120,7 +120,7 @@ const STRIPE_PAYMENT_LINKS: Record<PlanId, string> = {
 2. 点击左侧菜单的 **"Developers"** → **"API keys"**
 3. 找到 **"Secret key"** 部分
 4. 点击 **"Reveal test key"**（测试环境）或 **"Reveal live key"**（生产环境）
-5. 复制完整的 key（格式：`sk_test_...` 或 `sk_live_...`）
+5. 复制完整的 key（格式：`sk_test_*****` 或 `sk_live_*****`）
 6. **重要**: 不要分享这个 key，它等同于你的 Stripe 账号密码
 
 ### 3.3 在 Vercel 添加环境变量
@@ -144,7 +144,7 @@ const STRIPE_PAYMENT_LINKS: Record<PlanId, string> = {
 
 1. 在 Environment Variables 列表中，你应该能看到：
    - **Name**: `STRIPE_SECRET_KEY`
-   - **Value**: `sk_...`（部分隐藏）
+   - **Value**: `sk_*****`（部分隐藏）
    - **Environments**: Production, Preview, Development
 
 2. 如果看到 ✅，说明添加成功
@@ -233,7 +233,7 @@ const STRIPE_PAYMENT_LINKS: Record<PlanId, string> = {
 
 ### Q4: 测试支付时提示 "Invalid API Key"
 **A**:
-- 确认使用的是测试环境的 Secret Key（`sk_test_...`）
+- 确认使用的是测试环境的 Secret Key（`sk_test_*****`）
 - 确认环境变量名称正确：`STRIPE_SECRET_KEY`
 - 确认已重新部署项目
 
