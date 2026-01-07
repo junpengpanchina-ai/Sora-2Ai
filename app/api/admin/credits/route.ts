@@ -7,7 +7,6 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 type CreditAdjustmentRow = Database['public']['Tables']['credit_adjustments']['Row']
-type UserRow = Pick<Database['public']['Tables']['users']['Row'], 'id' | 'email' | 'name' | 'credits'>
 
 const ADJUSTMENT_TYPES: CreditAdjustmentRow['adjustment_type'][] = [
   'manual_increase',
@@ -59,32 +58,72 @@ export async function GET(request: Request) {
       }
     })
 
-    const { data: users, error: userError } = userIds.size
+    // Get user info and wallet balances
+    const usersResult = userIds.size
       ? await supabase
           .from('users')
-          .select('id, email, name, credits')
+          .select('id, email, name')
           .in('id', Array.from(userIds))
       : { data: null, error: null }
 
-    if (userError) {
-      console.error('获取用户信息失败:', userError)
+    if (usersResult.error) {
+      console.error('获取用户信息失败:', usersResult.error)
     }
 
-    const userMap = new Map<string, UserRow>()
+    // Get wallet balances
+    const walletsResult = userIds.size
+      ? await supabase
+          .from('wallets')
+          .select('user_id, permanent_credits, bonus_credits, bonus_expires_at')
+          .in('user_id', Array.from(userIds))
+      : { data: null, error: null }
+
+    if (walletsResult.error) {
+      console.error('获取钱包信息失败:', walletsResult.error)
+    }
+
+    const users = usersResult.data as Array<{ id: string; email: string; name: string | null }> | null
+    const wallets = walletsResult.data as Array<{
+      user_id: string;
+      permanent_credits: number;
+      bonus_credits: number;
+      bonus_expires_at: string | null;
+    }> | null
+
+    const userMap = new Map<string, { id: string; email: string; name: string | null }>()
     if (users) {
-      ;(users as UserRow[]).forEach((u) => {
+      users.forEach((u) => {
         userMap.set(u.id, u)
       })
     }
 
-    const formatted = rows.map((row) => ({
-      ...row,
-      user_email: userMap.get(row.user_id)?.email ?? null,
-      user_name: userMap.get(row.user_id)?.name ?? null,
-      admin_email: row.admin_user_id ? userMap.get(row.admin_user_id)?.email ?? null : null,
-      admin_name: row.admin_user_id ? userMap.get(row.admin_user_id)?.name ?? null : null,
-      latest_credits: userMap.get(row.user_id)?.credits ?? null,
-    }))
+    const walletMap = new Map<string, { permanent: number; bonus: number; total: number }>()
+    if (wallets) {
+      wallets.forEach((w) => {
+        const permanent = Number(w.permanent_credits) || 0
+        const bonus = Number(w.bonus_credits) || 0
+        walletMap.set(w.user_id, {
+          permanent,
+          bonus,
+          total: permanent + bonus,
+        })
+      })
+    }
+
+    const formatted = rows.map((row) => {
+      const user = userMap.get(row.user_id)
+      const wallet = walletMap.get(row.user_id)
+      return {
+        ...row,
+        user_email: user?.email ?? null,
+        user_name: user?.name ?? null,
+        admin_email: row.admin_user_id ? userMap.get(row.admin_user_id)?.email ?? null : null,
+        admin_name: row.admin_user_id ? userMap.get(row.admin_user_id)?.name ?? null : null,
+        latest_credits: wallet?.total ?? row.after_credits ?? null, // Use wallet total, fallback to adjustment record
+        wallet_permanent: wallet?.permanent ?? null,
+        wallet_bonus: wallet?.bonus ?? null,
+      }
+    })
 
     return NextResponse.json({
       success: true,

@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 // GET - 获取所有支付计划
+// 现在使用统一的 PRICING_CONFIG 而不是数据库，保持与前端一致
 export async function GET() {
   try {
     const adminUser = await validateAdminSession()
@@ -18,24 +19,42 @@ export async function GET() {
       )
     }
 
-    const supabase = await createServiceClient()
+    // 从 PRICING_CONFIG 生成计划列表（与前端保持一致）
+    const { PRICING_CONFIG } = await import('@/lib/billing/config')
+    type PlanId = 'starter' | 'creator' | 'studio' | 'pro'
+    
+    const plans = (['starter', 'creator', 'studio', 'pro'] as PlanId[])
+      .map((planId) => {
+        const config = PRICING_CONFIG.plans[planId]
+        if (!config || config.priceUsd === 0) return null
 
-    const { data, error } = await supabase
-      .from('payment_plans')
-      .select('*')
-      .order('display_order', { ascending: true })
+        const videos = Math.floor(config.permanentCredits / PRICING_CONFIG.modelCosts.sora)
+        const totalCredits = config.permanentCredits + config.bonusCredits
 
-    if (error) {
-      console.error('获取支付计划失败:', error)
-      return NextResponse.json(
-        { error: '获取支付计划失败', details: error.message },
-        { status: 500 }
-      )
-    }
+        return {
+          id: planId,
+          plan_name: config.ui.title,
+          plan_type: planId === 'starter' ? 'starter' : 'pack',
+          amount: config.priceUsd,
+          currency: 'usd',
+          credits: totalCredits,
+          videos: videos || Math.floor(totalCredits / PRICING_CONFIG.modelCosts.sora),
+          description: ('bullets' in config.ui && config.ui.bullets ? config.ui.bullets.join('. ') : config.ui.title),
+          badge_text: config.ui.badge || null,
+          stripe_buy_button_id: null,
+          stripe_payment_link_id: null, // 使用新的 Checkout Session
+          is_active: true,
+          is_recommended: planId === 'creator',
+          display_order: planId === 'starter' ? 1 : planId === 'creator' ? 2 : planId === 'studio' ? 3 : 4,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+      })
+      .filter((p) => p !== null)
 
     return NextResponse.json({
       success: true,
-      plans: data || [],
+      plans: plans,
     })
   } catch (error) {
     console.error('获取支付计划异常:', error)
