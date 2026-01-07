@@ -1470,28 +1470,16 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                       ~ ${(plan.amount / plan.videos).toFixed(2)} / video
                     </div>
 
-                    {plan.stripe_payment_link_id ? (
-                      <Button
-                        type="button"
-                        variant="primary"
-                        className="w-full"
-                        disabled={!!checkingOutPlanId}
-                        onClick={() => startPaymentLinkCheckout(plan)}
-                      >
-                        {checkingOutPlanId === plan.id ? 'Redirecting…' : 'Continue to Checkout'}
-                      </Button>
-                    ) : plan.stripe_buy_button_id ? (
-                      <div className="flex justify-center">
-                        <stripe-buy-button
-                          buy-button-id={plan.stripe_buy_button_id}
-                          publishable-key="pk_live_51SKht2DqGbi6No9v57glxTk8MK8r0Ro9lcsHigkf3RNMzI3MLbQry0xPY4wAi5UjUkHGrQpKCBe98cwt0G7Fj1B700YGD58zbP"
-                        />
-                      </div>
-                    ) : (
-                      <div className="text-center text-xs text-gray-500 dark:text-gray-400">
-                        This plan is missing a checkout configuration.
-                      </div>
-                    )}
+                    {/* Always show checkout button - uses new Checkout Session API */}
+                    <Button
+                      type="button"
+                      variant="primary"
+                      className="w-full"
+                      disabled={!!checkingOutPlanId}
+                      onClick={() => startPaymentLinkCheckout(plan)}
+                    >
+                      {checkingOutPlanId === plan.id ? 'Redirecting…' : 'Continue to Checkout'}
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
