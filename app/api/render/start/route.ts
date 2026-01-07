@@ -42,15 +42,18 @@ export async function POST(req: Request) {
     }
 
     // 1) Check starter daily caps / lock veo_pro on starter
-    const { data: capRes, error: capErr } = await supabase.rpc(
+    const capParams = {
+      p_user_id: userId,
+      p_model: modelId,
+      p_device_id: body.deviceId ?? "",
+      p_ip_hash: body.ipHash ?? "",
+    };
+    const rpcResult = await supabase.rpc(
       "check_and_increment_daily_usage",
-      {
-        p_user_id: userId,
-        p_model: modelId,
-        p_device_id: body.deviceId ?? "",
-        p_ip_hash: body.ipHash ?? "",
-      }
-    );
+      capParams as never
+    ) as { data: Array<{ ok: boolean; error?: string }> | null; error: Error | null };
+    const capRes = rpcResult.data;
+    const capErr = rpcResult.error;
 
     if (capErr) {
       console.error("[render/start] Daily usage check error:", capErr);
@@ -68,10 +71,16 @@ export async function POST(req: Request) {
     }
 
     // 2) Deduct credits (bonus first)
-    const { data: dRes, error: dErr } = await supabase.rpc("deduct_credits", {
+    const deductParams = {
       p_user_id: userId,
       p_cost: cost,
-    });
+    };
+    const deductResult = await supabase.rpc("deduct_credits", deductParams as never) as {
+      data: Array<{ ok: boolean; error?: string; permanent_credits?: number; bonus_credits?: number }> | null;
+      error: Error | null;
+    };
+    const dRes = deductResult.data;
+    const dErr = deductResult.error;
 
     if (dErr) {
       console.error("[render/start] Credit deduction error:", dErr);

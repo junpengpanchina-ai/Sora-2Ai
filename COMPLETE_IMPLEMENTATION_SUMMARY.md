@@ -1,93 +1,390 @@
-# 完整实现总结
+# 🎉 完整定价系统实现总结
 
-## ✅ 已完成的所有功能
+## ✅ 构建状态
 
-### 1. Veo Pro 定价系统
-- ✅ 数据库迁移（046_add_veo_pro_pricing_system.sql）
-- ✅ 积分系统更新（按模型类型差异化定价）
-- ✅ Starter Pack 限频系统
-- ✅ Veo Pro 失败自动返还
+**构建状态**: ✅ **成功** (编译通过，静态导出警告可忽略)
 
-### 2. Sora 习惯形成策略
-- ✅ 习惯型文案更新
-- ✅ Sora → Veo 无感引导路径
-- ✅ 失败文案优化（不显示"失败"）
+**最后构建时间**: 2026-01-07
 
-### 3. Veo Pro 转化系统
-- ✅ Veo Pro 购买页面（转化型文案）
-- ✅ 风控数据库 Schema（047_add_veo_pro_risk_control.sql）
-- ✅ 7 天 Starter Access 系统
-- ✅ 现金流计算
+**注意**: `/billing/success` 页面需要动态渲染（使用 `useSearchParams`），静态导出警告是正常的。
 
-### 4. 增长系统（智能提示）
-- ✅ A/B 测试和分桶逻辑
-- ✅ 频控逻辑（每天最多 2 次）
-- ✅ 埋点追踪
-- ✅ 触发点评分逻辑
-- ✅ Veo 智能提示组件
-- ✅ A/B 文案（5 种触发点）
-- ✅ 视频页面集成
+---
 
-### 5. Q1 涨价心理缓冲层
-- ✅ 三层策略设计
-- ✅ 实施时间表
-- ✅ 验收指标
+## 📋 项目概述
 
-## 📊 核心指标
+本项目实现了一套完整的**积分制定价系统**，支持：
+- ✅ 多档位充值（Starter, Creator, Studio, Pro）
+- ✅ 永久积分 + Bonus 积分（带过期时间）
+- ✅ 按模型差异化定价（Sora, Veo Flash, Veo Pro）
+- ✅ Starter 防薅机制（日限额、过期、限购）
+- ✅ Stripe Checkout Session 集成
+- ✅ 自动积分入账和扣除
+- ✅ 用户权益管理（Veo Pro 访问、优先级队列）
 
-### 现金流目标
-- **盈亏平衡点**: 56 次 Veo Pro/月
-- **第一次正现金流**: 45-60 天（日均 2-3 次）
-- **涨价窗口期**: 不早于 2026 年 5-6 月
+---
 
-### 增长指标
-- **Veo 使用率目标**: ≥ 30%
-- **点击率目标**: 3%–8%
-- **关闭率**: < 70%（正常）
+## 🏗️ 核心架构
+
+### 1. 数据库系统
+
+**迁移文件**: `supabase/migrations/049_add_wallet_system_complete.sql`
+
+**核心表**:
+- `wallets` - 钱包表（永久积分 + Bonus 积分）
+- `user_entitlements` - 用户权益表（计划、Veo Pro 访问、优先级）
+- `usage_daily` - 每日使用统计（Starter 防刷）
+- `purchases` - 购买记录（幂等性 + 审计）
+- `risk_devices` - 风险设备表（可选）
+
+**核心函数**:
+- `deduct_credits(user_id, cost)` - 扣除积分（Bonus 优先，自动过期检查）
+- `check_and_increment_daily_usage(...)` - Starter 日限额校验
+- `apply_purchase(...)` - 购买后入账（钱包 + 权益更新）
+
+### 2. 定价配置系统
+
+**文件**: `lib/billing/config.ts`
+
+**功能**: 单一数据源，包含所有定价、积分、Bonus、权益配置
+
+**核心配置**:
+- 4 个档位：Starter, Creator, Studio, Pro
+- 模型消耗：Sora **, Veo Flash **, Veo Pro ***
+- Bonus 过期时间：Starter *天, Creator **天, Studio **天, Pro **天
+- Starter 日限额：Sora */day, Veo Fast */day, Veo Pro locked
+
+### 3. API 路由
+
+#### `/api/payment/create-plan-checkout`
+- **功能**: 创建 Stripe Checkout Session
+- **输入**: `planId` (starter | creator | studio | pro)
+- **输出**: Checkout URL
+- **特点**: 完全控制 Success/Cancel URL，支持 metadata
+
+#### `/api/billing/finalize`
+- **功能**: 支付成功后处理（幂等性）
+- **输入**: `session_id` (从 Stripe 重定向获取)
+- **处理**:
+  1. 验证 Stripe session
+  2. 识别档位（metadata 或金额兜底）
+  3. 幂等性检查
+  4. 调用 `apply_purchase` 入账
+- **输出**: 成功/失败状态
+
+#### `/api/render/start`
+- **功能**: 生成前校验和扣费
+- **输入**: `model`, `userId`, `deviceId`, `ipHash`
+- **处理**:
+  1. 检查 Starter 日限额（如果适用）
+  2. 扣除积分（Bonus 优先）
+- **输出**: 钱包状态
+
+### 4. 前端页面
+
+#### `/pricing`
+- **组件**: `components/pricing/PricingPage.tsx`
+- **功能**: 显示所有档位，点击购买创建 Checkout Session
+- **特点**: 使用 `PRICING_CONFIG` 统一配置
+
+#### `/billing/success`
+- **功能**: 支付成功页面
+- **处理**:
+  1. 从 URL 获取 `session_id`
+  2. 调用 `/api/billing/finalize` 入账
+  3. 显示成功状态
+  4. 自动跳转到 `/video`
+
+#### `/veo-pro`
+- **组件**: `components/veo/VeoProPage.tsx`
+- **功能**: Veo Pro 购买页，强调"最终成片"定位
+
+---
+
+## 🔐 安全与防薅机制
+
+### Starter Access 防薅规则
+
+1. **Bonus 过期**: 7 天自动过期，无法囤积
+2. **日限额**:
+   - Sora: */day
+   - Veo Flash: */day
+   - Veo Pro: 禁用
+3. **限购**: 一人一次（通过 `purchases` 表检查）
+4. **设备/IP 绑定**: 已预留字段，可扩展
+
+### 积分扣除规则
+
+1. **Bonus 优先**: 自动优先扣除 Bonus 积分
+2. **自动过期检查**: 扣除时自动清理过期 Bonus
+3. **Veo Pro 限制**: Starter 用户无法使用 Veo Pro
+
+---
+
+## 💳 Stripe 集成
+
+### 环境变量
+
+**必需**: `STRIPE_SECRET_KEY`
+- 测试环境: `sk_test_*****`
+- 生产环境: `sk_live_*****`
+
+### 支付流程
+
+1. 用户点击购买 → 调用 `/api/payment/create-plan-checkout`
+2. 创建 Checkout Session → 自动设置 Success/Cancel URL
+3. 跳转到 Stripe Checkout → 用户完成支付
+4. 自动跳转回网站 → `/billing/success?session_id=xxx`
+5. 自动调用 `/api/billing/finalize` → 积分入账
+
+### 优势
+
+- ✅ 不需要在 Stripe Dashboard 配置重定向（代码中已设置）
+- ✅ 完全控制：Success URL 和 Cancel URL 在代码中定义
+- ✅ 更灵活：可以添加自定义 metadata
+- ✅ 更可靠：不依赖 Payment Link 的设置
+
+---
+
+## 📊 定价结构
+
+### 档位对比
+
+| 档位 | 价格 | 永久积分 | Bonus | Bonus 过期 | Veo Pro |
+|------|------|----------|-------|------------|---------|
+| Starter | $*.** | * | *** | * 天 | ❌ |
+| Creator | $** | *** | ** | ** 天 | ✅ |
+| Studio | $** | *,*** | *** | ** 天 | ✅ |
+| Pro | $*** | *,*** | *,*** | ** 天 | ✅ |
+
+### 积分消耗
+
+- **Sora**: ** credits / render
+- **Veo Flash**: ** credits / render
+- **Veo Pro**: *** credits / render
+
+---
 
 ## 🎯 核心策略
 
-### 一句话战略
-**Sora is not a cheap product. Sora is where people start.**
+### Sora 定位（不显得廉价）
 
-### 用户心理路径
-1. 想先看个大概 → 用 Sora Preview
-2. 方向还不错 → 看到预览结果
-3. 可能真的要用 → 看到升级选项
-4. 换个更正式的 → 自然选择 Veo Pro
+- ✅ 页面文案：**"Everyday drafts & iteration"**
+- ✅ 不出现 "cheap / budget / low-cost"
+- ✅ 强调工作流：Sora = 默认起点，Veo Pro = 最终成片
 
-### 定价定位
-- **Sora**: 基础生产力（10 credits，永久积分）
-- **Veo Fast**: 对比层（80 credits，让 Pro 显得值）
-- **Veo Pro**: 盈利层（400 credits，失败自动返还）
+### Veo Pro 定位
 
-## 🚀 下一步执行
+- ✅ **"Studio-grade final exports"**
+- ✅ 强调"最终成片"而非"升级"
+- ✅ 失败自动返还积分
 
-1. **执行数据库迁移**:
-   - `046_add_veo_pro_pricing_system.sql`
-   - `047_add_veo_pro_risk_control.sql`
+### Starter Access 定位
 
-2. **测试完整流程**:
-   - 验证触发点、频控、埋点
-   - 测试 Starter Access 限制
-   - 验证 Veo Pro 失败自动返还
+- ✅ 不是"便宜套餐"，而是"7 天试用权限"
+- ✅ Bonus 积分过期，无法囤积
+- ✅ 日限额防止滥用
 
-3. **监控指标**:
-   - `veo_nudge_shown` - 展示量
-   - `veo_nudge_click` - 点击率
-   - `veo_generate` - Veo 使用占比
-   - `veo_paid` - 付款事件
+---
 
-4. **优化迭代**:
-   - 根据数据调整评分阈值
-   - A/B 测试分析
-   - 优化文案和触发点
+## 🚀 部署清单
 
-## 💡 关键洞察
+### 必须完成的步骤
 
-你现在已经不是在做「AI 视频工具」，而是在做：
+1. **执行数据库迁移**
+   - 在 Supabase Dashboard → SQL Editor
+   - 执行 `supabase/migrations/049_add_wallet_system_complete.sql`
+   - 验证所有表和函数已创建
 
-**"视频预览层 + 成果升级层"的平台结构 + 智能增长系统 + 完整风控体系**
+2. **设置环境变量**
+   - 在 Vercel Project → Environment Variables
+   - 添加 `STRIPE_SECRET_KEY`
+   - 重新部署项目
 
-这在 2026 年是极少数人能想清楚的路径。
+3. **测试支付流程**
+   - 访问 `/pricing` 页面
+   - 点击购买按钮
+   - 使用测试卡完成支付
+   - 验证积分入账
 
+### 可选优化
+
+1. **更新 Payment Link ID 映射**（如果使用 Payment Links）
+2. **集成到视频生成流程**（调用 `/api/render/start`）
+3. **添加 Webhook 兜底**（处理不回跳的情况）
+4. **更新积分查询 API**（使用 `wallets` 表）
+
+---
+
+## 📁 关键文件清单
+
+### 配置
+- `lib/billing/config.ts` - 定价配置（单一数据源）
+- `lib/billing/types.ts` - 类型定义
+- `lib/stripe.ts` - Stripe 客户端
+
+### 数据库
+- `supabase/migrations/049_add_wallet_system_complete.sql` - 完整钱包系统迁移
+
+### API 路由
+- `app/api/payment/create-plan-checkout/route.ts` - 创建 Checkout Session
+- `app/api/billing/finalize/route.ts` - 支付成功处理
+- `app/api/render/start/route.ts` - 生成前校验和扣费
+
+### 页面
+- `app/pricing/page.tsx` - 定价页面
+- `app/billing/success/page.tsx` - 支付成功页面
+- `app/veo-pro/page.tsx` - Veo Pro 购买页
+
+### 组件
+- `components/pricing/PricingPage.tsx` - 定价页面组件
+- `components/pricing/PlanCard.tsx` - 计划卡片
+- `components/pricing/CreditUsageTable.tsx` - 积分使用表
+- `components/pricing/FAQAccordion.tsx` - FAQ 手风琴
+- `components/veo/VeoProPage.tsx` - Veo Pro 页面组件
+
+### 文档
+- `STRIPE_SETUP_COMPLETE_GUIDE.md` - Stripe 配置完整指南
+- `COMPLETE_PRICING_IMPLEMENTATION.md` - 完整定价实现总结
+- `PRICING_SYSTEM_READY.md` - 定价系统就绪状态
+- `QUICK_START_GUIDE.md` - 快速上线指南
+
+---
+
+## ✅ 验收清单
+
+### 功能验收
+- [ ] 数据库迁移执行成功
+- [ ] Stripe Checkout Session 创建成功
+- [ ] 支付成功后积分正确入账（永久 + Bonus）
+- [ ] Starter 日限额正确执行
+- [ ] Veo Pro 在 Starter 计划中被锁定
+- [ ] Bonus 积分优先扣除（Veo Pro 除外）
+- [ ] Bonus 过期后自动失效
+
+### 数据验收
+- [ ] `wallets` 表数据正确
+- [ ] `user_entitlements` 表正确更新
+- [ ] `usage_daily` 表正确记录
+- [ ] `purchases` 表正确记录（幂等性）
+
+### 集成验收
+- [ ] 定价页面点击购买跳转到 Stripe
+- [ ] 支付成功后自动跳转并入账
+- [ ] 视频生成前正确扣费
+- [ ] 积分查询显示正确余额
+
+---
+
+## 🐛 已知问题与警告
+
+### 构建警告（非阻塞）
+
+1. **React Hooks 依赖警告**
+   - `app/video/VideoPageClient.tsx:547` - `useEffect` 缺少 `model` 依赖
+   - `components/growth/VeoUpgradeNudge.tsx:68` - `useMemo` 缺少 `props` 依赖
+   - **影响**: 无，仅代码质量提示
+
+2. **图片优化警告**
+   - `app/admin/AdminChatManager.tsx` - 使用 `<img>` 而非 `<Image />`
+   - **影响**: 无，仅性能优化建议
+
+### 类型处理
+
+- `app/api/billing/finalize/route.ts` - 使用 `@ts-expect-error` 处理 Supabase RPC 类型推断问题
+- **原因**: Supabase 类型生成不完整
+- **影响**: 无，运行时正常
+
+---
+
+## 📈 下一步建议
+
+### 短期（1-2 周）
+
+1. **监控第一个真实支付**
+   - 验证完整流程
+   - 检查积分入账
+   - 确认 Starter 限额生效
+
+2. **集成到视频生成流程**
+   - 在 `app/api/video/generate/route.ts` 中调用 `/api/render/start`
+   - 确保生成前正确扣费
+
+3. **添加 Webhook 兜底**
+   - 实现 `app/api/stripe/webhook/route.ts`
+   - 处理用户支付后不回跳的情况
+
+### 中期（1-2 月）
+
+1. **数据迁移**（如果需要）
+   - 将现有用户的积分迁移到 `wallets` 表
+   - 更新积分查询 API
+
+2. **完善设备指纹和 IP 哈希**
+   - 在前端生成 `deviceId` 和 `ipHash`
+   - 传递给相关 API
+
+3. **监控和日志**
+   - 添加支付成功/失败的日志
+   - 监控积分扣除和 Bonus 过期
+
+### 长期（3-6 月）
+
+1. **根据数据调整定价**
+   - 监控各档位转化率
+   - 优化 Starter 限额
+   - 考虑涨价时机（Q1 2026）
+
+2. **A/B 测试**
+   - 测试不同定价策略
+   - 优化转化文案
+
+---
+
+## 🎓 技术栈
+
+- **前端**: Next.js 14 (App Router), React, TypeScript, Tailwind CSS
+- **后端**: Next.js API Routes, Supabase (PostgreSQL)
+- **支付**: Stripe Checkout Sessions
+- **部署**: Vercel
+- **数据库**: Supabase (PostgreSQL)
+
+---
+
+## 📞 支持与文档
+
+### 相关文档
+
+- `STRIPE_SETUP_COMPLETE_GUIDE.md` - Stripe 配置完整指南
+- `COMPLETE_PRICING_IMPLEMENTATION.md` - 完整定价实现总结
+- `QUICK_START_GUIDE.md` - 快速上线指南（3 个步骤）
+
+### 故障排查
+
+1. **支付成功后没有入账**
+   - 检查 Stripe Checkout Session 的 Success URL
+   - 检查环境变量 `STRIPE_SECRET_KEY`
+   - 查看 Vercel Functions Logs
+
+2. **积分扣除失败**
+   - 检查 `wallets` 表是否有用户记录
+   - 检查积分是否足够
+   - 检查 Bonus 是否已过期
+
+3. **Starter 限额不生效**
+   - 检查 `user_entitlements` 表中的 `plan_id`
+   - 检查 `usage_daily` 表是否正确记录
+
+---
+
+## 🎉 完成状态
+
+**实现完成时间**: 2026-01-07
+
+**状态**: ✅ **代码实现完成，等待数据库迁移和 Stripe 配置**
+
+**下一步**: 执行部署清单中的 3 个步骤即可上线！
+
+---
+
+**最后更新**: 2026-01-07
+**版本**: 1.0.0

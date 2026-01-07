@@ -5,10 +5,10 @@
 ### 1. 定价配置系统 (`lib/billing/config.ts`)
 
 **单一数据源配置**，包含：
-- ✅ 4 个档位：Starter ($4.9), Creator ($39), Studio ($99), Pro ($299)
-- ✅ 积分消耗：Sora 10, Veo Fast 50, Veo Pro 250
-- ✅ Bonus 过期：Starter 7天, Creator 30天, Studio 45天, Pro 60天
-- ✅ Starter 日限额：Sora 6/day, Veo Fast 1/day, Veo Pro locked
+- ✅ 4 个档位：Starter ($*.**), Creator ($**), Studio ($**), Pro ($***)
+- ✅ 积分消耗：Sora **, Veo Fast **, Veo Pro ***
+- ✅ Bonus 过期：Starter *天, Creator **天, Studio **天, Pro **天
+- ✅ Starter 日限额：Sora */day, Veo Fast */day, Veo Pro locked
 - ✅ Stripe Payment Links 映射
 
 ### 2. 数据库系统 (`supabase/migrations/049_add_wallet_system_complete.sql`)
@@ -69,40 +69,40 @@ AND routine_name IN ('deduct_credits', 'check_and_increment_daily_usage', 'apply
 
 **Success URL**:
 ```
-https://sora2aivideos.com/billing/success?session_id={CHECKOUT_SESSION_ID}
+https://*****/billing/success?session_id={CHECKOUT_SESSION_ID}
 ```
 
 **Cancel URL**:
 ```
-https://sora2aivideos.com/pricing?canceled=1
+https://*****/pricing?canceled=1
 ```
 
 **4 个 Payment Links**:
-- $4.9: https://buy.stripe.com/28EbJ14jUg2L6550Ug0kE05
-- $39: https://buy.stripe.com/dRmcN55nY4k33WXfPa0kE03
-- $99: https://buy.stripe.com/6oU7sL17IdUD51132o0kE06
-- $299: https://buy.stripe.com/4gMcN5eYy5o70KLauQ0kE01
+- $*.**: https://buy.stripe.com/*****
+- $**: https://buy.stripe.com/*****
+- $**: https://buy.stripe.com/*****
+- $***: https://buy.stripe.com/*****
 
 ### 步骤 3: 设置环境变量（2分钟）
 
 在 Vercel Project → Environment Variables 添加：
 ```
-STRIPE_SECRET_KEY=sk_live_... (或 sk_test_...)
+STRIPE_SECRET_KEY=sk_live_***** (或 sk_test_*****)
 ```
 
 ## 📊 定价结构总结
 
 | 档位 | 价格 | 永久积分 | Bonus | Bonus 过期 | Veo Pro |
 |------|------|----------|-------|------------|---------|
-| Starter | $4.9 | 0 | 120 | 7 天 | ❌ |
-| Creator | $39 | 600 | 60 | 30 天 | ✅ |
-| Studio | $99 | 1,800 | 270 | 45 天 | ✅ |
-| Pro | $299 | 6,000 | 1,200 | 60 天 | ✅ |
+| Starter | $*.** | * | *** | * 天 | ❌ |
+| Creator | $** | *** | ** | ** 天 | ✅ |
+| Studio | $** | *,*** | *** | ** 天 | ✅ |
+| Pro | $*** | *,*** | *,*** | ** 天 | ✅ |
 
 **积分消耗**:
-- Sora: 10 credits
-- Veo Fast: 50 credits  
-- Veo Pro: 250 credits
+- Sora: ** credits
+- Veo Fast: ** credits  
+- Veo Pro: *** credits
 
 ## 🔒 Starter 防薅机制
 

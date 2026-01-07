@@ -7,7 +7,7 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
-import { itemIdFromAmount, getPlanConfig, STRIPE_PAYMENT_LINKS, type PlanId } from "@/lib/billing/config";
+import { itemIdFromAmount, getPlanConfig, type PlanId } from "@/lib/billing/config";
 
 export async function POST(req: Request) {
   try {
@@ -54,16 +54,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2) Identify item (prefer payment_link, fallback to amount)
+    // 2) Identify item (prefer metadata, fallback to amount)
     let itemId: string | null = null;
 
-    // Try payment_link first (most reliable)
-    if (session.payment_link) {
-      const plinkId = String(session.payment_link);
-      // Check if we have a mapping (you'll need to add actual Payment Link IDs from Stripe)
-      if (STRIPE_PAYMENT_LINKS[plinkId]) {
-        itemId = STRIPE_PAYMENT_LINKS[plinkId];
-      }
+    // Try metadata first (from Checkout Session)
+    if (session.metadata?.plan_id) {
+      itemId = session.metadata.plan_id;
     }
 
     // Fallback to amount-based identification
@@ -94,7 +90,8 @@ export async function POST(req: Request) {
     const amountUsd = (amountTotal / 100).toFixed(2);
     const email = session.customer_details?.email ?? null;
 
-    const { error: pErr } = await supabase.from("purchases").insert({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: pErr } = await (supabase.from("purchases") as any).insert({
       user_id: userId,
       item_id: itemId,
       provider: "stripe",
@@ -119,20 +116,27 @@ export async function POST(req: Request) {
     if (itemId === "veoProUpgrade") {
       const { data: ent } = await supabase
         .from("user_entitlements")
-        .select("*")
+        .select("plan_id, veo_pro_enabled, priority_queue, max_concurrency")
         .eq("user_id", userId)
         .single();
 
-      if (ent) {
-        cfg.ent.planId = (ent.plan_id as PlanId) || "free";
-        cfg.ent.veoProEnabled = ent.veo_pro_enabled || false;
-        cfg.ent.priority = ent.priority_queue || false;
-        cfg.ent.maxConcurrency = ent.max_concurrency || 1;
+      if (ent && typeof ent === "object") {
+        const entData = ent as {
+          plan_id: string | null;
+          veo_pro_enabled: boolean | null;
+          priority_queue: boolean | null;
+          max_concurrency: number | null;
+        };
+        cfg.ent.planId = (entData.plan_id as PlanId) || "free";
+        cfg.ent.veoProEnabled = entData.veo_pro_enabled || false;
+        cfg.ent.priority = entData.priority_queue || false;
+        cfg.ent.maxConcurrency = entData.max_concurrency || 1;
       }
     }
 
     // 6) Apply purchase to wallet & entitlements
-    const { error: aErr } = await supabase.rpc("apply_purchase", {
+    // Supabase RPC type inference issue - need to cast to never
+    const rpcParams = {
       p_user_id: userId,
       p_item_id: itemId,
       p_permanent: cfg.permanent,
@@ -142,7 +146,8 @@ export async function POST(req: Request) {
       p_veo_pro_enabled: cfg.ent.veoProEnabled,
       p_priority: cfg.ent.priority,
       p_max_concurrency: cfg.ent.maxConcurrency,
-    });
+    };
+    const { error: aErr } = await supabase.rpc("apply_purchase", rpcParams as never);
 
     if (aErr) {
       console.error("[billing/finalize] Failed to apply purchase:", aErr);

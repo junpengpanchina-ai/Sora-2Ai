@@ -7,18 +7,18 @@
 **功能**: 单一数据源，包含所有定价、积分、Bonus、权益配置
 
 **核心内容**:
-- ✅ 4 个档位：Starter ($4.9), Creator ($39), Studio ($99), Pro ($299)
-- ✅ 模型消耗：Sora 10, Veo Fast 50, Veo Pro 250
-- ✅ Bonus 过期时间：Starter 7天, Creator 30天, Studio 45天, Pro 60天
-- ✅ Starter 日限额：Sora 6/day, Veo Fast 1/day, Veo Pro locked
+- ✅ 4 个档位：Starter ($*.**), Creator ($**), Studio ($**), Pro ($***)
+- ✅ 模型消耗：Sora **, Veo Fast **, Veo Pro ***
+- ✅ Bonus 过期时间：Starter *天, Creator **天, Studio **天, Pro **天
+- ✅ Starter 日限额：Sora */day, Veo Fast */day, Veo Pro locked
 - ✅ 权益配置：Veo Pro 访问、优先级队列、并发数
 
 **Stripe Payment Links**:
 ```typescript
-starter: "https://buy.stripe.com/28EbJ14jUg2L6550Ug0kE05"
-creator: "https://buy.stripe.com/dRmcN55nY4k33WXfPa0kE03"
-studio: "https://buy.stripe.com/6oU7sL17IdUD51132o0kE06"
-pro: "https://buy.stripe.com/4gMcN5eYy5o70KLauQ0kE01"
+starter: "https://buy.stripe.com/*****"
+creator: "https://buy.stripe.com/*****"
+studio: "https://buy.stripe.com/*****"
+pro: "https://buy.stripe.com/*****"
 ```
 
 ### 2. 数据库迁移 (`supabase/migrations/049_add_wallet_system_complete.sql`)
@@ -91,13 +91,13 @@ pro: "https://buy.stripe.com/4gMcN5eYy5o70KLauQ0kE01"
    - 登录 Stripe Dashboard
    - 为每个 Payment Link 设置成功回跳 URL：
      ```
-     Success URL: https://sora2aivideos.com/billing/success?session_id={CHECKOUT_SESSION_ID}
-     Cancel URL: https://sora2aivideos.com/pricing?canceled=1
+     Success URL: https://*****/billing/success?session_id={CHECKOUT_SESSION_ID}
+     Cancel URL: https://*****/pricing?canceled=1
      ```
 
 3. **设置环境变量**
    - 在 Vercel Project → Environment Variables
-   - 添加 `STRIPE_SECRET_KEY` (sk_live_... 或 sk_test_...)
+   - 添加 `STRIPE_SECRET_KEY` (sk_live_***** 或 sk_test_*****)
 
 4. **更新 Payment Link ID 映射**（可选但推荐）
    - 在 Stripe Dashboard 获取每个 Payment Link 的 ID (plink_...)
@@ -138,16 +138,16 @@ pro: "https://buy.stripe.com/4gMcN5eYy5o70KLauQ0kE01"
 
 | 档位 | 价格 | 永久积分 | Bonus 积分 | Bonus 过期 | Veo Pro |
 |------|------|----------|------------|------------|---------|
-| Starter | $4.9 | 0 | 120 | 7 天 | ❌ |
-| Creator | $39 | 600 | 60 | 30 天 | ✅ |
-| Studio | $99 | 1,800 | 270 | 45 天 | ✅ |
-| Pro | $299 | 6,000 | 1,200 | 60 天 | ✅ |
+| Starter | $*.** | * | *** | * 天 | ❌ |
+| Creator | $** | *** | ** | ** 天 | ✅ |
+| Studio | $** | *,*** | *** | ** 天 | ✅ |
+| Pro | $*** | *,*** | *,*** | ** 天 | ✅ |
 
 ### 积分消耗
 
-- **Sora**: 10 credits / render
-- **Veo Fast**: 50 credits / render
-- **Veo Pro**: 250 credits / render
+- **Sora**: ** credits / render
+- **Veo Fast**: ** credits / render
+- **Veo Pro**: *** credits / render
 
 ### Starter 防薅机制
 
