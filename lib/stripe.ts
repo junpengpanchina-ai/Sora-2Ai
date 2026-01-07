@@ -13,7 +13,7 @@ export function getStripe(): Stripe {
     }
     try {
       stripeInstance = new Stripe(secretKey, {
-        apiVersion: "2024-06-20", // Use stable API version
+        apiVersion: "2025-10-29.clover" as Stripe.LatestApiVersion,
       });
     } catch (error) {
       console.error("[Stripe] Failed to initialize Stripe client:", error);

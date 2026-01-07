@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 import { PRICING_CONFIG, type PlanId } from "@/lib/billing/config";
+import type Stripe from "stripe";
 
 export async function POST(request: NextRequest) {
   try {
@@ -81,8 +82,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const sessionConfig = {
-      payment_method_types: ["card"] as const,
+    const sessionConfig: Stripe.Checkout.SessionCreateParams = {
+      payment_method_types: ["card"],
       line_items: [
         {
           price_data: {
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      mode: "payment" as const,
+      mode: "payment",
       success_url: `${baseUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/pricing?canceled=1`,
       customer_email: auth.user.email || undefined,
@@ -117,21 +118,22 @@ export async function POST(request: NextRequest) {
     let session;
     try {
       session = await stripe.checkout.sessions.create(sessionConfig);
-    } catch (stripeError: any) {
+    } catch (stripeError) {
+      const error = stripeError as { message?: string; type?: string; code?: string; statusCode?: number; raw?: unknown };
       console.error("[create-plan-checkout] Stripe API error:", {
         error: stripeError,
-        message: stripeError?.message,
-        type: stripeError?.type,
-        code: stripeError?.code,
-        statusCode: stripeError?.statusCode,
-        raw: stripeError?.raw,
+        message: error.message,
+        type: error.type,
+        code: error.code,
+        statusCode: error.statusCode,
+        raw: error.raw,
       });
       return NextResponse.json(
         {
           error: "Failed to create checkout session",
-          details: stripeError?.message || "Stripe API error",
-          stripeErrorType: stripeError?.type,
-          stripeErrorCode: stripeError?.code,
+          details: error.message || "Stripe API error",
+          stripeErrorType: error.type,
+          stripeErrorCode: error.code,
         },
         { status: 500 }
       );
