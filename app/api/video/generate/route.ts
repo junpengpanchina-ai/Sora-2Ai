@@ -3,9 +3,22 @@
 import { createClient } from '@/lib/supabase/server'
 import { createSoraVideoTask, createVeoVideoTask } from '@/lib/grsai/client'
 import { formatGrsaiFriendlyError } from '@/lib/grsai/error-utils'
-import { deductCredits, refundCredits } from '@/lib/credits'
+import { deductCredits, refundCredits, getCreditsForModel, type ModelType } from '@/lib/credits'
 import { getOrCreateUser } from '@/lib/user'
 import { validateOrigin } from '@/lib/csrf'
+import { 
+  hasActiveStarterPack, 
+  checkDailyLimit, 
+  incrementDailyLimit,
+  logVeoUsage,
+  updateVeoUsageLog
+} from '@/lib/starter-pack-limits'
+import {
+  canUseVeo,
+  checkStarterAccessLimits,
+  logGeneration,
+  checkMultiAccountRisk,
+} from '@/lib/starter-access-control'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -32,7 +45,7 @@ const generateVideoSchema = z.object({
   duration: z.enum(['10', '15']).optional().default('10'),
   // size参数已移除，API只支持small，固定使用small
   useWebhook: z.boolean().optional().default(false),
-  model: z.enum(['sora-2', 'veo3.1-fast', 'veo3.1-pro']).optional().default('sora-2'),
+  model: z.enum(['sora-2', 'veo-flash', 'veo-pro']).optional().default('sora-2'),
   firstFrameUrl: z.string().url().optional().or(z.literal('')),
   lastFrameUrl: z.string().url().optional().or(z.literal('')),
   urls: z.array(z.string().url()).optional().default([]),
@@ -135,9 +148,85 @@ export async function POST(request: NextRequest) {
       ? `${baseUrl}/api/video/callback`
       : '-1' // Use polling method
 
+    // Get client IP and User-Agent for risk control (early, before any checks)
+    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0] || 
+                     request.headers.get('x-real-ip') || 
+                     'unknown'
+    const userAgent = request.headers.get('user-agent') || 'unknown'
+    
     // Determine model type
-    const model = validatedData.model || 'sora-2'
+    const model = (validatedData.model || 'sora-2') as ModelType
     const isVeoModel = model.startsWith('veo')
+    
+    // Check Starter Access limits (7-day access system)
+    const starterAccessCheck = await checkStarterAccessLimits(supabase, userProfile.id, model)
+    if (!starterAccessCheck.allowed) {
+      return jsonResponse(
+        { 
+          error: starterAccessCheck.message || 'Access limit reached',
+          limitReached: true,
+          reason: starterAccessCheck.reason,
+          expiresAt: starterAccessCheck.expiresAt,
+        },
+        { status: 429 }
+      )
+    }
+    
+    // Check Veo access (Starter Access 期间禁止 Veo)
+    if (isVeoModel) {
+      const veoAccessCheck = await canUseVeo(supabase, userProfile.id)
+      if (!veoAccessCheck.allowed) {
+        return jsonResponse(
+          { 
+            error: veoAccessCheck.message || 'Veo is not available',
+            reason: veoAccessCheck.reason,
+          },
+          { status: 403 }
+        )
+      }
+    }
+    
+    // Check Starter Pack daily limits for Veo models (legacy system)
+    if (isVeoModel) {
+      const { hasPack, rechargeRecordId } = await hasActiveStarterPack(supabase, userProfile.id)
+      
+      if (hasPack && rechargeRecordId) {
+        const limitCheck = await checkDailyLimit(supabase, userProfile.id, rechargeRecordId, model)
+        
+        if (!limitCheck.allowed) {
+          return jsonResponse(
+            { 
+              error: `Daily limit reached for ${model}. You have used ${limitCheck.currentCount}/${limitCheck.maxCount} today. Please try again tomorrow or upgrade to a full pack.`,
+              limitReached: true,
+              currentCount: limitCheck.currentCount,
+              maxCount: limitCheck.maxCount,
+            },
+            { status: 429 }
+          )
+        }
+      }
+    }
+    
+    // Check multi-account risk (同 IP 多账号检测)
+    const multiAccountRisk = await checkMultiAccountRisk(supabase, clientIp)
+    if (multiAccountRisk.isRisk && multiAccountRisk.accountCount >= 3) {
+      console.warn('[video/generate] Multi-account risk detected:', {
+        userId: userProfile.id,
+        ip: clientIp,
+        accountCount: multiAccountRisk.accountCount,
+      })
+      // 不直接拒绝，但记录风险标志
+      await supabase
+        .from('risk_flags')
+        .upsert({
+          user_id: userProfile.id,
+          multi_account_suspected: true,
+          note: `Detected ${multiAccountRisk.accountCount} accounts from same IP`,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id',
+        })
+    }
     
     // Create video task record first (before calling API)
     const { data: videoTask, error: taskError } = await supabase
@@ -164,12 +253,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Deduct credits before calling API
+    // Deduct credits before calling API (with model type)
     const deductResult = await deductCredits(
       supabase,
       userProfile.id,
       videoTask.id,
-      `Video generation: ${validatedData.prompt.substring(0, 50)}...`
+      `Video generation: ${validatedData.prompt.substring(0, 50)}...`,
+      model
     )
 
     if (!deductResult.success) {
@@ -187,13 +277,34 @@ export async function POST(request: NextRequest) {
 
     const consumptionId = deductResult.consumptionId
 
+    // Log Veo usage for analytics (only for Veo models)
+    let veoUsageLogId: string | undefined
+    if (isVeoModel) {
+      const { hasPack, rechargeRecordId } = await hasActiveStarterPack(supabase, userProfile.id)
+      // 映射到日志使用的模型名称
+      const logModelType = model === 'veo-flash' ? 'veo-flash' : 'veo-pro'
+      const logResult = await logVeoUsage(
+        supabase,
+        userProfile.id,
+        videoTask.id,
+        logModelType as 'veo-flash' | 'veo-pro',
+        validatedData.prompt,
+        validatedData.aspectRatio,
+        consumptionId || null,
+        hasPack
+      )
+      veoUsageLogId = logResult.logId
+    }
+
     // Call Grsai API based on model type
     let grsaiResponse
     try {
       if (isVeoModel) {
         // Veo API parameters
+        // 映射到实际的 API 模型名称
+        const apiModelName = model === 'veo-flash' ? 'veo3.1-fast' : 'veo3.1-pro'
         const veoParams = {
-          model: model as 'veo3.1-fast' | 'veo3.1-pro' | 'veo3-fast' | 'veo3-pro',
+          model: apiModelName as 'veo3.1-fast' | 'veo3.1-pro',
           prompt: validatedData.prompt,
           aspectRatio: validatedData.aspectRatio as '16:9' | '9:16',
           webHook: webhookUrl,
@@ -359,6 +470,30 @@ export async function POST(request: NextRequest) {
           .update(updateData)
           .eq('id', videoTask.id)
 
+        // Update Veo usage log on success
+        if (isVeoModel && veoUsageLogId) {
+          await updateVeoUsageLog(supabase, veoUsageLogId, 'succeeded')
+          
+          // Increment daily limit for Starter Pack users
+          const { hasPack, rechargeRecordId } = await hasActiveStarterPack(supabase, userProfile.id)
+          if (hasPack && rechargeRecordId) {
+            await incrementDailyLimit(supabase, userProfile.id, rechargeRecordId, model)
+          }
+        }
+        
+        // Log generation success for risk control
+        const requiredCredits = getCreditsForModel(model)
+        await logGeneration(
+          supabase,
+          userProfile.id,
+          model,
+          requiredCredits,
+          true,
+          clientIp,
+          userAgent,
+          videoTask.id
+        )
+
         const responseData: Record<string, unknown> = {
           success: true,
           status: 'succeeded',
@@ -389,10 +524,39 @@ export async function POST(request: NextRequest) {
           error: grsaiResponse.error,
           fallback: 'Video generation failed because the request was rejected by the upstream service.',
         })
-        // Refund credits on failure
-        if (consumptionId) {
-          await refundCredits(supabase, userProfile.id, consumptionId)
+        
+        // Update Veo usage log on failure (only for Veo Pro, auto-refund)
+        if (isVeoModel && veoUsageLogId) {
+          await updateVeoUsageLog(
+            supabase,
+            veoUsageLogId,
+            'failed',
+            grsaiResponse.failure_reason || grsaiResponse.error || 'Unknown error'
+          )
+          
+          // Veo Pro: Auto-refund on failure
+          if (model === 'veo-pro' && consumptionId) {
+            await refundCredits(supabase, userProfile.id, consumptionId)
+          }
+        } else {
+          // Other models: Refund credits on failure
+          if (consumptionId) {
+            await refundCredits(supabase, userProfile.id, consumptionId)
+          }
         }
+        
+        // Log generation failure for risk control
+        const requiredCredits = getCreditsForModel(model)
+        await logGeneration(
+          supabase,
+          userProfile.id,
+          model,
+          requiredCredits,
+          false,
+          clientIp,
+          userAgent,
+          videoTask.id
+        )
         
         // Update task status
         await supabase

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrCreateUser } from '@/lib/user'
 import { getStripe } from '@/lib/stripe'
 import { NextResponse } from 'next/server'
+import { addCreditsToWallet } from '@/lib/credit-wallet'
 
 
 // Force dynamic rendering to prevent build-time execution
@@ -91,6 +92,15 @@ export async function POST() {
     const syncedPayments: SyncedPayment[] = []
     const errors: SyncError[] = []
 
+    // Helper: 将充值记录同步到钱包（当前全部作为永久积分；后续可按档位拆分为 permanent + bonus）
+    async function syncCreditsToWallet(userId: string, credits: number) {
+      if (!credits || credits <= 0) return
+      const result = await addCreditsToWallet(supabase, userId, credits, 0, null, false)
+      if (!result.success) {
+        console.error('Failed to add credits to wallet in sync-payments:', result.error)
+      }
+    }
+
     // Process Checkout Sessions
     for (const session of sessions.data) {
       // Only process paid sessions
@@ -165,19 +175,7 @@ export async function POST() {
 
             // Add credits if not already added
             if (existingRecordByAmount.status !== 'completed') {
-              const { data: userData } = await supabase
-                .from('users')
-                .select('credits')
-                .eq('id', userProfile.id)
-                .single()
-
-              const currentCredits = userData?.credits ?? 0
-              const newCredits = currentCredits + existingRecordByAmount.credits
-
-              await supabase
-                .from('users')
-                .update({ credits: newCredits })
-                .eq('id', userProfile.id)
+              await syncCreditsToWallet(userProfile.id, existingRecordByAmount.credits)
             }
 
             syncedPayments.push({
@@ -190,23 +188,11 @@ export async function POST() {
           }
         }
 
-        if (existingRecord) {
+          if (existingRecord) {
           // Record exists, check if it needs updating
           if (existingRecord.status !== 'completed') {
-            // Update to completed and add credits if not already done
-            const { data: userData } = await supabase
-              .from('users')
-              .select('credits')
-              .eq('id', userProfile.id)
-              .single()
-
-            const currentCredits = userData?.credits ?? 0
-            const newCredits = currentCredits + existingRecord.credits
-
-            await supabase
-              .from('users')
-              .update({ credits: newCredits })
-              .eq('id', userProfile.id)
+              // Update to completed and add credits if not already done
+              await syncCreditsToWallet(userProfile.id, existingRecord.credits)
 
             await supabase
               .from('recharge_records')
@@ -264,19 +250,7 @@ export async function POST() {
 
             // Add credits if not already added
             if (existingRecord.status !== 'completed') {
-              const { data: userData } = await supabase
-                .from('users')
-                .select('credits')
-                .eq('id', userProfile.id)
-                .single()
-
-              const currentCredits = userData?.credits ?? 0
-              const newCredits = currentCredits + existingRecord.credits
-
-              await supabase
-                .from('users')
-                .update({ credits: newCredits })
-                .eq('id', userProfile.id)
+              await syncCreditsToWallet(userProfile.id, existingRecord.credits)
             }
 
             syncedPayments.push({
@@ -302,20 +276,8 @@ export async function POST() {
               .single()
 
             if (newRecord && !createError) {
-              // Add credits to user
-              const { data: userData } = await supabase
-                .from('users')
-                .select('credits')
-                .eq('id', userProfile.id)
-                .single()
-
-              const currentCredits = userData?.credits ?? 0
-              const newCredits = currentCredits + credits
-
-              await supabase
-                .from('users')
-                .update({ credits: newCredits })
-                .eq('id', userProfile.id)
+              // Add credits to wallet
+              await syncCreditsToWallet(userProfile.id, credits)
 
               syncedPayments.push({
                 session_id: session.id,
