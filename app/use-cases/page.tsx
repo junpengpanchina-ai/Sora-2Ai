@@ -35,10 +35,13 @@ export default async function UseCasesIndexPage({
     .from('use_cases')
     .select('id, slug, title, description, use_case_type, industry', { count: 'exact' })
     .eq('is_published', true)
-    .eq('quality_status', 'approved') // RLS policy requires both is_published=true AND quality_status='approved'
+    // Allow both approved and null quality_status (null means not reviewed yet, but still show)
+    .or('quality_status.eq.approved,quality_status.is.null')
     .order('created_at', { ascending: false })
 
-  if (type !== 'all' && ['marketing', 'social-media', 'youtube', 'tiktok', 'instagram', 'twitter', 'product-demo', 'ads', 'education', 'other'].includes(type)) {
+  // Use correct type values that match the database schema
+  const validTypes = ['advertising-promotion', 'social-media-content', 'product-demo-showcase', 'brand-storytelling', 'education-explainer', 'ugc-creator-content']
+  if (type !== 'all' && validTypes.includes(type)) {
     query = query.eq('use_case_type', type)
   }
 

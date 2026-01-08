@@ -31,13 +31,25 @@ function BillingSuccessContent() {
 
         const data = await res.json().catch(() => ({}));
         
-        if (res.ok && data?.ok) {
+        // finalize 现在只查询状态，不发币（发币由 Webhook 处理）
+        if (res.ok && data?.status === "paid") {
+          if (data?.purchaseApplied) {
+            // Webhook 已经处理，积分已到账
+            setState("ok");
+            setMsg("✅ Payment confirmed! Credits have been added to your wallet. Redirecting...");
+            setTimeout(() => router.push("/video"), 1500);
+          } else {
+            // 支付成功但 Webhook 可能还在处理中
+            setState("ok");
+            setMsg("✅ Payment confirmed! Your credits are being processed and will appear shortly. Redirecting...");
+            setTimeout(() => router.push("/video"), 2000);
+          }
+        } else if (data?.status === "pending") {
           setState("ok");
-          setMsg("✅ Credits added successfully! Redirecting...");
-          setTimeout(() => router.push("/video"), 1500);
+          setMsg("⏳ Payment is being processed. Please wait a moment and refresh.");
         } else {
           setState("error");
-          setMsg(data?.error || "Failed to finalize payment. Please contact support.");
+          setMsg(data?.error || "Payment status unknown. Please contact support if you were charged.");
         }
       } catch {
         setState("error");
