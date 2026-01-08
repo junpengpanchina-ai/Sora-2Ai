@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
-import { planConfig, type PlanId } from "@/lib/billing/planConfig";
+import { PLAN_CONFIGS, type PlanId } from "@/lib/billing/planConfig";
 import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -37,9 +37,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "missing_planId" }, { status: 400 });
     }
 
-    const cfg = planConfig()[planId];
-    if (!cfg?.stripe?.paymentLinkUrl) {
-      return NextResponse.json({ error: "missing_payment_link_url" }, { status: 400 });
+    const cfg = PLAN_CONFIGS[planId];
+    if (!cfg) {
+      return NextResponse.json({ error: "invalid_plan" }, { status: 400 });
     }
 
     // ✅ 从 Supabase Auth 里拿当前用户（服务端验证）
@@ -75,48 +75,16 @@ export async function POST(req: NextRequest) {
     // A) 你填 plink_...（推荐）
     // B) 暂时先用 "mode: payment + line_items" 不依赖 plink（也能跑）
 
-    if (cfg.stripe.paymentLinkId) {
-      // ✅ 方案 A：推荐（最干净）
-      const session = await stripe.checkout.sessions.create({
-        mode: "payment",
-        payment_link: cfg.stripe.paymentLinkId,
-        // 让 webhook 能取到 userId（两种都写）
-        client_reference_id: userId,
-        metadata: {
-          user_id: userId,
-          plan_id: planId,
-          device_id: deviceId ?? "",
-          payment_link_url: cfg.stripe.paymentLinkUrl ?? "",
-          ip_prefix: ipPrefix ?? "",
-        },
-        success_url: `${baseUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/pricing?canceled=1`,
-        allow_promotion_codes: true,
-      });
-
-      return NextResponse.json({ url: session.url });
-    }
-
-    // ✅ 方案 B：临时兜底（不依赖 plink_...）
-    // 你需要在 Stripe 后台有对应的 Price ID（price_...）
-    // 如果你还没有 price_...，我建议你尽快把 plink_... 给我，走方案 A。
-    const priceId = process.env[`STRIPE_PRICE_${planId.toUpperCase()}` as any] as string | undefined;
-    if (!priceId) {
-      return NextResponse.json(
-        { error: "missing_plink_or_price", hint: "Set planConfig().stripe.paymentLinkId or env STRIPE_PRICE_STARTER/CREATOR/STUDIO/PRO" },
-        { status: 400 }
-      );
-    }
-
+    // ✅ 使用 Payment Link ID（推荐方案）
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      line_items: [{ price: priceId, quantity: 1 }],
+      payment_link: cfg.paymentLinkId,
+      // 让 webhook 能取到 userId（两种都写）
       client_reference_id: userId,
       metadata: {
         user_id: userId,
-        plan_id: planId,
+        plan_id: planId, // ✅ 最稳：webhook 优先用这个
         device_id: deviceId ?? "",
-        payment_link_url: cfg.stripe.paymentLinkUrl ?? "",
         ip_prefix: ipPrefix ?? "",
       },
       success_url: `${baseUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
@@ -125,6 +93,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ url: session.url });
+
   } catch (e: any) {
     console.error("[checkout/create] Error:", e);
     return NextResponse.json({ error: "checkout_create_failed", message: e?.message }, { status: 500 });
