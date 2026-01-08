@@ -9,10 +9,10 @@ export function VeoFastPage({ config }: { config: PricingConfig }) {
       <div className="mx-auto max-w-5xl px-4 py-10">
         <header className="text-center">
           <h1 className="text-3xl md:text-4xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-            Veo Fast — Fast, high-fidelity upgrades for your draft
+            Veo Fast
           </h1>
           <p className="mt-3 text-base text-white/70">
-            When Sora helps you explore, Veo Fast helps you refine. Better detail and motion while staying quick.
+            A clean quality upgrade — still fast enough to keep your workflow moving.
           </p>
 
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
@@ -39,12 +39,12 @@ export function VeoFastPage({ config }: { config: PricingConfig }) {
         </header>
 
         <section className="mt-10">
-          <div className="text-lg font-semibold text-white mb-4">What Veo Fast is best for</div>
+          <div className="text-lg font-semibold text-white mb-4">Why Veo Fast</div>
           <div className="grid gap-4 md:grid-cols-3">
             {[
-              { t: "Crisp product shots with stable motion", d: "Better motion consistency for product showcases and demos." },
-              { t: "Cleaner textures and sharper edges", d: "Improved detail quality without sacrificing speed." },
-              { t: "Faster iteration when quality matters", d: "Get sharper results while maintaining quick turnaround." },
+              { t: "Better detail, still fast", d: "A reliable step up when you want a cleaner look without changing your pace." },
+              { t: "Great for quick upgrades", d: "Perfect for the &quot;this is almost ready&quot; moment before the final cut." },
+              { t: "Predictable credits", d: "50 credits per render — easy to plan and budget." },
             ].map((x) => (
               <div key={x.t} className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
                 <div className="font-semibold text-white">{x.t}</div>
@@ -55,17 +55,10 @@ export function VeoFastPage({ config }: { config: PricingConfig }) {
         </section>
 
         <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
-          <div className="text-lg font-semibold text-white">How it fits the workflow</div>
-          <div className="mt-3 grid gap-3 text-sm text-white/80 md:grid-cols-2">
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <div className="font-semibold text-white">Draft in Sora to lock the idea and composition</div>
-              <p className="mt-2 text-white/70">Fast exploration and iteration</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <div className="font-semibold text-white">Refine in Veo Fast to improve realism and clarity</div>
-              <p className="mt-2 text-white/70">Without slowing down</p>
-            </div>
-          </div>
+          <div className="text-lg font-semibold text-white mb-4">Recommended workflow</div>
+          <p className="text-sm text-white/80">
+            Draft with <span className="font-semibold text-white">Sora Preview</span> → Upgrade with <span className="font-semibold text-white">Veo Fast</span> → Finalize with <span className="font-semibold text-white">Veo Pro</span> (when needed)
+          </p>
         </section>
 
         <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
