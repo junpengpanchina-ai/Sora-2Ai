@@ -7,7 +7,7 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
-import { itemIdFromAmount, getPlanConfig, type PlanId } from "@/lib/billing/config";
+import { getPlanConfig, type PlanId } from "@/lib/billing/config";
 
 export async function POST(req: Request) {
   try {
@@ -54,7 +54,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2) Identify item (prefer metadata, fallback to amount)
+    // 2) Identify plan (prefer metadata, fallback to payment_link)
+    // ❌ 不使用金额兜底（容易误判）
     let itemId: string | null = null;
 
     // Try metadata first (from Checkout Session)
@@ -62,102 +63,77 @@ export async function POST(req: Request) {
       itemId = session.metadata.plan_id;
     }
 
-    // Fallback to amount-based identification
+    // Fallback to payment_link identification
     if (!itemId) {
-      itemId = itemIdFromAmount(amountTotal);
-    }
-
-    if (!itemId) {
-      return NextResponse.json(
-        { ok: false, error: `unknown_amount_total:${amountTotal}` },
-        { status: 400 }
-      );
-    }
-
-    // 3) Idempotency: if already applied, return ok
-    const { data: existing } = await supabase
-      .from("purchases")
-      .select("id")
-      .eq("provider", "stripe")
-      .eq("provider_payment_id", session.id)
-      .limit(1);
-
-    if (existing && existing.length > 0) {
-      return NextResponse.json({ ok: true, alreadyApplied: true });
-    }
-
-    // 4) Record purchase
-    const amountUsd = (amountTotal / 100).toFixed(2);
-    const email = session.customer_details?.email ?? null;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: pErr } = await (supabase.from("purchases") as any).insert({
-      user_id: userId,
-      item_id: itemId,
-      provider: "stripe",
-      provider_payment_id: session.id,
-      amount_usd: Number(amountUsd),
-      status: "paid",
-      // TODO: Add device_id, ip_hash, payment_fingerprint if available
-    });
-
-    if (pErr) {
-      console.error("[billing/finalize] Failed to record purchase:", pErr);
-      return NextResponse.json(
-        { ok: false, error: pErr.message },
-        { status: 400 }
-      );
-    }
-
-    // 5) Get plan configuration
-    const cfg = getPlanConfig(itemId as PlanId | "veoProUpgrade");
-
-    // For veoProUpgrade, preserve existing entitlements
-    if (itemId === "veoProUpgrade") {
-      const { data: ent } = await supabase
-        .from("user_entitlements")
-        .select("plan_id, veo_pro_enabled, priority_queue, max_concurrency")
-        .eq("user_id", userId)
-        .single();
-
-      if (ent && typeof ent === "object") {
-        const entData = ent as {
-          plan_id: string | null;
-          veo_pro_enabled: boolean | null;
-          priority_queue: boolean | null;
-          max_concurrency: number | null;
-        };
-        cfg.ent.planId = (entData.plan_id as PlanId) || "free";
-        cfg.ent.veoProEnabled = entData.veo_pro_enabled || false;
-        cfg.ent.priority = entData.priority_queue || false;
-        cfg.ent.maxConcurrency = entData.max_concurrency || 1;
+      const paymentLinkId = typeof session.payment_link === 'string' 
+        ? session.payment_link 
+        : null;
+      if (paymentLinkId) {
+        const { planFromPaymentLink } = await import('@/lib/billing/planConfig');
+        const plan = planFromPaymentLink(paymentLinkId);
+        if (plan) {
+          itemId = plan.planId;
+        }
       }
     }
 
-    // 6) Apply purchase to wallet & entitlements
-    // Supabase RPC type inference issue - need to cast to never
-    const rpcParams = {
-      p_user_id: userId,
-      p_item_id: itemId,
-      p_permanent: cfg.permanent,
-      p_bonus: cfg.bonus,
-      p_bonus_expires_at: cfg.bonusExpiresAt,
-      p_plan_id: cfg.ent.planId,
-      p_veo_pro_enabled: cfg.ent.veoProEnabled,
-      p_priority: cfg.ent.priority,
-      p_max_concurrency: cfg.ent.maxConcurrency,
-    };
-    const { error: aErr } = await supabase.rpc("apply_purchase", rpcParams as never);
-
-    if (aErr) {
-      console.error("[billing/finalize] Failed to apply purchase:", aErr);
-      // Note: Purchase is already recorded, but credits not added
-      // You may want to implement a retry mechanism or manual review
+    // If still no plan identified, return error (do not use amount fallback)
+    if (!itemId || !(itemId === 'starter' || itemId === 'creator' || itemId === 'studio' || itemId === 'pro' || itemId === 'veoProUpgrade')) {
       return NextResponse.json(
-        { ok: false, error: aErr.message },
+        { 
+          ok: false, 
+          error: 'Cannot identify plan',
+          details: 'Plan identification requires either metadata.plan_id or a valid payment_link_id. Amount-based identification is not supported.'
+        },
         { status: 400 }
       );
     }
+
+    // 3) Idempotency: check if already processed (using stripe_session_id)
+    const { data: existing } = await supabase
+      .from("purchases")
+      .select("id")
+      .eq("stripe_session_id", session.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      return NextResponse.json({ ok: true, alreadyApplied: true });
+    }
+
+    // 4) Use grant_credits_for_purchase RPC (atomic + idempotent)
+    // Note: This function automatically inserts into purchases table
+    // We use session.id as event_id since this is a direct call (not from webhook)
+    const paymentLinkId = typeof session.payment_link === 'string' 
+      ? session.payment_link 
+      : (session.metadata?.payment_link_id as string | undefined) || '';
+    
+    const email = session.customer_details?.email || session.customer_email || null;
+
+    // @ts-expect-error - Supabase RPC type inference issue
+    const { error: grantErr } = await supabase.rpc("grant_credits_for_purchase", {
+      p_user_id: userId,
+      p_plan_id: itemId as string,
+      p_payment_link_id: paymentLinkId,
+      p_stripe_event_id: `finalize_${session.id}`, // Use session.id as unique event_id
+      p_stripe_session_id: session.id,
+      p_stripe_payment_intent_id: typeof session.payment_intent === 'string' ? session.payment_intent : null,
+      p_email: email,
+      p_amount_total: amountTotal,
+      p_currency: session.currency || 'usd',
+    });
+
+    if (grantErr) {
+      console.error("[billing/finalize] Failed to grant credits:", grantErr);
+      // Note: Function is idempotent, so retries are safe
+      return NextResponse.json(
+        { ok: false, error: grantErr.message },
+        { status: 400 }
+      );
+    }
+
+    // Get plan config for response (credits already granted by RPC)
+    const cfg = getPlanConfig(itemId as PlanId | "veoProUpgrade");
 
     return NextResponse.json({
       ok: true,

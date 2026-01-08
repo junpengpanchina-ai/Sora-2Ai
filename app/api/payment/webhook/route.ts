@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { addCreditsToWallet } from '@/lib/credit-wallet'
 import { identifyTierFromAmount, calculateBonusExpiresAt } from '@/lib/billing/tier-identification'
-import { hashIpSync, getIpPrefix } from '@/lib/billing/ip-utils'
+// IP utils removed - not used in current version
 
 // 禁用 Next.js 的 body 解析，因为我们需要原始 body 来验证签名
 export const runtime = 'nodejs'
@@ -84,15 +84,47 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 优先从 metadata 获取 plan_id（Checkout Session 方式）
-      const planId = session.metadata?.plan_id as string | undefined;
+      // 统一识别策略：1) metadata.plan_id 2) payment_link_id → planFromPaymentLink
+      // ❌ 不使用金额兜底（容易误判）
+      let planId: string | undefined = session.metadata?.plan_id as string | undefined;
       let userId = session.metadata?.user_id;
+
+      // 回退：从 payment_link 识别
+      if (!planId) {
+        const paymentLinkId = typeof session.payment_link === 'string' 
+          ? session.payment_link 
+          : null;
+        if (paymentLinkId) {
+          const { planFromPaymentLink } = await import('@/lib/billing/planConfig');
+          const plan = planFromPaymentLink(paymentLinkId);
+          if (plan) {
+            planId = plan.planId;
+          }
+        }
+      }
+
+      // 如果还是没有识别到 plan，返回错误（不使用金额兜底）
+      if (!planId || !(planId === 'starter' || planId === 'creator' || planId === 'studio' || planId === 'pro')) {
+        console.error('[webhook] Cannot identify plan:', {
+          session_id: session.id,
+          metadata_plan_id: session.metadata?.plan_id,
+          payment_link: session.payment_link,
+        });
+        return NextResponse.json(
+          { 
+            error: 'Cannot identify plan. Missing metadata.plan_id or payment_link',
+            details: 'Plan identification requires either metadata.plan_id or a valid payment_link_id'
+          },
+          { status: 400 }
+        );
+      }
+
       let amountUsd = session.metadata?.amount_usd 
         ? parseFloat(session.metadata.amount_usd)
         : (session.amount_total ? session.amount_total / 100 : 0);
 
-      // 如果 metadata 中有 plan_id，直接使用新钱包系统
-      if (planId && (planId === 'starter' || planId === 'creator' || planId === 'studio' || planId === 'pro')) {
+      // 使用新钱包系统
+      if (planId) {
         console.log('[webhook] Using Checkout Session metadata:', { planId, userId, amountUsd });
 
         // 如果没有 userId，尝试从 customer_email 查找
@@ -116,93 +148,36 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // 使用新钱包系统应用购买
-        const { getPlanConfig } = await import('@/lib/billing/config');
-        const cfg = getPlanConfig(planId);
-
-        // 提取支付信息（用于风控）
-        const paymentIntentId = session.payment_intent as string | undefined;
-        let paymentFingerprint: string | null = null;
-        let paymentLast4: string | null = null;
-        const stripeCustomerId: string | null = session.customer as string | null;
-
-        // 尝试获取 Payment Intent 详情（包含卡信息）
-        if (paymentIntentId) {
-          try {
-            const stripe = getStripe();
-            const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
-              expand: ['payment_method'],
-            });
-            if (paymentIntent.payment_method) {
-              const pm = typeof paymentIntent.payment_method === 'string'
-                ? await stripe.paymentMethods.retrieve(paymentIntent.payment_method)
-                : paymentIntent.payment_method;
-              paymentFingerprint = (pm as Stripe.PaymentMethod).card?.fingerprint || null;
-              paymentLast4 = (pm as Stripe.PaymentMethod).card?.last4 || null;
-            }
-          } catch (err) {
-            console.warn('[webhook] Failed to retrieve payment method details:', err);
-          }
-        }
-
-        // 提取 IP（用于风控）- Webhook 请求来自 Stripe，IP 在 headers 中
-        const requestIp = request.headers.get('cf-connecting-ip') || 
-                         request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-                         request.headers.get('x-real-ip') ||
-                         null;
-        const ipHash = requestIp ? hashIpSync(requestIp) : null;
-        const ipPrefix = requestIp ? getIpPrefix(requestIp) : null;
-
-        // 应用购买（使用 RPC 函数，确保原子性）
-        const rpcParams = {
-          p_user_id: userId,
-          p_item_id: planId,
-          p_permanent: cfg.permanent,
-          p_bonus: cfg.bonus,
-          p_bonus_expires_at: cfg.bonusExpiresAt,
-          p_plan_id: cfg.ent.planId,
-          p_veo_pro_enabled: cfg.ent.veoProEnabled,
-          p_priority: cfg.ent.priority,
-          p_max_concurrency: cfg.ent.maxConcurrency,
-        };
-
+        // 使用 grant_credits_for_purchase RPC 函数（原子性 + 幂等性）
+        // 注意：这个函数会自动根据 plan_id 计算积分并插入 purchases 记录
+        const paymentLinkId = typeof session.payment_link === 'string' 
+          ? session.payment_link 
+          : (session.metadata?.payment_link_id as string | undefined) || '';
+        
         // @ts-expect-error - Supabase RPC type inference issue
-        const { error: applyErr } = await supabase.rpc('apply_purchase', rpcParams);
-
-        if (applyErr) {
-          console.error('[webhook] Failed to apply purchase:', applyErr);
-          return NextResponse.json(
-            { error: 'Failed to apply purchase', details: applyErr.message },
-            { status: 500 }
-          );
-        }
-
-        // 记录购买（包含风控信息）
-        const { error: purchaseErr } = await supabase.from('purchases').insert({
-          user_id: userId,
-          item_id: planId,
-          provider: 'stripe',
-          provider_payment_id: session.id,
-          amount_usd: amountUsd,
-          status: 'paid',
-          // 风控字段（需要执行迁移 051_add_risk_control_fields.sql）
-          payment_fingerprint: paymentFingerprint,
-          payment_last4: paymentLast4,
-          stripe_customer_id: stripeCustomerId,
-          ip_hash: ipHash,
-          ip_prefix: ipPrefix,
+        const { error: grantErr } = await supabase.rpc('grant_credits_for_purchase', {
+          p_user_id: userId,
+          p_plan_id: planId,
+          p_payment_link_id: paymentLinkId,
+          p_stripe_event_id: event.id,
+          p_stripe_session_id: session.id,
+          p_stripe_payment_intent_id: typeof session.payment_intent === 'string' ? session.payment_intent : null,
+          p_email: session.customer_email || null,
+          p_amount_total: session.amount_total || null,
+          p_currency: session.currency || 'usd',
         });
 
-        if (purchaseErr) {
-          console.error('[webhook] Failed to record purchase:', purchaseErr);
-          // 积分已添加，但购买记录失败，记录错误但不返回失败
+        if (grantErr) {
+          console.error('[webhook] Failed to grant credits:', grantErr);
+          return NextResponse.json(
+            { error: 'Failed to grant credits', details: grantErr.message },
+            { status: 500 }
+          );
         }
 
         console.log('[webhook] Purchase applied successfully:', {
           planId,
           userId,
-          permanent: cfg.permanent,
-          bonus: cfg.bonus,
         });
 
         return NextResponse.json({ 

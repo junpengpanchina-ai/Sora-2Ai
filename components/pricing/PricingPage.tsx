@@ -24,6 +24,10 @@ const faq: FAQItem[] = [
     a: "Starter is for testing the workflow with fair-use limits. Veo Pro is available on paid packs.",
   },
   {
+    q: "Can I use bonus credits for Veo Pro?",
+    a: "No. Veo Pro uses permanent credits only. Bonus credits are for Sora Preview and Veo Fast. This helps us maintain service quality and cashflow.",
+  },
+  {
     q: "What happens if a render fails?",
     a: "Failed renders are credited back automatically.",
   },
@@ -80,6 +84,7 @@ export function PricingPage({ config, onCheckout }: Props) {
               "+60 bonus credits (expires in 30 days)",
               "Access to Sora, Veo Fast, and Veo Pro",
               "Better limits + smoother queue",
+              "Note: Veo Pro uses permanent credits only",
             ]}
             ctaLabel="Get Creator Pack"
             onCta={(id) => onCheckout(id)}
@@ -96,6 +101,7 @@ export function PricingPage({ config, onCheckout }: Props) {
               "+270 bonus credits (expires in 45 days)",
               "Built for final exports and client work",
               "Priority queue + higher concurrency",
+              "Note: Veo Pro uses permanent credits only",
             ]}
             ctaLabel="Get Studio Pack"
             onCta={(id) => onCheckout(id)}
@@ -111,6 +117,7 @@ export function PricingPage({ config, onCheckout }: Props) {
               "+1,200 bonus credits (expires in 60 days)",
               "Highest value per credit",
               "Best limits + fastest queue",
+              "Note: Veo Pro uses permanent credits only",
             ]}
             ctaLabel="Get Pro Pack"
             onCta={(id) => onCheckout(id)}
