@@ -18,11 +18,22 @@ export default function PricingPage() {
     }
 
     try {
-      // Create Checkout Session via API (gives us full control over redirects)
-      const response = await fetch("/api/payment/create-plan-checkout", {
+      // 获取 device_id（用于风控）
+      let deviceId: string | undefined;
+      try {
+        if (typeof window !== "undefined") {
+          const { getOrCreateDeviceId } = await import("@/lib/risk/deviceId");
+          deviceId = getOrCreateDeviceId();
+        }
+      } catch (err) {
+        console.warn("Failed to get device ID:", err);
+      }
+
+      // Create Checkout Session via API (gives us full control over redirects + device_id)
+      const response = await fetch("/api/checkout/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId }),
+        body: JSON.stringify({ planId, deviceId }),
       });
 
       const data = await response.json();
