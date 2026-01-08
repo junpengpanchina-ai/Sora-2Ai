@@ -67,17 +67,25 @@ export async function chargeForRender(input: {
     throw new Error(`deduct_failed:${deductErr.message}`);
   }
 
-  // 4) 记录 usage_daily（使用 SQL 函数原子累加）
-  const day = today();
-  const { error: usageErr } = await supabaseAdmin.rpc("increment_usage_daily", {
-    p_user_id: input.userId,
-    p_day: day,
-    p_model: input.model,
-  });
+  // 4) 记录 usage_daily（可选功能，失败不影响主流程）
+  // ⚠️ 如果 increment_usage_daily 函数不存在，不会导致 500 错误
+  try {
+    const day = today();
+    const { error: usageErr } = await supabaseAdmin.rpc("increment_usage_daily", {
+      p_user_id: input.userId,
+      p_day: day,
+      p_model: input.model,
+    });
 
-  if (usageErr) {
-    console.error("[charge] Failed to increment usage:", usageErr);
-    // 不抛错，扣币已成功，usage 记录失败不影响主流程
+    if (usageErr) {
+      // 函数不存在或表不存在时，只记录警告，不抛错
+      console.warn("[charge] Failed to increment usage (non-critical):", usageErr.message);
+      // 扣币已成功，usage 记录失败不影响主流程
+    }
+  } catch (usageError) {
+    // 捕获任何意外错误（如函数不存在导致的异常）
+    console.warn("[charge] Usage tracking error (non-critical):", usageError);
+    // 不抛错，确保扣币成功的情况下不会因为 usage 记录失败而失败
   }
 
   return { ok: true, cost };
