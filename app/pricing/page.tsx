@@ -22,6 +22,20 @@ export default function PricingPage() {
       const { getOrCreateDeviceId } = await import("@/lib/risk/deviceId");
       const deviceId = getOrCreateDeviceId();
 
+      // ✅ Starter 走防薅接口 /api/pay
+      if (planId === "starter") {
+        // 获取用户邮箱
+        const { createClient } = await import("@/lib/supabase/client");
+        const supabase = createClient();
+        const { data: sessionData } = await supabase.auth.getSession();
+        const email = sessionData.session?.user?.email || "";
+
+        // 直接跳转到防薅接口，它会进行风控检查后跳转到 Payment Link
+        window.location.href = `/api/pay?plan=starter&device_id=${deviceId}&email=${encodeURIComponent(email)}`;
+        return;
+      }
+
+      // ✅ Creator/Studio/Pro 走正常 Checkout Session
       // 取当前 supabase access token
       const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
