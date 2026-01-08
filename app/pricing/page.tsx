@@ -19,31 +19,39 @@ export default function PricingPage() {
 
     try {
       // 获取 device_id（用于风控）
-      let deviceId: string | undefined;
-      try {
-        if (typeof window !== "undefined") {
-          const { getOrCreateDeviceId } = await import("@/lib/risk/deviceId");
-          deviceId = getOrCreateDeviceId();
-        }
-      } catch (err) {
-        console.warn("Failed to get device ID:", err);
+      const { getOrCreateDeviceId } = await import("@/lib/risk/deviceId");
+      const deviceId = getOrCreateDeviceId();
+
+      // 取当前 supabase access token
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+
+      if (!token) {
+        window.location.href = "/login?next=/pricing";
+        return;
       }
 
-      // Create Checkout Session via API (gives us full control over redirects + device_id)
-      const response = await fetch("/api/checkout/create", {
+      const res = await fetch("/api/checkout/create", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ planId, deviceId }),
       });
 
-      const data = await response.json();
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json?.error || "Checkout failed");
+        return;
+      }
 
-      if (data.success && data.checkout_url) {
-        // Redirect to Stripe Checkout
-        window.location.href = data.checkout_url;
+      if (json.url) {
+        window.location.href = json.url;
       } else {
-        console.error("Failed to create checkout:", data.error);
-        alert(data.error || "Failed to create checkout session. Please try again.");
+        alert("Missing checkout URL");
       }
     } catch (error) {
       console.error("Checkout error:", error);

@@ -108,26 +108,26 @@ export async function POST(req: NextRequest) {
 
   const session = event.data.object as Stripe.Checkout.Session;
 
-  // 你必须在 Payment Link / Checkout 里把 user_id 传回来（最推荐：client_reference_id 或 metadata.user_id）
-  const userId = (session.client_reference_id || session.metadata?.user_id) as string | undefined;
-  if (!userId) {
-    return NextResponse.json({ error: "missing_user_id" }, { status: 400 });
-  }
-
-  // 取 payment link 信息（可能为空）
+  // ✅ 优先用 metadata.plan_id（最稳），其次再用 payment_link 映射
   const paymentLinkId = (session.payment_link as string | null) ?? null;
-
-  // 尝试拿到 payment link url：checkout session 不一定给 url，我们用 config 里 url fallback
-  const cfg = planConfig();
-  const maybePlanIdFromId = resolvePlanIdFromStripePaymentLink({ paymentLinkId, paymentLinkUrl: null });
-
-  // 如果没匹配到 id，尝试用 session 的 "landing" 或者你自己在 metadata 写 payment_link_url
   const paymentLinkUrl = (session.metadata?.payment_link_url as string | undefined) ?? null;
-  const maybePlanIdFromUrl = maybePlanIdFromId ?? resolvePlanIdFromStripePaymentLink({ paymentLinkId: null, paymentLinkUrl });
 
-  const planId = (maybePlanIdFromUrl ?? null) as PlanId | null;
+  const planId =
+    (session.metadata?.plan_id as PlanId | undefined) ??
+    resolvePlanIdFromStripePaymentLink({ paymentLinkId, paymentLinkUrl }) ??
+    null;
+
   if (!planId) {
     return NextResponse.json({ error: "unknown_plan", paymentLinkId, paymentLinkUrl }, { status: 400 });
+  }
+
+  // ✅ 优先用 metadata.user_id，回退到 client_reference_id
+  const userId =
+    (session.metadata?.user_id as string | undefined) ??
+    (session.client_reference_id as string | undefined);
+
+  if (!userId) {
+    return NextResponse.json({ error: "missing_user_id" }, { status: 400 });
   }
 
   const plan = cfg[planId];
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
     req.headers.get("cf-connecting-ip");
   const ipPrefix = ipToPrefix(ip);
 
-  // device_id：你前端下单时请把 device_id 放 session.metadata.device_id（最推荐）
+  // ✅ deviceId 直接取 metadata（最稳）
   const deviceId = (session.metadata?.device_id as string | undefined) ?? null;
 
   // card fingerprint：checkout session 里拿不到，需 retrieve payment_intent expand
