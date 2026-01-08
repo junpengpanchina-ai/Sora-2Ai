@@ -36,6 +36,7 @@ export default async function UseCasesIndexPage({
     .select('id, slug, title, description, use_case_type, industry', { count: 'exact' })
     .eq('is_published', true)
     // Allow both approved and null quality_status (null means not reviewed yet, but still show)
+    // Use or() with proper syntax: field.operator.value,field.operator.value
     .or('quality_status.eq.approved,quality_status.is.null')
     .order('created_at', { ascending: false })
 
@@ -58,16 +59,42 @@ export default async function UseCasesIndexPage({
   
   const { data, error, count } = await query
 
+  // 🔍 详细调试日志
+  console.log('[UseCasesPage] 查询参数:', {
+    type,
+    industry,
+    q,
+    page,
+    pageSize,
+    offset,
+  })
+  console.log('[UseCasesPage] 查询结果:', {
+    dataLength: Array.isArray(data) ? data.length : 0,
+    count,
+    error: error ? {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    } : null,
+  })
+
   if (error) {
-    console.error('Failed to load use cases:', error)
+    console.error('[UseCasesPage] 查询失败:', error)
   }
 
   const useCases = (Array.isArray(data) ? data : []) as Pick<
     UseCaseRow,
     'id' | 'slug' | 'title' | 'description' | 'use_case_type' | 'industry'
- >[]
+  >[]
   const totalCount = typeof count === 'number' ? count : useCases.length
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+
+  console.log('[UseCasesPage] 最终数据:', {
+    useCasesCount: useCases.length,
+    totalCount,
+    totalPages,
+  })
 
   return (
     <UseCasesPageClient
