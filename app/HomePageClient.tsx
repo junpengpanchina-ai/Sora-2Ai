@@ -306,12 +306,25 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     try {
       setCheckingOutPlanId(plan.id)
       
-      // 获取认证头
+      // 获取认证头和 device_id
       const authHeaders = await getAuthHeaders()
+      
+      // 获取 device_id（用于风控）
+      let deviceId: string | undefined;
+      try {
+        if (typeof window !== 'undefined') {
+          const { getDeviceId } = await import('@/lib/billing/device-fingerprint');
+          deviceId = getDeviceId();
+        }
+      } catch (err) {
+        console.warn('Failed to get device ID:', err);
+      }
+      
       console.log('[Checkout] Starting checkout for plan:', plan.id, {
         hasAuth: !!authHeaders.Authorization,
         isAuthenticated,
         hasHydratedProfile: !!hydratedProfile,
+        deviceId: deviceId?.substring(0, 20) || 'none',
       })
       
       // 使用新的 Checkout Session API
@@ -321,7 +334,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           'Content-Type': 'application/json',
           ...authHeaders, // 添加认证头
         },
-        body: JSON.stringify({ planId: plan.id }),
+        body: JSON.stringify({ planId: plan.id, deviceId }),
       })
       
       console.log('[Checkout] API response status:', res.status)

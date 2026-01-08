@@ -60,6 +60,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Risk control: Check if user can purchase Starter (anti-abuse)
+    if (planId === "starter") {
+      
+      // Extract IP and calculate prefix
+      const requestIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+                       request.headers.get("x-real-ip") ||
+                       request.headers.get("cf-connecting-ip") ||
+                       null;
+      
+      let ipPrefix: string | null = null;
+      if (requestIp) {
+        const ipv4Match = requestIp.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+        if (ipv4Match) {
+          ipPrefix = `${ipv4Match[1]}.${ipv4Match[2]}.${ipv4Match[3]}.0/24`;
+        }
+      }
+
+      // Check if user can purchase Starter
+      const { data: canPurchase, error: riskErr } = await supabase.rpc("can_purchase_starter", {
+        p_user_id: auth.user.id,
+        p_device_id: deviceId,
+        p_ip_prefix: ipPrefix,
+        p_payment_fingerprint: null, // Will be set in webhook
+      });
+
+      if (riskErr) {
+        console.error("[create-plan-checkout] Risk check error:", riskErr);
+        // Don't block, but log the error
+      } else if (canPurchase && !canPurchase.can_purchase) {
+        console.warn("[create-plan-checkout] Starter purchase blocked:", canPurchase.reason);
+        return NextResponse.json(
+          {
+            error: "Starter Access purchase not available",
+            reason: canPurchase.reason,
+            details: "Starter Access is limited to one purchase per account, device, or payment method.",
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     // Get base URL
     const baseUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
