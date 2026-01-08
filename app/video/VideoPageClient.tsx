@@ -118,6 +118,10 @@ export default function VideoPageClient() {
   const [soraRenders7d, setSoraRenders7d] = useState(0) // Approximate Sora usage for triggers
   const [remixSamePrompt24h, setRemixSamePrompt24h] = useState(0) // Approximate remix count for same prompt
   const lastSubmittedPromptRef = useRef<string | null>(null)
+  const [userEntitlements, setUserEntitlements] = useState<{
+    planId: string;
+    veoProEnabled: boolean;
+  } | null>(null)
 
   const MIN_PROMPT_LENGTH = 5
   const cleanedPrompt = prompt
@@ -169,6 +173,33 @@ export default function VideoPageClient() {
     }
     return {} as Record<string, string>
   }, [supabase])
+
+  // Fetch user entitlements
+  useEffect(() => {
+    if (!supabase || !isMountedRef.current) {
+      return
+    }
+
+    async function fetchEntitlements() {
+      try {
+        const headers = await getAuthHeaders()
+        const res = await fetch('/api/user/entitlements', { headers })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success && data.entitlements) {
+            setUserEntitlements({
+              planId: data.entitlements.planId || 'free',
+              veoProEnabled: data.entitlements.veoProEnabled || false,
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch entitlements:', error)
+      }
+    }
+
+    fetchEntitlements()
+  }, [supabase, getAuthHeaders])
 
   // Fetch credits with retry logic
   useEffect(() => {
@@ -1289,13 +1320,28 @@ export default function VideoPageClient() {
               >
                 <option value="sora-2" className="text-black">Sora Preview</option>
                 <option value="veo-flash" className="text-black">Veo Flash</option>
-                <option value="veo-pro" className="text-black">Veo Pro</option>
+                <option 
+                  value="veo-pro" 
+                  className="text-black"
+                  disabled={userEntitlements?.veoProEnabled === false}
+                >
+                  Veo Pro{userEntitlements?.veoProEnabled === false ? ' (Upgrade required)' : ''}
+                </option>
               </select>
               <p className="mt-1 text-xs text-blue-100/50">
                 {model === 'sora-2' && 'Fast, lightweight video generation for early exploration.'}
                 {model === 'veo-flash' && 'Quality upgrade with audio, still fast for drafts and testing.'}
-                {model === 'veo-pro' && 'Preferred when final quality and sound matter.'}
+                {model === 'veo-pro' && (
+                  userEntitlements?.veoProEnabled === false
+                    ? 'Veo Pro is available on paid packs. Upgrade to unlock final export quality.'
+                    : 'Preferred when final quality and sound matter.'
+                )}
               </p>
+              {userEntitlements?.veoProEnabled === false && model === 'veo-pro' && (
+                <div className="mt-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-2 text-xs text-yellow-200">
+                  Veo Pro is locked on Starter Access. <Link href="/pricing" className="underline hover:text-yellow-100">Upgrade to unlock</Link>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
