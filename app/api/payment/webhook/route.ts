@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { addCreditsToWallet } from '@/lib/credit-wallet'
 import { identifyTierFromAmount, calculateBonusExpiresAt } from '@/lib/billing/tier-identification'
-import { extractClientIp, hashIpSync, getIpPrefix } from '@/lib/billing/ip-utils'
+import { hashIpSync, getIpPrefix } from '@/lib/billing/ip-utils'
 
 // 禁用 Next.js 的 body 解析，因为我们需要原始 body 来验证签名
 export const runtime = 'nodejs'
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       // 优先从 metadata 获取 plan_id（Checkout Session 方式）
       const planId = session.metadata?.plan_id as string | undefined;
       let userId = session.metadata?.user_id;
-      const amountUsd = session.metadata?.amount_usd 
+      let amountUsd = session.metadata?.amount_usd 
         ? parseFloat(session.metadata.amount_usd)
         : (session.amount_total ? session.amount_total / 100 : 0);
 
@@ -117,14 +117,14 @@ export async function POST(request: NextRequest) {
         }
 
         // 使用新钱包系统应用购买
-        const { itemIdFromAmount, getPlanConfig } = await import('@/lib/billing/config');
+        const { getPlanConfig } = await import('@/lib/billing/config');
         const cfg = getPlanConfig(planId);
 
         // 提取支付信息（用于风控）
         const paymentIntentId = session.payment_intent as string | undefined;
         let paymentFingerprint: string | null = null;
         let paymentLast4: string | null = null;
-        let stripeCustomerId: string | null = session.customer as string | null;
+        const stripeCustomerId: string | null = session.customer as string | null;
 
         // 尝试获取 Payment Intent 详情（包含卡信息）
         if (paymentIntentId) {
@@ -347,7 +347,7 @@ export async function POST(request: NextRequest) {
       }
 
       // 识别充值档位（根据金额）
-      const amountUsd = amount
+      amountUsd = amount
       const tierConfig = identifyTierFromAmount(amountUsd)
 
       if (!tierConfig) {

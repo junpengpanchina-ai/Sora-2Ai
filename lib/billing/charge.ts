@@ -26,7 +26,11 @@ export async function chargeForRender(input: {
 
   // 2) Starter 限频：按 usage_daily
   if ((input.planId ?? "") === "starter") {
-    const rule = planConfig().starter.starterRules!;
+    const starterConfig = planConfig().starter;
+    const dailyCaps = starterConfig.dailyCaps;
+    if (!dailyCaps) {
+      throw new Error("starter_daily_caps_not_configured");
+    }
     const day = today();
 
     const { data: row } = await supabaseAdmin
@@ -39,10 +43,10 @@ export async function chargeForRender(input: {
     const soraCount = row?.sora_count ?? 0;
     const fastCount = row?.veo_fast_count ?? 0;
 
-    if (input.model === "sora" && soraCount >= rule.dailySoraCap) {
+    if (input.model === "sora" && dailyCaps.sora && soraCount >= dailyCaps.sora) {
       throw new Error("starter_daily_sora_cap");
     }
-    if (input.model === "veo_fast" && fastCount >= rule.dailyVeoFastCap) {
+    if (input.model === "veo_fast" && dailyCaps.veo_fast && fastCount >= dailyCaps.veo_fast) {
       throw new Error("starter_daily_veo_fast_cap");
     }
   }

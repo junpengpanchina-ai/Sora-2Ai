@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { planId } = body as { planId: PlanId };
+    const { planId, deviceId } = body as { planId: PlanId; deviceId?: string | null };
 
     if (!planId || planId === "free") {
       return NextResponse.json(
@@ -78,9 +78,10 @@ export async function POST(request: NextRequest) {
       }
 
       // Check if user can purchase Starter
+      // @ts-expect-error - Supabase RPC type inference issue
       const { data: canPurchase, error: riskErr } = await supabase.rpc("can_purchase_starter", {
         p_user_id: auth.user.id,
-        p_device_id: deviceId,
+        p_device_id: deviceId ?? null,
         p_ip_prefix: ipPrefix,
         p_payment_fingerprint: null, // Will be set in webhook
       });
@@ -88,12 +89,13 @@ export async function POST(request: NextRequest) {
       if (riskErr) {
         console.error("[create-plan-checkout] Risk check error:", riskErr);
         // Don't block, but log the error
-      } else if (canPurchase && !canPurchase.can_purchase) {
-        console.warn("[create-plan-checkout] Starter purchase blocked:", canPurchase.reason);
+      } else if (canPurchase && !(canPurchase as { can_purchase: boolean; reason?: string }).can_purchase) {
+        const result = canPurchase as { can_purchase: boolean; reason?: string };
+        console.warn("[create-plan-checkout] Starter purchase blocked:", result.reason);
         return NextResponse.json(
           {
             error: "Starter Access purchase not available",
-            reason: canPurchase.reason,
+            reason: result.reason,
             details: "Starter Access is limited to one purchase per account, device, or payment method.",
           },
           { status: 403 }

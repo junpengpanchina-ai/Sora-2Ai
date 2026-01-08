@@ -35,11 +35,18 @@ export async function getUserEntitlements(userId: string): Promise<UserEntitleme
     };
   }
 
+  const row = data as {
+    plan_id: string | null;
+    veo_pro_enabled: boolean | null;
+    priority_queue: boolean | null;
+    max_concurrency: number | null;
+  };
+
   return {
-    planId: (data.plan_id as UserEntitlements["planId"]) || "free",
-    veoProEnabled: data.veo_pro_enabled || false,
-    priorityQueue: data.priority_queue || false,
-    maxConcurrency: data.max_concurrency || 1,
+    planId: (row.plan_id as UserEntitlements["planId"]) || "free",
+    veoProEnabled: row.veo_pro_enabled || false,
+    priorityQueue: row.priority_queue || false,
+    maxConcurrency: row.max_concurrency || 1,
   };
 }
 
