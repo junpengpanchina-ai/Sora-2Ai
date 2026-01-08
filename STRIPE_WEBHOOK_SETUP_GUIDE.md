@@ -31,8 +31,9 @@
 3. **配置端点信息**
    - **Endpoint URL**: 
      ```
-     https://sora2aivideos.com/api/payment/webhook
+     https://sora2aivideos.com/api/stripe/webhook
      ```
+   - ⚠️ **注意**：使用新的 `/api/stripe/webhook` 路由（支持完整的防薅和幂等性）
    - **Description**（可选）:
      ```
      Sora2Ai - Payment success webhook for credit distribution
@@ -131,7 +132,7 @@ vercel env add STRIPE_WEBHOOK_SECRET
 stripe login
 
 # 转发 Webhook 到本地（用于测试）
-stripe listen --forward-to localhost:3000/api/payment/webhook
+stripe listen --forward-to localhost:3000/api/stripe/webhook
 
 # 在另一个终端触发测试事件
 stripe trigger checkout.session.completed
@@ -234,7 +235,7 @@ stripe trigger checkout.session.completed
 
 **触发时机**：用户完成支付后
 
-**处理逻辑**（`app/api/payment/webhook/route.ts`）：
+**处理逻辑**（`app/api/stripe/webhook/route.ts`）：
 1. 验证 Webhook 签名
 2. 幂等性检查（防止重复发币）
 3. 从 metadata 读取 `plan_id`

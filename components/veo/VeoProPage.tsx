@@ -9,10 +9,10 @@ export function VeoProPage({ config }: { config: PricingConfig }) {
       <div className="mx-auto max-w-5xl px-4 py-10">
         <header className="text-center">
           <h1 className="text-3xl md:text-4xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-            Veo Pro — Studio-grade final exports
+            Veo Pro — Studio-grade final renders
           </h1>
           <p className="mt-3 text-base text-white/70">
-            Upgrade the version you&apos;re publishing. Smoother motion, higher realism, cleaner detail.
+            For production-ready motion, realism, and the cleanest final export. Use it when the result is meant to be published.
           </p>
 
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
@@ -20,10 +20,10 @@ export function VeoProPage({ config }: { config: PricingConfig }) {
               className="w-full rounded-xl bg-gradient-to-r from-[#1f75ff] to-[#3f8cff] px-5 py-3 text-sm font-semibold text-white hover:opacity-90 transition-opacity sm:w-auto"
               onClick={() => {
                 track("veo_pro_primary_cta_click");
-                window.location.href = "/pricing";
+                window.location.href = "/video";
               }}
             >
-              Upgrade with Veo Pro
+              Render this as a Final Cut (Veo Pro)
             </button>
 
             <button
@@ -33,7 +33,7 @@ export function VeoProPage({ config }: { config: PricingConfig }) {
                 window.location.href = "/pricing";
               }}
             >
-              See pricing
+              Compare models
             </button>
           </div>
         </header>
@@ -42,9 +42,9 @@ export function VeoProPage({ config }: { config: PricingConfig }) {
           <div className="text-lg font-semibold text-white mb-4">What you get</div>
           <div className="grid gap-4 md:grid-cols-3">
             {[
-              { t: "Cleaner motion & realism", d: "Better motion consistency and more natural movement in the final cut." },
-              { t: "Higher fidelity detail", d: "Sharper textures and fewer artifacts when it matters." },
-              { t: "Built for final delivery", d: "Ideal for client work, product videos, ads, and portfolio pieces." },
+              { t: "More realistic motion", d: "For people, objects, and camera movement in the final cut." },
+              { t: "Higher fidelity detail", d: "In textures, edges, and lighting for production-ready output." },
+              { t: "Cleaner final output", d: "For marketing, demos, and client delivery." },
             ].map((x) => (
               <div key={x.t} className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
                 <div className="font-semibold text-white">{x.t}</div>
@@ -69,93 +69,65 @@ export function VeoProPage({ config }: { config: PricingConfig }) {
         </section>
 
         <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
-          <div className="text-lg font-semibold text-white mb-4">Choose the right model</div>
+          <div className="text-lg font-semibold text-white mb-4">When to use each model</div>
           <div className="grid gap-3 text-sm text-white/80">
-            <div><span className="font-semibold text-white">Sora:</span> Everyday drafts and iteration</div>
-            <div><span className="font-semibold text-white">Veo Fast:</span> Quick quality upgrade when you need speed</div>
-            <div><span className="font-semibold text-white">Veo Pro:</span> Final export for maximum fidelity</div>
+            <div><span className="font-semibold text-white">Sora (Preview):</span> early ideas, fast drafts, lots of iterations</div>
+            <div><span className="font-semibold text-white">Veo Fast:</span> sharper upgrades while staying quick</div>
+            <div><span className="font-semibold text-white">Veo Pro (Final Cut):</span> the version you deliver to an audience</div>
           </div>
         </section>
 
         <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
-          <div className="text-lg font-semibold text-white mb-4">Transparent and predictable</div>
+          <div className="text-lg font-semibold text-white">Workflow</div>
+          <div className="mt-3 grid gap-3 text-sm text-white/80 md:grid-cols-2">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="font-semibold text-white">Step 1 — Draft</div>
+              <p className="mt-2 text-white/70">Generate variations in Sora to pick the best direction</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="font-semibold text-white">Step 2 — Finalize</div>
+              <p className="mt-2 text-white/70">Render with Veo Pro for your final export</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+          <div className="text-lg font-semibold text-white mb-4">Trust / transparency</div>
           <ul className="space-y-2 text-sm text-white/80">
-            <li>• Veo Pro uses <span className="text-white font-semibold">{config.veoProCreditsPerRender} credits</span> per render</li>
-            <li>• Credits never expire (bonus credits may have an expiry)</li>
-            <li>• Failed renders are credited back automatically</li>
+            <li>• Predictable credits per render</li>
+            <li>• Permanent credits never expire</li>
+            <li>• Bonus credits (if included) are time-limited and always used first</li>
           </ul>
-        </section>
-
-        <section className="mt-10 grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
-            <div className="text-lg font-semibold text-green-400">When Veo Pro is worth it</div>
-            <ul className="mt-3 space-y-2 text-sm text-white/80">
-              <li className="flex items-start gap-2">
-                <span className="text-green-400">✓</span>
-                <span>Final export (not just testing)</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-green-400">✓</span>
-                <span>Smoother motion and stronger realism</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-green-400">✓</span>
-                <span>Marketing, product, or training videos</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
-            <div className="text-lg font-semibold text-blue-400">When Sora is enough</div>
-            <ul className="mt-3 space-y-2 text-sm text-white/80">
-              <li className="flex items-start gap-2">
-                <span className="text-blue-400">✓</span>
-                <span>Exploring ideas and iterating prompts</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-blue-400">✓</span>
-                <span>Testing different styles and variants</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-blue-400">✓</span>
-                <span>Building a draft library before selecting the best take</span>
-              </li>
-            </ul>
-          </div>
         </section>
 
         <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
-          <div className="text-lg font-semibold text-white">Transparent and predictable</div>
-          <ul className="mt-3 space-y-2 text-sm text-white/80">
-            <li className="flex items-start gap-2">
-              <span className="text-green-400">✓</span>
-              <span>Permanent credits never expire</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-green-400">✓</span>
-              <span>Bonus credits have an expiration date (shown at purchase)</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-green-400">✓</span>
-              <span>Credits are used automatically (bonus credits are spent first)</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-green-400">✓</span>
-              <span>No subscription required — upgrade anytime</span>
-            </li>
-          </ul>
+          <div className="text-lg font-semibold text-white mb-4">FAQ (避坑版)</div>
+          <div className="space-y-4 text-sm text-white/80">
+            <div>
+              <div className="font-semibold text-white mb-1">Do I need Veo Pro for every video?</div>
+              <p>No. Most workflows start with Sora for drafts. Veo Pro is designed for final delivery.</p>
+            </div>
+            <div>
+              <div className="font-semibold text-white mb-1">Can I access Veo Pro on Starter Access?</div>
+              <p>Veo Pro is available on paid packs with higher limits and priority.</p>
+            </div>
+            <div>
+              <div className="font-semibold text-white mb-1">Why are there usage limits on Starter?</div>
+              <p>Starter includes daily limits to keep the service reliable and fair for everyone.</p>
+            </div>
+          </div>
         </section>
 
         <section className="mt-10 text-center">
-          <div className="text-lg font-semibold text-white mb-2">Ready for a cleaner final export?</div>
+          <div className="text-lg font-semibold text-white mb-2">Ready to render your final cut?</div>
           <button
             className="rounded-xl bg-gradient-to-r from-[#1f75ff] to-[#3f8cff] px-5 py-3 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
             onClick={() => {
               track("veo_pro_bottom_cta_click");
-              window.location.href = "/pricing";
+              window.location.href = "/video";
             }}
           >
-            Upgrade with Veo Pro
+            Render this as a Final Cut (Veo Pro)
           </button>
         </section>
       </div>

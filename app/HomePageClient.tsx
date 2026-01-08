@@ -313,8 +313,8 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       let deviceId: string | undefined;
       try {
         if (typeof window !== 'undefined') {
-          const { getDeviceId } = await import('@/lib/billing/device-fingerprint');
-          deviceId = getDeviceId();
+          const { getOrCreateDeviceId } = await import('@/lib/risk/deviceId');
+          deviceId = getOrCreateDeviceId();
         }
       } catch (err) {
         console.warn('Failed to get device ID:', err);
@@ -327,8 +327,8 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         deviceId: deviceId?.substring(0, 20) || 'none',
       })
       
-      // 使用新的 Checkout Session API
-      const res = await fetch('/api/payment/create-plan-checkout', {
+      // 使用新的 Checkout Session API（支持 device_id）
+      const res = await fetch('/api/checkout/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
