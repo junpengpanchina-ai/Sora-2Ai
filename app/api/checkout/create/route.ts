@@ -1,6 +1,5 @@
 // app/api/checkout/create/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { PLAN_CONFIGS, type PlanId } from "@/lib/billing/planConfig";
 import { getStripe } from "@/lib/stripe";
@@ -67,23 +66,28 @@ export async function POST(req: NextRequest) {
 
     const baseUrl = getBaseUrl(req);
 
-    // ✅ 用 Payment Link 创建 Checkout Session（关键！）
-    // 注意：payment_link 必须是 plink_... ID
-    // 但你现在只有 buy.stripe.com 链接，所以我们这里用 "url -> 查 Stripe API" 的方式会麻烦。
-    // 最稳的方式：你在 planConfig() 里补齐 paymentLinkId: "plink_..."
-    // 先给你双方案：
-    // A) 你填 plink_...（推荐）
-    // B) 暂时先用 "mode: payment + line_items" 不依赖 plink（也能跑）
-
-    // ✅ 使用 Payment Link ID（推荐方案）
+    // ✅ 创建 Checkout Session with line_items (payment_link is not supported in sessions.create)
+    // We use line_items to set the price, and metadata to pass user/plan info to webhook
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      payment_link: cfg.paymentLinkId,
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: cfg.displayName,
+            },
+            unit_amount: Math.round(cfg.priceUsd * 100), // Convert to cents
+          },
+          quantity: 1,
+        },
+      ],
       // 让 webhook 能取到 userId（两种都写）
       client_reference_id: userId,
       metadata: {
         user_id: userId,
         plan_id: planId, // ✅ 最稳：webhook 优先用这个
+        amount_usd: cfg.priceUsd.toString(),
         device_id: deviceId ?? "",
         ip_prefix: ipPrefix ?? "",
       },
@@ -94,9 +98,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ url: session.url });
 
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("[checkout/create] Error:", e);
-    return NextResponse.json({ error: "checkout_create_failed", message: e?.message }, { status: 500 });
+    const message = e instanceof Error ? e.message : 'Unknown error';
+    return NextResponse.json({ error: "checkout_create_failed", message }, { status: 500 });
   }
 }
 

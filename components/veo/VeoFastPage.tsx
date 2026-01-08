@@ -3,6 +3,7 @@
 import { track } from "@/lib/analytics/track";
 import type { PricingConfig } from "@/lib/billing/types";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function VeoFastPage({ config }: { config: PricingConfig }) {
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#0a0a0a] via-[#1a1a1a] to-[#0a0a0a] text-white">
