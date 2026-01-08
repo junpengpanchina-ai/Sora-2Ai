@@ -1,9 +1,12 @@
 /**
  * Pricing Configuration (Overseas Market - USD)
  * 
- * This is the single source of truth for all pricing, credits, bonuses, and entitlements.
- * Update this file to change pricing across the entire application.
+ * ⚠️ IMPORTANT: Credit amounts (permanentCredits, bonusCredits) are imported from planConfig.ts
+ * This file only adds UI configuration and anti-abuse rules.
+ * To change credit amounts, edit lib/billing/planConfig.ts
  */
+
+import { PLAN_CONFIGS } from './planConfig';
 
 export type PlanId = "free" | "starter" | "creator" | "studio" | "pro";
 export type ModelId = "sora" | "veo_fast" | "veo_pro";
@@ -54,21 +57,22 @@ export const PRICING_CONFIG = {
     },
 
     starter: {
-      // 7-day Starter Access (anti-abuse, not permanent value pack)
-      priceUsd: 4.9,
-      permanentCredits: 0,
-      bonusCredits: 120,
-      bonusExpiresInDays: 7,
+      // Import credit amounts from planConfig.ts (single source of truth)
+      priceUsd: PLAN_CONFIGS.starter.priceUsd,
+      permanentCredits: PLAN_CONFIGS.starter.permanentCredits,
+      bonusCredits: PLAN_CONFIGS.starter.bonusCredits,
+      bonusExpiresInDays: PLAN_CONFIGS.starter.bonusExpiresDays, // Map from bonusExpiresDays
+      // Override entitlements structure to match config format
       entitlements: {
-        planId: "starter",
-        veoProEnabled: false,
+        planId: PLAN_CONFIGS.starter.planId,
+        veoProEnabled: PLAN_CONFIGS.starter.allowVeoPro,
         priorityQueue: false,
-        maxConcurrency: 1,
+        maxConcurrency: PLAN_CONFIGS.starter.concurrency,
       },
       // daily caps to prevent abuse
       caps: {
-        soraPerDay: 6,
-        veoFastPerDay: 1,
+        soraPerDay: PLAN_CONFIGS.starter.dailyCaps?.sora || 6,
+        veoFastPerDay: PLAN_CONFIGS.starter.dailyCaps?.veo_fast || 1,
         veoProPerDay: 0,
       },
       ui: {
@@ -90,15 +94,17 @@ export const PRICING_CONFIG = {
     },
 
     creator: {
-      priceUsd: 39,
-      permanentCredits: 600,
-      bonusCredits: 60,
-      bonusExpiresInDays: 30,
+      // Import credit amounts from planConfig.ts (single source of truth)
+      priceUsd: PLAN_CONFIGS.creator.priceUsd,
+      permanentCredits: PLAN_CONFIGS.creator.permanentCredits,
+      bonusCredits: PLAN_CONFIGS.creator.bonusCredits,
+      bonusExpiresInDays: PLAN_CONFIGS.creator.bonusExpiresDays, // Map from bonusExpiresDays
+      // Override entitlements structure to match config format
       entitlements: {
-        planId: "creator",
-        veoProEnabled: true,
+        planId: PLAN_CONFIGS.creator.planId,
+        veoProEnabled: PLAN_CONFIGS.creator.allowVeoPro,
         priorityQueue: false,
-        maxConcurrency: 2,
+        maxConcurrency: PLAN_CONFIGS.creator.concurrency,
       },
       caps: null,
       ui: {
@@ -114,15 +120,17 @@ export const PRICING_CONFIG = {
     },
 
     studio: {
-      priceUsd: 99,
-      permanentCredits: 1800,
-      bonusCredits: 270,
-      bonusExpiresInDays: 45,
+      // Import credit amounts from planConfig.ts (single source of truth)
+      priceUsd: PLAN_CONFIGS.studio.priceUsd,
+      permanentCredits: PLAN_CONFIGS.studio.permanentCredits,
+      bonusCredits: PLAN_CONFIGS.studio.bonusCredits,
+      bonusExpiresInDays: PLAN_CONFIGS.studio.bonusExpiresDays, // Map from bonusExpiresDays
+      // Override entitlements structure to match config format
       entitlements: {
-        planId: "studio",
-        veoProEnabled: true,
+        planId: PLAN_CONFIGS.studio.planId,
+        veoProEnabled: PLAN_CONFIGS.studio.allowVeoPro,
         priorityQueue: true,
-        maxConcurrency: 3,
+        maxConcurrency: PLAN_CONFIGS.studio.concurrency,
       },
       caps: null,
       ui: {
@@ -138,15 +146,17 @@ export const PRICING_CONFIG = {
     },
 
     pro: {
-      priceUsd: 299,
-      permanentCredits: 6000,
-      bonusCredits: 1200,
-      bonusExpiresInDays: 60,
+      // Import credit amounts from planConfig.ts (single source of truth)
+      priceUsd: PLAN_CONFIGS.pro.priceUsd,
+      permanentCredits: PLAN_CONFIGS.pro.permanentCredits,
+      bonusCredits: PLAN_CONFIGS.pro.bonusCredits,
+      bonusExpiresInDays: PLAN_CONFIGS.pro.bonusExpiresDays, // Map from bonusExpiresDays
+      // Override entitlements structure to match config format
       entitlements: {
-        planId: "pro",
-        veoProEnabled: true,
+        planId: PLAN_CONFIGS.pro.planId,
+        veoProEnabled: PLAN_CONFIGS.pro.allowVeoPro,
         priorityQueue: true,
-        maxConcurrency: 5,
+        maxConcurrency: PLAN_CONFIGS.pro.concurrency,
       },
       caps: null,
       ui: {

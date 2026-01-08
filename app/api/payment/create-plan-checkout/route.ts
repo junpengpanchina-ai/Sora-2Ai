@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Risk control: Check if user can purchase Starter (anti-abuse)
+    // ⚠️ Simplified version: Only check device_id + IP (payment_fingerprint will be added later)
     if (planId === "starter") {
       
       // Extract IP and calculate prefix
@@ -77,29 +78,67 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Check if user can purchase Starter
-      // @ts-expect-error - Supabase RPC type inference issue
-      const { data: canPurchase, error: riskErr } = await supabase.rpc("can_purchase_starter", {
-        p_user_id: auth.user.id,
-        p_device_id: deviceId ?? null,
-        p_ip_prefix: ipPrefix,
-        p_payment_fingerprint: null, // Will be set in webhook
-      });
+      // Check 1: User already purchased Starter
+      const { data: userPurchase } = await supabase
+        .from("purchases")
+        .select("id")
+        .eq("user_id", auth.user.id)
+        .eq("plan_id", "starter")
+        .eq("status", "paid")
+        .limit(1)
+        .maybeSingle();
 
-      if (riskErr) {
-        console.error("[create-plan-checkout] Risk check error:", riskErr);
-        // Don't block, but log the error
-      } else if (canPurchase && !(canPurchase as { can_purchase: boolean; reason?: string }).can_purchase) {
-        const result = canPurchase as { can_purchase: boolean; reason?: string };
-        console.warn("[create-plan-checkout] Starter purchase blocked:", result.reason);
+      if (userPurchase) {
         return NextResponse.json(
           {
             error: "Starter Access purchase not available",
-            reason: result.reason,
-            details: "Starter Access is limited to one purchase per account, device, or payment method.",
+            reason: "user_already_purchased_starter",
+            details: "Starter Access is limited to one purchase per account.",
           },
           { status: 403 }
         );
+      }
+
+      // Check 2: Device already used for Starter
+      if (deviceId) {
+        const { data: devicePurchase } = await supabase
+          .from("starter_purchase_guards")
+          .select("id")
+          .eq("device_id", deviceId)
+          .limit(1)
+          .maybeSingle();
+
+        if (devicePurchase) {
+          return NextResponse.json(
+            {
+              error: "Starter Access purchase not available",
+              reason: "device_already_used_for_starter",
+              details: "Starter Access is limited to one purchase per device.",
+            },
+            { status: 403 }
+          );
+        }
+      }
+
+      // Check 3: IP /24 segment has too many Starter purchases in last 24h
+      if (ipPrefix) {
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data: ipPurchases, error: ipErr } = await supabase
+          .from("starter_purchase_guards")
+          .select("id")
+          .eq("ip", ipPrefix)
+          .gte("created_at", twentyFourHoursAgo);
+
+        if (!ipErr && ipPurchases && ipPurchases.length >= 3) {
+          return NextResponse.json(
+            {
+              error: "Starter Access purchase not available",
+              reason: "too_many_starter_purchases_from_ip",
+              details: "Too many Starter purchases from this IP address in the last 24 hours.",
+            },
+            { status: 403 }
+          );
+        }
       }
     }
 
