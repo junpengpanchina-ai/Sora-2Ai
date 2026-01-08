@@ -407,28 +407,26 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       sessionStorage.removeItem('payment_checkout_redirect_attempt')
       sessionStorage.removeItem('payment_checkout_retry')
 
-      if (!res.ok || !json?.success) {
+      if (!res.ok) {
         console.error('[Checkout] API returned error', {
           status: res.status,
           ok: res.ok,
-          success: json?.success,
           error: json?.error,
-          details: json?.details,
+          message: json?.message,
         })
-        throw new Error(json?.error || 'Failed to start checkout')
+        throw new Error(json?.error || json?.message || 'Failed to start checkout')
       }
 
-      if (json?.checkout_url) {
+      if (json?.url) {
         console.log('[Checkout] Success! Redirecting to Stripe Checkout', {
-          checkoutUrl: json.checkout_url,
-          sessionId: json.session_id,
+          url: json.url,
         })
-        window.location.href = json.checkout_url
+        window.location.href = json.url
         return
       }
 
-      console.error('[Checkout] Missing checkout_url in response', json)
-      throw new Error('Missing checkout_url')
+      console.error('[Checkout] Missing url in response', json)
+      throw new Error('Missing checkout URL')
     } catch (e) {
       console.error('[Checkout] Checkout failed with exception', {
         error: e,
