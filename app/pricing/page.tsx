@@ -22,17 +22,30 @@ export default function PricingPage() {
       const { getOrCreateDeviceId } = await import("@/lib/risk/deviceId");
       const deviceId = getOrCreateDeviceId();
 
-      // 取当前 supabase access token
+      // 取当前 supabase access token 和用户邮箱
       const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
+      const email = data.session?.user?.email || "";
 
       if (!token) {
         window.location.href = "/login?next=/pricing";
         return;
       }
 
+      // ✅ Starter 计划走 /api/pay 风控入口
+      if (planId === "starter") {
+        const params = new URLSearchParams({
+          plan: "starter",
+          device_id: deviceId,
+          email: email,
+        });
+        window.location.href = `/api/pay?${params.toString()}`;
+        return;
+      }
+
+      // ✅ Creator/Studio/Pro 走正常 Checkout Session API
       const res = await fetch("/api/checkout/create", {
         method: "POST",
         headers: {
