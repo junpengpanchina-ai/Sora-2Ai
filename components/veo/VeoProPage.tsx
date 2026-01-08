@@ -9,10 +9,10 @@ export function VeoProPage({ config }: { config: PricingConfig }) {
       <div className="mx-auto max-w-5xl px-4 py-10">
         <header className="text-center">
           <h1 className="text-3xl md:text-4xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-            Veo Pro — Studio-grade final renders
+            Veo Pro
           </h1>
           <p className="mt-3 text-base text-white/70">
-            For production-ready motion, realism, and the cleanest final export. Use it when the result is meant to be published.
+            Studio-grade motion, richer detail, and sound — for the final cut.
           </p>
 
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
@@ -42,9 +42,9 @@ export function VeoProPage({ config }: { config: PricingConfig }) {
           <div className="text-lg font-semibold text-white mb-4">What you get</div>
           <div className="grid gap-4 md:grid-cols-3">
             {[
-              { t: "More realistic motion", d: "For people, objects, and camera movement in the final cut." },
-              { t: "Higher fidelity detail", d: "In textures, edges, and lighting for production-ready output." },
-              { t: "Cleaner final output", d: "For marketing, demos, and client delivery." },
+              { t: "Production-ready motion", d: "Cleaner motion continuity, fewer artifacts, better temporal consistency." },
+              { t: "Sound-ready outputs", d: "When sound matters, Veo Pro is the preferred choice for publishable clips." },
+              { t: "Priority processing", d: "Higher priority and higher throughput on paid packs." },
             ].map((x) => (
               <div key={x.t} className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
                 <div className="font-semibold text-white">{x.t}</div>
@@ -69,11 +69,22 @@ export function VeoProPage({ config }: { config: PricingConfig }) {
         </section>
 
         <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
-          <div className="text-lg font-semibold text-white mb-4">When to use each model</div>
+          <div className="text-lg font-semibold text-white mb-4">When should I use Veo Pro?</div>
+          <p className="text-sm text-white/80 mb-3">Use Veo Pro when you&apos;re:</p>
+          <ul className="space-y-2 text-sm text-white/80">
+            <li>• Exporting for a client</li>
+            <li>• Publishing to social or running ads</li>
+            <li>• Creating a product demo that must look realistic</li>
+            <li>• Locking the &quot;final&quot; version after iteration</li>
+          </ul>
+        </section>
+
+        <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+          <div className="text-lg font-semibold text-white mb-4">Model guide (simple)</div>
           <div className="grid gap-3 text-sm text-white/80">
-            <div><span className="font-semibold text-white">Sora (Preview):</span> early ideas, fast drafts, lots of iterations</div>
-            <div><span className="font-semibold text-white">Veo Fast:</span> sharper upgrades while staying quick</div>
-            <div><span className="font-semibold text-white">Veo Pro (Final Cut):</span> the version you deliver to an audience</div>
+            <div><span className="font-semibold text-white">Sora Preview</span> — fast iteration and idea exploration</div>
+            <div><span className="font-semibold text-white">Veo Fast</span> — a quick quality lift without slowing down</div>
+            <div><span className="font-semibold text-white">Veo Pro</span> — the final cut for premium realism and sound</div>
           </div>
         </section>
 
@@ -92,11 +103,12 @@ export function VeoProPage({ config }: { config: PricingConfig }) {
         </section>
 
         <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
-          <div className="text-lg font-semibold text-white mb-4">Trust / transparency</div>
+          <div className="text-lg font-semibold text-white mb-4">Transparent credits</div>
+          <p className="text-sm text-white/80 mb-3">Credits are predictable and easy to plan:</p>
           <ul className="space-y-2 text-sm text-white/80">
-            <li>• Predictable credits per render</li>
-            <li>• Permanent credits never expire</li>
-            <li>• Bonus credits (if included) are time-limited and always used first</li>
+            <li>• Sora Preview: 10 credits / render</li>
+            <li>• Veo Fast: 50 credits / render</li>
+            <li>• Veo Pro: 250 credits / render</li>
           </ul>
         </section>
 

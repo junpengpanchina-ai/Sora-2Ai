@@ -1,95 +1,97 @@
-// lib/billing/planConfig.ts
 export type PlanId = "starter" | "creator" | "studio" | "pro";
+
+export type ModelId = "sora" | "veo_fast" | "veo_pro";
+
+export const MODEL_CREDIT_COST: Record<ModelId, number> = {
+  sora: 10,
+  veo_fast: 50,
+  veo_pro: 250,
+};
 
 export type PlanConfig = {
   planId: PlanId;
+  displayName: string;
   priceUsd: number;
-  // 发币
-  grant: {
-    permanentCredits: number; // 永久
-    bonusCredits: number;     // 限时
-    bonusDaysValid: number;   // 过期天数
-  };
-  // Starter 限制（风控/限频）
-  starterRules?: {
-    allowVeoPro: boolean;
-    dailySoraCap: number;
-    dailyVeoFastCap: number;
-    maxConcurrentJobs: number;
-    onePerAccount: boolean;     // 账号一人一次
-    onePerDevice: boolean;      // 设备一人一次
-    onePerCardFingerprint: boolean; // 卡指纹一人一次（拿得到时）
-  };
-  // Stripe 映射：支持 payment link id 或 URL
-  stripe: {
-    paymentLinkId?: string; // plink_...
-    paymentLinkUrl?: string; // https://buy.stripe.com/...
-  };
+  paymentLinkId: string;
+
+  // Wallet grant
+  permanentCredits: number; // never expires
+  bonusCredits: number;     // time-limited
+  bonusExpiresDays: number; // 0 = no bonus
+
+  // Entitlements
+  allowVeoPro: boolean;
+  concurrency: number;      // queue priority can be derived from planId
+  dailyCaps?: Partial<Record<ModelId, number>>; // for Starter
 };
 
+export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
+  starter: {
+    planId: "starter",
+    displayName: "Starter Access",
+    priceUsd: 4.9,
+    paymentLinkId: "plink_1SjMNLDqGbi6No9vUku66neA",
+    permanentCredits: 0,
+    bonusCredits: 200,
+    bonusExpiresDays: 7,
+    allowVeoPro: false,
+    concurrency: 1,
+    dailyCaps: { sora: 6, veo_fast: 1 }, // veo_pro locked
+  },
+  creator: {
+    planId: "creator",
+    displayName: "Creator Pack",
+    priceUsd: 39,
+    paymentLinkId: "plink_1SRxHLDqGbi6No9vhu7i5iud",
+    permanentCredits: 2000,
+    bonusCredits: 600,
+    bonusExpiresDays: 14,
+    allowVeoPro: true,
+    concurrency: 2,
+  },
+  studio: {
+    planId: "studio",
+    displayName: "Studio Pack",
+    priceUsd: 99,
+    paymentLinkId: "plink_1SmxBiDqGbi6No9v4L6dFvvK",
+    permanentCredits: 6000,
+    bonusCredits: 1500,
+    bonusExpiresDays: 30,
+    allowVeoPro: true,
+    concurrency: 3,
+  },
+  pro: {
+    planId: "pro",
+    displayName: "Pro Pack",
+    priceUsd: 299,
+    paymentLinkId: "plink_1SNF1zDqGbi6No9vqtJXYMhQ",
+    permanentCredits: 20000,
+    bonusCredits: 4000,
+    bonusExpiresDays: 60,
+    allowVeoPro: true,
+    concurrency: 5,
+  },
+};
+
+export function planFromPaymentLink(paymentLinkId: string): PlanConfig | null {
+  const plan = (Object.values(PLAN_CONFIGS) as PlanConfig[]).find(
+    (p) => p.paymentLinkId === paymentLinkId
+  );
+  return plan ?? null;
+}
+
+// Legacy compatibility
 export function planConfig(): Record<PlanId, PlanConfig> {
-  return {
-    starter: {
-      planId: "starter",
-      priceUsd: 4.9,
-      grant: { permanentCredits: 0, bonusCredits: 200, bonusDaysValid: 7 },
-      starterRules: {
-        allowVeoPro: false,
-        dailySoraCap: 6,
-        dailyVeoFastCap: 1,
-        maxConcurrentJobs: 1,
-        onePerAccount: true,
-        onePerDevice: true,
-        onePerCardFingerprint: true,
-      },
-      stripe: {
-        paymentLinkId: undefined, // TODO: 填 plink_...
-        paymentLinkUrl: "https://buy.stripe.com/28EbJ14jUg2L6550Ug0kE05",
-      },
-    },
-    creator: {
-      planId: "creator",
-      priceUsd: 39,
-      grant: { permanentCredits: 2000, bonusCredits: 600, bonusDaysValid: 14 },
-      stripe: {
-        paymentLinkId: undefined, // TODO
-        paymentLinkUrl: "https://buy.stripe.com/dRmcN55nY4k33WXfPa0kE03",
-      },
-    },
-    studio: {
-      planId: "studio",
-      priceUsd: 99,
-      grant: { permanentCredits: 6000, bonusCredits: 1500, bonusDaysValid: 30 },
-      stripe: {
-        paymentLinkId: undefined, // TODO
-        paymentLinkUrl: "https://buy.stripe.com/6oU7sL17IdUD51132o0kE06",
-      },
-    },
-    pro: {
-      planId: "pro",
-      priceUsd: 299,
-      grant: { permanentCredits: 20000, bonusCredits: 4000, bonusDaysValid: 60 },
-      stripe: {
-        paymentLinkId: undefined, // TODO
-        paymentLinkUrl: "https://buy.stripe.com/4gMcN5eYy5o70KLauQ0kE01",
-      },
-    },
-  };
+  return PLAN_CONFIGS;
 }
 
 export function resolvePlanIdFromStripePaymentLink(input: {
   paymentLinkId?: string | null;
   paymentLinkUrl?: string | null;
 }): PlanId | null {
-  const cfg = planConfig();
-  const byId = input.paymentLinkId?.trim();
-  const byUrl = input.paymentLinkUrl?.trim();
-
-  for (const planId of Object.keys(cfg) as PlanId[]) {
-    const p = cfg[planId].stripe;
-    if (byId && p.paymentLinkId && p.paymentLinkId === byId) return planId;
-    if (byUrl && p.paymentLinkUrl && p.paymentLinkUrl === byUrl) return planId;
+  if (input.paymentLinkId) {
+    const plan = planFromPaymentLink(input.paymentLinkId);
+    if (plan) return plan.planId;
   }
   return null;
 }
-
