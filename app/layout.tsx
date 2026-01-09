@@ -277,23 +277,38 @@ export default function RootLayout({
         <div className="flex min-h-screen flex-col">
           <main className="flex-1">{children}</main>
           <footer className="border-t border-energy-gold-outline bg-white/90 px-4 py-6 text-sm text-gray-600 backdrop-blur dark:border-gray-700 dark:bg-gray-900/85 dark:text-gray-300">
-            <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-4 sm:flex-row">
-              <p className="text-center sm:text-left">
-                This service complies with applicable United States laws and regulations and is offered to enterprise customers. For information about data handling and compliance, please review the following documents.
-              </p>
-              <div className="flex flex-wrap items-center gap-3">
-                <Link
-                  href="/terms"
-                  className="inline-flex items-center rounded-full border border-energy-gold-outline px-4 py-2 text-sm font-medium text-energy-deep transition-colors hover:bg-energy-water-surface dark:border-gray-600 dark:text-energy-soft dark:hover:bg-gray-800"
-                >
-                  Terms of Service
-                </Link>
-                <Link
-                  href="/privacy"
-                  className="inline-flex items-center rounded-full border border-energy-gold-outline px-4 py-2 text-sm font-medium text-energy-deep transition-colors hover:bg-energy-water-surface dark:border-gray-600 dark:text-energy-soft dark:hover:bg-gray-800"
-                >
-                  Privacy Policy
-                </Link>
+            <div className="mx-auto w-full max-w-7xl space-y-4">
+              <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+                <p className="text-center sm:text-left">
+                  This service complies with applicable United States laws and regulations and is offered to enterprise customers. For information about data handling and compliance, please review the following documents.
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Link
+                    href="/terms"
+                    className="inline-flex items-center rounded-full border border-energy-gold-outline px-4 py-2 text-sm font-medium text-energy-deep transition-colors hover:bg-energy-water-surface dark:border-gray-600 dark:text-energy-soft dark:hover:bg-gray-800"
+                  >
+                    Terms of Service
+                  </Link>
+                  <Link
+                    href="/privacy"
+                    className="inline-flex items-center rounded-full border border-energy-gold-outline px-4 py-2 text-sm font-medium text-energy-deep transition-colors hover:bg-energy-water-surface dark:border-gray-600 dark:text-energy-soft dark:hover:bg-gray-800"
+                  >
+                    Privacy Policy
+                  </Link>
+                </div>
+              </div>
+              {/* Data Usage Transparency - Required by Google OAuth App Homepage Requirements */}
+              <div className="border-t border-energy-gold-outline/30 pt-4 text-center text-xs text-gray-500 dark:text-gray-400">
+                <p>
+                  <strong>Data Usage Transparency:</strong> We use Google Sign-In to securely authenticate your account. We only request your email address and basic profile information (name, profile picture) to create your account and provide personalized video generation services. Your data is encrypted and stored securely. For more information, please review our{' '}
+                  <Link
+                    href="/privacy"
+                    className="font-medium underline-offset-4 hover:underline text-energy-deep dark:text-energy-soft"
+                  >
+                    Privacy Policy
+                  </Link>
+                  .
+                </p>
               </div>
             </div>
           </footer>

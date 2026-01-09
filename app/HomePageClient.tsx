@@ -1018,21 +1018,6 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           <p className="mt-4 max-w-3xl text-base text-blue-100/90 sm:text-lg">
             {homepageSettings?.hero_description || 'Find the best Sora alternatives for creating stunning text-to-video content. Our free AI video generator lets you create professional videos from text prompts in seconds. Compare top Sora alternatives and start creating today.'}
           </p>
-          
-          {/* Data Usage Transparency - Required by Google OAuth App Homepage Requirements */}
-          <div className="mt-6 mx-auto max-w-3xl rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-sm text-blue-100/90 backdrop-blur-sm">
-            <p className="text-center leading-relaxed">
-              <strong className="font-semibold text-blue-100">Data Usage Transparency:</strong> We use Google Sign-In to securely authenticate your account. We only request your email address and basic profile information (name, profile picture) to create your account and provide personalized video generation services. Your data is encrypted and stored securely. For more information, please review our{' '}
-              <Link
-                href="/privacy"
-                className="font-semibold underline-offset-4 hover:underline text-blue-100"
-              >
-                Privacy Policy
-              </Link>
-              .
-            </p>
-          </div>
-          
           <div className="mt-8 flex flex-wrap gap-4">
             <Link href={hydratedProfile ? '/video' : '/login'}>
               <Button variant="primary" size="lg" className="shadow-energy-focus">
