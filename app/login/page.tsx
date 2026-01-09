@@ -63,6 +63,20 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
             starfield console that keeps everything encrypted end-to-end.
           </p>
           
+          {/* Data Usage Transparency - Required by Google OAuth App Homepage Requirements */}
+          <div className="mx-auto mt-4 max-w-2xl rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-sm text-blue-100/90 backdrop-blur-sm">
+            <p className="text-center leading-relaxed">
+              <strong className="font-semibold text-blue-100">Data Usage Transparency:</strong> We use Google Sign-In to securely authenticate your account. We only request your email address and basic profile information (name, profile picture) to create your account and provide personalized video generation services. Your data is encrypted and stored securely. For more information, please review our{' '}
+              <Link
+                href="/privacy"
+                className="font-semibold underline-offset-4 hover:underline"
+              >
+                Privacy Policy
+              </Link>
+              .
+            </p>
+          </div>
+          
           {/* SEO-friendly text content for better text-HTML ratio */}
           <section className="sr-only">
             <h2>About Sora2Ai Videos Platform</h2>
@@ -142,6 +156,20 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 
               {/* Email Magic Link Login */}
               <EmailLoginForm />
+              
+              {/* Data Usage Transparency - Required by Google OAuth App Homepage Requirements */}
+              <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/10 backdrop-blur-sm">
+                <p className="text-xs text-blue-100 text-center leading-relaxed">
+                  <strong className="font-semibold text-blue-100">Data Usage Transparency:</strong> We use Google Sign-In to securely authenticate your account. We only request your email address and basic profile information (name, profile picture) to create your account and provide personalized video generation services. Your data is encrypted and stored securely. For more information, please review our{' '}
+                  <Link
+                    href="/privacy"
+                    className="font-semibold underline-offset-4 hover:underline text-blue-100"
+                  >
+                    Privacy Policy
+                  </Link>
+                  .
+                </p>
+              </div>
               
               {/* Free Trial Info */}
               <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30 backdrop-blur-sm">
