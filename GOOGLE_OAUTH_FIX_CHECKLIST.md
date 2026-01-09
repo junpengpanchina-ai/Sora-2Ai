@@ -123,29 +123,103 @@ http://localhost:3000/auth/callback
 
 ---
 
-### 步骤 3：Vercel 确保首页满足 Google 要求（5 分钟）
+### 步骤 3：Vercel 确保首页满足 Google App Homepage 要求（关键）
 
-#### 3.1 确保首页公开可访问（不强制登录）
-用浏览器无痕模式打开并确认：
+根据 Google Cloud Platform Console 的要求，你的 App Homepage 必须满足以下**所有条件**：
+
+#### ✅ 3.1 首页公开可访问（无需登录）
+**要求**：Visible to users without requiring them to log-in to your app
+
+**检查**：用浏览器无痕模式打开并确认：
 
 - ✅ `https://sora2aivideos.com/` 能直接打开（不要跳转到登录页）
 - ✅ `https://sora2aivideos.com/privacy` 能直接打开
 - ✅ `https://sora2aivideos.com/terms` 能直接打开
 
-#### 3.2 检查首页底部是否有合规链接
-首页底部必须包含：
+> ✅ **已确认**：你的首页是公开访问的，不强制登录。
 
-- **Privacy Policy** 链接：`https://sora2aivideos.com/privacy`
-- **Terms of Service** 链接：`https://sora2aivideos.com/terms`
-- 产品归属标识（如："Sora2AI — sora2aivideos.com"）
+#### ✅ 3.2 准确代表和识别你的应用或品牌
+**要求**：Accurately represent and identify your app or brand
 
-> ✅ 已确认：你的 `app/layout.tsx` footer 已经有 Privacy 和 Terms 链接。
+**检查**：
+- ✅ 首页有品牌标识："Sora2Ai Videos" / "Sora2AI"
+- ✅ 首页有产品描述："Create High-Quality AI Videos from Text"
+- ✅ 首页 URL 是主域：`https://sora2aivideos.com`
 
-#### 3.3 Vercel 域名设置
+> ✅ **已确认**：首页有清晰的品牌标识和产品描述。
+
+#### ✅ 3.3 完整描述应用的功能
+**要求**：Fully describe your apps functionality to users
+
+**检查**：
+- ✅ 首页描述了核心功能："AI video generation"、"Create marketing videos"、"Generate videos from text prompts"
+- ✅ 有功能说明和用例展示
+
+> ✅ **已确认**：首页有详细的功能描述。
+
+#### ⚠️ 3.4 透明地解释应用请求用户数据的目的（需要检查）
+**要求**：Explain with transparency the purpose for which your app requests user data
+
+**检查**：首页应该明确说明：
+- **为什么需要 Google OAuth**（用户认证、个性化体验）
+- **请求什么数据**（email, profile）以及**为什么需要**
+- **如何使用这些数据**（创建账户、提供个性化服务）
+
+**建议**：在首页或登录页面添加类似说明：
+> "We use Google Sign-In to securely authenticate your account. We only request your email address and basic profile information to create your account and provide personalized video generation services."
+
+**需要确认**：
+- [ ] 首页是否有明确说明为什么请求用户数据？
+- [ ] 登录页面是否有说明数据用途？
+
+#### ✅ 3.5 托管在你拥有并验证的域名上
+**要求**：Hosted on a verified domain you own
+
+**检查**：
+- ✅ 域名：`sora2aivideos.com`（你自己的域名）
+- ✅ 托管在 Vercel（自己的域名，不是第三方平台子域名）
+- ⚠️ **需要完成**：Search Console 域名验证（步骤 2）
+
+> ✅ **已确认**：不是托管在 Google Sites, Facebook, Instagram, Twitter 等第三方平台。
+
+#### ✅ 3.6 包含隐私政策链接（必须与 consent screen 配置匹配）
+**要求**：Include a link to your privacy policy (Note: this link should match the link you added on your consent screen configuration)
+
+**检查**：
+- ✅ Footer 有 **Privacy Policy** 链接：`https://sora2aivideos.com/privacy`
+- ✅ Footer 有 **Terms of Service** 链接：`https://sora2aivideos.com/terms`
+- ⚠️ **必须确认**：Google Cloud Console → OAuth consent screen → Privacy policy link **必须完全匹配**：
+  ```
+  https://sora2aivideos.com/privacy
+  ```
+
+**必须验证**：
+- [ ] Google Cloud Console 的 Privacy policy link 是否为：`https://sora2aivideos.com/privacy`？
+- [ ] 链接是否与首页 footer 中的链接完全一致？
+
+#### ✅ 3.7 Vercel 域名设置
 **路径**：Vercel Dashboard → Project → Settings → Domains
 
 - 确保 `sora2aivideos.com` 设为 **Primary**
 - `www.sora2aivideos.com` 可选，建议做 301 重定向到主域
+
+---
+
+#### ⚠️ 3.8 常见问题检查（重要）
+
+根据 Google 的常见问题，需要避免：
+
+- ❌ **托管在第三方平台子域名**：如 `yoursite.google.com`、`yoursite.facebook.com` 等
+  - ✅ **你的情况**：托管在 Vercel，使用自己的域名，符合要求
+
+- ❌ **隐私政策链接与 consent screen 不匹配**
+  - ⚠️ **需要检查**：确保 Google Cloud Console 的 Privacy policy link 与首页 footer 链接完全一致
+
+- ❌ **首页强制登录才能查看**
+  - ✅ **你的情况**：首页公开访问，符合要求
+
+- ❌ **缺少数据用途说明**
+  - ⚠️ **需要检查**：是否有明确说明为什么请求用户数据
 
 ---
 
@@ -516,9 +590,62 @@ const redirectTo = `${window.location.origin}/auth/callback`
 
 ---
 
+## 📊 当前状态总结（基于 Google App Homepage 要求）
+
+根据 Google Cloud Platform Console 的 App Homepage 要求，你的配置符合情况如下：
+
+### ✅ 已满足的要求（6/7）
+
+1. ✅ **准确代表和识别你的应用或品牌**
+   - 首页有品牌标识："Sora2Ai Videos"
+   - 首页有产品描述："Create High-Quality AI Videos from Text"
+
+2. ✅ **完整描述应用的功能**
+   - 首页描述了核心功能
+   - 有功能说明和用例展示
+
+3. ✅ **托管在你拥有并验证的域名上**
+   - 域名：`sora2aivideos.com`（你自己的域名）
+   - 托管在 Vercel（不是第三方平台子域名）
+   - ⚠️ **需要完成**：Search Console 域名验证（步骤 2）
+
+4. ✅ **不是托管在第三方平台**
+   - 不是 Google Sites, Facebook, Instagram, Twitter 等第三方平台
+
+5. ✅ **包含隐私政策链接**
+   - Footer 有 Privacy Policy 链接：`https://sora2aivideos.com/privacy`
+   - Footer 有 Terms of Service 链接：`https://sora2aivideos.com/terms`
+   - ⚠️ **需要确认**：与 Google Cloud Console consent screen 配置一致
+
+6. ✅ **用户无需登录即可访问**
+   - 首页、隐私政策、服务条款都可以公开访问
+
+### ⚠️ 需要改进的要求（1/7）
+
+7. ⚠️ **透明地解释应用请求用户数据的目的**
+   - **当前状态**：没有明确说明为什么请求用户数据
+   - **建议**：在首页或登录页面添加数据用途说明
+   - **示例**：
+     > "We use Google Sign-In to securely authenticate your account. We only request your email address and basic profile information (name, profile picture) to create your account and provide personalized video generation services."
+
+---
+
 ## ⚠️ 重要提醒
 
-- 修改 Google Cloud Console 配置后，可能需要 **5分钟到几小时** 才能生效
-- 修改 Supabase 配置通常是**即时生效**
-- Search Console 域名验证成功后，Verification Center 的红色警告可能会自动更新（也可能需要手动刷新）
+### 配置生效时间
+- ✅ **Supabase 配置**：即时生效（无需重新部署）
+- ⏳ **Google Cloud Console 配置**：可能需要 **5 分钟到几小时** 才能生效
+- ⏳ **Search Console 验证**：通常立即生效，但 DNS 传播可能需要几分钟
+- ⏳ **Verification Center 更新**：Search Console 验证成功后，可能需要手动刷新或等待自动更新
+
+### 关键检查项（根据 Google 官方要求）
+
+**在提交验证前，必须确保：**
+
+1. ✅ 首页公开可访问（无需登录）
+2. ✅ 首页有品牌标识和功能描述
+3. ⚠️ **首页有数据用途说明**（建议添加）
+4. ✅ 隐私政策链接与 consent screen 配置完全匹配
+5. ✅ 域名通过 Search Console 验证
+6. ✅ 不是托管在第三方平台子域名
 
