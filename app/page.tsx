@@ -75,6 +75,10 @@ export default function HomePage() {
           user-friendly interface, competitive pricing, and high-quality output. Our free tier makes it easy 
           to get started, and our credit system ensures you only pay for what you use.
         </p>
+        <h3>Data Usage Transparency</h3>
+        <p>
+          We use Google Sign-In to securely authenticate your account. We only request your email address and basic profile information (name, profile picture) to create your account and provide personalized video generation services. Your data is encrypted and stored securely. For more information, please review our Privacy Policy at https://sora2aivideos.com/privacy.
+        </p>
       </section>
       <HomePageClient userProfile={null} />
     </>
