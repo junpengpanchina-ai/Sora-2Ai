@@ -107,6 +107,10 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
               <li>Secure Google authentication with encrypted data</li>
               <li>Free credits for new users - no credit card required</li>
             </ul>
+            <h3>Data Usage Transparency</h3>
+            <p>
+              We use Google Sign-In to securely authenticate your account. We only request your email address and basic profile information (name, profile picture) to create your account and provide personalized video generation services. Your data is encrypted and stored securely. For more information, please review our Privacy Policy at https://sora2aivideos.com/privacy.
+            </p>
           </section>
         </div>
 
