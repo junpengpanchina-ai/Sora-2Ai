@@ -31,6 +31,14 @@ yarn-error.log*
 # vercel
 .vercel
 
+# sensitive credentials (DO NOT COMMIT)
+NEW_GOOGLE_OAUTH_CREDENTIALS.md
+*_CREDENTIALS.md
+*credentials*.md
+*secret*.md
+client_secret_*.json
+*client_secret*.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

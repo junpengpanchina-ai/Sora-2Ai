@@ -112,11 +112,18 @@ http://localhost:3000/auth/callback
 点击 **Add record**：
 
 - **Type**：`TXT`
-- **Name**：`@`（根域名）
-- **Content**：粘贴 Google 给的完整 TXT 值（包括 `google-site-verification=` 前缀）
+- **Name**：`@`（根域名）⚠️ **重要**：不要输入 URL（如 `https://sora2aivideos.com/`），只输入 `@` 表示根域名
+- **Content**：粘贴 Google 给的完整 TXT 值（包括 `google-site-verification=` 前缀），例如：`google-site-verification=xxxxx...`
 - **TTL**：`Auto`（默认）
 
+> ⚠️ **常见错误**：
+> - ❌ **错误**：Name 字段填 `https://sora2aivideos.com/` → 会报错 "A DNS name is invalid"
+> - ✅ **正确方式 1**：Name 字段填 `@`（推荐，表示根域名）
+> - ✅ **正确方式 2**：Name 字段填 `sora2aivideos.com`（也可以，与 `@` 等效）
+
 保存后回到 Search Console 点击 **Verify**。
+
+> 💡 **提示**：如果验证失败，尝试将 Name 字段改为 `@` 后重新验证。
 
 > ✅ **验证成功后不要删除 TXT 记录**，它需要持续存在。  
 > ℹ️ **注意**：Cloudflare 的 TXT 记录没有 Proxy 开关（橙云/灰云只对 A/CNAME 生效），所以不需要特别设置。
