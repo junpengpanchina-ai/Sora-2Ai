@@ -1,0 +1,4 @@
+URL,类型,Slug,存在于数据库,已发布,数据库ID,错误,建议
+"https://sora2aivideos.com/use-cases/example-use-case","use-case","example-use-case","否","否","","","记录不存在，可能已被删除; 建议：从 sitemap 中移除或创建 301 重定向到相关页面"
+"https://sora2aivideos.com/keywords/example-keyword","keyword","example-keyword","否","否","","","记录不存在，可能已被删除; 建议：从 sitemap 中移除或创建 301 重定向到相关页面"
+"https://sora2aivideos.com/blog/example-blog-post","blog","example-blog-post","否","否","","","记录不存在，可能已被删除"

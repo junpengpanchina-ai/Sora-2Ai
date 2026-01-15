@@ -658,6 +658,11 @@ export default async function UseCasePage({ params }: { params: { slug: string }
       stack: error instanceof Error ? error.stack : undefined,
     })
     // 如果发生错误，返回 404 而不是 500
+    console.error('[UseCasePage] Error rendering page:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      slug: params.slug,
+    })
     notFound()
   }
 }

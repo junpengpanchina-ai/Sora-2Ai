@@ -95,9 +95,11 @@ function normalizeUseCaseRecord(item: unknown): UseCaseRecord | null {
   const title = typeof record.title === 'string' ? record.title : ''
   const h1 = typeof record.h1 === 'string' ? record.h1 : ''
   const description = typeof record.description === 'string' ? record.description : ''
+  // content字段在列表查询中可能不存在（为了性能优化），所以设为可选
   const content = typeof record.content === 'string' ? record.content : ''
 
-  if (!id || !slug || !title || !h1 || !description || !content) {
+  // 只检查必需字段，content字段在列表视图中可能为空
+  if (!id || !slug || !title || !h1 || !description) {
     return null
   }
 
@@ -443,8 +445,28 @@ export default function AdminUseCasesManager({ onShowBanner }: AdminUseCasesMana
     }
   }
 
-  const handleStartEdit = (useCase: UseCaseRecord) => {
+  const handleStartEdit = async (useCase: UseCaseRecord) => {
     setEditingUseCaseId(useCase.id)
+    
+    // 如果content字段为空（列表查询可能不包含content），则获取完整数据
+    if (!useCase.content || useCase.content.trim() === '') {
+      try {
+        const response = await fetch(`/api/admin/use-cases/${useCase.id}`)
+        const payload = await response.json()
+        
+        if (response.ok && payload.useCase) {
+          const fullUseCase = normalizeUseCaseRecord(payload.useCase)
+          if (fullUseCase) {
+            setEditForm(buildFormStateFromUseCase(fullUseCase))
+            return
+          }
+        }
+      } catch (err) {
+        console.error('获取完整使用场景数据失败:', err)
+        // 如果获取失败，仍然使用列表中的数据
+      }
+    }
+    
     setEditForm(buildFormStateFromUseCase(useCase))
   }
 

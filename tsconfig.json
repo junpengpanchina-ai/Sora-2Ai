@@ -30,7 +30,9 @@
     "scripts/deep-*.ts",
     "scripts/comprehensive-*.ts",
     "scripts/debug-*.ts",
-    "scripts/final-verification.ts"
+    "scripts/final-verification.ts",
+    "scripts/analyze-*.ts",
+    "scripts/validate-sitemap-*.ts"
   ]
 }
 

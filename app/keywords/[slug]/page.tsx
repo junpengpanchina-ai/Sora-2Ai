@@ -462,19 +462,39 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function KeywordLandingPage({ params }: PageProps) {
-  const slug = decodeURIComponent(params.slug)
-  console.log(`KeywordLandingPage: Requested slug: ${slug}, params.slug: ${params.slug}`)
-  
-  const keyword = await getKeywordBySlug(slug)
-  if (!keyword) {
-    console.error(`KeywordLandingPage: Keyword not found for slug: ${slug}`)
-    notFound()
-  }
-  
-  console.log(`KeywordLandingPage: Found keyword with page_slug: ${keyword.page_slug}`)
+  try {
+    const slug = decodeURIComponent(params.slug)
+    console.log(`KeywordLandingPage: Requested slug: ${slug}, params.slug: ${params.slug}`)
+    
+    // Validate slug before processing
+    if (!slug || typeof slug !== 'string' || slug.trim().length === 0) {
+      console.warn('[KeywordLandingPage] Invalid slug:', slug)
+      notFound()
+    }
+    
+    const keyword = await getKeywordBySlug(slug.trim())
+    if (!keyword) {
+      console.error(`KeywordLandingPage: Keyword not found for slug: ${slug}`)
+      notFound()
+    }
+    
+    console.log(`KeywordLandingPage: Found keyword with page_slug: ${keyword.page_slug}`)
 
-  const relatedKeywords = await getRelatedKeywords(keyword.id)
-  const relatedUseCases = await getRelatedUseCases(keyword.keyword)
+    // Use Promise.allSettled to prevent one failure from breaking the page
+    const [relatedKeywordsResult, relatedUseCasesResult] = await Promise.allSettled([
+      getRelatedKeywords(keyword.id),
+      getRelatedUseCases(keyword.keyword),
+    ])
+    
+    const relatedKeywords = relatedKeywordsResult.status === 'fulfilled' ? relatedKeywordsResult.value : []
+    const relatedUseCases = relatedUseCasesResult.status === 'fulfilled' ? relatedUseCasesResult.value : []
+    
+    if (relatedKeywordsResult.status === 'rejected') {
+      console.error('[KeywordLandingPage] Failed to fetch related keywords:', relatedKeywordsResult.reason)
+    }
+    if (relatedUseCasesResult.status === 'rejected') {
+      console.error('[KeywordLandingPage] Failed to fetch related use cases:', relatedUseCasesResult.reason)
+    }
   const structuredFaq =
     keyword.faq.length > 0
       ? {
@@ -800,6 +820,16 @@ export default async function KeywordLandingPage({ params }: PageProps) {
       </div>
     </>
   )
+  } catch (error) {
+    // Log error for debugging but return 404 to prevent 5xx errors
+    console.error('[KeywordLandingPage] Error rendering page:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      slug: params.slug,
+    })
+    // Return 404 instead of 500 to prevent indexing issues
+    notFound()
+  }
 }
 
 

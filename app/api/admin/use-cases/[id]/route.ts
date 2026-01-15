@@ -38,6 +38,47 @@ type RouteParams = {
   params: Promise<{ id: string }>
 }
 
+export async function GET(request: Request, { params }: RouteParams) {
+  try {
+    const adminUser = await validateAdminSession()
+    if (!adminUser) {
+      return NextResponse.json({ error: '未授权，请先登录' }, { status: 401 })
+    }
+
+    const { id } = await params
+    const supabase = await createServiceClient()
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('use_cases')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    if (!data) {
+      return NextResponse.json({ error: '使用场景不存在' }, { status: 404 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      useCase: data,
+    })
+  } catch (error) {
+    console.error('获取使用场景失败:', error)
+    return NextResponse.json(
+      {
+        error: '获取使用场景失败',
+        details: error instanceof Error ? error.message : '未知错误',
+      },
+      { status: 500 }
+    )
+  }
+}
+
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
     const adminUser = await validateAdminSession()
