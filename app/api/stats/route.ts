@@ -75,6 +75,24 @@ export async function GET(request: NextRequest) {
         // Continue without recent tasks
       }
 
+      // Get credits from wallet system (new system) instead of old users.credits field
+      let credits = 0
+      try {
+        const { data: creditsData, error: creditsError } = await supabase
+          .rpc('get_total_available_credits', { user_uuid: userProfile.id })
+        
+        if (!creditsError && creditsData !== null) {
+          credits = creditsData || 0
+        } else {
+          // Fallback to old field if RPC fails (for backward compatibility during migration)
+          console.warn('Failed to get credits from wallet, falling back to old field:', creditsError)
+          credits = userProfile?.credits || 0
+        }
+      } catch (error) {
+        console.warn('Error getting credits from wallet, falling back to old field:', error)
+        credits = userProfile?.credits || 0
+      }
+
       return NextResponse.json({
         success: true,
         stats: {
@@ -84,7 +102,7 @@ export async function GET(request: NextRequest) {
           failed,
         },
         recentTasks,
-        credits: userProfile?.credits || 0,
+        credits,
       })
     })()
 

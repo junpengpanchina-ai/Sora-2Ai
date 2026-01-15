@@ -70,10 +70,10 @@ export async function GET(request: Request) {
       console.error('获取用户信息失败:', usersResult.error)
     }
 
-    // Get wallet balances
+    // Get wallet balances (using credit_wallet table)
     const walletsResult = userIds.size
       ? await supabase
-          .from('wallets')
+          .from('credit_wallet')
           .select('user_id, permanent_credits, bonus_credits, bonus_expires_at')
           .in('user_id', Array.from(userIds))
       : { data: null, error: null }
