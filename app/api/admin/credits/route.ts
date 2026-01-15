@@ -234,9 +234,38 @@ export async function POST(request: Request) {
       )
     }
 
+    // 验证并获取最新的钱包余额（确保同步成功）
+    const { data: wallet, error: walletError } = await supabase
+      .from('credit_wallet')
+      .select('permanent_credits, bonus_credits, bonus_expires_at')
+      .eq('user_id', targetUserId)
+      .single<{
+        permanent_credits: number | null
+        bonus_credits: number | null
+        bonus_expires_at: string | null
+      }>()
+
+    if (walletError && walletError.code !== 'PGRST116') {
+      console.warn('获取钱包余额失败（非关键错误）:', walletError)
+    }
+
+    // 计算总可用积分
+    const now = new Date()
+    const expiresAt = wallet?.bonus_expires_at ? new Date(wallet.bonus_expires_at) : null
+    const validBonus = expiresAt && expiresAt > now ? (wallet?.bonus_credits || 0) : 0
+    const totalAvailable = (wallet?.permanent_credits || 0) + validBonus
+
     return NextResponse.json({
       success: true,
       adjustment,
+      // 返回最新的钱包余额，确保 admin 可以看到同步结果
+      wallet: wallet ? {
+        permanent_credits: wallet.permanent_credits || 0,
+        bonus_credits: wallet.bonus_credits || 0,
+        bonus_expires_at: wallet.bonus_expires_at,
+        total_available: totalAvailable,
+      } : null,
+      message: '积分调整成功，已同步到钱包系统',
     })
   } catch (error) {
     console.error('执行积分调整时发生错误:', error)
