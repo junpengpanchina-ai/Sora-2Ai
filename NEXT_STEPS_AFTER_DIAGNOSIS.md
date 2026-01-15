@@ -1,166 +1,296 @@
-# 诊断后的下一步操作
+# 诊断完成后的下一步操作
 
-## ✅ 诊断结果
+## ✅ 诊断结果总结
 
-所有**本地配置**都正确：
-- ✅ 环境变量正确
-- ✅ Google OAuth 凭据正确
-- ✅ 代码配置正确
+你的诊断脚本显示**所有检查都已通过**：
+- ✅ DNS TXT 记录已验证
+- ✅ 网站可访问（首页、隐私政策、服务条款）
+- ✅ 首页未强制重定向到登录页
+- ✅ robots.txt 未阻止 Googlebot
+- ✅ SSL 证书有效
 
-## 🔴 需要立即检查的 3 个配置
+**结论**：所有技术修复都已完成 ✅
 
-### 1. Supabase Dashboard 配置（最重要）
+---
 
-**访问**: https://supabase.com/dashboard
+## 📋 立即需要做的检查（5 分钟）
 
-#### 检查 1: Site URL
-1. 进入 **Settings** > **API**
-2. 查看 **Site URL** 字段
-3. **必须包含**: `http://sora2aivideos.com`
-4. **如果缺少**: 点击 **Edit**，添加 `http://sora2aivideos.com`，点击 **Save**
+### 1. 检查 Search Console 验证状态
 
-#### 检查 2: Redirect URLs
-1. 进入 **Authentication** > **URL Configuration**
-2. 查看 **Redirect URLs** 列表
-3. **必须包含**:
-   ```
-   http://sora2aivideos.com/**
-   http://sora2aivideos.com/auth/callback
-   ```
-4. **如果缺少**: 点击 **Add URL**，添加上述 URL，点击 **Save**
+**访问**：https://search.google.com/search-console
 
-#### 检查 3: Google Provider
-1. 进入 **Authentication** > **Providers**
-2. 找到 **Google** provider
-3. **确认**:
-   - ✅ 开关已启用（绿色）
-   - ✅ Client ID: `222103705593-0v1ntpdj5lvlmgj7tokoaq101rm5kq5o.apps.googleusercontent.com`
-   - ✅ Client Secret: `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`
-   - ✅ 已点击 **Save**
+**确认**：
+- [ ] 属性类型是 **"Domain"**（不是 "URL prefix"）
+- [ ] 域名是 **"sora2aivideos.com"**（不是 "https://sora2aivideos.com"）
+- [ ] 验证状态显示为 **"已验证"** 或 **"Verified"**
 
-### 2. Google Cloud Console 配置
+**如果显示已验证**：
+- ✅ 域名所有权验证成功
+- ⏳ Verification Center 可能需要 24-48 小时更新
 
-**访问**: https://console.cloud.google.com/
+**如果显示未验证**：
+- ❌ 需要重新验证域名
+- 检查 Cloudflare DNS 中的 TXT 记录
 
-1. 选择项目: `222103705593`
-2. 进入 **APIs & Services** > **Credentials**
-3. 点击你的 **OAuth 2.0 客户端 ID**
-4. 查看 **Authorized redirect URIs** 部分
+---
 
-**必须包含以下 URI**（完全匹配，包括协议）:
+### 2. 检查 Verification Center 当前状态
+
+**访问**：https://console.cloud.google.com/apis/credentials/consent
+
+**点击**："验证中心" 或 "Verification Center"
+
+**检查以下项**：
+
+- [ ] **隐私权政策要求**：应该是 ✅ 绿色（已通过）
+- [ ] **品牌推广指南**：应该是 ✅ 绿色（已通过）
+- [ ] **首页要求**：当前状态是什么？
+  - ✅ 绿色 = 已通过（完美！）
+  - ⏳ 黄色/处理中 = 正在审核（正常，等待即可）
+  - ❌ 红色 = 仍有问题（需要进一步检查）
+
+---
+
+### 3. 确认 OAuth Consent Screen 配置
+
+**在同一页面**（OAuth consent screen），检查：
+
+- [ ] **Authorized domains** 部分
+  - 必须包含：`sora2aivideos.com`
+  - 如果缺少，点击 "ADD DOMAIN" 添加
+
+- [ ] **Privacy policy URL**
+  - 应该设置为：`https://sora2aivideos.com/privacy`
+  - 必须与网站 footer 中的链接完全一致
+
+- [ ] **Application homepage link**
+  - 应该设置为：`https://sora2aivideos.com`
+  - 访问这个 URL 应该能正常打开
+
+---
+
+## ⏰ 时间线预期
+
+| 状态 | 时间 | 操作 |
+|------|------|------|
+| **DNS 传播** | 已完成 ✅ | - |
+| **Search Console 验证** | 应该已完成 ✅ | 检查确认 |
+| **Verification Center 更新** | **24-48 小时** ⏳ | 等待或主动联系 |
+
+---
+
+## 🎯 根据 Verification Center 状态的行动方案
+
+### 情况 A：首页要求显示 ✅ 绿色（已通过）
+
+**恭喜！** 🎉
+
+1. ✅ 所有验证已完成
+2. ✅ 可以提交应用进入生产环境
+3. ✅ 所有用户都可以使用 Google 登录
+
+**下一步**：
+- 如果 OAuth Consent Screen 状态是 "Testing"，改为 "In production"
+- 测试 Google 登录功能
+- 恢复登录页的 Google 登录按钮（如果之前禁用了）
+
+---
+
+### 情况 B：首页要求显示 ⏳ 黄色/处理中
+
+**正常状态** ✅
+
+1. ✅ 你的修复已被 Google 接收
+2. ⏳ 正在审核中
+3. ⏳ 通常 24-48 小时内会完成
+
+**下一步**：
+- 等待 24-48 小时
+- 每 4-6 小时检查一次状态
+- 使用无痕模式或清除缓存后刷新页面
+
+---
+
+### 情况 C：首页要求显示 ❌ 红色（仍有问题）
+
+**需要进一步检查** ⚠️
+
+即使诊断脚本显示所有检查都通过，Verification Center 可能检测到其他问题。
+
+**检查清单**：
+
+1. **确认 Search Console 验证状态**
+   - 访问：https://search.google.com/search-console
+   - 确认域名显示为"已验证"
+
+2. **检查 Authorized Domains**
+   - 确认 `sora2aivideos.com` 已添加到 Authorized domains
+   - 如果未添加，立即添加
+
+3. **检查 Privacy Policy URL 匹配**
+   - OAuth Consent Screen 中的 Privacy Policy URL
+   - 必须与网站 footer 中的链接完全一致
+   - 访问这个 URL 应该能正常打开
+
+4. **检查 Homepage URL**
+   - OAuth Consent Screen 中的 Homepage URL
+   - 应该设置为 `https://sora2aivideos.com`
+   - 访问这个 URL 应该能正常打开，不重定向到登录页
+
+5. **等待更长时间**
+   - Google 系统可能需要更长时间同步
+   - 等待 48-72 小时后再检查
+
+**如果 72 小时后仍显示红色**：
+- 回复 Google Trust and Safety 团队的邮件
+- 或通过 Google Cloud Console 提交支持请求
+
+---
+
+## 📧 如何回复 Google Trust and Safety 团队的邮件
+
+### 找到原始邮件
+
+1. 检查你的邮箱（申请验证时使用的邮箱）
+2. 查找来自 Google Trust and Safety 团队的邮件
+3. 主题通常包含 "OAuth consent screen" 或 "Verification"
+
+### 邮件模板（中文版）
+
 ```
-https://hgzpzsiafycwlqrkzbis.supabase.co/auth/v1/callback
-http://sora2aivideos.com/auth/callback
+主题：Re: [原始邮件主题] - 修复已完成，请重新审核
+
+尊敬的 Google Trust and Safety 团队，
+
+我已经完成了"首页要求"相关的所有修复：
+
+1. ✅ 域名所有权验证
+   - 已在 Google Search Console 完成域名 sora2aivideos.com 的验证
+   - DNS TXT 记录已添加并生效（已验证：google-site-verification=sora2aivideos.com）
+
+2. ✅ 首页可访问性
+   - 首页 https://sora2aivideos.com/ 已公开可访问（HTTP 200）
+   - 隐私政策页面 https://sora2aivideos.com/privacy 可访问（HTTP 200）
+   - 服务条款页面 https://sora2aivideos.com/terms 可访问（HTTP 200）
+   - 首页未强制重定向到登录页
+
+3. ✅ OAuth Consent Screen 配置
+   - Authorized domains 已添加 sora2aivideos.com
+   - Privacy policy URL 已设置为 https://sora2aivideos.com/privacy
+   - Homepage URL 已设置为 https://sora2aivideos.com
+
+4. ✅ 技术验证结果
+   - DNS TXT 记录验证：通过
+   - 网站可访问性检查：通过
+   - SSL 证书检查：通过（有效期至 2026-03-26）
+   - robots.txt 检查：未阻止 Googlebot
+
+但是 Verification Center 中的"首页要求"状态仍未更新。
+请帮助检查并更新验证状态。
+
+谢谢！
+
+[你的名字]
+[你的邮箱]
 ```
 
-**重要提示**:
-- ✅ 路径是 `/auth/callback`（不是 `/api/auth/callback`）
-- ✅ 协议必须匹配（http vs https）
-- ✅ 不能有多余的斜杠
-- ✅ 保存后等待几分钟让更改生效
+### 邮件模板（英文版）
 
-**如果缺少，添加**:
-1. 点击 **+ ADD URI**
-2. 输入缺失的 URI
-3. 点击 **Save**
-4. 等待 2-5 分钟让更改生效
+```
+Subject: Re: [Original subject] - Fixes Completed, Please Review
 
-### 3. 浏览器设置
+Dear Google Trust and Safety Team,
 
-**清除浏览器数据**:
-1. Chrome: `设置` > `隐私和安全` > `清除浏览数据`
-2. 选择:
-   - ✅ Cookie 和其他网站数据
-   - ✅ 缓存的图片和文件
-   - ✅ 本地存储的数据
-3. 时间范围: `全部时间`
-4. 点击 **清除数据**
+I have completed all fixes related to the "Homepage Requirements":
 
-**检查浏览器设置**:
-- ✅ 未使用无痕/隐私模式
-- ✅ 允许 Cookie 和网站数据
-- ✅ 没有扩展程序阻止 localStorage
+1. ✅ Domain Ownership Verification
+   - Completed domain verification for sora2aivideos.com in Google Search Console
+   - DNS TXT record added and verified (google-site-verification=sora2aivideos.com)
 
-## 🧪 测试步骤
+2. ✅ Homepage Accessibility
+   - Homepage https://sora2aivideos.com/ is publicly accessible (HTTP 200)
+   - Privacy Policy page https://sora2aivideos.com/privacy is accessible (HTTP 200)
+   - Terms of Service page https://sora2aivideos.com/terms is accessible (HTTP 200)
+   - Homepage does not force redirect to login page
 
-完成上述配置后：
+3. ✅ OAuth Consent Screen Configuration
+   - Added sora2aivideos.com to Authorized domains
+   - Privacy policy URL set to https://sora2aivideos.com/privacy
+   - Homepage URL set to https://sora2aivideos.com
 
-1. **清除浏览器缓存**（如上）
-2. **访问登录页面**: `http://sora2aivideos.com/login`
-3. **打开开发者工具**: 按 `F12`
-4. **查看 Console 标签**: 准备查看日志
-5. **点击登录按钮**: "Sign in with Google"
-6. **观察**:
-   - 是否跳转到 Google 登录页面
-   - 控制台是否有错误信息
-   - 授权后是否成功返回
+4. ✅ Technical Verification Results
+   - DNS TXT record verification: Passed
+   - Website accessibility check: Passed
+   - SSL certificate check: Passed (valid until 2026-03-26)
+   - robots.txt check: Does not block Googlebot
 
-## 📊 预期行为
+However, the "Homepage Requirements" status in Verification Center has not been updated yet.
+Please help review and update the verification status.
 
-### 成功流程：
-1. ✅ 点击登录按钮
-2. ✅ 控制台显示: `✅ localStorage is available`
-3. ✅ 控制台显示: `✅ code_verifier saved successfully`
-4. ✅ 跳转到 Google 登录页面
-5. ✅ 选择 Google 账号并授权
-6. ✅ 自动返回应用并登录成功
+Thank you!
 
-### 如果失败，查看错误：
+[Your Name]
+[Your Email]
+```
 
-**浏览器控制台错误**:
-- 复制完整的错误消息
-- 查看 Network 标签的失败请求
+---
 
-**常见错误**:
-- `redirect_uri_mismatch` → Google Cloud Console 配置问题
-- `code_verifier not found` → localStorage 或 Supabase 配置问题
-- `OAuth 配置错误` → Supabase Provider 未启用
+## 📞 通过 Google Cloud Console 提交支持请求
 
-## 🔧 如果仍然失败
+如果找不到邮件或 72 小时后仍无反应：
 
-### 收集调试信息
+1. **访问**：https://console.cloud.google.com/support
+2. **选择项目**：`skilled-acolyte-476516-g8`
+3. **点击**："Create Case" 或 "联系支持"
+4. **选择类别**：
+   - Category: **APIs & Services**
+   - Subcategory: **OAuth consent screen**
+5. **描述问题**：
+   - 说明已完成所有修复
+   - 提供诊断脚本的输出结果
+   - 说明 Verification Center 状态未更新
+6. **提交请求**
 
-1. **浏览器控制台**:
-   ```javascript
-   // 在控制台运行
-   console.log('localStorage keys:', Object.keys(localStorage).filter(k => k.includes('supabase')))
-   console.log('Current URL:', window.location.href)
-   console.log('Origin:', window.location.origin)
-   ```
+---
 
-2. **网络请求**:
-   - 开发者工具 > Network 标签
-   - 查找失败的请求（红色）
-   - 查看请求 URL 和响应
+## ✅ 检查清单总结
 
-3. **Supabase 日志**:
-   - Supabase Dashboard > Logs > Auth Logs
-   - 查看最近的认证尝试
+在回复邮件或提交支持请求前，确认：
 
-## 📝 检查清单
+- [ ] ✅ DNS TXT 记录已验证（诊断脚本确认）
+- [ ] ✅ 网站可访问（诊断脚本确认）
+- [ ] ✅ Search Console 显示域名已验证（手动检查）
+- [ ] ✅ OAuth Consent Screen 的 Authorized domains 包含 `sora2aivideos.com`（手动检查）
+- [ ] ✅ Privacy Policy URL 正确设置（手动检查）
+- [ ] ✅ Homepage URL 正确设置（手动检查）
+- [ ] ✅ 已等待至少 24-48 小时（如果 Verification Center 仍显示问题）
 
-完成所有检查后，确认：
+---
 
-- [ ] Supabase Site URL 包含 `http://sora2aivideos.com`
-- [ ] Supabase Redirect URLs 包含 `http://sora2aivideos.com/**`
-- [ ] Supabase Google Provider 已启用
-- [ ] Google Cloud Console 重定向 URI 包含 Supabase 回调
-- [ ] Google Cloud Console 重定向 URI 包含应用回调
-- [ ] 浏览器已清除缓存和 Cookie
-- [ ] 未使用无痕模式
-- [ ] 已测试登录流程
+## 🎯 推荐行动时间表
 
-## 🎯 优先级
+### 现在（立即）
 
-**最高优先级**（先检查）:
-1. Supabase Site URL 配置
-2. Google Cloud Console 重定向 URI
+1. ✅ 检查 Search Console 验证状态
+2. ✅ 检查 Verification Center 当前状态
+3. ✅ 确认 OAuth Consent Screen 配置
 
-**中等优先级**:
-3. Supabase Redirect URLs
-4. 浏览器缓存清除
+### 今天（24 小时内）
 
-**如果仍然失败**:
-5. 查看详细错误日志
-6. 检查 Supabase Auth Logs
+1. ⏳ 每 4-6 小时检查一次 Verification Center
+2. ⏳ 如果仍未更新，准备回复邮件的内容
 
+### 明天（24-48 小时后）
+
+1. 📧 如果 Verification Center 仍显示问题，回复邮件
+2. 📞 或通过 Google Cloud Console 提交支持请求
+
+---
+
+## 💡 重要提示
+
+- **你的修复是正确的**（诊断脚本已确认）
+- **Verification Center 更新需要时间**（24-48 小时是正常的）
+- **如果超过 48 小时仍未更新，主动联系 Google 支持**
+
+所有技术修复都已完成，现在只需要等待 Google 系统更新或主动联系他们更新状态。

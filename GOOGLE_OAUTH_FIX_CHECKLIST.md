@@ -5,6 +5,10 @@
 **你的生产域名**：`sora2aivideos.com`  
 **你的部署平台**：Vercel + Cloudflare
 
+> 📧 **已修复问题？** 
+> - 查看 [如何提交修复状态指南](./SUBMIT_FIX_STATUS_GUIDE.md) 了解如何通过邮件回复提交修复状态
+> - **Verification Center 无反应？** 查看 [故障排除指南](./VERIFICATION_NO_RESPONSE_TROUBLESHOOTING.md)
+
 ---
 
 ## ⚡ 快速参考：最终正确配置（直接照抄）
@@ -189,7 +193,7 @@ http://localhost:3000/auth/callback
 
 > ✅ **已确认**：不是托管在 Google Sites, Facebook, Instagram, Twitter 等第三方平台。
 
-#### ✅ 3.6 包含隐私政策链接（必须与 consent screen 配置匹配）
+#### 🔴 3.6 包含隐私政策链接（必须与 consent screen 配置匹配）⚠️ **关键修复**
 **要求**：Include a link to your privacy policy (Note: this link should match the link you added on your consent screen configuration)
 
 **检查**：
@@ -200,8 +204,22 @@ http://localhost:3000/auth/callback
   https://sora2aivideos.com/privacy
   ```
 
+**🔴 发现的问题**：
+- ❌ OAuth Consent Screen 中 **应用隐私权政策链接** 错误地设置为：`https://sora2aivideos.com/terms`
+- ❌ OAuth Consent Screen 中 **应用服务条款链接** 错误地设置为：`https://sora2aivideos.com/privacy`
+- **这两个链接搞反了！**
+
+**✅ 立即修复**：
+1. 访问：https://console.cloud.google.com/apis/credentials/consent → **品牌塑造**
+2. 修正 **应用隐私权政策链接** 为：`https://sora2aivideos.com/privacy`
+3. 修正 **应用服务条款链接** 为：`https://sora2aivideos.com/terms`
+4. 保存更改
+
+**详细修复指南**：查看 `CRITICAL_FIX_PRIVACY_TERMS_URLS.md`
+
 **必须验证**：
 - [ ] Google Cloud Console 的 Privacy policy link 是否为：`https://sora2aivideos.com/privacy`？
+- [ ] Google Cloud Console 的 Terms of service link 是否为：`https://sora2aivideos.com/terms`？
 - [ ] 链接是否与首页 footer 中的链接完全一致？
 
 #### ✅ 3.7 Vercel 域名设置
