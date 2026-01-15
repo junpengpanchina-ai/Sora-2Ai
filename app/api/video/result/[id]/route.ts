@@ -35,16 +35,17 @@ export async function GET(
     
     let grsaiTaskId = taskIdParam
     let internalTaskId = null
+    let videoTask: { grsai_task_id: string | null; status: string; progress: number | null; video_url: string | null; error_message: string | null; model: string | null } | null = null
 
     // If it's a UUID, look up the grsai_task_id from database
     if (isUUID) {
-      const { data: videoTask, error: taskError } = await supabase
+      const { data: taskData, error: taskError } = await supabase
         .from('video_tasks')
         .select('grsai_task_id, status, progress, video_url, error_message, model')
         .eq('id', taskIdParam)
         .single()
 
-      if (taskError || !videoTask) {
+      if (taskError || !taskData) {
         return NextResponse.json({
           success: false,
           status: 'failed',
@@ -52,6 +53,8 @@ export async function GET(
           task_id: taskIdParam,
         }, { status: 404 })
       }
+
+      videoTask = taskData
 
       // If task already has final status, return it directly
       if (videoTask.status === 'succeeded' && videoTask.video_url) {
@@ -123,7 +126,9 @@ export async function GET(
 
       if (grsaiResult.code === 0 && grsaiResult.data) {
         const data = grsaiResult.data
-        const isVeoModel = videoTask?.model?.startsWith('veo') || false
+        // Get model from videoTask if available, otherwise try to infer from grsaiTaskId format
+        const model = videoTask?.model || null
+        const isVeoModel = model?.startsWith('veo') || false
 
         // Handle different response formats for Sora vs Veo
         let videoUrl: string | undefined
