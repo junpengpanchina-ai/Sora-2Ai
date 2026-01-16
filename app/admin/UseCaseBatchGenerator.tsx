@@ -1,5 +1,16 @@
 'use client'
 
+/**
+ * UseCase Batch Generator
+ * 
+ * 🔒 隐性规则（必须严格执行）：
+ * 1. 绝不为"热词"破坏结构 - Answer-first 结构不可改，不允许加营销句
+ * 2. 不做"单页奇观" - 关注整库信任度，不是单页流量
+ * 3. 允许"慢爬"，不允许"结构回滚" - 收录慢可以等，但不允许删 FAQ-B、缩短 Answer-first
+ * 
+ * 详见：GEO_AND_SEO_UNIFIED.md 中的"隐性规则"章节
+ */
+
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input } from '@/components/ui'
 import { generateSlugFromText } from '@/lib/utils/slug'
@@ -245,6 +256,11 @@ Follow with:
 - ${selectedApplicationPhrase}: [list of noun phrases, e.g., "Product demo videos", "Onboarding explainer clips", "Social media short-form ads"]
 - This page explains how teams use AI video tools for this purpose, which platforms are most suitable, and practical steps to get started.
 
+🛡️ AUTHORITATIVENESS ANCHOR (After Answer-first paragraph):
+Add this sentence immediately after the Answer-first paragraph (1-2 sentences, factual, non-promotional):
+"This page is part of a structured knowledge base on AI video use cases, covering multiple industries and scenarios."
+Purpose: Tell AI this is a systematic knowledge base, not an isolated page.
+
 H2: Why Sora2 is perfect for ${task.keyword} in ${task.industry || 'General'} (3-5 specific reasons)
 Use noun phrases in lists, NOT marketing sentences:
 ✅ Good: "Product demo videos", "Onboarding clips", "Social media ads"
@@ -253,6 +269,21 @@ Use noun phrases in lists, NOT marketing sentences:
 H2: Why This Matters
 ${painPointTemplates[painPointType]}
 Write 2-3 sentences only, do NOT write all 4 types.
+
+🛡️ INDUSTRY CONSTRAINTS (After "Why This Matters", before "How to Create"):
+H2: Industry Constraints and Considerations
+
+Add a 2-3 sentence paragraph about real limitations specific to ${task.industry || 'this industry'}:
+
+Template:
+"In the ${task.industry || 'this'} sector, AI-generated video may have limitations when [specific constraint 1], [specific constraint 2], or [specific constraint 3]. Teams should consider [consideration] before applying this approach to [specific scenario]."
+
+Examples:
+- Healthcare: "In the healthcare sector, AI-generated video may have limitations when dealing with patient-specific medical information, regulatory compliance requirements, or situations requiring real-time clinical interaction."
+- Manufacturing: "In manufacturing, AI-generated video may have limitations when demonstrating complex machinery operations, safety-critical procedures, or processes requiring precise technical specifications."
+- Legal: "In legal services, AI-generated video may have limitations when explaining jurisdiction-specific regulations, case-sensitive information, or content requiring formal legal review."
+
+Purpose: Provide industry-specific constraints to reduce thin content and template spam risks.
 
 H2: How to use Sora2 for ${task.keyword} in ${task.industry || 'General'} (GEO-3: Step-by-step guide)
     H3: Step 1: Create your text prompt (with ${task.industry || 'general'} industry-specific examples)
@@ -269,18 +300,31 @@ H2: Benefits of using Sora2 for ${task.keyword} in ${task.industry || 'General'}
 List format with noun phrases
 
 H2: Frequently Asked Questions (GEO-4: "傻问题化" - Answer questions non-experts would ask)
-Must include at least 3 questions. Priority questions (AI search prefers these):
-- "How is AI video typically used in ${task.industry || 'this industry'}?"
-- "Is AI-generated video suitable for non-technical teams?"
-- "Can these videos be reused across different contexts?"
+Must include at least 3 questions. You MUST include at least 1 FAQ-A (beginner cognitive) AND at least 1 FAQ-B (decision boundary).
+
+🛡️ FAQ-A (Beginner Cognitive - Newcomer Questions):
+These answer questions non-experts would ask:
+- "Is AI video suitable for ${task.industry || 'this industry'}?"
 - "Do I need filming equipment for ${task.keyword}?"
 - "Is this expensive?"
 - "Can small teams use this?"
+- "Do I need technical skills?"
+
+🛡️ FAQ-B (Decision Boundary - When NOT to Use):
+These help users understand limitations and boundaries:
+- "When should AI video not be used in ${task.industry || 'this industry'}?"
+- "What are common limitations of AI-generated video for ${task.keyword}?"
+- "What scenarios are not suitable for AI-generated video in ${task.industry || 'this industry'}?"
+- "Are there industry-specific constraints I should be aware of?"
+
+Priority questions (AI search prefers these):
+- FAQ-A questions (beginner-friendly, lowers barrier to entry)
+- FAQ-B questions (AI loves citing these to reduce misuse risk)
 
 Avoid or use sparingly:
 - "Which platform works best..." (comparison/evaluation questions are less preferred by AI search)
 
-Keep answers 2-4 sentences, no marketing jargon.
+Keep answers 2-4 sentences, no marketing jargon. FAQ-B answers should be honest about limitations.
 
 H2: Using Sora2 for ${task.keyword} in ${task.industry || 'General'}
 (Neutral informational heading, not "Get started with Sora2")

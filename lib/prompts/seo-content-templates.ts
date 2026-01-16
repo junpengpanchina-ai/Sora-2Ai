@@ -67,6 +67,11 @@ Follow with:
 - Typical applications include: [list of noun phrases]
 - This page explains how teams use AI video tools for this purpose, which platforms are most suitable, and practical steps to get started.
 
+🛡️ AUTHORITATIVENESS ANCHOR (After Answer-first paragraph):
+Add this sentence immediately after the Answer-first paragraph (1-2 sentences, factual, non-promotional):
+"This page is part of a structured knowledge base on AI video use cases, covering multiple industries and scenarios."
+Purpose: Tell AI this is a systematic knowledge base, not an isolated page.
+
 H2: Why AI video is suitable for this scenario (3-5 points)
 Use noun phrases in lists:
 ✅ Good: "Product demo videos", "Onboarding clips", "Social media ads"
@@ -75,15 +80,32 @@ Use noun phrases in lists:
 H2: What Sora2 can do in this scenario (3-6 sub-scenarios with H3 headings)
 List format with noun phrases
 
+🛡️ INDUSTRY CONSTRAINTS (After "Why AI video is suitable", before "What Sora2 can do"):
+H2: Industry Constraints and Considerations
+
+Add a 2-3 sentence paragraph about real limitations specific to {{industry}}:
+"In the {{industry}} sector, AI-generated video may have limitations when [specific constraint 1], [specific constraint 2], or [specific constraint 3]. Teams should consider [consideration] before applying this approach to [specific scenario]."
+
+Purpose: Provide industry-specific constraints to reduce thin content and template spam risks.
+
 H2: Video generation examples (text-to-video examples)
 Use noun phrases for examples
 
 H2: Frequently Asked Questions (GEO-4: "傻问题化" - Answer questions non-experts would ask)
-Must include at least 3 questions like:
+Must include at least 3 questions. You MUST include at least 1 FAQ-A (beginner cognitive) AND at least 1 FAQ-B (decision boundary).
+
+🛡️ FAQ-A (Beginner Cognitive - Newcomer Questions):
 - "Is AI video suitable for {{industry}}?"
 - "Do I need filming equipment for {{scene}}?"
-- "Which platform works best for {{scene}} in {{industry}}?"
-Keep answers 2-4 sentences, no marketing jargon.
+- "Is this expensive?"
+- "Can small teams use this?"
+
+🛡️ FAQ-B (Decision Boundary - When NOT to Use):
+- "When should AI video not be used in {{industry}}?"
+- "What are common limitations of AI-generated video for {{scene}}?"
+- "What scenarios are not suitable for AI-generated video in {{industry}}?"
+
+Keep answers 2-4 sentences, no marketing jargon. FAQ-B answers should be honest about limitations.
 
 H2: Target Audience / Applicable Industries
 

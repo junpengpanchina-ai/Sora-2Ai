@@ -81,6 +81,11 @@ This use case focuses on helping [industry role] explain, demonstrate, or presen
 
 Typical applications include onboarding, education, demonstrations, and internal or external communication. These videos are usually short, structured, and designed for specific platforms or viewing contexts.
 
+🛡️ AUTHORITATIVENESS ANCHOR (After Answer-first paragraph):
+Add this sentence immediately after the Answer-first paragraph (1-2 sentences, factual, non-promotional):
+"This page is part of a structured knowledge base on AI video use cases, covering multiple industries and scenarios."
+Purpose: Tell AI this is a systematic knowledge base, not an isolated page. This is the GEO version of E-E-A-T.
+
 Common Use Cases in [Industry]:
 - [Noun phrase 1]
 - [Noun phrase 2]
@@ -102,6 +107,19 @@ Type 4 - Cost (25%): In [industry], [problem] often requires significant product
 
 🔥 IMPORTANT: Only write ONE pain point type (2-3 sentences), NOT all 4 types.
 
+🛡️ INDUSTRY CONSTRAINTS (After "Why This Matters", before "How to Create"):
+Industry Constraints and Considerations:
+
+Add a 2-3 sentence paragraph about real limitations specific to [industry]:
+"In the [industry] sector, AI-generated video may have limitations when [specific constraint 1], [specific constraint 2], or [specific constraint 3]. Teams should consider [consideration] before applying this approach to [specific scenario]."
+
+Examples:
+- Healthcare: "In the healthcare sector, AI-generated video may have limitations when dealing with patient-specific medical information, regulatory compliance requirements, or situations requiring real-time clinical interaction."
+- Manufacturing: "In manufacturing, AI-generated video may have limitations when demonstrating complex machinery operations, safety-critical procedures, or processes requiring precise technical specifications."
+- Legal: "In legal services, AI-generated video may have limitations when explaining jurisdiction-specific regulations, case-sensitive information, or content requiring formal legal review."
+
+Purpose: Provide industry-specific constraints to reduce thin content and template spam risks.
+
 How to Create AI Videos for [Use Case] with Sora2:
 1. Write a clear text prompt describing the scenario, audience, and goal.
 2. Choose a video style and format that fits the platform or context.
@@ -119,6 +137,9 @@ Benefits:
 (4-6 functional benefits, NOT marketing claims)
 
 Frequently Asked Questions:
+You MUST include at least 1 FAQ-A (beginner cognitive) AND at least 1 FAQ-B (decision boundary).
+
+🛡️ FAQ-A (Beginner Cognitive - Newcomer Questions):
 Q: Is AI video suitable for [industry]?
 A: Yes. It is commonly used for explaining processes, services, and information in a clear way.
 
@@ -130,7 +151,15 @@ A: It is generally more cost-effective than traditional video production.
 
 Q: Can small [industry] businesses use AI video?
 A: Yes. AI video is accessible to businesses of all sizes and does not require large budgets.
-(Minimum 3 questions, at least 1 must be a beginner question)
+
+🛡️ FAQ-B (Decision Boundary - When NOT to Use):
+Q: When should AI video not be used in [industry]?
+A: AI-generated video may not be suitable when [specific constraint 1], [specific constraint 2], or [specific constraint 3]. Teams should consider [consideration] before applying this approach.
+
+Q: What are common limitations of AI-generated video for [use case] in [industry]?
+A: Common limitations include [limitation 1], [limitation 2], and situations requiring [specific requirement]. Teams should evaluate whether AI-generated video meets their specific needs.
+
+(Minimum 3 questions total: at least 1 FAQ-A + at least 1 FAQ-B)
 
 Get started with Sora2 to create AI-generated videos for [industry] use cases.
 (Only 1 CTA sentence at the end)
@@ -144,7 +173,9 @@ FORBIDDEN WORDS/PHRASES:
 
 REQUIRED ELEMENTS:
 ✅ Industry name appears ≥2 times in Answer-first section
-✅ At least 1 beginner FAQ question (equipment, cost, accessibility)
+✅ Authoritativeness anchor after Answer-first paragraph (knowledge base statement)
+✅ Industry Constraints section (2-3 sentences, industry-specific limitations)
+✅ At least 1 FAQ-A (beginner cognitive) + at least 1 FAQ-B (decision boundary)
 ✅ Noun phrases only in Use Cases list
 ✅ Steps in numbered list format
 ✅ Functional benefits, not marketing claims

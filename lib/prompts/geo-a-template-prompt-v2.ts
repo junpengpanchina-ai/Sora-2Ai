@@ -10,6 +10,11 @@
  * - 随机池机制（H1 × 2, Answer-first × 3, Why This Matters × 4）
  * - 优化字数要求（120-160 词，避免"注水"）
  * - 明确 AI 引用优先级（Answer-first > How to Use > FAQ）
+ * 
+ * 🔒 隐性规则（必须严格执行）：
+ * 1. 绝不为"热词"破坏结构 - Answer-first 结构不可改，不允许加营销句
+ * 2. 不做"单页奇观" - 关注整库信任度，不是单页流量
+ * 3. 允许"慢爬"，不允许"结构回滚" - 收录慢可以等，但不允许删 FAQ-B、缩短 Answer-first
  */
 
 /**
@@ -94,6 +99,18 @@ Rules:
 - No marketing adjectives
 
 ────────────────────────
+🛡️ AUTHORITATIVENESS ANCHOR (After Answer-first, before "Why This Matters")
+────────────────────────
+Add this sentence immediately after the Answer-first paragraph (1-2 sentences, factual, non-promotional):
+
+"This page is part of a structured knowledge base on AI video use cases, covering multiple industries and scenarios."
+
+OR (variation):
+"This content is part of a comprehensive knowledge base documenting AI video applications across various industries and use cases."
+
+Purpose: Tell AI this is a systematic knowledge base, not an isolated page. This is the GEO version of E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness).
+
+────────────────────────
 H2: Common Use Cases in [Industry]
 ────────────────────────
 List 5–8 noun phrases only (2–5 words each)
@@ -118,6 +135,23 @@ Traditional approaches to explaining [problem] in [industry] often involve exter
 Explain how AI-generated video helps address this specific issue.
 
 ────────────────────────
+🛡️ INDUSTRY CONSTRAINTS (After "Why This Matters", before "How to Create")
+────────────────────────
+H2: Industry Constraints and Considerations
+
+Add a 2-3 sentence paragraph about real limitations specific to [industry]:
+
+Template:
+"In the [industry] sector, AI-generated video may have limitations when [specific constraint 1], [specific constraint 2], or [specific constraint 3]. Teams should consider [consideration] before applying this approach to [specific scenario]."
+
+Examples by industry:
+- Healthcare: "In the healthcare sector, AI-generated video may have limitations when dealing with patient-specific medical information, regulatory compliance requirements, or situations requiring real-time clinical interaction. Teams should consider privacy regulations and accuracy requirements before applying this approach to patient-facing content."
+- Manufacturing: "In manufacturing, AI-generated video may have limitations when demonstrating complex machinery operations, safety-critical procedures, or processes requiring precise technical specifications. Teams should consider the need for hands-on training and regulatory compliance before applying this approach to operational training content."
+- Legal: "In legal services, AI-generated video may have limitations when explaining jurisdiction-specific regulations, case-sensitive information, or content requiring formal legal review. Teams should consider compliance requirements and accuracy standards before applying this approach to client-facing materials."
+
+Purpose: Provide industry-specific constraints to reduce thin content and template spam risks. Each industry should have different constraint points.
+
+────────────────────────
 H2: How to Create AI Videos for [Use Case] with Sora2
 ────────────────────────
 Use a numbered list:
@@ -138,22 +172,34 @@ List 4–6 functional benefits using noun phrases only.
 ────────────────────────
 H2: Frequently Asked Questions
 ────────────────────────
-Include at least 3 FAQs.
+Include at least 3 FAQs. You MUST include at least 1 FAQ-A (beginner cognitive) AND at least 1 FAQ-B (decision boundary).
+
+🛡️ FAQ-A (Beginner Cognitive - Newcomer Questions):
+These answer questions non-experts would ask:
+- "Is AI video suitable for [industry]?"
+- "Do I need filming equipment?"
+- "Is this expensive?"
+- "Can small teams use this?"
+- "Do I need technical skills?"
+
+🛡️ FAQ-B (Decision Boundary - When NOT to Use):
+These help users understand limitations and boundaries:
+- "When should AI video not be used in [industry]?"
+- "What are common limitations of AI-generated video for [use case]?"
+- "What scenarios are not suitable for AI-generated video in [industry]?"
+- "Are there industry-specific constraints I should be aware of?"
 
 Priority questions (AI search prefers these):
-- How is AI video typically used in [industry]?
-- Is AI-generated video suitable for non-technical teams?
-- Can these videos be reused across different contexts?
-- Do I need any equipment?
-- Is this expensive?
-- Can small teams use this?
+- FAQ-A questions (beginner-friendly, lowers barrier to entry)
+- FAQ-B questions (AI loves citing these to reduce misuse risk)
 
 Avoid or use sparingly:
-- Which platform works best... (comparison/evaluation questions are less preferred by AI search)
+- "Which platform works best..." (comparison/evaluation questions are less preferred by AI search)
 
 Answers:
 - 2–3 sentences
 - No marketing language
+- FAQ-B answers should be honest about limitations
 
 ────────────────────────
 H2: Using Sora2 for [Use Case] in [Industry]
