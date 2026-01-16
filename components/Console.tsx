@@ -26,34 +26,39 @@ declare global {
   }
 }
 
-// Initialize placeholder consoleLog immediately to prevent undefined errors
-if (typeof window !== 'undefined' && !window.consoleLog) {
-  // Create a queue to store logs before the component is mounted
-  const logQueue: ConsoleLogData[] = []
+// Initialize placeholder consoleLog - only in browser environment
+// This function is called from useEffect to avoid SSR issues
+function initializePlaceholderConsole(): void {
+  if (typeof window === 'undefined') return
   
-  // Placeholder that queues logs until the real console is ready
-  window.consoleLog = {
-    log: (msg: string, data?: unknown) => {
-      logQueue.push({ level: 'log', message: msg, data })
-      console.log('[Console Queue]', msg, data)
-    },
-    info: (msg: string, data?: unknown) => {
-      logQueue.push({ level: 'info', message: msg, data })
-      console.info('[Console Queue]', msg, data)
-    },
-    warn: (msg: string, data?: unknown) => {
-      logQueue.push({ level: 'warn', message: msg, data })
-      console.warn('[Console Queue]', msg, data)
-    },
-    error: (msg: string, data?: unknown) => {
-      logQueue.push({ level: 'error', message: msg, data })
-      console.error('[Console Queue]', msg, data)
-    },
-    debug: (msg: string, data?: unknown) => {
-      logQueue.push({ level: 'debug', message: msg, data })
-      console.debug('[Console Queue]', msg, data)
-    },
-    _queue: logQueue, // Expose queue for component to process
+  if (!window.consoleLog) {
+    // Create a queue to store logs before the component is mounted
+    const logQueue: ConsoleLogData[] = []
+    
+    // Placeholder that queues logs until the real console is ready
+    window.consoleLog = {
+      log: (msg: string, data?: unknown) => {
+        logQueue.push({ level: 'log', message: msg, data })
+        console.log('[Console Queue]', msg, data)
+      },
+      info: (msg: string, data?: unknown) => {
+        logQueue.push({ level: 'info', message: msg, data })
+        console.info('[Console Queue]', msg, data)
+      },
+      warn: (msg: string, data?: unknown) => {
+        logQueue.push({ level: 'warn', message: msg, data })
+        console.warn('[Console Queue]', msg, data)
+      },
+      error: (msg: string, data?: unknown) => {
+        logQueue.push({ level: 'error', message: msg, data })
+        console.error('[Console Queue]', msg, data)
+      },
+      debug: (msg: string, data?: unknown) => {
+        logQueue.push({ level: 'debug', message: msg, data })
+        console.debug('[Console Queue]', msg, data)
+      },
+      _queue: logQueue, // Expose queue for component to process
+    }
   }
 }
 
@@ -87,6 +92,11 @@ const Console: React.FC<ConsoleProps> = ({
   const logsEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [isMinimized, setIsMinimized] = useState(false)
+
+  // Initialize placeholder console on mount (client-side only)
+  useEffect(() => {
+    initializePlaceholderConsole()
+  }, [])
 
   // Auto scroll to bottom when new logs arrive
   useEffect(() => {
