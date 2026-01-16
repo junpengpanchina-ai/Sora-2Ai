@@ -66,6 +66,12 @@ const getIndustryUseCases = cache(async (industry: string) => {
 
 // 获取所有行业的 slugs（用于静态生成）
 export async function generateStaticParams() {
+  // 🔥 如果设置了 SKIP_STATIC_GENERATION，跳过静态生成（用于快速构建）
+  if (process.env.SKIP_STATIC_GENERATION === 'true') {
+    console.warn('[industries/generateStaticParams] SKIP_STATIC_GENERATION=true, skipping static generation, using dynamic rendering')
+    return []
+  }
+
   return INDUSTRIES_100.map((industry) => ({
     slug: industry.toLowerCase().replace(/\s+/g, '-').replace(/&/g, 'and'),
   }))

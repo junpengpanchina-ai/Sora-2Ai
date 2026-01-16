@@ -1,0 +1,1 @@
+"use strict";exports.id=2945,exports.ids=[2945],exports.modules={42945:(e,r,t)=>{function o(){throw Error("createClient must be called in a browser environment")}t.d(r,{createClient:()=>o}),t(95157)}};

@@ -1,0 +1,49 @@
+{
+  "indexedPagesTier1": {
+    "current": 6500,
+    "total": 10000,
+    "lastWeek": 6200
+  },
+  "avgPositionTier1": {
+    "current": 13.1,
+    "lastWeek": 14.2
+  },
+  "impressionsTier1": {
+    "current": 1139,
+    "lastWeek": 1050
+  },
+  "aiStyleQueriesPercent": {
+    "current": 0.18,
+    "lastWeek": 0.15
+  },
+  "tierStats": {
+    "tier1": {
+      "total": 10000,
+      "indexed": 6500
+    },
+    "tier2": {
+      "total": 35000,
+      "indexed": 14000
+    },
+    "tier3": {
+      "total": 65000,
+      "indexed": 12000
+    }
+  },
+  "querySignals": {
+    "aiStyle": [
+      "how to use ai video for healthcare",
+      "ai video for retail use case",
+      "can ai video be used in education"
+    ],
+    "seoStyle": [
+      "best ai video tool",
+      "sora alternative",
+      "text to video ai"
+    ],
+    "marketingStyle": [
+      "cheap ai video",
+      "discount sora"
+    ]
+  }
+}

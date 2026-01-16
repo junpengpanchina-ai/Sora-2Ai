@@ -7,6 +7,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getUserEntitlements } from "@/lib/billing/get-user-entitlements";
 
+// Mark as dynamic route since we use request.headers
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient(request.headers);

@@ -1,45 +1,6 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ... existing content ...
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# local env files
-.env*.local
-.env
-
-# vercel
-.vercel
-
-# sensitive credentials (DO NOT COMMIT)
-NEW_GOOGLE_OAUTH_CREDENTIALS.md
-*_CREDENTIALS.md
-*credentials*.md
-*secret*.md
-client_secret_*.json
-*client_secret*.json
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
+# Index Health & AI Citation data
+data/index-health-data.json
+data/ai-citation-lists/
+reports/

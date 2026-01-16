@@ -29,6 +29,6 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: `${baseUrl}/sitemap.xml`,
+    sitemap: `${baseUrl}/sitemap-index.xml`, // 指向 sitemap index，包含 Tier 1 和全量 sitemap
   }
 }
