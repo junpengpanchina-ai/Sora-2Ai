@@ -46,20 +46,22 @@ export async function GET(request: Request) {
     const supabase = await createServiceClient()
 
     // Build count query
+    // Allow both approved and null quality_status (null means not reviewed yet, but still show if published)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let countQuery = (supabase as any)
       .from('use_cases')
       .select('id', { count: 'exact', head: true })
       .eq('is_published', true)
-      .eq('quality_status', 'approved')
+      .or('quality_status.eq.approved,quality_status.is.null')
 
     // Build data query
+    // Allow both approved and null quality_status (null means not reviewed yet, but still show if published)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let dataQuery = (supabase as any)
       .from('use_cases')
       .select('id, slug, title, description, use_case_type, industry')
       .eq('is_published', true)
-      .eq('quality_status', 'approved')
+      .or('quality_status.eq.approved,quality_status.is.null')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
