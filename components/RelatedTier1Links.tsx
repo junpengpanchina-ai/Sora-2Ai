@@ -32,8 +32,10 @@ export async function RelatedTier1Links({ pageId, slug }: RelatedTier1LinksProps
   }
 
   try {
+    // 使用 revalidate 而不是 no-store，允许静态生成
+    // 每周轮换数据，所以设置 1 小时 revalidate 足够（数据每周才变化一次）
     const res = await fetch(`${baseUrl}/api/related-links?${params.toString()}`, {
-      cache: 'no-store', // 确保获取最新的周数据
+      next: { revalidate: 3600 }, // 1 小时重新验证
     })
 
     if (!res.ok) {
