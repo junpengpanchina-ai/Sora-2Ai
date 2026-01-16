@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { logError } from '@/lib/logger'
 import { clearPostLoginRedirect, getPostLoginRedirect } from '@/lib/auth/post-login-redirect'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import OAuthErrorLogger from '@/components/OAuthErrorLogger'
 
 export default function AuthCallbackPage() {
@@ -14,9 +14,16 @@ export default function AuthCallbackPage() {
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const isExecutingRef = useRef(false)
 
   useEffect(() => {
     const handleCallback = async () => {
+      // Prevent duplicate execution
+      if (isExecutingRef.current) {
+        console.log('⚠️ Callback already executing, skipping...')
+        return
+      }
+      isExecutingRef.current = true
       const code = searchParams.get('code')
       const errorParam = searchParams.get('error')
       const errorDescription = searchParams.get('error_description')
@@ -36,207 +43,40 @@ export default function AuthCallbackPage() {
       try {
         const supabase = createClient()
         
-        console.log('Callback received:', { 
-          code: code ? code.substring(0, 20) + '...' : 'none',
-          codeLength: code?.length || 0
-        })
-        
-        // Check localStorage for PKCE data
-        const allStorageKeys = Object.keys(localStorage)
-        console.log('All localStorage keys:', allStorageKeys)
-        const supabaseKeys = allStorageKeys.filter(
-          key => key.includes('supabase') || key.startsWith('sb-')
-        )
-        console.log('Supabase-related localStorage keys:', supabaseKeys)
-
-        const sessionStorageKeys = Object.keys(sessionStorage)
-        console.log('All sessionStorage keys:', sessionStorageKeys)
-
-        let codeVerifierFound = false
-        let codeVerifierSource: { type: string; key: string } | null = null
-
-        const normalizedKeys = allStorageKeys.map(key => ({
-          key,
-          normalized: key.toLowerCase(),
-        }))
-
-        const directCodeKey = normalizedKeys.find(item =>
-          item.normalized.includes('code_verifier') ||
-          item.normalized.includes('code-verifier') ||
-          item.normalized.includes('oauth-code-verifier')
-        )
-
-        if (directCodeKey) {
-          codeVerifierFound = true
-          codeVerifierSource = { type: 'key', key: directCodeKey.key }
-        } else {
-          for (const key of supabaseKeys) {
-            const rawValue = localStorage.getItem(key)
-            if (!rawValue) continue
-
-            if (
-              rawValue.includes('code_verifier') ||
-              rawValue.includes('codeVerifier') ||
-              rawValue.includes('oauthCodeVerifier') ||
-              rawValue.includes('pkce')
-            ) {
-              codeVerifierFound = true
-              codeVerifierSource = { type: 'value', key }
-              break
-            }
-
-            try {
-              const parsedValue = JSON.parse(rawValue)
-              if (
-                parsedValue &&
-                (
-                  parsedValue.code_verifier ||
-                  parsedValue.codeVerifier ||
-                  parsedValue.oauthCodeVerifier ||
-                  parsedValue?.session?.codeVerifier ||
-                  parsedValue?.pkce ||
-                  parsedValue?.authSession?.codeVerifier
-                )
-              ) {
-                codeVerifierFound = true
-                codeVerifierSource = { type: 'parsed', key }
-                break
-              }
-            } catch (parseErr) {
-              console.warn('Failed to parse storage value for key', key, parseErr)
-            }
-          }
-        }
-
-        if (codeVerifierFound && codeVerifierSource) {
-          console.log('Detected code_verifier information in storage:', codeVerifierSource)
-        } else {
-          console.warn('No code_verifier detected in localStorage yet. Supabase may still complete the exchange automatically.')
-          console.warn('If the exchange fails, possible causes include:')
-          console.warn('1. Browser cleared localStorage')
-          console.warn('2. Using incognito/private mode')
-          console.warn('3. Redirect URL mismatch')
-          console.warn('4. Cross-origin redirect issue')
-        }
-        
-        if (!codeVerifierFound) {
-          for (const key of sessionStorageKeys) {
-            const normalized = key.toLowerCase()
-            if (
-              normalized.includes('code_verifier') ||
-              normalized.includes('code-verifier') ||
-              normalized.includes('oauth-code-verifier') ||
-              normalized.includes('pkce')
-            ) {
-              const value = sessionStorage.getItem(key)
-              if (value) {
-                try {
-                  localStorage.setItem(key, value)
-                  console.log('Copied code_verifier from sessionStorage to localStorage', { key })
-                  codeVerifierFound = true
-                  codeVerifierSource = { type: 'session-key', key }
-                  break
-                } catch (copyErr) {
-                  console.error('Failed to copy code_verifier from sessionStorage to localStorage', {
-                    key,
-                    error: copyErr,
-                  })
-                }
-              }
-            } else {
-              const rawValue = sessionStorage.getItem(key)
-              if (!rawValue) continue
-              if (
-                rawValue.includes('code_verifier') ||
-                rawValue.includes('codeVerifier') ||
-                rawValue.includes('oauthCodeVerifier') ||
-                rawValue.includes('pkce')
-              ) {
-                try {
-                  localStorage.setItem(key, rawValue)
-                  console.log('Copied code_verifier value from sessionStorage to localStorage', { key })
-                  codeVerifierFound = true
-                  codeVerifierSource = { type: 'session-value', key }
-                  break
-                } catch (copyErr) {
-                  console.error('Failed to copy code_verifier value from sessionStorage to localStorage', {
-                    key,
-                    error: copyErr,
-                  })
-                }
-              }
-            }
-          }
-
-          if (codeVerifierFound && codeVerifierSource) {
-            console.log('Detected code_verifier from sessionStorage:', codeVerifierSource)
-          }
-        }
+        // For email magic link login, we don't need PKCE code_verifier checks
+        // Only check for OAuth if needed (when Google login is enabled)
+        // This significantly speeds up email login
 
         // Exchange code for session
-        // With detectSessionInUrl: true, Supabase automatically handles code exchange
-        // We need to wait for it to complete, then check the session
-        console.log('Waiting for Supabase automatic session detection...')
-        
-        // Wait for Supabase to process the code (it happens automatically with detectSessionInUrl: true)
-        // Try multiple times with increasing delays to ensure automatic detection completes
+        // For email magic link, we can directly exchange without waiting
+        // For OAuth, Supabase with detectSessionInUrl: true may auto-detect, but we'll try direct exchange first for speed
         let sessionData = null
         let exchangeError = null
-        let attempts = 0
-        const maxAttempts = 3
         
-        while (attempts < maxAttempts && !sessionData?.session) {
-          // Wait progressively longer on each attempt
-          await new Promise(resolve => setTimeout(resolve, 300 * (attempts + 1)))
-          
-          const { data: { session: existingSession } } = await supabase.auth.getSession()
-          
-          if (existingSession && existingSession.user) {
-            console.log(`✅ Session created by automatic detection (attempt ${attempts + 1})`)
-            sessionData = { session: existingSession, user: existingSession.user }
-            break
-          }
-          
-          attempts++
-          if (attempts < maxAttempts) {
-            console.log(`⏳ Waiting for session... (attempt ${attempts}/${maxAttempts})`)
+        // Try to get session immediately (for email magic link, this usually works)
+        const { data: { session: quickSession } } = await supabase.auth.getSession()
+        if (quickSession && quickSession.user) {
+          console.log('✅ Session detected immediately')
+          sessionData = { session: quickSession, user: quickSession.user }
+        } else {
+          // If not found, try one quick wait (100ms) for OAuth auto-detection
+          await new Promise(resolve => setTimeout(resolve, 100))
+          const { data: { session: autoSession } } = await supabase.auth.getSession()
+          if (autoSession && autoSession.user) {
+            console.log('✅ Session detected after short wait')
+            sessionData = { session: autoSession, user: autoSession.user }
           }
         }
         
-        // If automatic detection didn't work after multiple attempts, try manual exchange
+        // If still no session, try manual exchange (for OAuth PKCE or email magic link)
         if (!sessionData?.session) {
-          console.log('⚠️ Automatic detection failed after multiple attempts, trying manual exchange...', {
-            codeVerifierDetected: codeVerifierFound,
-            supabaseKeys,
-          })
-          const storageCheck = {
-            localStorageKeys: Object.keys(localStorage),
-            sessionStorageKeys: Object.keys(sessionStorage),
-            cookies: typeof document !== 'undefined' ? document.cookie : '',
-          }
-          console.log('Storage state before manual exchange:', storageCheck)
-          console.log(
-            'Storage lookups for PKCE:',
-            ['localStorage', 'sessionStorage'].map(source => ({
-              source,
-              matches: Object.keys(source === 'localStorage' ? localStorage : sessionStorage).filter(key =>
-                key.includes('code') || key.includes('verifier')
-              ),
-            }))
-          )
-
-          const cookieVerifier = storageCheck.cookies
-            .split('; ')
-            .find(pair => pair.startsWith(`sb-`))?.split('=')[1]
-          console.log('Cookie PKCE verifier presence:', !!cookieVerifier)
-
-          // 🔍 详细记录 exchange 请求信息
-          console.log('🔍 [OAuth Exchange] 开始交换 code...')
-          console.log('📋 [OAuth Exchange] Code 信息:', {
+          console.log('⚠️ Session not detected automatically, trying manual exchange...')
+          
+          // 🔍 记录 exchange 请求信息
+          console.log('🔍 [Auth Exchange] 开始交换 code...')
+          console.log('📋 [Auth Exchange] Code 信息:', {
             codeLength: code?.length || 0,
             codePreview: code ? code.substring(0, 30) + '...' : 'none',
-            hasCodeVerifier: codeVerifierFound,
-            codeVerifierSource: codeVerifierSource,
           })
           
           // 记录 Supabase 项目 URL（用于识别请求）
@@ -244,8 +84,23 @@ export default function AuthCallbackPage() {
           console.log('📋 [OAuth Exchange] Supabase URL:', supabaseUrl)
           console.log('📋 [OAuth Exchange] 预期请求 URL:', `${supabaseUrl}/auth/v1/token?grant_type=pkce`)
           
+          // Add timeout to prevent hanging (5 seconds max)
           const exchangeStartTime = Date.now()
-          const exchangeResult = await supabase.auth.exchangeCodeForSession(code)
+          const exchangePromise = supabase.auth.exchangeCodeForSession(code)
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Exchange timeout after 5 seconds')), 5000)
+          )
+          
+          let exchangeResult
+          try {
+            exchangeResult = await Promise.race([exchangePromise, timeoutPromise])
+          } catch (timeoutError) {
+            console.error('❌ Exchange timeout:', timeoutError)
+            // Try to redirect to login with timeout error
+            router.push('/login?error=exchange_timeout')
+            return
+          }
+          
           const exchangeDuration = Date.now() - exchangeStartTime
           
           sessionData = exchangeResult.data
@@ -310,20 +165,13 @@ export default function AuthCallbackPage() {
               console.error('   ✅ 检查: Network 标签中的完整响应（可能包含更详细的错误）')
             }
             
-            console.error('\n📋 [OAuth Exchange] 存储状态:', storageCheck)
-            console.error('📋 [OAuth Exchange] Supabase storage keys:', {
-              pkceKeys: Object.keys(localStorage).filter(key => key.includes('code') || key.includes('verifier')),
-            })
-            
             // Log to server (visible in Vercel Dashboard)
             await logError(
-              new Error(`PKCE token exchange failed: ${exchangeError.message}`),
+              new Error(`Auth token exchange failed: ${exchangeError.message}`),
               {
                 code: code ? code.substring(0, 20) + '...' : 'none',
                 codeLength: code?.length || 0,
                 ...errorDetails,
-                hasCodeVerifier: codeVerifierFound,
-                supabaseKeys,
               }
             )
             
@@ -333,8 +181,7 @@ export default function AuthCallbackPage() {
             if (exchangeError.status === 400) {
               if (
                 exchangeError.message?.includes('code verifier') ||
-                exchangeError.message?.includes('code_verifier') ||
-                (!codeVerifierFound && exchangeError.message)
+                exchangeError.message?.includes('code_verifier')
               ) {
                 errorMsg =
                   'Login failed: missing PKCE verifier. Please clear site data (cookies/storage) and try again.'
@@ -461,29 +308,26 @@ export default function AuthCallbackPage() {
           } else {
             console.log('User created/updated successfully via upsert:', email)
             
-            // Add welcome bonus for new users (30 credits = 3 videos)
-            try {
-              const welcomeBonusResponse = await fetch('/api/auth/welcome-bonus', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-              })
-              
-              if (welcomeBonusResponse.ok) {
-                const bonusResult = await welcomeBonusResponse.json()
-                if (bonusResult.success && !bonusResult.alreadyGranted) {
-                  console.log('✅ Welcome bonus (30 credits) added for new user:', email)
-                } else if (bonusResult.alreadyGranted) {
-                  console.log('ℹ️ Welcome bonus already granted for user:', email)
-                }
-              } else {
-                console.warn('⚠️ Failed to add welcome bonus, but user creation succeeded:', email)
+            // Add welcome bonus for new users (30 credits = 3 videos) - async, don't block login
+            // Fire and forget - don't wait for response to speed up login
+            fetch('/api/auth/welcome-bonus', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            }).then(response => {
+              if (response.ok) {
+                return response.json()
               }
-            } catch (bonusError) {
-              // Don't fail the login if welcome bonus fails
-              console.error('Error calling welcome bonus API:', bonusError)
-            }
+              return null
+            }).then(bonusResult => {
+              if (bonusResult?.success && !bonusResult.alreadyGranted) {
+                console.log('✅ Welcome bonus (30 credits) added for new user:', email)
+              }
+            }).catch(() => {
+              // Silently fail - don't log to avoid console spam
+              // Welcome bonus will be retried on next login if needed
+            })
           }
         } else {
           // Update last login time
@@ -514,10 +358,16 @@ export default function AuthCallbackPage() {
         router.push(`/login?error=${encodeURIComponent(err instanceof Error ? err.message : 'callback_error')}`)
       } finally {
         setLoading(false)
+        isExecutingRef.current = false
       }
     }
 
     handleCallback()
+    
+    // Cleanup function to prevent memory leaks
+    return () => {
+      isExecutingRef.current = false
+    }
   }, [router, searchParams])
 
   if (loading) {
