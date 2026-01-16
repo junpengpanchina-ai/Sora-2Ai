@@ -174,7 +174,7 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
   const processTask = async (task: BatchTask): Promise<string> => {
     const template = SEO_CONTENT_TEMPLATES.find((t) => t.id === task.templateId)
     if (!template) {
-      throw new Error('模板不存在')
+      throw new Error('Template not found')
     }
 
     // 构建完整的 Prompt（包含系统提示词）
@@ -207,12 +207,12 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
     if (data.success && data.data) {
       const content = data.data.choices?.[0]?.message?.content || ''
       if (!content) {
-        throw new Error('生成的内容为空')
+        throw new Error('Generated content is empty')
       }
       return content
     }
     
-    throw new Error(data.error || '生成失败')
+    throw new Error(data.error || 'Generation failed')
   }
 
   /**
@@ -269,19 +269,19 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
    */
   const validateContent = (content: string): { valid: boolean; error?: string } => {
     if (!content || content.trim().length < 100) {
-      return { valid: false, error: '内容太短（少于100字符）' }
+      return { valid: false, error: 'Content is too short (less than 100 characters)' }
     }
 
     // 检查是否包含必要的标题
     const hasH1 = /^#\s+.+$/m.test(content) || /<h1[^>]*>.+?<\/h1>/i.test(content)
     if (!hasH1) {
-      return { valid: false, error: '缺少 H1 标题' }
+      return { valid: false, error: 'Missing H1 title' }
     }
 
     // 检查是否包含必要的结构（至少2个H2）
     const h2Count = (content.match(/^##\s+.+$/gm) || []).length + (content.match(/<h2[^>]*>.+?<\/h2>/gi) || []).length
     if (h2Count < 2) {
-      return { valid: false, error: '内容结构不完整（至少需要2个H2）' }
+      return { valid: false, error: 'Content structure is incomplete (at least 2 H2 headings required)' }
     }
 
     return { valid: true }
@@ -294,7 +294,7 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
     // 先验证内容
     const validation = validateContent(content)
     if (!validation.valid) {
-      throw new Error(validation.error || '内容验证失败')
+      throw new Error(validation.error || 'Content validation failed')
     }
 
     try {
@@ -306,11 +306,11 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
       const slug = generateSlugFromText(task.params.keyword || task.params.scene || task.params.title || h1)
 
       if (!h1 || h1.trim() === '') {
-        throw new Error('无法提取 H1 标题，请确保生成的内容包含标题')
+        throw new Error('Unable to extract H1 title. Please ensure the generated content includes a title')
       }
 
       if (!slug) {
-        throw new Error('无法生成有效的 slug')
+        throw new Error('Unable to generate a valid slug')
       }
 
       let savedId = ''
@@ -336,7 +336,7 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.error || `保存失败: HTTP ${response.status}`)
+          throw new Error(errorData.error || `Save failed: HTTP ${response.status}`)
         }
 
         const data = await response.json()
@@ -344,7 +344,7 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
         savedTable = 'use_cases'
         
         if (!savedId) {
-          throw new Error('保存成功但未返回 ID')
+          throw new Error('Save succeeded but no ID was returned')
         }
       } else if (task.templateId === 'long-tail-keyword') {
         // 保存到 long_tail_keywords 表
@@ -365,7 +365,7 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.error || `保存失败: HTTP ${response.status}`)
+          throw new Error(errorData.error || `Save failed: HTTP ${response.status}`)
         }
 
         const data = await response.json()
@@ -373,7 +373,7 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
         savedTable = 'long_tail_keywords'
         
         if (!savedId) {
-          throw new Error('保存成功但未返回 ID')
+          throw new Error('Save succeeded but no ID was returned')
         }
       } else if (task.templateId === 'blog-post') {
         // 保存到 blog_posts 表
@@ -394,7 +394,7 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.error || `保存失败: HTTP ${response.status}`)
+          throw new Error(errorData.error || `Save failed: HTTP ${response.status}`)
         }
 
         const data = await response.json()
@@ -402,7 +402,7 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
         savedTable = 'blog_posts'
         
         if (!savedId) {
-          throw new Error('保存成功但未返回 ID')
+          throw new Error('Save succeeded but no ID was returned')
         }
       } else if (task.templateId === 'compare-page') {
         // 保存到 compare_pages 表
@@ -424,7 +424,7 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.error || `保存失败: HTTP ${response.status}`)
+          throw new Error(errorData.error || `Save failed: HTTP ${response.status}`)
         }
 
         const data = await response.json()
@@ -432,10 +432,10 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
         savedTable = 'compare_pages'
         
         if (!savedId) {
-          throw new Error('保存成功但未返回 ID')
+          throw new Error('Save succeeded but no ID was returned')
         }
       } else {
-        throw new Error(`不支持的模板类型: ${task.templateId}`)
+        throw new Error(`Unsupported template type: ${task.templateId}`)
       }
 
       return { id: savedId, table: savedTable, slug }
@@ -449,19 +449,19 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
    */
   const handleBatchGenerate = async () => {
     if (!csvInput.trim()) {
-      onShowBanner('error', '请输入 CSV 数据')
+      onShowBanner('error', 'Please enter CSV data')
       return
     }
 
     const rows = parseCSV(csvInput)
     if (rows.length === 0) {
-      onShowBanner('error', 'CSV 数据格式错误')
+      onShowBanner('error', 'CSV data format error')
       return
     }
 
     const template = SEO_CONTENT_TEMPLATES.find((t) => t.id === selectedTemplate)
     if (!template) {
-      onShowBanner('error', '请选择模板')
+      onShowBanner('error', 'Please select a template')
       return
     }
 
@@ -486,7 +486,7 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
           // 将未处理的任务标记为已取消
           for (let j = i; j < updated.length; j++) {
             if (updated[j].status === 'pending') {
-              updated[j] = { ...updated[j], status: 'failed', error: '已取消' }
+              updated[j] = { ...updated[j], status: 'failed', error: 'Cancelled' }
             }
           }
           return updated
@@ -531,10 +531,10 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
             })
           } catch (saveError) {
             console.error('保存失败:', saveError)
-            const errorMessage = saveError instanceof Error ? saveError.message : '未知错误'
+            const errorMessage = saveError instanceof Error ? saveError.message : 'Unknown error'
             setTasks((prev) => {
               const updated = [...prev]
-              updated[i] = { ...updated[i], error: `保存失败: ${errorMessage}` }
+              updated[i] = { ...updated[i], error: `Save failed: ${errorMessage}` }
               return updated
             })
           }
@@ -545,7 +545,7 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
           await new Promise((resolve) => setTimeout(resolve, 1000))
         }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : '未知错误'
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
         
         // 更新任务状态为失败
         setTasks((prev) => {
@@ -562,9 +562,9 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
     
     const completedCount = newTasks.filter((t) => t.status === 'completed' || t.status === 'saved').length
     if (shouldStop) {
-      onShowBanner('success', `批量生成已终止：已完成 ${completedCount}/${newTasks.length} 个任务`)
+      onShowBanner('success', `Batch generation stopped: ${completedCount}/${newTasks.length} tasks completed`)
     } else {
-      onShowBanner('success', `批量生成完成：${completedCount}/${newTasks.length} 成功`)
+      onShowBanner('success', `Batch generation completed: ${completedCount}/${newTasks.length} successful`)
     }
   }
 
@@ -573,7 +573,7 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
    */
   const handleStop = () => {
     setShouldStop(true)
-    onShowBanner('success', '正在停止批量生成，请稍候...')
+    onShowBanner('success', 'Stopping batch generation, please wait...')
   }
 
   /**
@@ -582,7 +582,7 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
   const handleExport = () => {
     const completedTasks = tasks.filter((t) => t.status === 'completed' && t.result)
     if (completedTasks.length === 0) {
-      onShowBanner('error', '没有可导出的内容')
+      onShowBanner('error', 'No content available for export')
       return
     }
 
@@ -599,7 +599,7 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
     a.click()
     URL.revokeObjectURL(url)
 
-    onShowBanner('success', `已导出 ${completedTasks.length} 条内容`)
+    onShowBanner('success', `Exported ${completedTasks.length} items`)
   }
 
   /**
@@ -613,7 +613,7 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
     reader.onload = (e) => {
       const text = e.target?.result as string
       setCsvInput(text)
-      onShowBanner('success', 'CSV 文件已加载')
+      onShowBanner('success', 'CSV file loaded')
     }
     reader.readAsText(file)
 
@@ -711,13 +711,13 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
             <Textarea
               value={csvInput}
               onChange={(e) => setCsvInput(e.target.value)}
-              placeholder="粘贴 CSV 数据，第一行为表头..."
+              placeholder="Paste CSV data, first row is header..."
               rows={8}
               className="font-mono text-sm"
               disabled={isProcessing}
             />
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              提示：CSV 格式，第一行为参数名（如：scene,industry,keyword），后续行为数据
+              Tip: CSV format, first row is parameter names (e.g., scene,industry,keyword), subsequent rows are data
             </p>
           </div>
 
@@ -821,14 +821,14 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
                           }`}
                         >
                           {task.status === 'saved'
-                            ? '✓ 已保存'
+                            ? '✓ Saved'
                             : task.status === 'completed'
-                            ? '✓ 完成'
+                            ? '✓ Completed'
                             : task.status === 'failed'
-                            ? '✗ 失败'
+                            ? '✗ Failed'
                             : task.status === 'processing'
-                            ? '⏳ 处理中'
-                            : '⏸ 等待'}
+                            ? '⏳ Processing'
+                            : '⏸ Waiting'}
                         </span>
                       </div>
                       <div className="mt-1 text-xs text-gray-600 dark:text-gray-400">
@@ -855,14 +855,14 @@ Marketing Ad Video,Marketing & Advertising,ai marketing video generator,professi
                               setTasks(updated)
                             }}
                           >
-                            {task.showContent ? '👁️ 隐藏内容' : '👁️ 查看内容'}
+                            {task.showContent ? '👁️ Hide Content' : '👁️ View Content'}
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => {
                               navigator.clipboard.writeText(task.result || '')
-                              onShowBanner('success', '内容已复制到剪贴板')
+                              onShowBanner('success', 'Content copied to clipboard')
                             }}
                           >
                             📋 复制

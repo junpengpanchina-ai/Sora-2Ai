@@ -362,7 +362,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               now,
               diff: now - lastAttempt,
             })
-            alert('登录状态异常，请刷新页面后重试')
+            alert('Login status error. Please refresh the page and try again.')
             return
           }
         }

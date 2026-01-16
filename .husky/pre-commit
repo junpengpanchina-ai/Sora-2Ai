@@ -1,0 +1,36 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Check for Chinese characters in staged files
+echo "🔍 Checking for Chinese characters in staged files..."
+
+# Get staged files
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|tsx|js|jsx)$' | grep -v -E '(node_modules|\.next|\.git|dist|build|CONSOLE_|DEBUG|TEST|DIAGNOSTIC|PASTE_TO_CONSOLE)' || true)
+
+if [ -z "$STAGED_FILES" ]; then
+  echo "✅ No files to check."
+  exit 0
+fi
+
+# Check each staged file
+HAS_CHINESE=false
+for file in $STAGED_FILES; do
+  if [ -f "$file" ]; then
+    # Check for Chinese characters in string literals
+    if grep -n -E "(['\"\`].*[\u4e00-\u9fff].*['\"\`])|(label|title|placeholder|description|text|message|error|success|warning|info|children|content)\s*[:=]\s*['\"\`].*[\u4e00-\u9fff]" "$file" 2>/dev/null; then
+      echo "❌ Found Chinese characters in: $file"
+      HAS_CHINESE=true
+    fi
+  fi
+done
+
+if [ "$HAS_CHINESE" = true ]; then
+  echo ""
+  echo "❌ Pre-commit check failed: Chinese characters found in staged files."
+  echo "💡 Please translate all user-visible Chinese text to English."
+  echo "   Run 'npm run check:chinese:changed' to see details."
+  exit 1
+fi
+
+echo "✅ No Chinese characters found in staged files."
+exit 0

@@ -230,18 +230,31 @@ const getRelatedKeywords = cache(async (seoKeywords: string[], useCaseType: stri
 
 // 获取所有已发布的使用场景 slugs（用于静态生成）
 export async function generateStaticParams() {
+  // 🔥 构建时如果环境变量未设置或构建超时，返回空数组，使用动态渲染
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn('[generateStaticParams] Environment variables not set, skipping static generation, using dynamic rendering')
     return []
   }
+
+  // 🔥 如果设置了 SKIP_STATIC_GENERATION，跳过静态生成（用于快速构建）
+  if (process.env.SKIP_STATIC_GENERATION === 'true') {
+    console.warn('[generateStaticParams] SKIP_STATIC_GENERATION=true, skipping static generation, using dynamic rendering')
+    return []
+  }
+
+  // 🔥 构建时限制静态生成数量，避免超时
+  // 如果构建环境设置了 BUILD_STATIC_LIMIT，使用该值，否则使用较小的默认值
+  const MAX_STATIC_PAGES = process.env.BUILD_STATIC_LIMIT 
+    ? parseInt(process.env.BUILD_STATIC_LIMIT, 10) 
+    : 10 // 默认只生成 10 个，避免构建超时
 
   try {
     // 在静态生成时使用 service client，不需要 cookies
     const supabase = await createServiceClient()
     
     // 限制静态生成的数量，避免构建时间过长
-    // 只预生成最新的 100 个 use_cases，其余的动态渲染（ISR）
+    // 只预生成最新的 N 个 use_cases，其余的动态渲染（ISR）
     // 这样可以显著降低构建期对 Supabase 的并发压力，避免 ECONNRESET/fetch failed
-    const MAX_STATIC_PAGES = 100
     
     // 🔥 添加重试机制和请求延迟，解决构建时的连接错误
     const { withRetryQuery, delay } = await import('@/lib/utils/retry')
@@ -299,7 +312,7 @@ export async function generateStaticParams() {
         slug: item.slug.trim(),
       }))
     
-    console.log(`[generateStaticParams] 生成 ${filtered.length} 个静态页面（限制: ${MAX_STATIC_PAGES}）`)
+    console.log(`[generateStaticParams] Generating ${filtered.length} static pages (limit: ${MAX_STATIC_PAGES})`)
     
     return filtered
   } catch (error) {

@@ -50,11 +50,11 @@ const DEFAULT_FORM_STATE: BlogFormState = {
 
 const STATUS_BADGES: Record<'published' | 'draft', { label: string; className: string }> = {
   published: {
-    label: '已发布',
+    label: 'Published',
     className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
   },
   draft: {
-    label: '草稿',
+    label: 'Draft',
     className: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200',
   },
 }
@@ -150,7 +150,7 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
         if (typeof payload.details === 'string' && payload.details.trim().length > 0) {
           messageParts.push(payload.details.trim())
         }
-        const message = messageParts.join('：') || '获取博客文章列表失败'
+        const message = messageParts.join(': ') || 'Failed to fetch blog posts'
         throw new Error(message)
       }
 
@@ -161,8 +161,8 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
 
       setBlogs(normalized)
     } catch (err) {
-      console.error('获取博客文章列表失败:', err)
-      setError(err instanceof Error ? err.message : '获取博客文章列表失败')
+      console.error('Failed to fetch blog posts:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch blog posts')
       setBlogs([])
     } finally {
       setLoading(false)
@@ -215,10 +215,10 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
         return value !== undefined && value !== null && value !== ''
       }).length
       
-      onShowBanner('success', `成功识别并填充了 ${recognizedFields} 个字段`)
+      onShowBanner('success', `Successfully recognized and filled ${recognizedFields} fields`)
     } catch (err) {
       console.error('Text recognition failed:', err)
-      onShowBanner('error', err instanceof Error ? err.message : '文本识别失败')
+      onShowBanner('error', err instanceof Error ? err.message : 'Text recognition failed')
     } finally {
       setIsRecognizing(false)
     }
@@ -243,19 +243,19 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
   const handleCreateBlog = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!newBlogForm.slug.trim()) {
-      onShowBanner('error', '请输入文章slug')
+      onShowBanner('error', 'Please enter article slug')
       return
     }
     if (!newBlogForm.title.trim()) {
-      onShowBanner('error', '请输入文章标题')
+      onShowBanner('error', 'Please enter article title')
       return
     }
     if (!newBlogForm.h1.trim()) {
-      onShowBanner('error', '请输入H1标题')
+      onShowBanner('error', 'Please enter H1 title')
       return
     }
     if (!newBlogForm.content.trim()) {
-      onShowBanner('error', '请输入文章内容')
+      onShowBanner('error', 'Please enter article content')
       return
     }
 
@@ -287,16 +287,16 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
         if (typeof payload.details === 'string' && payload.details.trim().length > 0) {
           messageParts.push(payload.details.trim())
         }
-        const message = messageParts.join('：') || '创建博客文章失败'
+        const message = messageParts.join(': ') || 'Failed to create blog post'
         throw new Error(message)
       }
 
-      onShowBanner('success', '博客文章创建成功')
+      onShowBanner('success', 'Blog post created successfully')
       setNewBlogForm(DEFAULT_FORM_STATE)
       await fetchBlogs()
     } catch (err) {
-      console.error('创建博客文章失败:', err)
-      onShowBanner('error', err instanceof Error ? err.message : '创建博客文章失败')
+      console.error('Failed to create blog post:', err)
+      onShowBanner('error', err instanceof Error ? err.message : 'Failed to create blog post')
     } finally {
       setCreating(false)
     }
@@ -314,7 +314,7 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
 
   const handleUpdateBlog = async (id: string) => {
     if (!editForm.slug.trim() || !editForm.title.trim() || !editForm.h1.trim() || !editForm.content.trim()) {
-      onShowBanner('error', '请填写所有必需字段')
+      onShowBanner('error', 'Please fill in all required fields')
       return
     }
 
@@ -346,24 +346,24 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
         if (typeof payload.details === 'string' && payload.details.trim().length > 0) {
           messageParts.push(payload.details.trim())
         }
-        const message = messageParts.join('：') || '更新博客文章失败'
+        const message = messageParts.join(': ') || 'Failed to update blog post'
         throw new Error(message)
       }
 
-      onShowBanner('success', '博客文章更新成功')
+      onShowBanner('success', 'Blog post updated successfully')
       setEditingBlogId(null)
       setEditForm(DEFAULT_FORM_STATE)
       await fetchBlogs()
     } catch (err) {
-      console.error('更新博客文章失败:', err)
-      onShowBanner('error', err instanceof Error ? err.message : '更新博客文章失败')
+      console.error('Failed to update blog post:', err)
+      onShowBanner('error', err instanceof Error ? err.message : 'Failed to update blog post')
     } finally {
       setUpdating(false)
     }
   }
 
   const handleDeleteBlog = async (id: string) => {
-    if (!confirm('确定要删除这篇博客文章吗？此操作无法撤销。')) {
+    if (!confirm('Are you sure you want to delete this blog post? This action cannot be undone.')) {
       return
     }
 
@@ -383,30 +383,30 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
         if (typeof payload.details === 'string' && payload.details.trim().length > 0) {
           messageParts.push(payload.details.trim())
         }
-        const message = messageParts.join('：') || '删除博客文章失败'
+        const message = messageParts.join(': ') || 'Failed to delete blog post'
         throw new Error(message)
       }
 
-      onShowBanner('success', '博客文章删除成功')
+      onShowBanner('success', 'Blog post deleted successfully')
       await fetchBlogs()
     } catch (err) {
-      console.error('删除博客文章失败:', err)
-      onShowBanner('error', err instanceof Error ? err.message : '删除博客文章失败')
+      console.error('Failed to delete blog post:', err)
+      onShowBanner('error', err instanceof Error ? err.message : 'Failed to delete blog post')
     } finally {
       setDeletingId(null)
     }
   }
 
   if (loading) {
-    return <div className="p-6">加载中...</div>
+    return <div className="p-6">Loading...</div>
   }
 
   if (error) {
     return (
       <div className="p-6">
-        <div className="text-red-600 dark:text-red-400">错误: {error}</div>
+        <div className="text-red-600 dark:text-red-400">Error: {error}</div>
         <Button onClick={fetchBlogs} className="mt-4">
-          重试
+          Retry
         </Button>
       </div>
     )
@@ -416,7 +416,7 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>创建新博客文章</CardTitle>
+          <CardTitle>Create New Blog Post</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleCreateBlog} className="space-y-4">
@@ -440,7 +440,7 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">发布日期</label>
+                <label className="block text-sm font-medium mb-1">Publish Date</label>
                 <Input
                   type="date"
                   value={newBlogForm.published_at}
@@ -449,7 +449,7 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">标题 *</label>
+              <label className="block text-sm font-medium mb-1">Title *</label>
               <Input
                 value={newBlogForm.title}
                 onChange={(e) => setNewBlogForm({ ...newBlogForm, title: e.target.value })}
@@ -458,7 +458,7 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">描述 *</label>
+              <label className="block text-sm font-medium mb-1">Description *</label>
               <Textarea
                 value={newBlogForm.description}
                 onChange={(e) => setNewBlogForm({ ...newBlogForm, description: e.target.value })}
@@ -468,7 +468,7 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">H1标题 *</label>
+              <label className="block text-sm font-medium mb-1">H1 Title *</label>
               <Input
                 value={newBlogForm.h1}
                 onChange={(e) => setNewBlogForm({ ...newBlogForm, h1: e.target.value })}
@@ -477,18 +477,18 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">内容 (HTML) *</label>
+              <label className="block text-sm font-medium mb-1">Content (HTML) *</label>
               <Textarea
                 value={newBlogForm.content}
                 onChange={(e) => setNewBlogForm({ ...newBlogForm, content: e.target.value })}
-                placeholder="<p>文章内容...</p>"
+                placeholder="<p>Article content...</p>"
                 rows={10}
                 required
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">相关文章 (逗号分隔)</label>
+                <label className="block text-sm font-medium mb-1">Related Posts (comma-separated)</label>
                 <Input
                   value={newBlogForm.related_posts}
                   onChange={(e) => setNewBlogForm({ ...newBlogForm, related_posts: e.target.value })}
@@ -496,7 +496,7 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">SEO关键词 (逗号分隔)</label>
+                <label className="block text-sm font-medium mb-1">SEO Keywords (comma-separated)</label>
                 <Input
                   value={newBlogForm.seo_keywords}
                   onChange={(e) => setNewBlogForm({ ...newBlogForm, seo_keywords: e.target.value })}
@@ -513,11 +513,11 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
                 className="rounded"
               />
               <label htmlFor="new-is-published" className="text-sm">
-                立即发布
+                Publish immediately
               </label>
             </div>
             <Button type="submit" disabled={creating}>
-              {creating ? '创建中...' : '创建博客文章'}
+              {creating ? 'Creating...' : 'Create Blog Post'}
             </Button>
           </form>
         </CardContent>
@@ -525,13 +525,13 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
 
       <Card>
         <CardHeader>
-          <CardTitle>博客文章列表 ({filteredBlogs.length})</CardTitle>
+          <CardTitle>Blog Posts List ({filteredBlogs.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="flex gap-4">
               <Input
-                placeholder="搜索..."
+                placeholder="Search..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="flex-1"
@@ -541,9 +541,9 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
                 onChange={(e) => setStatusFilter(e.target.value as 'all' | 'published' | 'draft')}
                 className="px-3 py-2 border rounded"
               >
-                <option value="all">全部状态</option>
-                <option value="published">已发布</option>
-                <option value="draft">草稿</option>
+                <option value="all">All Status</option>
+                <option value="published">Published</option>
+                <option value="draft">Draft</option>
               </select>
             </div>
 
@@ -570,12 +570,12 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
                       <Input
                         value={editForm.title}
                         onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                        placeholder="标题"
+                          placeholder="Title"
                       />
                       <Textarea
                         value={editForm.description}
                         onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                        placeholder="描述"
+                        placeholder="Description"
                         rows={2}
                       />
                       <Input
@@ -586,7 +586,7 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
                       <Textarea
                         value={editForm.content}
                         onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
-                        placeholder="内容 (HTML)"
+                        placeholder="Content (HTML)"
                         rows={6}
                       />
                       <div className="flex items-center gap-2">
@@ -596,7 +596,7 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
                           onChange={(e) => setEditForm({ ...editForm, isPublished: e.target.checked })}
                           className="rounded"
                         />
-                        <label className="text-sm">已发布</label>
+                        <label className="text-sm">Published</label>
                       </div>
                       <div className="flex gap-2">
                         <Button
@@ -604,10 +604,10 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
                           onClick={() => handleUpdateBlog(blog.id)}
                           disabled={updating}
                         >
-                          {updating ? '保存中...' : '保存'}
+                          {updating ? 'Saving...' : 'Save'}
                         </Button>
                         <Button size="sm" variant="outline" onClick={handleCancelEdit}>
-                          取消
+                          Cancel
                         </Button>
                       </div>
                     </div>
@@ -628,13 +628,13 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
                         </p>
                         {blog.published_at && (
                           <p className="text-xs text-gray-500 mt-1">
-                            发布时间: {new Date(blog.published_at).toLocaleDateString()}
+                            Published: {new Date(blog.published_at).toLocaleDateString()}
                           </p>
                         )}
                       </div>
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={() => handleStartEdit(blog)}>
-                          编辑
+                          Edit
                         </Button>
                         <Button
                           size="sm"
@@ -642,7 +642,7 @@ export default function AdminBlogManager({ onShowBanner }: AdminBlogManagerProps
                           onClick={() => handleDeleteBlog(blog.id)}
                           disabled={deletingId === blog.id}
                         >
-                          {deletingId === blog.id ? '删除中...' : '删除'}
+                          {deletingId === blog.id ? 'Deleting...' : 'Delete'}
                         </Button>
                       </div>
                     </>
