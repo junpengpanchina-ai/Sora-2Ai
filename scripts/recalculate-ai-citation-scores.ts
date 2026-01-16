@@ -11,6 +11,9 @@
  * ts-node scripts/recalculate-ai-citation-scores.ts
  */
 
+import { config } from 'dotenv'
+config({ path: '.env.local' })
+
 import { createClient } from '@supabase/supabase-js'
 import { computeAiCitationScore, extractCitationSignals, type CitationSignals } from '../lib/utils/ai-citation-scorer-v2'
 

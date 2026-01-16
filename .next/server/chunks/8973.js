@@ -1,1 +1,0 @@
-"use strict";exports.id=8973,exports.ids=[8973],exports.modules={88973:(e,r,t)=>{t.d(r,{generateSlugFromText:()=>s});function s(e){if(!e||"string"!=typeof e)return"";let r=(e.length>150?e.substring(0,150):e).trim().toLowerCase().replace(/[\s_]+/g,"-").replace(/[^a-z0-9-]/g,"-").replace(/-+/g,"-").replace(/^-|-$/g,"");return r.length>100?r.substring(0,100):r}}};

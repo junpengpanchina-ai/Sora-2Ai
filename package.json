@@ -42,7 +42,9 @@
     "report:index-health:v2": "node scripts/generate-index-health-report-v2-standalone.js",
     "calculate:ai-citation": "node scripts/calculate-ai-citation-top5000-standalone.js",
     "calculate:ai-citation:v2": "node scripts/calculate-ai-citation-top5000-v2.js",
-    "calculate:ai-scores:batch": "tsx scripts/recalculate-ai-citation-scores.ts"
+    "calculate:ai-scores:batch": "tsx scripts/recalculate-ai-citation-scores.ts",
+    "generate:tier1-links": "tsx scripts/generate-tier1-internal-links.ts",
+    "monitor:ai-serp": "tsx scripts/run-ai-serp-checks.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.927.0",

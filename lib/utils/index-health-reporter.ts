@@ -48,9 +48,9 @@ export function generateIndexHealthReport(data: IndexHealthData, weekDate: strin
     : data.impressions.current < data.impressions.previous ? '↓' 
     : '→'
   
-  const clicksTrend = data.clicks.current > data.clicks.previous ? '↑'
-    : data.clicks.current < data.clicks.previous ? '↓'
-    : '→'
+  // const clicksTrend = data.clicks.current > data.clicks.previous ? '↑'
+  //   : data.clicks.current < data.clicks.previous ? '↓'
+  //   : '→'
   
   const indexedRate = data.discovered > 0 ? (data.indexed / data.discovered) : 0
   const tier1IndexedRate = data.tier1.submitted > 0 ? (data.tier1.indexed / data.tier1.submitted) : 0
@@ -210,8 +210,8 @@ function isSEOStyleQuery(query: string): boolean {
 /**
  * 生成 CSV 格式（可导入 Google Sheets）
  */
-export function generateIndexHealthCSV(data: IndexHealthData, weekDate: string): string {
-  const indexedRate = data.discovered > 0 ? (data.indexed / data.discovered) : 0
+export function generateIndexHealthCSV(data: IndexHealthData): string {
+  // const indexedRate = data.discovered > 0 ? (data.indexed / data.discovered) : 0
   const tier1IndexedRate = data.tier1.submitted > 0 ? (data.tier1.indexed / data.tier1.submitted) : 0
   
   const rows = [

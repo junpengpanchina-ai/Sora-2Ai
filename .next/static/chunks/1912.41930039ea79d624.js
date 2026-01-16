@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[1912],{1912:function(e,t,c){c.d(t,{getOrCreateDeviceId:function(){return n}});function n(){let e="device_id",t=localStorage.getItem(e);return t||(t=crypto.randomUUID(),localStorage.setItem(e,t)),t}}}]);

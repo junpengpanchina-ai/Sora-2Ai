@@ -90,8 +90,14 @@ export async function GET(
     }
 
     // 生成 URL 列表
-    const urls = scores
-      .map((score: any) => {
+    interface ScoreRow {
+      url: string
+      updated_at?: string | null
+      recalc_at?: string | null
+    }
+
+    const urls = (scores as ScoreRow[])
+      .map((score) => {
         const url = score.url
         if (!url) return null
 

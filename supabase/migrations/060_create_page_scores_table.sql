@@ -34,6 +34,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- 删除已存在的触发器（如果存在）
+DROP TRIGGER IF EXISTS trigger_update_page_scores_updated_at ON page_scores;
+
+-- 创建触发器
 CREATE TRIGGER trigger_update_page_scores_updated_at
   BEFORE UPDATE ON page_scores
   FOR EACH ROW

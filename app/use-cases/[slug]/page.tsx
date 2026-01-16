@@ -9,6 +9,7 @@ import UseCaseToolEmbed from '../UseCaseToolEmbed'
 import { parseMarkdownSections, markdownToHtml } from '@/lib/utils/markdown-parser'
 import CosmicBackground from '@/components/CosmicBackground'
 import LazyRelatedContent from '@/components/LazyRelatedContent'
+import { RelatedTier1Links } from '@/components/RelatedTier1Links'
 
 type UseCaseRow = Database['public']['Tables']['use_cases']['Row']
 
@@ -659,6 +660,11 @@ export default async function UseCasePage({ params }: { params: { slug: string }
                 useCaseTitle={useCase.title}
               />
             </div>
+          </div>
+
+          {/* Tier1 内链（每周轮换） */}
+          <div className="mt-12">
+            <RelatedTier1Links pageId={useCase.id} />
           </div>
         </main>
       </div>

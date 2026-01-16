@@ -1,1 +1,0 @@
-self.__SSG_MANIFEST=new Set(["\u002Fcompare\u002F[slug]","\u002Findustries\u002F[slug]","\u002Fkeywords\u002F[slug]","\u002Fuse-cases\u002F[slug]"]);self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()
