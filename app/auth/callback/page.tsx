@@ -460,6 +460,30 @@ export default function AuthCallbackPage() {
             console.error('Error creating user via upsert:', upsertError)
           } else {
             console.log('User created/updated successfully via upsert:', email)
+            
+            // Add welcome bonus for new users (30 credits = 3 videos)
+            try {
+              const welcomeBonusResponse = await fetch('/api/auth/welcome-bonus', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+              })
+              
+              if (welcomeBonusResponse.ok) {
+                const bonusResult = await welcomeBonusResponse.json()
+                if (bonusResult.success && !bonusResult.alreadyGranted) {
+                  console.log('✅ Welcome bonus (30 credits) added for new user:', email)
+                } else if (bonusResult.alreadyGranted) {
+                  console.log('ℹ️ Welcome bonus already granted for user:', email)
+                }
+              } else {
+                console.warn('⚠️ Failed to add welcome bonus, but user creation succeeded:', email)
+              }
+            } catch (bonusError) {
+              // Don't fail the login if welcome bonus fails
+              console.error('Error calling welcome bonus API:', bonusError)
+            }
           }
         } else {
           // Update last login time
