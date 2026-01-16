@@ -45,53 +45,61 @@ export async function GET(request: Request) {
 
     const supabase = await createServiceClient()
 
-    // Build count query
-    // Allow both approved and null quality_status (null means not reviewed yet, but still show if published)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let countQuery = (supabase as any)
-      .from('use_cases')
-      .select('id', { count: 'exact', head: true })
-      .eq('is_published', true)
-      .or('quality_status.eq.approved,quality_status.is.null')
+    // Query timeout: 20 seconds for data query, skip count if it times out
+    const QUERY_TIMEOUT = 20000
 
-    // Build data query
+    // Build data query first (more important than count)
     // Allow both approved and null quality_status (null means not reviewed yet, but still show if published)
+    // Optimize: Use separate conditions instead of .or() for better index usage
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let dataQuery = (supabase as any)
       .from('use_cases')
       .select('id, slug, title, description, use_case_type, industry')
       .eq('is_published', true)
-      .or('quality_status.eq.approved,quality_status.is.null')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
+    // Apply quality_status filter: approved OR null
+    // Use .or() for quality_status only
+    dataQuery = dataQuery.or('quality_status.eq.approved,quality_status.is.null')
+
     if (type && isUseCaseType(type)) {
-      countQuery = countQuery.eq('use_case_type', type)
       dataQuery = dataQuery.eq('use_case_type', type)
     }
 
     if (industry && industry !== 'all') {
-      countQuery = countQuery.eq('industry', industry)
       dataQuery = dataQuery.eq('industry', industry)
     }
 
     if (q) {
       // Supabase `or` uses comma-separated expressions.
       const expr = `slug.ilike.%${q}%,title.ilike.%${q}%,description.ilike.%${q}%`
-      countQuery = countQuery.or(expr)
       dataQuery = dataQuery.or(expr)
     }
 
-    const [{ count, error: countError }, { data, error: dataError }] = await Promise.all([countQuery, dataQuery])
+    // Execute data query with timeout
+    const dataPromise = dataQuery
+    const dataTimeoutPromise = new Promise<{ data: unknown[] | null; error: unknown }>((resolve) => {
+      setTimeout(() => {
+        resolve({ data: null, error: { message: '查询超时（20秒）', code: 'TIMEOUT' } })
+      }, QUERY_TIMEOUT)
+    })
 
-    if (countError) {
-      console.error('[api/use-cases] count error:', countError)
-    }
+    const { data, error: dataError } = await Promise.race([
+      dataPromise,
+      dataTimeoutPromise,
+    ]) as { data: unknown[] | null; error: unknown }
 
     if (dataError) {
       console.error('[api/use-cases] data error:', dataError)
+      const errorInfo = dataError as { message?: string; code?: string; hint?: string }
       return NextResponse.json(
-        { error: 'Failed to load use cases', details: dataError.message, code: dataError.code, hint: dataError.hint },
+        { 
+          error: 'Failed to load use cases', 
+          details: errorInfo.message || '查询超时或失败', 
+          code: errorInfo.code || 'TIMEOUT',
+          hint: errorInfo.hint 
+        },
         { status: 502 }
       )
     }
@@ -100,13 +108,53 @@ export async function GET(request: Request) {
       Pick<Database['public']['Tables']['use_cases']['Row'], 'id' | 'slug' | 'title' | 'description' | 'use_case_type' | 'industry'>
     >
 
+    // Try to get count, but don't fail if it times out
+    let count: number | null = null
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let countQuery = (supabase as any)
+        .from('use_cases')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_published', true)
+        .or('quality_status.eq.approved,quality_status.is.null')
+
+      if (type && isUseCaseType(type)) {
+        countQuery = countQuery.eq('use_case_type', type)
+      }
+
+      if (industry && industry !== 'all') {
+        countQuery = countQuery.eq('industry', industry)
+      }
+
+      if (q) {
+        const expr = `slug.ilike.%${q}%,title.ilike.%${q}%,description.ilike.%${q}%`
+        countQuery = countQuery.or(expr)
+      }
+
+      const countPromise = countQuery
+      const countTimeoutPromise = new Promise<{ count: number | null; error: unknown }>((resolve) => {
+        setTimeout(() => {
+          resolve({ count: null, error: { message: 'Count query timeout', code: 'TIMEOUT' } })
+        }, 10000) // Shorter timeout for count
+      })
+
+      const countResult = await Promise.race([countPromise, countTimeoutPromise]) as { count: number | null; error: unknown }
+      if (!countResult.error && typeof countResult.count === 'number') {
+        count = countResult.count
+      }
+    } catch (countErr) {
+      console.warn('[api/use-cases] count query failed or timed out, continuing without count:', countErr)
+      // Continue without count - estimate based on data length
+      count = null
+    }
+
     return NextResponse.json({
       success: true,
       items,
       page,
       limit,
-      totalCount: typeof count === 'number' ? count : null,
-      hasMore: typeof count === 'number' ? offset + items.length < count : items.length === limit,
+      totalCount: count,
+      hasMore: count !== null ? offset + items.length < count : items.length === limit,
     })
   } catch (error) {
     console.error('[api/use-cases] exception:', error)

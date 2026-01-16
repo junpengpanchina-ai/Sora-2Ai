@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import type { Database } from '@/types/database'
 import CosmicBackground from '@/components/CosmicBackground'
@@ -46,13 +46,128 @@ export default function UseCasesPageClient({
   selectedIndustry,
   searchQuery,
 }: UseCasesPageClientProps) {
+  const [useCases, setUseCases] = useState(initialUseCases)
+  const [actualTotalCount, setActualTotalCount] = useState(totalCount)
+  const [actualTotalPages, setActualTotalPages] = useState(totalPages)
+  const [loading, setLoading] = useState(false)
+  const [itemsPerPage, setItemsPerPage] = useState(24)
+  const [pageInput, setPageInput] = useState(String(currentPage))
+
   const [selectedUseCase, setSelectedUseCase] = useState<
     (typeof initialUseCases)[0] | null
   >(initialUseCases[0] || null)
 
+  // 同步 pageInput 与 currentPage
+  useEffect(() => {
+    setPageInput(String(currentPage))
+  }, [currentPage])
+
+  // 如果服务端数据为空，尝试从API获取
+  useEffect(() => {
+    if (initialUseCases.length === 0 && totalCount === 0 && !loading) {
+      setLoading(true)
+      const params = new URLSearchParams()
+      if (searchQuery) params.set('q', searchQuery)
+      if (selectedType !== 'all') params.set('type', selectedType)
+      if (selectedIndustry !== 'all') params.set('industry', selectedIndustry)
+      params.set('page', String(currentPage))
+      params.set('limit', String(itemsPerPage))
+
+      fetch(`/api/use-cases?${params.toString()}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && Array.isArray(data.items)) {
+            setUseCases(data.items)
+            if (typeof data.totalCount === 'number') {
+              setActualTotalCount(data.totalCount)
+              setActualTotalPages(Math.max(1, Math.ceil(data.totalCount / itemsPerPage)))
+            }
+          }
+        })
+        .catch(err => {
+          console.error('[UseCasesPageClient] Failed to fetch from API:', err)
+        })
+        .finally(() => {
+          setLoading(false)
+        })
+    }
+  }, [initialUseCases.length, totalCount, searchQuery, selectedType, selectedIndustry, currentPage, itemsPerPage, loading])
+
+  // 处理页码跳转
+  const handlePageJump = (e: React.FormEvent) => {
+    e.preventDefault()
+    const pageNum = parseInt(pageInput, 10)
+    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= actualTotalPages) {
+      const params = new URLSearchParams()
+      if (searchQuery) params.set('q', searchQuery)
+      if (selectedType !== 'all') params.set('type', selectedType)
+      if (selectedIndustry !== 'all') params.set('industry', selectedIndustry)
+      params.set('page', String(pageNum))
+      if (itemsPerPage !== 24) params.set('limit', String(itemsPerPage))
+      window.location.href = `/use-cases?${params.toString()}`
+    } else {
+      // 如果输入无效，恢复当前页码
+      setPageInput(String(currentPage))
+    }
+  }
+
+  // 处理每页显示数量改变
+  const handleItemsPerPageChange = (newLimit: number) => {
+    setItemsPerPage(newLimit)
+    const params = new URLSearchParams()
+    if (searchQuery) params.set('q', searchQuery)
+    if (selectedType !== 'all') params.set('type', selectedType)
+    if (selectedIndustry !== 'all') params.set('industry', selectedIndustry)
+    params.set('page', '1') // 改变每页数量时重置到第一页
+    params.set('limit', String(newLimit))
+    window.location.href = `/use-cases?${params.toString()}`
+  }
+
+  // 生成页码按钮数组
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = []
+    const maxPages = actualTotalPages
+    const current = currentPage
+
+    if (maxPages <= 10) {
+      // 如果总页数少于10页，显示所有页码
+      for (let i = 1; i <= maxPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      // 显示前几页
+      if (current <= 5) {
+        for (let i = 1; i <= 7; i++) {
+          pages.push(i)
+        }
+        pages.push('...')
+        pages.push(maxPages)
+      }
+      // 显示中间页
+      else if (current > 5 && current < maxPages - 4) {
+        pages.push(1)
+        pages.push('...')
+        for (let i = current - 2; i <= current + 2; i++) {
+          pages.push(i)
+        }
+        pages.push('...')
+        pages.push(maxPages)
+      }
+      // 显示后几页
+      else {
+        pages.push(1)
+        pages.push('...')
+        for (let i = maxPages - 6; i <= maxPages; i++) {
+          pages.push(i)
+        }
+      }
+    }
+    return pages
+  }
+
   const filteredUseCases = useMemo(() => {
-    return initialUseCases
-  }, [initialUseCases])
+    return useCases
+  }, [useCases])
 
   const typeOptions = [
     { value: 'all', label: 'All' },
@@ -106,10 +221,11 @@ export default function UseCasesPageClient({
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
               <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-blue-100/80">
-                Total: {totalCount.toLocaleString()} cases
+                Total: {actualTotalCount.toLocaleString()} cases
+                {loading && <span className="ml-2">(Loading...)</span>}
               </span>
               <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-blue-100/80">
-                Page {currentPage} / {totalPages}
+                Page {currentPage} / {actualTotalPages}
               </span>
             </div>
           </div>
@@ -179,7 +295,11 @@ export default function UseCasesPageClient({
                   </h2>
                 </div>
                 <div className="p-6">
-                  {filteredUseCases.length === 0 ? (
+                  {loading ? (
+                    <div className="py-12 text-center">
+                      <p className="text-blue-100/70">Loading use cases...</p>
+                    </div>
+                  ) : filteredUseCases.length === 0 ? (
                     <div className="py-12 text-center">
                       <p className="text-blue-100/70">
                         No matching use cases found. Please try adjusting your filters.
@@ -244,43 +364,121 @@ export default function UseCasesPageClient({
               </div>
 
               {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-                  <Link
-                    href={`/use-cases?${buildQueryString({
-                      page: String(Math.max(1, currentPage - 1)),
-                      type: selectedType === 'all' ? undefined : selectedType,
-                      industry:
-                        selectedIndustry === 'all' ? undefined : selectedIndustry,
-                      q: searchQuery || undefined,
-                    })}`}
-                    className={`rounded-lg border px-4 py-2 text-sm ${
-                      currentPage <= 1
-                        ? 'pointer-events-none opacity-50'
-                        : 'border-white/20 bg-white/5 text-white hover:bg-white/10'
-                    }`}
-                  >
-                    Previous
-                  </Link>
-                  <span className="text-sm text-blue-100/80">
-                    {currentPage} / {totalPages}
-                  </span>
-                  <Link
-                    href={`/use-cases?${buildQueryString({
-                      page: String(Math.min(totalPages, currentPage + 1)),
-                      type: selectedType === 'all' ? undefined : selectedType,
-                      industry:
-                        selectedIndustry === 'all' ? undefined : selectedIndustry,
-                      q: searchQuery || undefined,
-                    })}`}
-                    className={`rounded-lg border px-4 py-2 text-sm ${
-                      currentPage >= totalPages
-                        ? 'pointer-events-none opacity-50'
-                        : 'border-white/20 bg-white/5 text-white hover:bg-white/10'
-                    }`}
-                  >
-                    Next
-                  </Link>
+              {actualTotalPages > 1 && (
+                <div className="mt-6 space-y-4">
+                  {/* 每页显示数量选择器 */}
+                  <div className="flex items-center justify-center gap-3">
+                    <span className="text-sm text-blue-100/80">每页显示:</span>
+                    <select
+                      value={itemsPerPage}
+                      onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                      className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+
+                  {/* 分页控件 */}
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    {/* Previous 按钮 */}
+                    <Link
+                      href={`/use-cases?${buildQueryString({
+                        page: String(Math.max(1, currentPage - 1)),
+                        type: selectedType === 'all' ? undefined : selectedType,
+                        industry:
+                          selectedIndustry === 'all' ? undefined : selectedIndustry,
+                        q: searchQuery || undefined,
+                        limit: itemsPerPage !== 24 ? String(itemsPerPage) : undefined,
+                      })}`}
+                      className={`rounded-lg border px-4 py-2 text-sm transition ${
+                        currentPage <= 1
+                          ? 'pointer-events-none opacity-50 border-white/10 bg-white/5 text-blue-100/50'
+                          : 'border-white/20 bg-white/5 text-white hover:bg-white/10'
+                      }`}
+                    >
+                      Previous
+                    </Link>
+
+                    {/* 页码按钮 */}
+                    {getPageNumbers().map((page, index) => {
+                      if (page === '...') {
+                        return (
+                          <span key={`ellipsis-${index}`} className="px-2 text-blue-100/50">
+                            ...
+                          </span>
+                        )
+                      }
+                      const pageNum = page as number
+                      const isActive = pageNum === currentPage
+                      return (
+                        <Link
+                          key={pageNum}
+                          href={`/use-cases?${buildQueryString({
+                            page: String(pageNum),
+                            type: selectedType === 'all' ? undefined : selectedType,
+                            industry:
+                              selectedIndustry === 'all' ? undefined : selectedIndustry,
+                            q: searchQuery || undefined,
+                            limit: itemsPerPage !== 24 ? String(itemsPerPage) : undefined,
+                          })}`}
+                          className={`rounded-lg border px-4 py-2 text-sm transition ${
+                            isActive
+                              ? 'border-energy-water bg-energy-water text-white shadow-lg'
+                              : 'border-white/20 bg-white/5 text-white hover:bg-white/10'
+                          }`}
+                        >
+                          {pageNum}
+                        </Link>
+                      )
+                    })}
+
+                    {/* Next 按钮 */}
+                    <Link
+                      href={`/use-cases?${buildQueryString({
+                        page: String(Math.min(actualTotalPages, currentPage + 1)),
+                        type: selectedType === 'all' ? undefined : selectedType,
+                        industry:
+                          selectedIndustry === 'all' ? undefined : selectedIndustry,
+                        q: searchQuery || undefined,
+                        limit: itemsPerPage !== 24 ? String(itemsPerPage) : undefined,
+                      })}`}
+                      className={`rounded-lg border px-4 py-2 text-sm transition ${
+                        currentPage >= actualTotalPages
+                          ? 'pointer-events-none opacity-50 border-white/10 bg-white/5 text-blue-100/50'
+                          : 'border-white/20 bg-white/5 text-white hover:bg-white/10'
+                      }`}
+                    >
+                      Next
+                    </Link>
+                  </div>
+
+                  {/* 页码输入框 */}
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-sm text-blue-100/80">跳转到:</span>
+                    <form onSubmit={handlePageJump} className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max={actualTotalPages}
+                        value={pageInput}
+                        onChange={(e) => setPageInput(e.target.value)}
+                        className="w-20 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-blue-100/50 focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
+                        placeholder="页码"
+                      />
+                      <button
+                        type="submit"
+                        className="rounded-lg border border-energy-water bg-energy-water px-4 py-2 text-sm font-medium text-white transition hover:bg-energy-water-deep"
+                      >
+                        跳转
+                      </button>
+                    </form>
+                    <span className="text-sm text-blue-100/50">
+                      共 {actualTotalPages} 页
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
