@@ -31,6 +31,10 @@ jobs:
 
       - name: Build project
         run: npm run build
+        env:
+          # 跳过静态生成，加快构建速度，避免超时
+          # 页面会使用动态渲染 + ISR (Incremental Static Regeneration)
+          SKIP_STATIC_GENERATION: 'true'
 
       - name: 'notify vercel'
         uses: 'vercel/repository-dispatch/actions/status@v1'

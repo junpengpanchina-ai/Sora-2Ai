@@ -29,6 +29,11 @@ jobs:
       - name: Check for Chinese characters in changed files
         run: npm run check:chinese:changed
         continue-on-error: false
+        env:
+          # GitHub Actions 会自动设置这些环境变量
+          # GITHUB_BASE_REF: PR 的基础分支
+          # GITHUB_HEAD_REF: PR 的源分支
+          # GITHUB_SHA: 当前提交 SHA
 
       - name: Comment PR if issues found
         if: failure() && github.event_name == 'pull_request'

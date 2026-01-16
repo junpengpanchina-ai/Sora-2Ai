@@ -54,11 +54,12 @@ const STRING_PATTERNS = [
   /(?:label|title|placeholder|description|text|message|error|success|warning|info|children|content)\s*[:=]\s*['"`]([^'"`]*[\u4e00-\u9fff][^'"`]*)['"`]/gi,
 ]
 
-let baseBranch = 'main'
-let headBranch = 'HEAD'
+// 从环境变量或命令行参数获取分支信息
+let baseBranch = process.env.BASE_BRANCH || process.env.GITHUB_BASE_REF || 'main'
+let headBranch = process.env.HEAD_BRANCH || process.env.GITHUB_HEAD_REF || process.env.GITHUB_SHA || 'HEAD'
 let issues = []
 
-// 解析命令行参数
+// 解析命令行参数（优先级最高）
 const args = process.argv.slice(2)
 args.forEach(arg => {
   if (arg.startsWith('--base=')) {
