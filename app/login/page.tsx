@@ -20,12 +20,6 @@ const LoginButton = dynamic(() => import('@/components/LoginButton'), {
   ),
 })
 
-const EmailLoginForm = dynamic(() => import('@/components/EmailLoginForm'), {
-  loading: () => (
-    <div className="w-full h-32 rounded-xl bg-white/10 animate-pulse" />
-  ),
-})
-
 export const metadata: Metadata = {
   title: 'Sign In - Login to Create AI Videos',
   description: 'Login to Sora2Ai Videos with Google authentication or email magic link. New users receive 30 free credits immediately - no credit card required. Start generating AI videos now.',
@@ -119,7 +113,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
               <strong className="font-semibold">⚠️ Sign in failed:</strong>
               <p className="mt-2">{errorMessage}</p>
               <p className="mt-2 text-xs opacity-90">
-                Having trouble? Try using email magic link instead, or check your browser settings.
+                Having trouble? Please check your browser settings and try again.
               </p>
             </div>
           )}
@@ -128,19 +122,6 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
             <div className="space-y-4">
               {/* Google login button */}
               <LoginButton className="celestial-cta shadow-[0_30px_100px_-45px_rgba(59,130,246,1)] hover:-translate-y-1" />
-              
-              {/* Divider */}
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-white/20"></div>
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-[#030b2c] px-2 text-white/60">Or continue with</span>
-                </div>
-              </div>
-
-              {/* Email Magic Link Login */}
-              <EmailLoginForm />
               
               {/* Data Usage Transparency - Required by Google OAuth App Homepage Requirements */}
               <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/10 backdrop-blur-sm">
