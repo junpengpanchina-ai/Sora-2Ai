@@ -1153,47 +1153,25 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">管理员后台</h1>
               <div className="flex flex-wrap gap-2">
                 {[
-                  { value: 'overview', label: '总览', href: '/admin' },
+                  { value: 'dashboard', label: '总览', href: '/admin/dashboard' },
                   { value: 'billing', label: '计费中心', href: '/admin/billing' },
                   { value: 'content', label: '内容库', href: '/admin/content' },
                   { value: 'prompts', label: '提示词', href: '/admin/prompts' },
                   { value: 'landing', label: '首页管理', href: '/admin/landing' },
-                  // 以下保留在旧 tab 中,稍后迁移到 Ops 或 Tools
-                  { value: 'videos', label: '视频任务', href: '/admin?tab=videos' },
-                  { value: 'issues', label: '售后反馈', href: '/admin?tab=issues' },
                 ].map((item) => (
-                  item.href ? (
-                    <Link key={item.value} href={item.href}>
-                      <button
-                        type="button"
-                        className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                          activeTab === item.value || (item.href.startsWith('/admin/') && typeof window !== 'undefined' && window.location.pathname === item.href)
-                            ? 'bg-energy-water text-white'
-                            : 'text-gray-700 hover:bg-energy-water-surface dark:text-gray-300 dark:hover:bg-gray-700'
-                        }`}
-                      >
-                        {item.label}
-                      </button>
-                    </Link>
-                  ) : (
+                  <Link key={item.value} href={item.href}>
                     <button
-                      key={item.value}
                       type="button"
-                      onClick={() => {
-                        console.log('切换标签页:', item.value)
-                        const newTab = item.value as typeof activeTab
-                        setActiveTab(newTab)
-                        router.push(`/admin?tab=${newTab}`, { scroll: false })
-                      }}
                       className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                        activeTab === item.value
+                        (typeof window !== 'undefined' && window.location.pathname === item.href) || 
+                        (item.value === 'dashboard' && typeof window !== 'undefined' && window.location.pathname === '/admin/dashboard')
                           ? 'bg-energy-water text-white'
                           : 'text-gray-700 hover:bg-energy-water-surface dark:text-gray-300 dark:hover:bg-gray-700'
                       }`}
                     >
                       {item.label}
                     </button>
-                  )
+                  </Link>
                 ))}
               </div>
             </div>
