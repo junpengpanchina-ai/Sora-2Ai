@@ -13,7 +13,6 @@ import { PlanCard } from '@/components/pricing/PlanCard'
 import { CreditUsageTable } from '@/components/pricing/CreditUsageTable'
 import { FAQAccordion, type FAQItem } from '@/components/pricing/FAQAccordion'
 import { createClient } from '@/lib/supabase/client'
-import { getPublicUrl } from '@/lib/r2/client'
 import { setPostLoginRedirect } from '@/lib/auth/post-login-redirect'
 import { PRICING_CONFIG } from '@/lib/billing/config'
 import type { PlanId } from '@/lib/billing/config'
@@ -220,7 +219,6 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const [credits, setCredits] = useState<number>(userProfile?.credits || 0)
   const [showPricingModal, setShowPricingModal] = useState(false)
   const [imagesReady, setImagesReady] = useState(false)
-  const [videosReady, setVideosReady] = useState(false)
   const [copiedTemplateId, setCopiedTemplateId] = useState<string | null>(null)
   const [homepageSettings, setHomepageSettings] = useState<HomepageSettings | null>(null)
   const [paymentPlans, setPaymentPlans] = useState<Array<{
@@ -241,7 +239,6 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   }>>([])
   const [hasRechargeRecords, setHasRechargeRecords] = useState<boolean | null>(null)
   const imageSectionRef = useRef<HTMLDivElement | null>(null)
-  const videoSectionRef = useRef<HTMLDivElement | null>(null)
   const accountProfile = hydratedProfile ?? userProfile
 
   // Map planId to payment plan for checkout
@@ -725,7 +722,6 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
 
     if (!('IntersectionObserver' in window)) {
       setImagesReady(true)
-      setVideosReady(true)
       return
     }
 
@@ -754,90 +750,11 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     }
 
     createObserver(imageSectionRef, setImagesReady)
-    createObserver(videoSectionRef, setVideosReady)
 
     return () => {
       cleanupFunctions.forEach((cleanup) => cleanup())
     }
   }, [])
-
-  // 强制所有视频自动播放
-  useEffect(() => {
-    if (!videosReady || !homepageSettings?.hero_video_paths) {
-      return
-    }
-
-    const playAllVideos = () => {
-      const videoSection = videoSectionRef.current
-      if (!videoSection) {
-        return
-      }
-
-      // Use Array.from to create a static copy, avoiding issues if DOM changes during iteration
-      const videos = Array.from(videoSection.querySelectorAll('video'))
-      videos.forEach((video) => {
-        try {
-          // Check if video is still connected to DOM
-          if (!video.isConnected) {
-            return
-          }
-          // Ensure video is muted (required by browser autoplay policy)
-          video.muted = true
-          // Try to play
-          video.play().catch((err) => {
-            // If autoplay fails, log but don't block other videos
-            console.log('Video autoplay failed:', err)
-            // Try to play after user interaction
-            const tryPlayOnInteraction = () => {
-              if (video.isConnected) {
-                video.play().catch(() => {})
-              }
-              document.removeEventListener('click', tryPlayOnInteraction)
-              document.removeEventListener('touchstart', tryPlayOnInteraction)
-            }
-            document.addEventListener('click', tryPlayOnInteraction, { once: true })
-            document.addEventListener('touchstart', tryPlayOnInteraction, { once: true })
-          })
-        } catch (error) {
-          // Ignore errors for individual videos
-          console.debug('Video playback error (safe to ignore):', error)
-        }
-      })
-    }
-
-    // 延迟一点确保 DOM 已渲染
-    const timeoutId = setTimeout(playAllVideos, 100)
-    
-    // When video loads, also try to play
-    const videoSection = videoSectionRef.current
-    if (videoSection) {
-      // Use Array.from to create a static copy, avoiding issues if DOM changes during iteration
-      const videos = Array.from(videoSection.querySelectorAll('video'))
-      videos.forEach((video) => {
-        try {
-          if (!video.isConnected) {
-            return
-          }
-          const handleLoadedData = () => {
-            if (video.isConnected) {
-              video.muted = true
-              video.play().catch(() => {
-                // Silently fail, onLoadedData handler will handle
-              })
-            }
-          }
-          video.addEventListener('loadeddata', handleLoadedData)
-        } catch (error) {
-          // Ignore errors for individual videos
-          console.debug('Video event listener error (safe to ignore):', error)
-        }
-      })
-    }
-
-    return () => {
-      clearTimeout(timeoutId)
-    }
-  }, [videosReady, homepageSettings?.hero_video_paths])
 
 
   const formatDate = (dateString: string) => {
@@ -1205,78 +1122,6 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
           ) : (
             <div
               className="h-[320px] w-full rounded-3xl bg-white/40 dark:bg-gray-900/40 animate-pulse"
-              aria-hidden="true"
-            />
-          )}
-        </div>
-      {/* Video Carousel - Auto-play all videos */}
-        <div className="mb-8" ref={videoSectionRef}>
-          {videosReady && homepageSettings?.hero_video_paths && homepageSettings.hero_video_paths.length > 0 ? (
-            <div className="overflow-hidden will-change-transform">
-              <div className="flex gap-6 animate-slide-right" style={{ width: '200%' }}>
-                {/* First set - All videos autoplay */}
-                <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
-                  {homepageSettings.hero_video_paths.map((path, index) => (
-                    <div key={`video-${index}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <video
-                        src={getPublicUrl(path)}
-                        className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                        controls
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        preload={index === 0 ? "metadata" : "none"} // Only preload metadata for first video, none for others
-                        onLoadedData={(e) => {
-                          // Force play to ensure autoplay works
-                          const video = e.currentTarget
-                          video.play().catch((err) => {
-                            console.log('Autoplay blocked, trying muted playback:', err)
-                            // If autoplay fails, ensure video is muted and retry
-                            video.muted = true
-                            video.play().catch(() => {
-                              // If still fails, may be browser policy restriction
-                              console.log('Video autoplay failed, requires user interaction')
-                            })
-                          })
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-                {/* Second set - duplicate for seamless loop, all videos autoplay */}
-                <div className="flex gap-6 flex-shrink-0" style={{ width: '50%' }}>
-                  {homepageSettings.hero_video_paths.map((path, index) => (
-                    <div key={`video-dup-${index}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]">
-                      <video
-                        src={getPublicUrl(path)}
-                        className="w-full aspect-[9/16] rounded-lg cursor-pointer object-cover"
-                        controls
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        preload="none" // Duplicate videos don't need preload
-                        onLoadedData={(e) => {
-                          // Force play to ensure autoplay works
-                          const video = e.currentTarget
-                          video.play().catch((err) => {
-                            console.log('Autoplay blocked, trying muted playback:', err)
-                            video.muted = true
-                            video.play().catch(() => {
-                              console.log('Video autoplay failed, requires user interaction')
-                            })
-                          })
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div
-              className="h-[420px] w-full rounded-3xl bg-white/40 dark:bg-gray-900/40 animate-pulse"
               aria-hidden="true"
             />
           )}
