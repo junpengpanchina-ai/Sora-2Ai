@@ -1,5 +1,18 @@
 # @vercel/functions
 
+## 3.3.6
+
+### Patch Changes
+
+- Fix `TimeoutNegativeWarning` in Node.js v24 when process runs longer than 15 minutes by ensuring minimum wait time of 100ms ([#14491](https://github.com/vercel/vercel/pull/14491))
+
+## 3.3.5
+
+### Patch Changes
+
+- Updated dependencies [[`abdec3599b6897da76b90f2348a33e3c6c188353`](https://github.com/vercel/vercel/commit/abdec3599b6897da76b90f2348a33e3c6c188353), [`b9eae1d7c9f618355c6179eb58afb3c54318a046`](https://github.com/vercel/vercel/commit/b9eae1d7c9f618355c6179eb58afb3c54318a046)]:
+  - @vercel/oidc@3.1.0
+
 ## 3.3.4
 
 ### Patch Changes

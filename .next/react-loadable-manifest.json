@@ -20,9 +20,9 @@
     ]
   },
   "lib/r2/client.ts -> @aws-sdk/client-s3": {
-    "id": 5219,
+    "id": 7683,
     "files": [
-      "static/chunks/5219.a06f4f6290f2f449.js"
+      "static/chunks/7683.4addd09afe1c29ab.js"
     ]
   },
   "node_modules/@aws-sdk/util-user-agent-browser/dist-es/createUserAgentStringParsingProvider.js -> bowser": {

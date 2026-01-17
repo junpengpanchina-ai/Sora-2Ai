@@ -4,14 +4,19 @@
 import { useEffect, useState, useCallback, useRef, type RefObject } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
+import { Card, CardHeader, CardTitle, CardContent, Button } from '@/components/ui'
 import LogoutButton from '@/components/LogoutButton'
 import LoginButton from '@/components/LoginButton'
 import R2Image from '@/components/R2Image'
 import PricingModal from '@/components/PricingModal'
+import { PlanCard } from '@/components/pricing/PlanCard'
+import { CreditUsageTable } from '@/components/pricing/CreditUsageTable'
+import { FAQAccordion, type FAQItem } from '@/components/pricing/FAQAccordion'
 import { createClient } from '@/lib/supabase/client'
 import { getPublicUrl } from '@/lib/r2/client'
 import { setPostLoginRedirect } from '@/lib/auth/post-login-redirect'
+import { PRICING_CONFIG } from '@/lib/billing/config'
+import type { PlanId } from '@/lib/billing/config'
 
 interface Stats {
   total: number
@@ -153,29 +158,37 @@ const HOW_IT_WORKS_STEPS = [
   },
 ] as const
 
-// FAQ items
-const FAQ_ITEMS = [
+// FAQ items for pricing section
+const PRICING_FAQ_ITEMS: FAQItem[] = [
   {
-    question: 'Is Sora2 free to use?',
-    answer: 'Yes. You can start for free and upgrade for advanced features.',
+    q: 'Do credits expire?',
+    a: 'Purchased credits never expire. Bonus credits (from Starter or promotions) may have an expiry, and we always show the expiry date.',
   },
   {
-    question: 'Do videos have watermarks?',
-    answer: 'Free plans may include watermarks. Paid plans export clean videos.',
+    q: 'What are bonus credits?',
+    a: 'Bonus credits are temporary credits that help you test the workflow. They\'re limited-time by design to keep pricing fair.',
   },
   {
-    question: 'Do I need editing skills?',
-    answer: 'No. Everything is generated automatically by AI.',
+    q: 'Can I use Veo Pro on Starter?',
+    a: 'Starter is for testing the workflow with fair-use limits. Veo Pro is available on paid packs.',
   },
   {
-    question: 'Can I use videos commercially?',
-    answer: 'Yes. Paid users get full commercial usage rights.',
+    q: 'Can I use bonus credits for Veo Pro?',
+    a: 'No. Veo Pro uses permanent credits only. Bonus credits are for Sora Preview and Veo Fast. This helps us maintain service quality and cashflow.',
   },
   {
-    question: 'What platforms are supported?',
-    answer: 'TikTok, YouTube, Instagram, websites, ads, and more.',
+    q: 'What happens if a render fails?',
+    a: 'Failed renders are credited back automatically.',
   },
-] as const
+  {
+    q: 'Which model should I use?',
+    a: 'Use Sora for drafts and iteration. Use Veo Fast for quick quality upgrades. Use Veo Pro for the final export.',
+  },
+  {
+    q: 'Is there a daily limit?',
+    a: 'Starter includes daily limits to keep the service reliable for everyone. Paid packs have higher limits and priority.',
+  },
+]
 
 interface HomePageClientProps {
   userProfile: UserProfile | null
@@ -206,9 +219,6 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const [stats, setStats] = useState<Stats | null>(null)
   const [credits, setCredits] = useState<number>(userProfile?.credits || 0)
   const [showPricingModal, setShowPricingModal] = useState(false)
-  const [pricingView, setPricingView] = useState<'starter' | 'packs'>('packs')
-  const [checkingOutPlanId, setCheckingOutPlanId] = useState<string | null>(null)
-  const [pricingViewInitialized, setPricingViewInitialized] = useState(false)
   const [imagesReady, setImagesReady] = useState(false)
   const [videosReady, setVideosReady] = useState(false)
   const [copiedTemplateId, setCopiedTemplateId] = useState<string | null>(null)
@@ -234,18 +244,26 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const videoSectionRef = useRef<HTMLDivElement | null>(null)
   const accountProfile = hydratedProfile ?? userProfile
 
-  const getStarterPlan = (plans: typeof paymentPlans) => {
-    const sorted = [...plans].sort((a, b) => a.amount - b.amount)
-    return sorted.find((p) => p.amount > 0 && p.amount <= 10) ?? null
+  // Map planId to payment plan for checkout
+  const getPaymentPlanByPlanId = (planId: PlanId) => {
+    const planConfig = PRICING_CONFIG.plans[planId]
+    if (!planConfig) return null
+    
+    // Find matching payment plan by amount (with some tolerance for floating point)
+    const amount = planConfig.priceUsd
+    return paymentPlans.find((p) => Math.abs(p.amount - amount) < 0.01) ?? null
   }
 
-  const starterPlan = getStarterPlan(paymentPlans)
-  const packPlans = [...paymentPlans]
-    .filter((p) => p.amount >= 10)
-    .sort((a, b) => {
-      if (a.is_recommended !== b.is_recommended) return a.is_recommended ? -1 : 1
-      return a.amount - b.amount
-    })
+  // Handle checkout from pricing cards
+  const handlePricingCheckout = async (planId: PlanId) => {
+    const plan = getPaymentPlanByPlanId(planId)
+    if (!plan) {
+      console.error('Payment plan not found for planId:', planId)
+      alert('Payment plan not available. Please try again later.')
+      return
+    }
+    await startPaymentLinkCheckout(plan)
+  }
 
   // Check recharge records for new users
   useEffect(() => {
@@ -270,18 +288,6 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     checkRechargeRecords()
   }, [hydratedProfile, hasRechargeRecords])
 
-  useEffect(() => {
-    if (pricingViewInitialized) return
-    if (paymentPlans.length === 0) return
-    
-    // For new users (no recharge records + low credits), default to starter
-    const isNewUser = hasRechargeRecords === false && credits <= 30
-    const shouldShowStarter = starterPlan && (isNewUser || !hasRechargeRecords)
-    
-    setPricingView(shouldShowStarter ? 'starter' : 'packs')
-    setPricingViewInitialized(true)
-  }, [paymentPlans.length, pricingViewInitialized, starterPlan, hasRechargeRecords, credits])
-
   const startPaymentLinkCheckout = async (plan: (typeof paymentPlans)[number]) => {
     const returnTo = '/#pricing-plans'
 
@@ -304,8 +310,6 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     }
 
     try {
-      setCheckingOutPlanId(plan.id)
-      
       // 获取认证头和 device_id
       const authHeaders = await getAuthHeaders()
       
@@ -438,8 +442,6 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       sessionStorage.removeItem('payment_checkout_redirect_attempt')
       sessionStorage.removeItem('payment_checkout_retry')
       alert(e instanceof Error ? e.message : 'Checkout failed. Please try again.')
-    } finally {
-      setCheckingOutPlanId(null)
     }
   }
 
@@ -983,18 +985,34 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                 <span className="hidden text-sm font-medium text-gray-700 dark:text-gray-300 sm:inline">
                   {hydratedProfile.name ?? hydratedProfile.email}
                 </span>
-                <Button variant="primary" size="sm" onClick={() => setShowPricingModal(true)}>
+                <Button 
+                  variant="primary" 
+                  size="sm" 
+                  onClick={() => {
+                    const pricingSection = document.getElementById('pricing-plans')
+                    if (pricingSection) {
+                      pricingSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }
+                  }}
+                >
                   Buy Plan
                 </Button>
                 <LogoutButton />
                 </>
               ) : (
                 <>
-                  <Link href="/login">
-                    <Button variant="primary" size="sm">
-                      Buy Plan
-                    </Button>
-                  </Link>
+                  <Button 
+                    variant="primary" 
+                    size="sm"
+                    onClick={() => {
+                      const pricingSection = document.getElementById('pricing-plans')
+                      if (pricingSection) {
+                        pricingSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                      }
+                    }}
+                  >
+                    Buy Plan
+                  </Button>
                   <LoginButton />
                 </>
               )}
@@ -1477,159 +1495,122 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
             </div>
           </div>
 
-        {/* Pricing Plans Section */}
-        <div id="pricing-plans" className="mb-6 scroll-mt-24">
-          <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              Choose Your Plan
+        {/* Pricing Plans Section - Full pricing page content */}
+        <div id="pricing-plans" className="mb-12 scroll-mt-24">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl md:text-4xl font-semibold text-white mb-3">
+              Pricing that fits your workflow — draft fast, finish clean
             </h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              Each video generation consumes 10 credits
+            <p className="text-base text-white/70 mb-2">
+              Use Sora for everyday iteration. Upgrade the final cut with Veo when quality matters.
             </p>
-        </div>
-
-          {/* Prominent toggle (Starter vs Upgrade Packs) */}
-          {(starterPlan || packPlans.length > 0) && (
-            <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
-              {starterPlan && (
-                <Button
-                  type="button"
-                  variant={pricingView === 'starter' ? 'primary' : 'secondary'}
-                  size="sm"
-                  onClick={() => setPricingView('starter')}
-                >
-                  Start for ${starterPlan.amount.toFixed(2)}
-                </Button>
-              )}
-              {packPlans.length > 0 && (
-                <Button
-                  type="button"
-                  variant={pricingView === 'packs' ? 'primary' : 'secondary'}
-                  size="sm"
-                  onClick={() => setPricingView('packs')}
-                >
-                  Upgrade Packs
-                </Button>
-              )}
-            </div>
-          )}
-          
-          {paymentPlans.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-              {(pricingView === 'starter' && starterPlan ? [starterPlan] : packPlans).map((plan) => (
-                <Card 
-                  key={plan.id} 
-                  className={`relative ${
-                    pricingView === 'starter' || plan.is_recommended
-                      ? 'border-2 border-energy-gold-mid dark:border-energy-gold-soft shadow-lg'
-                      : ''
-                  }`}
-                >
-                  {(pricingView === 'starter' || plan.badge_text || plan.is_recommended) && (
-                    <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-energy-water text-white shadow-custom-md">
-                      {pricingView === 'starter'
-                        ? 'Starter Deal'
-                        : plan.badge_text || (plan.is_recommended ? 'Recommended' : '')}
-                    </Badge>
-                  )}
-                  <CardHeader>
-                    <CardTitle className="text-xl text-center">{plan.plan_name}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="text-center">
-                      <div className="text-4xl font-bold text-energy-water dark:text-energy-soft">
-                        ${plan.amount}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        {plan.currency.toUpperCase()}
-                      </div>
-                    </div>
-                    
-                    <div className="text-center py-4 border-t border-b border-gray-200 dark:border-gray-700">
-                      <div className="text-2xl font-semibold text-gray-900 dark:text-white">
-                        {plan.videos} Videos
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        {plan.credits} Credits
-                      </div>
-                    </div>
-
-                    {plan.description && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
-                        {plan.description}
-                      </p>
-                    )}
-
-                    <div className="text-center text-xs text-gray-500 dark:text-gray-400">
-                      ~ ${(plan.amount / plan.videos).toFixed(2)} / video
-                    </div>
-
-                    {/* Always show checkout button - uses new Checkout Session API */}
-                    <Button
-                      type="button"
-                      variant="primary"
-                      className="w-full"
-                      disabled={!!checkingOutPlanId}
-                      onClick={() => startPaymentLinkCheckout(plan)}
-                    >
-                      {checkingOutPlanId === plan.id ? 'Redirecting…' : 'Continue to Checkout'}
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-              
-              {/* Comparison hint for upgrade packs */}
-              {pricingView === 'packs' && starterPlan && packPlans.length > 0 && (
-                <div className="col-span-full mt-4 text-center">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Or{' '}
-                    <button
-                      onClick={() => setPricingView('starter')}
-                      className="font-semibold text-energy-water hover:text-energy-water-deep underline"
-                    >
-                      start with the ${starterPlan.amount.toFixed(2)} starter pack
-                    </button>
-                    {' '}first →
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              No payment plans available yet.
-            </div>
-          )}
-
-          <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg max-w-4xl mx-auto">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-              Purchase Information
-            </h3>
-            <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-              <li>• Credits will be automatically added to your account after payment is completed</li>
-              <li>• Each video generation consumes 10 credits</li>
-              <li>• Credits are permanent with no expiration date</li>
-              <li>• Supports credit cards, debit cards, and other payment methods</li>
-            </ul>
+            <p className="text-sm text-white/50">
+              Credits never expire. Bonus credits may have an expiry (clearly labeled).
+            </p>
           </div>
-        </div>
 
-        {/* FAQ Section */}
-        <section id="faq" className="mb-12 scroll-mt-24">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-white mb-2">Frequently Asked Questions</h2>
+          {/* Pricing Cards */}
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4 mb-10">
+            <PlanCard
+              planId="starter"
+              title="Starter Access (7 days)"
+              price="$4.90"
+              badge="Try the workflow"
+              bullets={[
+                "120 bonus credits (expires in 7 days)",
+                "Great for testing the workflow",
+                "Daily limits keep the service reliable and fair",
+                "Sora + Veo Fast available, Veo Pro locked",
+              ]}
+              ctaLabel="Start with Starter Access"
+              onCta={handlePricingCheckout}
+              footnote="One-time purchase. New users also get 30 bonus credits (7 days)."
+            />
+
+            <PlanCard
+              planId="creator"
+              title="Creator Pack"
+              price="$39"
+              badge="Recommended"
+              bullets={[
+                "600 permanent credits",
+                "+60 bonus credits (expires in 30 days)",
+                "Access to Sora, Veo Fast, and Veo Pro",
+                "Better limits + smoother queue",
+                "Note: Veo Pro uses permanent credits only",
+              ]}
+              ctaLabel="Get Creator Pack"
+              onCta={handlePricingCheckout}
+              variant="primary"
+            />
+
+            <PlanCard
+              planId="studio"
+              title="Studio Pack"
+              price="$99"
+              badge="Best value for Veo Pro"
+              bullets={[
+                "1,800 permanent credits",
+                "+270 bonus credits (expires in 45 days)",
+                "Built for final exports and client work",
+                "Priority queue + higher concurrency",
+                "Note: Veo Pro uses permanent credits only",
+              ]}
+              ctaLabel="Get Studio Pack"
+              onCta={handlePricingCheckout}
+            />
+
+            <PlanCard
+              planId="pro"
+              title="Pro Pack"
+              price="$299"
+              badge="For teams & heavy usage"
+              bullets={[
+                "6,000 permanent credits",
+                "+1,200 bonus credits (expires in 60 days)",
+                "Highest value per credit",
+                "Best limits + fastest queue",
+                "Note: Veo Pro uses permanent credits only",
+              ]}
+              ctaLabel="Get Pro Pack"
+              onCta={handlePricingCheckout}
+            />
           </div>
-          <div className="max-w-4xl mx-auto space-y-4">
-            {FAQ_ITEMS.map((faq, index) => (
-              <div
-                key={index}
-                className="rounded-2xl border border-white/10 bg-white/5 p-6"
-              >
-                <h3 className="text-lg font-semibold text-white mb-3">{faq.question}</h3>
-                <p className="text-sm text-blue-100/80 leading-relaxed">{faq.answer}</p>
+
+          {/* Credit Usage Table */}
+          <div className="mb-10">
+            <CreditUsageTable config={{
+              currency: PRICING_CONFIG.currency,
+              soraCreditsPerRender: PRICING_CONFIG.modelCosts.sora,
+              veoFlashCreditsPerRender: PRICING_CONFIG.modelCosts.veo_fast,
+              veoProCreditsPerRender: PRICING_CONFIG.modelCosts.veo_pro,
+            }} />
+          </div>
+
+          {/* Workflow Section */}
+          <div className="mb-10 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+            <div className="text-lg font-semibold text-white mb-3">A workflow you can scale</div>
+            <div className="grid gap-3 text-sm text-white/80 md:grid-cols-2">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <div className="font-semibold text-white">Step 1: Draft with Sora</div>
+                <p className="mt-1 text-white/70">Iterate fast and explore ideas.</p>
               </div>
-            ))}
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <div className="font-semibold text-white">Step 2: Finalize with Veo Pro</div>
+                <p className="mt-1 text-white/70">Upgrade the version you ship.</p>
+              </div>
+            </div>
+            <p className="mt-3 text-sm text-white/60">
+              You don&apos;t need Veo Pro for every render — only for the final cut.
+            </p>
           </div>
-        </section>
+
+          {/* FAQ Section */}
+          <div className="mb-6">
+            <FAQAccordion items={PRICING_FAQ_ITEMS} />
+          </div>
+        </div>
+
 
         {/* Final CTA Section */}
         <section className="mb-12 text-center">
