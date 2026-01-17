@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui'
 import Link from 'next/link'
 import AdminPromptsManager from '../AdminPromptsManager'
@@ -15,7 +14,6 @@ interface AdminPromptsPageProps {
 }
 
 export default function AdminPromptsPage({ adminUser }: AdminPromptsPageProps) {
-  const router = useRouter()
   const [banner, setBanner] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
   const bannerTimeoutRef = useState<NodeJS.Timeout | null>(null)[0]
 

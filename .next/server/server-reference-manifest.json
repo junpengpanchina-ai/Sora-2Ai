@@ -1,14 +1,1 @@
-{
-  "node": {
-    "c5e0ed9abe93e89f66e50896ba7be6694aef9aa6": {
-      "workers": {
-        "app/use-cases/[slug]/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fp%2FDocuments%2FGitHub%2FSora-2Ai%2Flib%2Fsupabase%2Fservice.ts%22%2C%5B%22createServiceClient%22%5D%5D%5D&__client_imported__=!"
-      },
-      "layer": {
-        "app/use-cases/[slug]/page": "rsc"
-      }
-    }
-  },
-  "edge": {},
-  "encryptionKey": "F82DSU9ZlLknxgOFRjU+H7fmjhPeCPj7maDgzc8SKVs="
-}
+{"node":{"c5e0ed9abe93e89f66e50896ba7be6694aef9aa6":{"workers":{"app/video/page":"30736","app/blog/[slug]/page":"30736","app/compare/[slug]/page":"30736","app/industries/[slug]/page":"30736","app/prompts/[slug]/page":"30736","app/keywords/[slug]/page":"30736","app/use-cases/[slug]/page":"30736"},"layer":{"app/video/page":"rsc","app/blog/[slug]/page":"rsc","app/compare/[slug]/page":"rsc","app/industries/[slug]/page":"rsc","app/prompts/[slug]/page":"rsc","app/keywords/[slug]/page":"rsc","app/use-cases/[slug]/page":"rsc"}}},"edge":{},"encryptionKey":"MNl45rJv8k4tVKmhsz+7gjoc/mcDcNO5q0nZH/WhA4k="}

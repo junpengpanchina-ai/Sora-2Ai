@@ -9,23 +9,22 @@ import {
   CardContent,
   Button,
   Badge,
-  Input,
-  Textarea,
 } from '@/components/ui'
 import Link from 'next/link'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import AdminPromptsManager from './AdminPromptsManager'
-import AdminKeywordsManager from './AdminKeywordsManager'
-import AdminHomepageManager from './AdminHomepageManager'
-import AdminBlogManager from './AdminBlogManager'
-import AdminUseCasesManager from './AdminUseCasesManager'
-import AdminComparePagesManager from './AdminComparePagesManager'
-import AdminBatchContentGenerator from './AdminBatchContentGenerator'
-import AdminChatManager from './AdminChatManager'
-import AdminSEOChatManager from './AdminSEOChatManager'
-import AdminChatDebug from './AdminChatDebug'
-import AdminSceneModelConfig from './AdminSceneModelConfig'
+// 以下导入已迁移到新路由，保留以备将来可能需要（通过重定向访问）
+// import AdminPromptsManager from './AdminPromptsManager'
+// import AdminKeywordsManager from './AdminKeywordsManager'
+// import AdminHomepageManager from './AdminHomepageManager'
+// import AdminBlogManager from './AdminBlogManager'
+// import AdminUseCasesManager from './AdminUseCasesManager'
+// import AdminComparePagesManager from './AdminComparePagesManager'
+// import AdminBatchContentGenerator from './AdminBatchContentGenerator'
+// import AdminChatManager from './AdminChatManager'
+// import AdminSEOChatManager from './AdminSEOChatManager'
+// import AdminChatDebug from './AdminChatDebug'
+// import AdminSceneModelConfig from './AdminSceneModelConfig'
 
 interface UserStats {
   total_users: number
@@ -136,6 +135,7 @@ const ISSUE_STATUS_LABELS: Record<AfterSalesIssue['status'], string> = {
   closed: '已关闭',
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ISSUE_STATUS_OPTIONS: Array<{ value: AfterSalesIssue['status']; label: string }> = [
   { value: 'open', label: ISSUE_STATUS_LABELS.open },
   { value: 'in_progress', label: ISSUE_STATUS_LABELS.in_progress },
@@ -143,6 +143,7 @@ const ISSUE_STATUS_OPTIONS: Array<{ value: AfterSalesIssue['status']; label: str
   { value: 'closed', label: ISSUE_STATUS_LABELS.closed },
 ]
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ADJUSTMENT_TYPE_LABELS: Record<CreditAdjustment['adjustment_type'], string> = {
   manual_increase: '手动增加',
   manual_decrease: '手动扣减',
@@ -243,62 +244,85 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
   const [stats, setStats] = useState<UserStats | null>(null)
   const [useCasesStats, setUseCasesStats] = useState<UseCasesStats | null>(null)
   const [rechargeRecords, setRechargeRecords] = useState<RechargeRecord[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [consumptionRecords, setConsumptionRecords] = useState<ConsumptionRecord[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [videoTasks, setVideoTasks] = useState<VideoTask[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [issues, setIssues] = useState<AfterSalesIssue[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [issueStatusCounts, setIssueStatusCounts] = useState<Record<string, number>>({})
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [creditAdjustments, setCreditAdjustments] = useState<CreditAdjustment[]>([])
   const searchParams = useSearchParams()
   const tabFromUrl = searchParams?.get('tab') || 'overview'
   
-  type TabType =
-    | 'overview'
-    | 'recharges'
-    | 'consumption'
-    | 'videos'
-    | 'issues'
-    | 'adjustments'
-    | 'prompts'
-    | 'keywords'
-    | 'homepage'
-    | 'blog'
-    | 'use-cases'
-    | 'compare-pages'
-    | 'batch-generator'
-    | 'seo-chat'
-    | 'admin-chat'
-    | 'chat-debug'
-    | 'scene-config'
+  type TabType = 'overview'
   
-  const [activeTab, setActiveTab] = useState<TabType>(
-    (tabFromUrl as TabType) || 'overview'
-  )
+  // 旧 tab 参数重定向映射表
+  const redirectMap: Record<string, string> = {
+    'overview': '/admin/dashboard',
+    'recharges': '/admin/billing?tab=payments',
+    'consumption': '/admin/billing?tab=usage',
+    'adjustments': '/admin/billing?tab=adjustments',
+    'use-cases': '/admin/content?tab=use-cases',
+    'keywords': '/admin/content?tab=keywords',
+    'compare-pages': '/admin/content?tab=compare',
+    'blog': '/admin/content?tab=blog',
+    'batch-generator': '/admin/content?tab=batches',
+    'prompts': '/admin/prompts',
+    'homepage': '/admin/landing',
+    'chat-debug': '/admin/tools/chat/debug',
+    'scene-config': '/admin/tools/models/scene',
+    // 以下建议删除的功能，重定向到 dashboard
+    'seo-chat': '/admin/dashboard',
+    'admin-chat': '/admin/dashboard',
+    'videos': '/admin/dashboard', // 可选：后续可迁移到 /admin/ops/video-tasks
+    'issues': '/admin/dashboard', // 可选：后续可迁移到 /admin/ops/feedback
+  }
   
-  // 如果 URL 中有 tab 参数，更新 activeTab
+  // 检测并重定向旧 tab 参数
   useEffect(() => {
-    if (tabFromUrl && tabFromUrl !== activeTab) {
-      console.log('从 URL 更新 activeTab:', tabFromUrl)
-      setActiveTab(tabFromUrl as TabType)
+    if (tabFromUrl && tabFromUrl !== 'overview') {
+      const newUrl = redirectMap[tabFromUrl]
+      if (newUrl) {
+        console.log(`[AdminClient] 重定向旧 tab "${tabFromUrl}" → "${newUrl}"`)
+        router.replace(newUrl)
+        return
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabFromUrl])
+    // 如果当前在 /admin 且有 tab=overview，重定向到 /admin/dashboard
+    if (tabFromUrl === 'overview' && typeof window !== 'undefined') {
+      const currentPath = window.location.pathname
+      if (currentPath === '/admin' && searchParams?.get('tab') === 'overview') {
+        router.replace('/admin/dashboard')
+      }
+    }
+  }, [tabFromUrl, router, searchParams])
   
-  // 调试：监听 activeTab 变化
-  useEffect(() => {
-    console.log('activeTab 已更新为:', activeTab)
-  }, [activeTab])
+  const [activeTab] = useState<TabType>('overview')
   const [autoRefresh, setAutoRefresh] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [issuesLoading, setIssuesLoading] = useState(true)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [adjustmentsLoading, setAdjustmentsLoading] = useState(true)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [issueNotesDrafts, setIssueNotesDrafts] = useState<Record<string, string>>({})
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [issueActionId, setIssueActionId] = useState<string | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [rechargeActionId, setRechargeActionId] = useState<string | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [consumptionActionId, setConsumptionActionId] = useState<string | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [videoActionId, setVideoActionId] = useState<string | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [adjustmentActionId, setAdjustmentActionId] = useState<string | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [adjustSubmitting, setAdjustSubmitting] = useState(false)
   const [banner, setBanner] = useState<BannerState>(null)
   const bannerTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [adjustForm, setAdjustForm] = useState({
     identifierType: 'email' as 'email' | 'userId',
     identifier: '',
@@ -646,6 +670,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     })
   }, [issues])
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleIssueStatusChange = useCallback(
     async (issueId: string, status: AfterSalesIssue['status']) => {
       setIssueActionId(issueId)
@@ -672,6 +697,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     [fetchIssues, showBanner]
   )
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleIssueNotesSave = useCallback(
     async (issueId: string) => {
       setIssueActionId(issueId)
@@ -746,6 +772,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     [fetchAdjustments, fetchData, showBanner]
   )
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleRechargeStatusChange = useCallback(
     async (rechargeId: string, status: RechargeRecord['status']) => {
       await updateRechargeRecord(rechargeId, { status })
@@ -753,6 +780,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     [updateRechargeRecord]
   )
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleRechargeNotesEdit = useCallback(
     async (record: RechargeRecord) => {
       const nextNotes = window.prompt('请输入管理员备注（留空清除）', record.admin_notes ?? '')
@@ -762,6 +790,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     [updateRechargeRecord]
   )
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleConsumptionRefund = useCallback(
     async (consumptionId: string) => {
       setConsumptionActionId(consumptionId)
@@ -803,6 +832,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     [fetchAdjustments, fetchData, showBanner]
   )
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleConsumptionEdit = useCallback(
     async (consumptionId: string, updates: { description?: string | null; status?: string }) => {
       setConsumptionActionId(consumptionId)
@@ -843,6 +873,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     [fetchData, showBanner]
   )
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleRechargeDelete = useCallback(
     async (rechargeId: string) => {
       if (!window.confirm('确定要删除这条充值记录吗？此操作不可恢复。')) {
@@ -870,6 +901,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     [fetchData, showBanner]
   )
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleConsumptionDelete = useCallback(
     async (consumptionId: string) => {
       if (!window.confirm('确定要删除这条消耗记录吗？此操作不可恢复。')) {
@@ -897,6 +929,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     [fetchData, showBanner]
   )
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleVideoEdit = useCallback(
     async (taskId: string, updates: { status?: string; progress?: number; video_url?: string | null }) => {
       setVideoActionId(taskId)
@@ -937,6 +970,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     [fetchData, showBanner]
   )
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleVideoDelete = useCallback(
     async (taskId: string) => {
       if (!window.confirm('确定要删除这个视频任务吗？此操作不可恢复。')) {
@@ -964,6 +998,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     [fetchData, showBanner]
   )
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleIssueDelete = useCallback(
     async (issueId: string) => {
       if (!window.confirm('确定要删除这个售后反馈吗？此操作不可恢复。')) {
@@ -991,6 +1026,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     [fetchIssues, showBanner]
   )
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleAdjustmentEdit = useCallback(
     async (adjustmentId: string, updates: { reason?: string | null; adjustment_type?: string }) => {
       setAdjustmentActionId(adjustmentId)
@@ -1016,6 +1052,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     [fetchAdjustments, showBanner]
   )
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleAdjustmentDelete = useCallback(
     async (adjustmentId: string) => {
       if (!window.confirm('确定要删除这条积分调整记录吗？此操作不可恢复。注意：删除记录不会自动恢复用户积分。')) {
@@ -1043,6 +1080,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     [fetchAdjustments, showBanner]
   )
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleAdjustmentSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault()
@@ -1201,7 +1239,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                       method: 'POST',
                     })
                   } finally {
-                    router.push('/admin')
+                    router.push('/admin/dashboard')
                     router.refresh()
                   }
                 }}
@@ -1301,8 +1339,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                         size="sm"
                         variant="secondary"
                         onClick={() => {
-                          setActiveTab('use-cases')
-                          router.push('/admin?tab=use-cases')
+                          router.push('/admin/content?tab=use-cases')
                         }}
                       >
                         管理场景应用 →
@@ -1415,6 +1452,8 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
               </div>
             )}
 
+            {/* 以下所有旧的 tab 渲染逻辑已迁移到新路由，通过重定向逻辑处理 */}
+            {/* 
             {activeTab === 'recharges' && (
               <div className="space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-4">
@@ -2201,25 +2240,18 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                 </Card>
               </div>
             )}
+            */}
 
-            {activeTab === 'prompts' && <AdminPromptsManager onShowBanner={showBanner} />}
-            {activeTab === 'keywords' && <AdminKeywordsManager onShowBanner={showBanner} />}
-            {activeTab === 'blog' && <AdminBlogManager onShowBanner={showBanner} />}
-            {activeTab === 'use-cases' && (() => {
-              console.log('渲染 AdminUseCasesManager 组件')
-              return (
-                <div>
-                  <AdminUseCasesManager onShowBanner={showBanner} />
-                </div>
-              )
-            })()}
-            {activeTab === 'compare-pages' && <AdminComparePagesManager onShowBanner={showBanner} />}
-            {activeTab === 'batch-generator' && <AdminBatchContentGenerator onShowBanner={showBanner} />}
-            {activeTab === 'seo-chat' && <AdminSEOChatManager onShowBanner={showBanner} />}
-            {activeTab === 'admin-chat' && <AdminChatManager onShowBanner={showBanner} />}
-            {activeTab === 'chat-debug' && <AdminChatDebug onShowBanner={showBanner} />}
-            {activeTab === 'homepage' && <AdminHomepageManager onShowBanner={showBanner} />}
-            {activeTab === 'scene-config' && <AdminSceneModelConfig onShowBanner={showBanner} />}
+            {/* 所有其他 tab 已迁移到新路由：
+                - prompts → /admin/prompts
+                - keywords → /admin/content?tab=keywords
+                - blog → /admin/content?tab=blog
+                - use-cases → /admin/content?tab=use-cases
+                - compare-pages → /admin/content?tab=compare
+                - batch-generator → /admin/content?tab=batches
+                - homepage → /admin/landing
+                - 其他 → 通过重定向逻辑处理
+            */}
           </>
         )}
       </main>

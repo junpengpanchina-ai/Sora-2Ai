@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "basePath": "/admin",
+  "nav": [
+    {
+      "key": "dashboard",
+      "label": "总览",
+      "path": "/admin/dashboard",
+      "icon": "LayoutDashboard"
+    },
+    {
+      "key": "billing",
+      "label": "计费中心",
+      "path": "/admin/billing",
+      "icon": "Wallet",
+      "tabs": [
+        { "key": "billing-payments", "label": "充值记录", "path": "/admin/billing?tab=payments" },
+        { "key": "billing-usage", "label": "消耗记录", "path": "/admin/billing?tab=usage" },
+        { "key": "billing-adjustments", "label": "积分调整", "path": "/admin/billing?tab=adjustments" }
+      ]
+    },
+    {
+      "key": "content",
+      "label": "内容库",
+      "path": "/admin/content",
+      "icon": "FileText",
+      "tabs": [
+        { "key": "content-use-cases", "label": "使用场景", "path": "/admin/content?tab=use-cases" },
+        { "key": "content-keywords", "label": "长尾词", "path": "/admin/content?tab=keywords" },
+        { "key": "content-compare", "label": "对比页", "path": "/admin/content?tab=compare" },
+        { "key": "content-blog", "label": "博客文章", "path": "/admin/content?tab=blog" },
+        { "key": "content-batches", "label": "批量生成", "path": "/admin/content?tab=batches" }
+      ]
+    },
+    {
+      "key": "prompts",
+      "label": "提示词",
+      "path": "/admin/prompts",
+      "icon": "Sparkles"
+    },
+    {
+      "key": "landing",
+      "label": "首页管理",
+      "path": "/admin/landing",
+      "icon": "Home"
+    }
+  ],
+  "tools": {
+    "hidden": true,
+    "label": "研发工具",
+    "path": "/admin/tools",
+    "icon": "Wrench",
+    "children": [
+      { "key": "tools-chat-debug", "label": "聊天调试", "path": "/admin/tools/chat/debug" },
+      { "key": "tools-chat-manager", "label": "聊天管理", "path": "/admin/tools/chat/manager" },
+      { "key": "tools-geo", "label": "GEO 管理", "path": "/admin/tools/geo" },
+      { "key": "tools-models-scene", "label": "场景配置", "path": "/admin/tools/models/scene" },
+      { "key": "tools-models-industry", "label": "行业配置", "path": "/admin/tools/models/industry" }
+    ]
+  }
+}

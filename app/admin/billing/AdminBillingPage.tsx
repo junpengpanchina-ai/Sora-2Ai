@@ -161,7 +161,6 @@ export default function AdminBillingPage({ adminUser }: AdminBillingPageProps) {
   
   const [rechargeActionId, setRechargeActionId] = useState<string | null>(null)
   const [consumptionActionId, setConsumptionActionId] = useState<string | null>(null)
-  const [adjustmentActionId, setAdjustmentActionId] = useState<string | null>(null)
   const [adjustSubmitting, setAdjustSubmitting] = useState(false)
   
   const [adjustForm, setAdjustForm] = useState({

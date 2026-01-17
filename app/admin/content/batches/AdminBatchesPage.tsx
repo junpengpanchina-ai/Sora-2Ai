@@ -27,7 +27,7 @@ export default function AdminBatchesPage({ onShowBanner }: AdminBatchesPageProps
           ].map((tab) => (
             <Button
               key={tab.value}
-              variant={activeTab === tab.value ? 'default' : 'outline'}
+              variant={activeTab === tab.value ? 'primary' : 'outline'}
               size="sm"
               onClick={() => setActiveTab(tab.value as BatchTabType)}
             >
