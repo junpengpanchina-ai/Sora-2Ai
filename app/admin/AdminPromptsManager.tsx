@@ -31,6 +31,13 @@ interface PromptRecord {
   created_at: string
   updated_at: string
   created_by_admin_id?: string | null
+  // 新增字段：场景关联和角色
+  scene_id?: string | null
+  role?: 'default' | 'fast' | 'high_quality' | 'long_form' | 'ads' | 'social' | 'compliance_safe'
+  model?: 'sora' | 'veo' | 'gemini' | 'universal'
+  version?: number
+  is_indexable?: boolean
+  is_in_sitemap?: boolean
 }
 
 type PromptFormState = {
@@ -43,6 +50,13 @@ type PromptFormState = {
   example: string
   locale: PromptLocale
   isPublished: boolean
+  // 新增字段
+  sceneId: string
+  role: 'default' | 'fast' | 'high_quality' | 'long_form' | 'ads' | 'social' | 'compliance_safe'
+  model: 'sora' | 'veo' | 'gemini' | 'universal'
+  version: number
+  isIndexable: boolean
+  isInSitemap: boolean
 }
 
 const DEFAULT_FORM_STATE: PromptFormState = {
@@ -55,6 +69,13 @@ const DEFAULT_FORM_STATE: PromptFormState = {
   example: '',
   locale: 'zh',
   isPublished: true,
+  // 新增字段默认值
+  sceneId: '',
+  role: 'default',
+  model: 'sora',
+  version: 1,
+  isIndexable: false, // ❌ 默认不进索引（内部资产）
+  isInSitemap: false, // ❌ 默认不进sitemap
 }
 
 const CATEGORY_LABELS: Record<PromptCategory, string> = {
@@ -75,6 +96,23 @@ const INTENT_LABELS: Record<PromptIntent, string> = {
 const LOCALE_LABELS: Record<PromptLocale, string> = {
   zh: '简体中文',
   en: 'English',
+}
+
+const ROLE_LABELS: Record<'default' | 'fast' | 'high_quality' | 'long_form' | 'ads' | 'social' | 'compliance_safe', string> = {
+  default: '默认（推荐）',
+  fast: '快速生成',
+  high_quality: '高质量',
+  long_form: '长视频',
+  ads: '广告优化',
+  social: '社交媒体优化',
+  compliance_safe: '合规安全',
+}
+
+const MODEL_LABELS: Record<'sora' | 'veo' | 'gemini' | 'universal', string> = {
+  sora: 'Sora',
+  veo: 'Veo',
+  gemini: 'Gemini',
+  universal: '通用',
 }
 
 const STATUS_BADGES: Record<'published' | 'draft', { label: string; className: string }> = {
@@ -122,6 +160,19 @@ function normalizePromptRecord(item: unknown): PromptRecord | null {
     updated_at: typeof record.updated_at === 'string' ? record.updated_at : new Date().toISOString(),
     created_by_admin_id:
       typeof record.created_by_admin_id === 'string' ? record.created_by_admin_id : null,
+    // 新增字段
+    scene_id: typeof record.scene_id === 'string' ? record.scene_id : null,
+    role: (typeof record.role === 'string' && 
+      ['default', 'fast', 'high_quality', 'long_form', 'ads', 'social', 'compliance_safe'].includes(record.role))
+      ? (record.role as PromptRecord['role'])
+      : 'default',
+    model: (typeof record.model === 'string' && 
+      ['sora', 'veo', 'gemini', 'universal'].includes(record.model))
+      ? (record.model as PromptRecord['model'])
+      : 'sora',
+    version: typeof record.version === 'number' ? record.version : 1,
+    is_indexable: typeof record.is_indexable === 'boolean' ? record.is_indexable : false,
+    is_in_sitemap: typeof record.is_in_sitemap === 'boolean' ? record.is_in_sitemap : false,
   }
 }
 
@@ -136,6 +187,13 @@ function buildFormStateFromPrompt(prompt: PromptRecord): PromptFormState {
     example: prompt.example ?? '',
     locale: prompt.locale,
     isPublished: prompt.is_published,
+    // 新增字段
+    sceneId: prompt.scene_id ?? '',
+    role: prompt.role ?? 'default',
+    model: prompt.model ?? 'sora',
+    version: prompt.version ?? 1,
+    isIndexable: prompt.is_indexable ?? false,
+    isInSitemap: prompt.is_in_sitemap ?? false,
   }
 }
 
@@ -294,7 +352,7 @@ export default function AdminPromptsManager({ onShowBanner }: AdminPromptsManage
       const response = await fetch('/api/admin/prompts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+          body: JSON.stringify({
           title: newPromptForm.title.trim(),
           description: newPromptForm.description.trim() || null,
           prompt: newPromptForm.prompt.trim(),
@@ -304,6 +362,13 @@ export default function AdminPromptsManager({ onShowBanner }: AdminPromptsManage
           example: newPromptForm.example.trim() || null,
           locale: newPromptForm.locale,
           isPublished: newPromptForm.isPublished,
+          // 新增字段
+          sceneId: newPromptForm.sceneId || null,
+          role: newPromptForm.role,
+          model: newPromptForm.model,
+          version: newPromptForm.version,
+          isIndexable: newPromptForm.isIndexable,
+          isInSitemap: newPromptForm.isInSitemap,
         }),
       })
 
@@ -365,6 +430,13 @@ export default function AdminPromptsManager({ onShowBanner }: AdminPromptsManage
           example: editForm.example.trim() || null,
           locale: editForm.locale,
           isPublished: editForm.isPublished,
+          // 新增字段
+          sceneId: editForm.sceneId || null,
+          role: editForm.role,
+          model: editForm.model,
+          version: editForm.version,
+          isIndexable: editForm.isIndexable,
+          isInSitemap: editForm.isInSitemap,
         }),
       })
 
@@ -595,6 +667,116 @@ export default function AdminPromptsManager({ onShowBanner }: AdminPromptsManage
                 }
                 placeholder="可记录示例输出、使用说明或注意事项"
               />
+            </div>
+
+            {/* 新增字段：场景关联和角色 */}
+            <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
+              <h3 className="mb-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                场景关联（Scene/Prompt 关系）
+              </h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    关联场景 ID（可选）
+                  </label>
+                  <Input
+                    value={newPromptForm.sceneId}
+                    onChange={(event) =>
+                      setNewPromptForm((prev) => ({ ...prev, sceneId: event.target.value }))
+                    }
+                    placeholder="use case UUID"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    提示词属于哪个使用场景。Prompt 是场景的实现层。
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    用途角色
+                  </label>
+                  <select
+                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                    value={newPromptForm.role}
+                    onChange={(event) =>
+                      setNewPromptForm((prev) => ({
+                        ...prev,
+                        role: event.target.value as PromptFormState['role'],
+                      }))
+                    }
+                  >
+                    {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    模型支持
+                  </label>
+                  <select
+                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                    value={newPromptForm.model}
+                    onChange={(event) =>
+                      setNewPromptForm((prev) => ({
+                        ...prev,
+                        model: event.target.value as PromptFormState['model'],
+                      }))
+                    }
+                  >
+                    {Object.entries(MODEL_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    版本号
+                  </label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={newPromptForm.version}
+                    onChange={(event) =>
+                      setNewPromptForm((prev) => ({
+                        ...prev,
+                        version: parseInt(event.target.value, 10) || 1,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+              <div className="mt-4 flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <input
+                    id="newPromptIndexable"
+                    type="checkbox"
+                    checked={newPromptForm.isIndexable}
+                    onChange={(event) =>
+                      setNewPromptForm((prev) => ({ ...prev, isIndexable: event.target.checked }))
+                    }
+                  />
+                  <label htmlFor="newPromptIndexable" className="text-sm text-gray-600 dark:text-gray-300">
+                    可被搜索引擎索引（默认否：Prompt 是内部资产）
+                  </label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="newPromptInSitemap"
+                    type="checkbox"
+                    checked={newPromptForm.isInSitemap}
+                    onChange={(event) =>
+                      setNewPromptForm((prev) => ({ ...prev, isInSitemap: event.target.checked }))
+                    }
+                  />
+                  <label htmlFor="newPromptInSitemap" className="text-sm text-gray-600 dark:text-gray-300">
+                    出现在 sitemap 中（默认否）
+                  </label>
+                </div>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -910,6 +1092,116 @@ export default function AdminPromptsManager({ onShowBanner }: AdminPromptsManage
                     setEditForm((prev) => ({ ...prev, example: event.target.value }))
                   }
                 />
+              </div>
+
+              {/* 新增字段：场景关联和角色 */}
+              <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
+                <h3 className="mb-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  场景关联（Scene/Prompt 关系）
+                </h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                      关联场景 ID（可选）
+                    </label>
+                    <Input
+                      value={editForm.sceneId}
+                      onChange={(event) =>
+                        setEditForm((prev) => ({ ...prev, sceneId: event.target.value }))
+                      }
+                      placeholder="use case UUID"
+                    />
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      提示词属于哪个使用场景。Prompt 是场景的实现层。
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                      用途角色
+                    </label>
+                    <select
+                      className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                      value={editForm.role}
+                      onChange={(event) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          role: event.target.value as PromptFormState['role'],
+                        }))
+                      }
+                    >
+                      {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                      模型支持
+                    </label>
+                    <select
+                      className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                      value={editForm.model}
+                      onChange={(event) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          model: event.target.value as PromptFormState['model'],
+                        }))
+                      }
+                    >
+                      {Object.entries(MODEL_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                      版本号
+                    </label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={editForm.version}
+                      onChange={(event) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          version: parseInt(event.target.value, 10) || 1,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="editPromptIndexable"
+                      type="checkbox"
+                      checked={editForm.isIndexable}
+                      onChange={(event) =>
+                        setEditForm((prev) => ({ ...prev, isIndexable: event.target.checked }))
+                      }
+                    />
+                    <label htmlFor="editPromptIndexable" className="text-sm text-gray-600 dark:text-gray-300">
+                      可被搜索引擎索引（默认否：Prompt 是内部资产）
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="editPromptInSitemap"
+                      type="checkbox"
+                      checked={editForm.isInSitemap}
+                      onChange={(event) =>
+                        setEditForm((prev) => ({ ...prev, isInSitemap: event.target.checked }))
+                      }
+                    />
+                    <label htmlFor="editPromptInSitemap" className="text-sm text-gray-600 dark:text-gray-300">
+                      出现在 sitemap 中（默认否）
+                    </label>
+                  </div>
+                </div>
               </div>
 
               <div className="flex items-center gap-2">

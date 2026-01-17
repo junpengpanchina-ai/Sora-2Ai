@@ -15,6 +15,7 @@ export default function robots(): MetadataRoute.Robots {
           '/auth/',
           '/storage-test/',
           '/payment-test/',
+          '/prompts/',  // ❌ Prompt 是内部资产，不参与 SEO/GEO
         ],
       },
       {
@@ -26,6 +27,7 @@ export default function robots(): MetadataRoute.Robots {
           '/auth/',
           '/storage-test/',
           '/payment-test/',
+          '/prompts/',  // ❌ Prompt 是内部资产，不参与 SEO/GEO
         ],
       },
     ],

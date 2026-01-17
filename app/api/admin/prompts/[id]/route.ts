@@ -100,6 +100,35 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       updates.is_published = payload.is_published
     }
 
+    // 新增字段：场景关联和角色
+    if (payload.sceneId !== undefined) {
+      updates.scene_id = typeof payload.sceneId === 'string' && payload.sceneId.trim()
+        ? payload.sceneId.trim()
+        : null
+    }
+
+    if (typeof payload.role === 'string' &&
+      ['default', 'fast', 'high_quality', 'long_form', 'ads', 'social', 'compliance_safe'].includes(payload.role)) {
+      updates.role = payload.role as 'default' | 'fast' | 'high_quality' | 'long_form' | 'ads' | 'social' | 'compliance_safe'
+    }
+
+    if (typeof payload.model === 'string' &&
+      ['sora', 'veo', 'gemini', 'universal'].includes(payload.model)) {
+      updates.model = payload.model as 'sora' | 'veo' | 'gemini' | 'universal'
+    }
+
+    if (typeof payload.version === 'number' && payload.version > 0) {
+      updates.version = payload.version
+    }
+
+    if (typeof payload.isIndexable === 'boolean') {
+      updates.is_indexable = payload.isIndexable
+    }
+
+    if (typeof payload.isInSitemap === 'boolean') {
+      updates.is_in_sitemap = payload.isInSitemap
+    }
+
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: '没有可更新的字段' }, { status: 400 })
     }

@@ -356,6 +356,13 @@ export interface Database {
           created_by_admin_id: string | null
           created_at: string
           updated_at: string
+          // 新增字段：场景关联和角色
+          scene_id: string | null
+          role: 'default' | 'fast' | 'high_quality' | 'long_form' | 'ads' | 'social' | 'compliance_safe'
+          model: 'sora' | 'veo' | 'gemini' | 'universal'
+          version: number
+          is_indexable: boolean
+          is_in_sitemap: boolean
         }
         Insert: {
           id?: string
@@ -364,7 +371,7 @@ export interface Database {
           prompt: string
           category: 'nature' | 'character' | 'action' | 'scenery' | 'abstract' | 'cinematic'
           tags?: string[]
-          difficulty: 'information' | 'comparison' | 'transaction'
+          difficulty?: 'information' | 'comparison' | 'transaction'
           example?: string | null
           locale?: 'zh' | 'en'
           slug?: string | null
@@ -372,6 +379,13 @@ export interface Database {
           created_by_admin_id?: string | null
           created_at?: string
           updated_at?: string
+          // 新增字段
+          scene_id?: string | null
+          role?: 'default' | 'fast' | 'high_quality' | 'long_form' | 'ads' | 'social' | 'compliance_safe'
+          model?: 'sora' | 'veo' | 'gemini' | 'universal'
+          version?: number
+          is_indexable?: boolean
+          is_in_sitemap?: boolean
         }
         Update: {
           id?: string
@@ -388,6 +402,13 @@ export interface Database {
           created_by_admin_id?: string | null
           created_at?: string
           updated_at?: string
+          // 新增字段
+          scene_id?: string | null
+          role?: 'default' | 'fast' | 'high_quality' | 'long_form' | 'ads' | 'social' | 'compliance_safe'
+          model?: 'sora' | 'veo' | 'gemini' | 'universal'
+          version?: number
+          is_indexable?: boolean
+          is_in_sitemap?: boolean
         }
       }
       long_tail_keywords: {

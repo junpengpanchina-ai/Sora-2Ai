@@ -127,6 +127,28 @@ export async function POST(request: Request) {
           ? payload.is_published
           : true
 
+    // 新增字段：场景关联和角色
+    const sceneId = typeof payload.sceneId === 'string' && payload.sceneId.trim()
+      ? payload.sceneId.trim()
+      : null
+    const role = typeof payload.role === 'string' && 
+      ['default', 'fast', 'high_quality', 'long_form', 'ads', 'social', 'compliance_safe'].includes(payload.role)
+      ? payload.role as 'default' | 'fast' | 'high_quality' | 'long_form' | 'ads' | 'social' | 'compliance_safe'
+      : 'default'
+    const model = typeof payload.model === 'string' &&
+      ['sora', 'veo', 'gemini', 'universal'].includes(payload.model)
+      ? payload.model as 'sora' | 'veo' | 'gemini' | 'universal'
+      : 'sora'
+    const version = typeof payload.version === 'number' && payload.version > 0
+      ? payload.version
+      : 1
+    const isIndexable = typeof payload.isIndexable === 'boolean'
+      ? payload.isIndexable
+      : false
+    const isInSitemap = typeof payload.isInSitemap === 'boolean'
+      ? payload.isInSitemap
+      : false
+
     if (!title) {
       return NextResponse.json({ error: '标题不能为空' }, { status: 400 })
     }
@@ -158,6 +180,13 @@ export async function POST(request: Request) {
       locale: resolvedLocale,
       is_published: isPublished,
       created_by_admin_id: adminUser.id,
+      // 新增字段
+      scene_id: sceneId,
+      role,
+      model,
+      version,
+      is_indexable: isIndexable,
+      is_in_sitemap: isInSitemap,
     }
 
     const { data, error } = await supabase

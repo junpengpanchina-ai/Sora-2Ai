@@ -19,8 +19,9 @@ const STATIC_PATHS = [
   { path: '/blog', priority: '0.8' },
   // Other pages
   { path: '/video', priority: '0.7' },
-  { path: '/prompts', priority: '0.6' },
-  { path: '/prompts-en', priority: '0.6' },
+  // ❌ 移除：Prompt 列表页也不应该进入 sitemap（或降权）
+  // { path: '/prompts', priority: '0.6' },
+  // { path: '/prompts-en', priority: '0.6' },
   { path: '/keywords', priority: '0.6' },
   { path: '/support', priority: '0.5' },
   { path: '/privacy', priority: '0.3' },
@@ -45,19 +46,9 @@ async function getDynamicPaths() {
       })
     }
 
-    // Prompts (individual pages)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: prompts } = await (supabase as any)
-      .from('prompt_library')
-      .select('slug')
-      .eq('is_published', true)
-      .not('slug', 'is', null)
-
-    if (Array.isArray(prompts)) {
-      prompts.forEach((prompt: { slug: string }) => {
-        paths.push({ path: `/prompts/${prompt.slug}`, priority: '0.7' })
-      })
-    }
+    // ❌ 移除：Prompts 不应该进入 sitemap
+    // Prompt 是内部资产/能力实现，不是内容主体，不应该被索引
+    // 参考：SCENE_PROMPT_ARCHITECTURE.md
 
     // Use cases are now in a separate sitemap (sitemap-use-cases.xml)
     // to avoid exceeding the 50,000 URL limit per sitemap file

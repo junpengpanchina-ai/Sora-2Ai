@@ -104,6 +104,10 @@ export async function generateMetadata({
   return {
     title,
     description,
+    robots: {
+      index: false,  // ❌ Prompt 页面不索引（内部资产，不是内容主体）
+      follow: false, // ❌ 不跟踪链接
+    },
     alternates: {
       canonical: url,
     },
@@ -208,9 +212,14 @@ export default async function PromptPage({ params }: { params: { slug: string } 
                   )}
                 </div>
                 
+                {/* ❌ 修复：H1 不应该直接显示 prompt 标题 */}
+                {/* ✅ 正确：H1 应该是场景/用途，prompt 标题降级为 H2 */}
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {prompt.title}
+                  AI Video Generation Tools
                 </h1>
+                <h2 className="mt-2 text-2xl font-semibold text-gray-700 dark:text-gray-300">
+                  {prompt.title}
+                </h2>
                 
                 {prompt.description && (
                   <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
