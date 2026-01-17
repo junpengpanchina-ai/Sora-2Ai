@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   Card,
   CardHeader,
@@ -12,7 +12,6 @@ import {
 } from '@/components/ui'
 import Link from 'next/link'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 // 以下导入已迁移到新路由，保留以备将来可能需要（通过重定向访问）
 // import AdminPromptsManager from './AdminPromptsManager'
 // import AdminKeywordsManager from './AdminKeywordsManager'
@@ -240,6 +239,7 @@ interface AdminClientProps {
 
 export default function AdminClient({ adminUser }: AdminClientProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<UserStats | null>(null)
   const [useCasesStats, setUseCasesStats] = useState<UseCasesStats | null>(null)
@@ -255,50 +255,153 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [creditAdjustments, setCreditAdjustments] = useState<CreditAdjustment[]>([])
   const searchParams = useSearchParams()
-  const tabFromUrl = searchParams?.get('tab') || 'overview'
   
   type TabType = 'overview'
   
-  // 旧 tab 参数重定向映射表
-  const redirectMap: Record<string, string> = {
-    'overview': '/admin/dashboard',
-    'recharges': '/admin/billing?tab=payments',
-    'consumption': '/admin/billing?tab=usage',
-    'adjustments': '/admin/billing?tab=adjustments',
+  /**
+   * 旧系统 tab/route → 新系统路由映射表
+   * 根据实际旧系统使用的 tab 值进行配置
+   */
+  const OLD_TAB_TO_NEW_URL: Record<string, string> = {
+    // 顶部一级（旧）
+    dashboard: '/admin/dashboard',
+    overview: '/admin/dashboard',
+    '总览': '/admin/dashboard',
+
+    // billing（旧：充值/消耗/调整）
+    topup: '/admin/billing?tab=payments',
+    topups: '/admin/billing?tab=payments',
+    recharge: '/admin/billing?tab=payments',
+    recharges: '/admin/billing?tab=payments',
+    '充值记录': '/admin/billing?tab=payments',
+
+    usage: '/admin/billing?tab=usage',
+    consume: '/admin/billing?tab=usage',
+    consumption: '/admin/billing?tab=usage',
+    '消耗记录': '/admin/billing?tab=usage',
+
+    adjust: '/admin/billing?tab=adjustments',
+    adjustments: '/admin/billing?tab=adjustments',
+    '积分调整': '/admin/billing?tab=adjustments',
+
+    // content（旧：使用场景/长尾词/对比页/博客/批量生成）
     'use-cases': '/admin/content?tab=use-cases',
-    'keywords': '/admin/content?tab=keywords',
+    usecases: '/admin/content?tab=use-cases',
+    scenes: '/admin/content?tab=use-cases',
+    '使用场景': '/admin/content?tab=use-cases',
+
+    keywords: '/admin/content?tab=keywords',
+    '长尾词': '/admin/content?tab=keywords',
+
+    compare: '/admin/content?tab=compare',
     'compare-pages': '/admin/content?tab=compare',
-    'blog': '/admin/content?tab=blog',
+    '对比页': '/admin/content?tab=compare',
+
+    blog: '/admin/content?tab=blog',
+    '博客文章': '/admin/content?tab=blog',
+
+    batches: '/admin/content?tab=batches',
+    batch: '/admin/content?tab=batches',
     'batch-generator': '/admin/content?tab=batches',
-    'prompts': '/admin/prompts',
-    'homepage': '/admin/landing',
+    '批量生成': '/admin/content?tab=batches',
+
+    // prompts / landing
+    prompts: '/admin/prompts',
+    '提示词库': '/admin/prompts',
+
+    homepage: '/admin/landing',
+    landing: '/admin/landing',
+    '首页管理': '/admin/landing',
+
+    // tools（隐藏）
     'chat-debug': '/admin/tools/chat/debug',
+    chat_debug: '/admin/tools/chat/debug',
+    '聊天调试': '/admin/tools/chat/debug',
+
+    'chat-manager': '/admin/tools/chat/manager',
+    chat_manager: '/admin/tools/chat/manager',
+
+    geo: '/admin/tools/geo',
+    'GEO': '/admin/tools/geo',
+
+    // models / config
     'scene-config': '/admin/tools/models/scene',
+    scene_model: '/admin/tools/models/scene',
+    '场景配置': '/admin/tools/models/scene',
+
+    industry_model: '/admin/tools/models/industry',
+    '行业配置': '/admin/tools/models/industry',
+
     // 以下建议删除的功能，重定向到 dashboard
     'seo-chat': '/admin/dashboard',
     'admin-chat': '/admin/dashboard',
-    'videos': '/admin/dashboard', // 可选：后续可迁移到 /admin/ops/video-tasks
-    'issues': '/admin/dashboard', // 可选：后续可迁移到 /admin/ops/feedback
+    videos: '/admin/dashboard', // 可选：后续可迁移到 /admin/ops/video-tasks
+    issues: '/admin/dashboard', // 可选：后续可迁移到 /admin/ops/feedback
   }
-  
+
+  /**
+   * 从 URL 参数中提取旧系统的 key（支持多种参数名）
+   */
+  function pickOldKey(sp: URLSearchParams): string {
+    return (
+      sp.get('tab') ||
+      sp.get('section') ||
+      sp.get('view') ||
+      sp.get('page') ||
+      ''
+    ).trim()
+  }
+
+  /**
+   * 合并查询参数：保留旧 URL 中除 tab/section/view/page 外的其他参数
+   */
+  function mergeQueryPreserveOtherParams(
+    oldParams: URLSearchParams,
+    targetUrl: string
+  ): string {
+    const [base, targetQuery] = targetUrl.split('?')
+    const next = new URLSearchParams(targetQuery || '')
+
+    // 把旧 params 里除 tab/section/view/page 外的参数保留过去
+    oldParams.forEach((v, k) => {
+      if (['tab', 'section', 'view', 'page'].includes(k)) return
+      if (!next.has(k)) next.set(k, v)
+    })
+
+    const qs = next.toString()
+    return qs ? `${base}?${qs}` : base
+  }
+
   // 检测并重定向旧 tab 参数
   useEffect(() => {
-    if (tabFromUrl && tabFromUrl !== 'overview') {
-      const newUrl = redirectMap[tabFromUrl]
-      if (newUrl) {
-        console.log(`[AdminClient] 重定向旧 tab "${tabFromUrl}" → "${newUrl}"`)
-        router.replace(newUrl)
-        return
-      }
+    // 1) 只在 /admin* 下工作
+    if (!pathname || !pathname.startsWith('/admin')) return
+
+    // 2) 旧 key（tab/section/view/page）
+    const key = pickOldKey(searchParams)
+    if (key && OLD_TAB_TO_NEW_URL[key]) {
+      const target = mergeQueryPreserveOtherParams(
+        new URLSearchParams(searchParams.toString()),
+        OLD_TAB_TO_NEW_URL[key]
+      )
+      console.log(`[AdminClient] 重定向旧 tab "${key}" → "${target}"`)
+      // replace 防止历史栈污染
+      router.replace(target)
+      return
     }
-    // 如果当前在 /admin 且有 tab=overview，重定向到 /admin/dashboard
-    if (tabFromUrl === 'overview' && typeof window !== 'undefined') {
-      const currentPath = window.location.pathname
-      if (currentPath === '/admin' && searchParams?.get('tab') === 'overview') {
-        router.replace('/admin/dashboard')
-      }
+
+    // 3) 旧路径兼容：/admin/content 默认应该落在 /admin/content?tab=use-cases
+    if (pathname === '/admin/content' && !searchParams.get('tab')) {
+      router.replace('/admin/content?tab=use-cases')
+      return
     }
-  }, [tabFromUrl, router, searchParams])
+
+    // 4) /admin 直接落 dashboard
+    if (pathname === '/admin') {
+      router.replace('/admin/dashboard')
+      return
+    }
+  }, [pathname, router, searchParams])
   
   const [activeTab] = useState<TabType>('overview')
   const [autoRefresh, setAutoRefresh] = useState(false)

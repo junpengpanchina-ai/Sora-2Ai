@@ -25,6 +25,55 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 301) // 301 永久重定向
   }
 
+  // Admin 路由重定向：旧路径 → 新路径（301/308 永久重定向）
+  if (pathname.startsWith('/admin')) {
+    const REDIRECTS: Array<{ from: string; to: string }> = [
+      // 老入口
+      { from: '/admin', to: '/admin/dashboard' },
+
+      // 旧的"聚合页"（如果没有 tab 参数，重定向到默认 tab）
+      { from: '/admin/content', to: '/admin/content?tab=use-cases' },
+      { from: '/admin/billing', to: '/admin/billing?tab=payments' },
+
+      // 旧的散页（如果以前确实存在这些路由）
+      { from: '/admin/keywords', to: '/admin/content?tab=keywords' },
+      { from: '/admin/use-cases', to: '/admin/content?tab=use-cases' },
+      { from: '/admin/compare', to: '/admin/content?tab=compare' },
+      { from: '/admin/blog', to: '/admin/content?tab=blog' },
+      { from: '/admin/batch', to: '/admin/content?tab=batches' },
+      { from: '/admin/batch-generator', to: '/admin/content?tab=batches' },
+
+      // tools（旧路径）
+      { from: '/admin/debug', to: '/admin/tools/chat/debug' },
+      { from: '/admin/chat-debug', to: '/admin/tools/chat/debug' },
+      { from: '/admin/chat-manager', to: '/admin/tools/chat/manager' },
+      { from: '/admin/geo', to: '/admin/tools/geo' },
+      { from: '/admin/scene-config', to: '/admin/tools/models/scene' },
+      { from: '/admin/industry-config', to: '/admin/tools/models/industry' },
+    ]
+
+    // 1) 先处理明确的旧路径重定向
+    const hit = REDIRECTS.find(r => r.from === pathname)
+    if (hit) {
+      const url = request.nextUrl.clone()
+      const [toPath, toQuery] = hit.to.split('?')
+      url.pathname = toPath
+      url.search = toQuery ? `?${toQuery}` : ''
+
+      // 把旧 query 里非 tab 类参数透传过去
+      searchParams.forEach((v, k) => {
+        if (['tab', 'section', 'view', 'page'].includes(k)) return
+        if (!url.searchParams.has(k)) url.searchParams.set(k, v)
+      })
+
+      // 使用 308 永久重定向（保留 HTTP 方法）
+      return NextResponse.redirect(url, 308)
+    }
+
+    // 2) tab 参数层面的重定向（可选：如果你想把 AdminClient 的逻辑前置到 middleware）
+    // 这里先简单放过，交给 AdminClient 处理
+  }
+
   // 检查是否是关键词页面的 XML 请求
   // 只有当明确指定 format=xml 查询参数时，才返回 XML
   // 不检查 Accept 头，因为浏览器通常包含多种内容类型
