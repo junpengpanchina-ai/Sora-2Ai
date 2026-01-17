@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui'
-import { Button } from '@/components/ui'
+import { useState } from 'react'
+import { Card, CardContent } from '@/components/ui'
 import ScenePromptsTab from './tabs/ScenePromptsTab'
 import GlobalPromptsTab from './tabs/GlobalPromptsTab'
 import PromptExperimentsTab from './tabs/PromptExperimentsTab'
@@ -46,25 +45,34 @@ export default function AdminPromptsManagerV2({ onShowBanner }: AdminPromptsMana
       </Card>
 
       {/* 3 个 Tab */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="scene">Scene Prompts</TabsTrigger>
-          <TabsTrigger value="global">Global Prompts</TabsTrigger>
-          <TabsTrigger value="experiments">Prompt Experiments</TabsTrigger>
-        </TabsList>
+      <div className="space-y-6">
+        <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-4">
+          {[
+            { value: 'scene', label: 'Scene Prompts' },
+            { value: 'global', label: 'Global Prompts' },
+            { value: 'experiments', label: 'Prompt Experiments' },
+          ].map((tab) => (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => setActiveTab(tab.value as typeof activeTab)}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === tab.value
+                  ? 'bg-energy-water text-white'
+                  : 'text-gray-700 hover:bg-energy-water-surface dark:text-gray-300 dark:hover:bg-gray-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-        <TabsContent value="scene" className="space-y-4 mt-6">
-          <ScenePromptsTab onShowBanner={onShowBanner} />
-        </TabsContent>
-
-        <TabsContent value="global" className="space-y-4 mt-6">
-          <GlobalPromptsTab onShowBanner={onShowBanner} />
-        </TabsContent>
-
-        <TabsContent value="experiments" className="space-y-4 mt-6">
-          <PromptExperimentsTab onShowBanner={onShowBanner} />
-        </TabsContent>
-      </Tabs>
+        <div className="space-y-4">
+          {activeTab === 'scene' && <ScenePromptsTab onShowBanner={onShowBanner} />}
+          {activeTab === 'global' && <GlobalPromptsTab onShowBanner={onShowBanner} />}
+          {activeTab === 'experiments' && <PromptExperimentsTab onShowBanner={onShowBanner} />}
+        </div>
+      </div>
     </div>
   )
 }

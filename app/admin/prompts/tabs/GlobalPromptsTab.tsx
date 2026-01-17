@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Input, Button, Textarea, Badge } from '@/components/ui'
+import { Card, CardContent, CardHeader, CardTitle, Input, Button, Badge } from '@/components/ui'
 
 interface GlobalPromptsTabProps {
   onShowBanner: (type: 'success' | 'error' | 'info', text: string) => void
@@ -16,7 +16,20 @@ interface GlobalPromptsTabProps {
  * - 由代码组合使用
  */
 export default function GlobalPromptsTab({ onShowBanner }: GlobalPromptsTabProps) {
-  const [prompts, setPrompts] = useState<any[]>([])
+  const [prompts, setPrompts] = useState<Array<{
+    id: string
+    title: string
+    description?: string
+    content?: string
+    model_id?: string
+    role?: string
+    version?: number
+    status?: string
+    is_published?: boolean
+    locale?: string
+    owner_scope?: string
+    scene_id?: string
+  }>>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [modelFilter, setModelFilter] = useState<'all' | 'sora' | 'veo_fast' | 'veo_pro' | 'gemini'>('all')
@@ -31,7 +44,7 @@ export default function GlobalPromptsTab({ onShowBanner }: GlobalPromptsTabProps
       const data = await response.json()
       if (response.ok && data.prompts) {
         // 过滤出全局模板
-        const globalPrompts = data.prompts.filter((p: any) => p.owner_scope === 'global' || !p.scene_id)
+        const globalPrompts = data.prompts.filter((p: { owner_scope?: string; scene_id?: string }) => p.owner_scope === 'global' || !p.scene_id)
         setPrompts(globalPrompts)
       }
     } catch (error) {
@@ -154,17 +167,17 @@ export default function GlobalPromptsTab({ onShowBanner }: GlobalPromptsTabProps
                           <h3 className="font-semibold text-gray-900 dark:text-white">
                             {prompt.title}
                           </h3>
-                          <Badge variant="outline">{MODEL_LABELS[prompt.model_id] || prompt.model_id}</Badge>
-                          <Badge variant="outline">{ROLE_LABELS[prompt.role] || prompt.role}</Badge>
+                          <Badge variant="secondary">{prompt.model_id ? (MODEL_LABELS[prompt.model_id] || prompt.model_id) : 'unknown'}</Badge>
+                          <Badge variant="secondary">{prompt.role ? (ROLE_LABELS[prompt.role] || prompt.role) : 'default'}</Badge>
                           {prompt.version && (
-                            <Badge variant="outline">v{prompt.version}</Badge>
+                            <Badge variant="secondary">v{prompt.version}</Badge>
                           )}
                           {prompt.status === 'active' && prompt.is_published ? (
                             <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                               已发布
                             </Badge>
                           ) : (
-                            <Badge variant="outline">草稿</Badge>
+                            <Badge variant="secondary">草稿</Badge>
                           )}
                         </div>
                         {prompt.description && (

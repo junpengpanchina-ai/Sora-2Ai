@@ -15,7 +15,17 @@ interface PromptExperimentsTabProps {
  * - 一键"停止实验 / 全量发布 / 回滚"
  */
 export default function PromptExperimentsTab({ onShowBanner }: PromptExperimentsTabProps) {
-  const [experiments, setExperiments] = useState<any[]>([])
+  const [experiments, setExperiments] = useState<Array<{
+    id: string
+    title?: string
+    scene_id?: string
+    model_id?: string
+    role?: string
+    version?: number
+    rollout_pct?: number
+    weight?: number
+    parent_id?: string | null
+  }>>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -28,7 +38,7 @@ export default function PromptExperimentsTab({ onShowBanner }: PromptExperiments
       const data = await response.json()
       if (response.ok && data.prompts) {
         // 过滤出正在进行实验的 prompt（rollout_pct < 100 或有不同版本）
-        const experiments = data.prompts.filter((p: any) => 
+        const experiments = data.prompts.filter((p: { rollout_pct?: number; parent_id?: string | null }) => 
           (p.rollout_pct && p.rollout_pct < 100) || 
           (p.parent_id !== null) // 有父版本的是新版本
         )
@@ -53,35 +63,35 @@ export default function PromptExperimentsTab({ onShowBanner }: PromptExperiments
     return matchesSearch
   })
 
-  const handleStopExperiment = async (promptId: string) => {
+  const handleStopExperiment = async () => {
     if (!window.confirm('确定要停止这个实验吗？')) return
     
     try {
       // TODO: 创建 API 端点
       onShowBanner('info', '功能开发中...')
-    } catch (error) {
+    } catch {
       onShowBanner('error', '停止实验失败')
     }
   }
 
-  const handleFullRollout = async (promptId: string) => {
+  const handleFullRollout = async () => {
     if (!window.confirm('确定要全量发布这个 prompt 吗？')) return
     
     try {
       // TODO: 创建 API 端点
       onShowBanner('info', '功能开发中...')
-    } catch (error) {
+    } catch {
       onShowBanner('error', '全量发布失败')
     }
   }
 
-  const handleRollback = async (promptId: string) => {
+  const handleRollback = async () => {
     if (!window.confirm('确定要回滚这个 prompt 吗？')) return
     
     try {
       // TODO: 创建 API 端点
       onShowBanner('info', '功能开发中...')
-    } catch (error) {
+    } catch {
       onShowBanner('error', '回滚失败')
     }
   }
@@ -139,9 +149,9 @@ export default function PromptExperimentsTab({ onShowBanner }: PromptExperiments
                             <h3 className="font-semibold text-gray-900 dark:text-white">
                               {exp.title}
                             </h3>
-                            <Badge variant="outline">{exp.model_id || 'unknown'}</Badge>
-                            <Badge variant="outline">{exp.role || 'default'}</Badge>
-                            {exp.version && <Badge variant="outline">v{exp.version}</Badge>}
+                            <Badge variant="secondary">{exp.model_id || 'unknown'}</Badge>
+                            <Badge variant="secondary">{exp.role || 'default'}</Badge>
+                            {exp.version && <Badge variant="secondary">v{exp.version}</Badge>}
                           </div>
                           {exp.scene_id && (
                             <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -150,19 +160,19 @@ export default function PromptExperimentsTab({ onShowBanner }: PromptExperiments
                           )}
                         </div>
                         <div className="flex gap-2">
-                          {exp.rollout_pct < 100 && (
+                          {(exp.rollout_pct ?? 0) < 100 && (
                             <>
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                onClick={() => handleStopExperiment(exp.id)}
+                                onClick={handleStopExperiment}
                               >
                                 停止实验
                               </Button>
                               <Button 
                                 variant="primary" 
                                 size="sm"
-                                onClick={() => handleFullRollout(exp.id)}
+                                onClick={handleFullRollout}
                               >
                                 全量发布
                               </Button>
@@ -172,7 +182,7 @@ export default function PromptExperimentsTab({ onShowBanner }: PromptExperiments
                             <Button 
                               variant="outline" 
                               size="sm"
-                              onClick={() => handleRollback(exp.id)}
+                              onClick={handleRollback}
                             >
                               回滚
                             </Button>
@@ -185,7 +195,7 @@ export default function PromptExperimentsTab({ onShowBanner }: PromptExperiments
                         <div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">灰度百分比</div>
                           <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                            {exp.rollout_pct || 0}%
+                            {(exp.rollout_pct ?? 0)}%
                           </div>
                         </div>
                         <div>

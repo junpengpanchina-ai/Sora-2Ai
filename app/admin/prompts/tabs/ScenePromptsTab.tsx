@@ -16,8 +16,26 @@ interface ScenePromptsTabProps {
  * - 右侧：该 Scene 的 prompts 列表（按 model + role 分组）
  */
 export default function ScenePromptsTab({ onShowBanner }: ScenePromptsTabProps) {
-  const [scenes, setScenes] = useState<any[]>([])
-  const [prompts, setPrompts] = useState<any[]>([])
+  const [scenes, setScenes] = useState<Array<{
+    id: string
+    slug?: string
+    title?: string
+    industry?: string
+    tier?: number
+    in_sitemap?: boolean
+    ai_citation_score?: number
+  }>>([])
+  const [prompts, setPrompts] = useState<Array<{
+    id: string
+    model_id?: string
+    role?: string
+    status?: string
+    version?: number
+    is_published?: boolean
+    rollout_pct?: number
+    content?: string
+    [key: string]: unknown
+  }>>([])
   const [loading, setLoading] = useState(true)
   const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -91,7 +109,7 @@ export default function ScenePromptsTab({ onShowBanner }: ScenePromptsTabProps) 
     }
     acc[key].push(prompt)
     return acc
-  }, {} as Record<string, any[]>)
+  }, {} as Record<string, Array<{ id: string; model_id?: string; role?: string; [key: string]: unknown }>>)
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
@@ -159,16 +177,16 @@ export default function ScenePromptsTab({ onShowBanner }: ScenePromptsTabProps) 
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <Badge variant={scene.tier === 1 ? 'primary' : 'secondary'}>
+                      <Badge variant={scene.tier === 1 ? 'info' : 'secondary'}>
                         Tier {scene.tier || 'N/A'}
                       </Badge>
                       {scene.in_sitemap && (
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="secondary" className="text-xs">
                           Sitemap
                         </Badge>
                       )}
-                      {scene.ai_citation_score && scene.ai_citation_score >= 0.65 && (
-                        <Badge variant="outline" className="text-xs text-green-600">
+                      {scene.ai_citation_score !== undefined && scene.ai_citation_score >= 0.65 && (
+                        <Badge variant="success" className="text-xs">
                           High Score
                         </Badge>
                       )}
@@ -177,7 +195,7 @@ export default function ScenePromptsTab({ onShowBanner }: ScenePromptsTabProps) 
                     {scene.industry && (
                       <div className="text-xs text-gray-500">{scene.industry}</div>
                     )}
-                    {scene.ai_citation_score !== null && (
+                    {scene.ai_citation_score !== undefined && scene.ai_citation_score !== null && (
                       <div className="text-xs text-gray-500 mt-1">
                         AI Score: {scene.ai_citation_score.toFixed(2)}
                       </div>
@@ -198,11 +216,11 @@ export default function ScenePromptsTab({ onShowBanner }: ScenePromptsTabProps) 
               <CardHeader>
                 <CardTitle>场景: {selectedScene.title || selectedScene.slug}</CardTitle>
                 <div className="flex items-center gap-2 mt-2">
-                  <Badge variant={selectedScene.tier === 1 ? 'primary' : 'secondary'}>
+                  <Badge variant={selectedScene.tier === 1 ? 'info' : 'secondary'}>
                     Tier {selectedScene.tier}
                   </Badge>
                   {selectedScene.industry && (
-                    <Badge variant="outline">{selectedScene.industry}</Badge>
+                    <Badge variant="secondary">{selectedScene.industry}</Badge>
                   )}
                 </div>
               </CardHeader>
@@ -227,7 +245,7 @@ export default function ScenePromptsTab({ onShowBanner }: ScenePromptsTabProps) 
                     <CardHeader>
                       <CardTitle className="text-base">
                         {modelId} / {role}
-                        <Badge variant="outline" className="ml-2">
+                        <Badge variant="secondary" className="ml-2">
                           {groupPrompts.length} 个版本
                         </Badge>
                       </CardTitle>
@@ -241,13 +259,13 @@ export default function ScenePromptsTab({ onShowBanner }: ScenePromptsTabProps) 
                           >
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2">
-                                <Badge variant={prompt.status === 'active' ? 'primary' : 'secondary'}>
-                                  {prompt.status}
+                                <Badge variant={prompt.status === 'active' ? 'info' : 'secondary'}>
+                                  {String(prompt.status || 'unknown')}
                                 </Badge>
-                                {prompt.is_published && (
-                                  <Badge variant="outline">已发布</Badge>
+                                {Boolean(prompt.is_published) && (
+                                  <Badge variant="success">已发布</Badge>
                                 )}
-                                <span className="text-xs text-gray-500">v{prompt.version}</span>
+                                <span className="text-xs text-gray-500">v{String(prompt.version ?? 'N/A')}</span>
                               </div>
                               <div className="flex gap-2">
                                 <Button size="sm" variant="outline">
@@ -259,9 +277,9 @@ export default function ScenePromptsTab({ onShowBanner }: ScenePromptsTabProps) 
                               </div>
                             </div>
                             <div className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
-                              {prompt.content?.substring(0, 200)}...
+                              {prompt.content && typeof prompt.content === 'string' ? prompt.content.substring(0, 200) + '...' : 'No content'}
                             </div>
-                            {prompt.rollout_pct < 100 && (
+                            {prompt.rollout_pct !== undefined && prompt.rollout_pct !== null && typeof prompt.rollout_pct === 'number' && prompt.rollout_pct < 100 && (
                               <div className="text-xs text-orange-600 mt-1">
                                 灰度: {prompt.rollout_pct}%
                               </div>
