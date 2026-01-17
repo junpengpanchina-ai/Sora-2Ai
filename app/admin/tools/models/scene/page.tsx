@@ -1,6 +1,6 @@
 import { validateAdminSession } from '@/lib/admin-auth'
 import { redirect } from 'next/navigation'
-import { AdminSceneModelConfig } from '@/app/admin/_components'
+import AdminSceneModelConfig from '@/app/admin/AdminSceneModelConfig'
 
 export const dynamic = 'force-dynamic'
 

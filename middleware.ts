@@ -25,53 +25,40 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 301) // 301 永久重定向
   }
 
-  // Admin 路由重定向：旧路径 → 新路径（301/308 永久重定向）
+  // Admin 路由重定向：旧路径 → 新路径（308 永久重定向）
   if (pathname.startsWith('/admin')) {
     const REDIRECTS: Array<{ from: string; to: string }> = [
       // 老入口
       { from: '/admin', to: '/admin/dashboard' },
 
-      // 旧的"聚合页"（如果没有 tab 参数，重定向到默认 tab）
-      { from: '/admin/content', to: '/admin/content?tab=use-cases' },
-      { from: '/admin/billing', to: '/admin/billing?tab=payments' },
+      // 旧聚合
+      { from: '/admin/content', to: '/admin/content/use-cases?tab=usecases' },
+      { from: '/admin/billing', to: '/admin/billing?tab=topups' },
 
-      // 旧的散页（如果以前确实存在这些路由）
-      { from: '/admin/keywords', to: '/admin/content?tab=keywords' },
-      { from: '/admin/use-cases', to: '/admin/content?tab=use-cases' },
-      { from: '/admin/compare', to: '/admin/content?tab=compare' },
-      { from: '/admin/blog', to: '/admin/content?tab=blog' },
-      { from: '/admin/batch', to: '/admin/content?tab=batches' },
-      { from: '/admin/batch-generator', to: '/admin/content?tab=batches' },
-
-      // tools（旧路径）
-      { from: '/admin/debug', to: '/admin/tools/chat/debug' },
-      { from: '/admin/chat-debug', to: '/admin/tools/chat/debug' },
-      { from: '/admin/chat-manager', to: '/admin/tools/chat/manager' },
-      { from: '/admin/geo', to: '/admin/tools/geo' },
-      { from: '/admin/scene-config', to: '/admin/tools/models/scene' },
-      { from: '/admin/industry-config', to: '/admin/tools/models/industry' },
+      // 如果你以前确实存在这些旧路由（没有就删掉）
+      { from: '/admin/keywords', to: '/admin/content/use-cases?tab=keywords' },
+      { from: '/admin/use-cases', to: '/admin/content/use-cases?tab=usecases' },
+      { from: '/admin/compare', to: '/admin/content/compare' },
+      { from: '/admin/blog', to: '/admin/content/blog' },
+      { from: '/admin/batch', to: '/admin/content/batches' },
     ]
 
-    // 1) 先处理明确的旧路径重定向
     const hit = REDIRECTS.find(r => r.from === pathname)
-    if (hit) {
-      const url = request.nextUrl.clone()
-      const [toPath, toQuery] = hit.to.split('?')
-      url.pathname = toPath
-      url.search = toQuery ? `?${toQuery}` : ''
+    if (!hit) return NextResponse.next()
 
-      // 把旧 query 里非 tab 类参数透传过去
-      searchParams.forEach((v, k) => {
-        if (['tab', 'section', 'view', 'page'].includes(k)) return
-        if (!url.searchParams.has(k)) url.searchParams.set(k, v)
-      })
+    const url = request.nextUrl.clone()
+    const [toPath, toQuery] = hit.to.split('?')
 
-      // 使用 308 永久重定向（保留 HTTP 方法）
-      return NextResponse.redirect(url, 308)
-    }
+    url.pathname = toPath
+    url.search = toQuery ? `?${toQuery}` : ''
 
-    // 2) tab 参数层面的重定向（可选：如果你想把 AdminClient 的逻辑前置到 middleware）
-    // 这里先简单放过，交给 AdminClient 处理
+    // 透传旧 query 里非 tab 类参数（比如 id=xxx）
+    searchParams.forEach((v, k) => {
+      if (['tab', 'section', 'view', 'page'].includes(k)) return
+      if (!url.searchParams.has(k)) url.searchParams.set(k, v)
+    })
+
+    return NextResponse.redirect(url, 308)
   }
 
   // 检查是否是关键词页面的 XML 请求
@@ -134,6 +121,8 @@ export const config = {
      * - /api/auth/* (NextAuth 回调 - 绝对放行)
      */
     '/((?!_next/static|_next/image|favicon.ico|icon.svg|sitemap|robots\\.txt|auth/callback|api/auth/.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|html|xml)$).*)',
+    // Admin 路由匹配（用于重定向）
+    '/admin/:path*',
   ],
 }
 

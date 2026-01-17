@@ -1,6 +1,6 @@
 import { validateAdminSession } from '@/lib/admin-auth'
 import { redirect } from 'next/navigation'
-import { AdminGeoManager } from '@/app/admin/_components'
+import AdminGeoManager from '@/app/admin/AdminGeoManager'
 
 export const dynamic = 'force-dynamic'
 

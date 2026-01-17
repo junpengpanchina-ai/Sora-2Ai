@@ -259,90 +259,66 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
   type TabType = 'overview'
   
   /**
-   * 旧系统 tab/route → 新系统路由映射表
-   * 根据实际旧系统使用的 tab 值进行配置
+   * 旧系统 tab/section/view/page → 新系统 URL
+   * 你只需要把 key 改成你旧系统真实传过来的值（非常重要）
    */
-  const OLD_TAB_TO_NEW_URL: Record<string, string> = {
-    // 顶部一级（旧）
+  const OLD_KEY_TO_NEW_URL: Record<string, string> = {
+    // dashboard
     dashboard: '/admin/dashboard',
     overview: '/admin/dashboard',
     '总览': '/admin/dashboard',
 
-    // billing（旧：充值/消耗/调整）
-    topup: '/admin/billing?tab=payments',
-    topups: '/admin/billing?tab=payments',
-    recharge: '/admin/billing?tab=payments',
-    recharges: '/admin/billing?tab=payments',
-    '充值记录': '/admin/billing?tab=payments',
+    // billing tabs
+    topup: '/admin/billing?tab=topups',
+    topups: '/admin/billing?tab=topups',
+    recharge: '/admin/billing?tab=topups',
+    '充值记录': '/admin/billing?tab=topups',
 
     usage: '/admin/billing?tab=usage',
     consume: '/admin/billing?tab=usage',
-    consumption: '/admin/billing?tab=usage',
     '消耗记录': '/admin/billing?tab=usage',
 
     adjust: '/admin/billing?tab=adjustments',
     adjustments: '/admin/billing?tab=adjustments',
     '积分调整': '/admin/billing?tab=adjustments',
 
-    // content（旧：使用场景/长尾词/对比页/博客/批量生成）
-    'use-cases': '/admin/content?tab=use-cases',
-    usecases: '/admin/content?tab=use-cases',
-    scenes: '/admin/content?tab=use-cases',
-    '使用场景': '/admin/content?tab=use-cases',
+    // content
+    usecases: '/admin/content/use-cases?tab=usecases',
+    scenes: '/admin/content/use-cases?tab=usecases',
+    '使用场景': '/admin/content/use-cases?tab=usecases',
 
-    keywords: '/admin/content?tab=keywords',
-    '长尾词': '/admin/content?tab=keywords',
+    keywords: '/admin/content/use-cases?tab=keywords',
+    '长尾词': '/admin/content/use-cases?tab=keywords',
 
-    compare: '/admin/content?tab=compare',
-    'compare-pages': '/admin/content?tab=compare',
-    '对比页': '/admin/content?tab=compare',
+    compare: '/admin/content/compare',
+    '对比页': '/admin/content/compare',
 
-    blog: '/admin/content?tab=blog',
-    '博客文章': '/admin/content?tab=blog',
+    blog: '/admin/content/blog',
+    '博客文章': '/admin/content/blog',
 
-    batches: '/admin/content?tab=batches',
-    batch: '/admin/content?tab=batches',
-    'batch-generator': '/admin/content?tab=batches',
-    '批量生成': '/admin/content?tab=batches',
+    batches: '/admin/content/batches',
+    batch: '/admin/content/batches',
+    '批量生成': '/admin/content/batches',
 
     // prompts / landing
     prompts: '/admin/prompts',
     '提示词库': '/admin/prompts',
 
-    homepage: '/admin/landing',
-    landing: '/admin/landing',
-    '首页管理': '/admin/landing',
+    homepage: '/admin/landing/home',
+    landing: '/admin/landing/home',
+    '首页管理': '/admin/landing/home',
 
     // tools（隐藏）
-    'chat-debug': '/admin/tools/chat/debug',
     chat_debug: '/admin/tools/chat/debug',
-    '聊天调试': '/admin/tools/chat/debug',
-
-    'chat-manager': '/admin/tools/chat/manager',
     chat_manager: '/admin/tools/chat/manager',
-
     geo: '/admin/tools/geo',
-    'GEO': '/admin/tools/geo',
-
-    // models / config
-    'scene-config': '/admin/tools/models/scene',
     scene_model: '/admin/tools/models/scene',
-    '场景配置': '/admin/tools/models/scene',
-
     industry_model: '/admin/tools/models/industry',
-    '行业配置': '/admin/tools/models/industry',
-
-    // 以下建议删除的功能，重定向到 dashboard
-    'seo-chat': '/admin/dashboard',
-    'admin-chat': '/admin/dashboard',
-    videos: '/admin/dashboard', // 可选：后续可迁移到 /admin/ops/video-tasks
-    issues: '/admin/dashboard', // 可选：后续可迁移到 /admin/ops/feedback
+    '场景配置': '/admin/tools/models/scene',
   }
 
-  /**
-   * 从 URL 参数中提取旧系统的 key（支持多种参数名）
-   */
-  function pickOldKey(sp: URLSearchParams): string {
+  /** 兼容旧系统可能用 tab / section / view / page */
+  function pickOldKey(sp: URLSearchParams) {
     return (
       sp.get('tab') ||
       sp.get('section') ||
@@ -352,17 +328,11 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     ).trim()
   }
 
-  /**
-   * 合并查询参数：保留旧 URL 中除 tab/section/view/page 外的其他参数
-   */
-  function mergeQueryPreserveOtherParams(
-    oldParams: URLSearchParams,
-    targetUrl: string
-  ): string {
+  /** 把旧 query 里除 tab/section/view/page 外的参数保留下来（比如 id=xxx） */
+  function mergeQueryPreserveOtherParams(oldParams: URLSearchParams, targetUrl: string) {
     const [base, targetQuery] = targetUrl.split('?')
     const next = new URLSearchParams(targetQuery || '')
 
-    // 把旧 params 里除 tab/section/view/page 外的参数保留过去
     oldParams.forEach((v, k) => {
       if (['tab', 'section', 'view', 'page'].includes(k)) return
       if (!next.has(k)) next.set(k, v)
@@ -374,31 +344,28 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
 
   // 检测并重定向旧 tab 参数
   useEffect(() => {
-    // 1) 只在 /admin* 下工作
-    if (!pathname || !pathname.startsWith('/admin')) return
+    if (!pathname?.startsWith('/admin')) return
 
-    // 2) 旧 key（tab/section/view/page）
-    const key = pickOldKey(searchParams)
-    if (key && OLD_TAB_TO_NEW_URL[key]) {
-      const target = mergeQueryPreserveOtherParams(
-        new URLSearchParams(searchParams.toString()),
-        OLD_TAB_TO_NEW_URL[key]
-      )
-      console.log(`[AdminClient] 重定向旧 tab "${key}" → "${target}"`)
-      // replace 防止历史栈污染
-      router.replace(target)
-      return
-    }
-
-    // 3) 旧路径兼容：/admin/content 默认应该落在 /admin/content?tab=use-cases
-    if (pathname === '/admin/content' && !searchParams.get('tab')) {
-      router.replace('/admin/content?tab=use-cases')
-      return
-    }
-
-    // 4) /admin 直接落 dashboard
+    // 1) /admin → /admin/dashboard
     if (pathname === '/admin') {
       router.replace('/admin/dashboard')
+      return
+    }
+
+    // 2) /admin/content（旧聚合）→ 默认落 use-cases
+    if (pathname === '/admin/content') {
+      router.replace('/admin/content/use-cases?tab=usecases')
+      return
+    }
+
+    // 3) 旧 tab/section/view/page → 新 URL
+    const key = pickOldKey(new URLSearchParams(searchParams.toString()))
+    if (key && OLD_KEY_TO_NEW_URL[key]) {
+      const target = mergeQueryPreserveOtherParams(
+        new URLSearchParams(searchParams.toString()),
+        OLD_KEY_TO_NEW_URL[key]
+      )
+      router.replace(target)
       return
     }
   }, [pathname, router, searchParams])

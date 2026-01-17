@@ -1,6 +1,6 @@
 import { validateAdminSession } from '@/lib/admin-auth'
 import { redirect } from 'next/navigation'
-import { AdminChatDebug } from '@/app/admin/_components'
+import AdminChatDebug from '@/app/admin/AdminChatDebug'
 
 export const dynamic = 'force-dynamic'
 
