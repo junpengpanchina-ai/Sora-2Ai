@@ -217,6 +217,12 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const [hydratedProfile, setHydratedProfile] = useState<UserProfile | null>(userProfile)
   const [stats, setStats] = useState<Stats | null>(null)
   const [credits, setCredits] = useState<number>(userProfile?.credits || 0)
+  const [walletInfo, setWalletInfo] = useState<{
+    permanentCredits: number
+    bonusCredits: number
+    bonusExpiresAt: string | null
+    totalAvailable: number
+  } | null>(null)
   const [showPricingModal, setShowPricingModal] = useState(false)
   const [imagesReady, setImagesReady] = useState(false)
   const [copiedTemplateId, setCopiedTemplateId] = useState<string | null>(null)
@@ -686,6 +692,48 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     }
   }, [hydratedProfile, getAuthHeaders, supabase])
 
+  // Fetch wallet info (including bonus credits)
+  useEffect(() => {
+    if (!hydratedProfile || !supabase) {
+      setWalletInfo(null)
+      return
+    }
+
+    let isMounted = true
+
+    const fetchWalletInfo = async () => {
+      try {
+        const headers = await getAuthHeaders()
+        const response = await fetch('/api/wallet', {
+          headers,
+        })
+        if (!response.ok) {
+          return
+        }
+        const data = await response.json()
+        if (!isMounted || !data?.success) {
+          return
+        }
+        setWalletInfo(data.wallet)
+        // Also update total credits
+        if (data.wallet?.totalAvailable !== undefined) {
+          setCredits(data.wallet.totalAvailable)
+        }
+      } catch (error) {
+        console.error('Failed to fetch wallet info:', error)
+      }
+    }
+
+    fetchWalletInfo()
+    // Refresh wallet info every 30 seconds
+    const interval = setInterval(fetchWalletInfo, 30000)
+    
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
+  }, [hydratedProfile, supabase, getAuthHeaders])
+
   const handleCopyTemplate = useCallback(async (templateId: string, promptText: string) => {
     try {
       if (navigator.clipboard?.writeText) {
@@ -879,10 +927,25 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               
               {hydratedProfile ? (
                 <>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-energy-water-surface dark:bg-energy-water-muted">
+                <div className="flex flex-col items-end gap-1 px-3 py-1.5 rounded-lg bg-energy-water-surface dark:bg-energy-water-muted">
                   <span className="text-sm font-medium text-energy-water dark:text-energy-soft">
                     Credits: {credits}
                   </span>
+                  {walletInfo && walletInfo.bonusCredits > 0 && (
+                    <span className="text-xs text-orange-600 dark:text-orange-400">
+                      临时积分: {walletInfo.bonusCredits}
+                      {walletInfo.bonusExpiresAt && (
+                        <span className="ml-1">
+                          ({new Date(walletInfo.bonusExpiresAt).toLocaleDateString('zh-CN', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}过期)
+                        </span>
+                      )}
+                    </span>
+                  )}
                 </div>
                 {hydratedProfile.avatar_url ? (
                   <img

@@ -307,6 +307,8 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     reason: '',
     relatedRechargeId: '',
     relatedConsumptionId: '',
+    creditType: 'permanent' as 'permanent' | 'bonus',
+    bonusExpiresDays: '',
   })
 
   // 只在浏览器环境中创建 Supabase 客户端
@@ -1094,6 +1096,15 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
           payload.relatedConsumptionId = adjustForm.relatedConsumptionId.trim()
         }
 
+        // Add credit type and bonus expiration days
+        payload.creditType = adjustForm.creditType
+        if (adjustForm.creditType === 'bonus' && adjustForm.bonusExpiresDays.trim()) {
+          const expiresDays = Number(adjustForm.bonusExpiresDays)
+          if (Number.isFinite(expiresDays) && expiresDays > 0) {
+            payload.bonusExpiresDays = Math.trunc(expiresDays)
+          }
+        }
+
         const response = await fetch('/api/admin/credits', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1119,6 +1130,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
           reason: '',
           relatedRechargeId: '',
           relatedConsumptionId: '',
+          bonusExpiresDays: '',
         }))
         fetchAdjustments()
         fetchData()
@@ -1994,6 +2006,46 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                             </option>
                           ))}
                         </select>
+                      </div>
+
+                      <div className="md:col-span-1">
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                          积分类型
+                        </label>
+                        <select
+                          className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                          value={adjustForm.creditType}
+                          onChange={(event) =>
+                            setAdjustForm((prev) => ({
+                              ...prev,
+                              creditType: event.target.value as 'permanent' | 'bonus',
+                            }))
+                          }
+                        >
+                          <option value="permanent">永久积分</option>
+                          <option value="bonus">临时积分（零时积分）</option>
+                        </select>
+                        {adjustForm.creditType === 'bonus' && (
+                          <div className="mt-2">
+                            <label className="text-xs text-gray-500 dark:text-gray-400">
+                              过期天数（可选，默认7天）
+                            </label>
+                            <Input
+                              type="number"
+                              className="mt-1"
+                              placeholder="例如：7"
+                              value={adjustForm.bonusExpiresDays}
+                              onChange={(event) =>
+                                setAdjustForm((prev) => ({ ...prev, bonusExpiresDays: event.target.value }))
+                              }
+                              min="1"
+                              step="1"
+                            />
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                              临时积分用于促进用户消耗，建议设置较短的过期时间
+                            </p>
+                          </div>
+                        )}
                       </div>
 
                       <div className="md:col-span-1">

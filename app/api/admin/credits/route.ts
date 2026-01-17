@@ -151,6 +151,8 @@ export async function POST(request: Request) {
       reason?: string | null
       relatedRechargeId?: string | null
       relatedConsumptionId?: string | null
+      creditType?: 'permanent' | 'bonus'
+      bonusExpiresDays?: number | null
     }
 
     if (!payload) {
@@ -215,6 +217,9 @@ export async function POST(request: Request) {
     }
 
     // 调用存储过程，原子性地调整积分并记录
+    const creditType = payload.creditType ?? 'permanent'
+    const bonusExpiresDays = payload.bonusExpiresDays ?? null
+    
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: adjustment, error } = await (supabase as any).rpc('admin_adjust_user_credits', {
       p_admin_user_id: adminUser.id,
@@ -224,6 +229,8 @@ export async function POST(request: Request) {
       p_adjustment_type: adjustmentType,
       p_related_recharge_id: payload.relatedRechargeId ?? null,
       p_related_consumption_id: payload.relatedConsumptionId ?? null,
+      p_credit_type: creditType,
+      p_bonus_expires_days: bonusExpiresDays,
     })
 
     if (error || !adjustment) {
