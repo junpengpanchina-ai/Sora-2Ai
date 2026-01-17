@@ -1153,42 +1153,47 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">管理员后台</h1>
               <div className="flex flex-wrap gap-2">
                 {[
-                  { value: 'overview', label: '总览' },
-                  { value: 'recharges', label: '充值记录' },
-                  { value: 'consumption', label: '消耗记录' },
-                  { value: 'videos', label: '视频任务' },
-                  { value: 'issues', label: '售后反馈' },
-                  { value: 'adjustments', label: '积分调整' },
-                  { value: 'prompts', label: '提示词库' },
-                  { value: 'keywords', label: '长尾词' },
-                  { value: 'blog', label: '博客文章' },
-                  { value: 'use-cases', label: '使用场景' },
-                  { value: 'compare-pages', label: '对比页' },
-                  { value: 'batch-generator', label: '批量生成' },
-                  { value: 'seo-chat', label: 'SEO 助手' },
-                  { value: 'admin-chat', label: 'AI 助手' },
-                  { value: 'chat-debug', label: '聊天调试' },
-                  { value: 'homepage', label: '首页管理' },
-                  { value: 'scene-config', label: '场景配置' },
-                ].map((tab) => (
-                  <button
-                    key={tab.value}
-                    type="button"
-                    onClick={() => {
-                      console.log('切换标签页:', tab.value)
-                      const newTab = tab.value as typeof activeTab
-                      setActiveTab(newTab)
-                      // 更新 URL 以保持状态，即使错误边界重置也能恢复
-                      router.push(`/admin?tab=${newTab}`, { scroll: false })
-                    }}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                      activeTab === tab.value
-                        ? 'bg-energy-water text-white'
-                        : 'text-gray-700 hover:bg-energy-water-surface dark:text-gray-300 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
+                  { value: 'overview', label: '总览', href: '/admin' },
+                  { value: 'billing', label: '计费中心', href: '/admin/billing' },
+                  { value: 'content', label: '内容库', href: '/admin/content' },
+                  { value: 'prompts', label: '提示词', href: '/admin/prompts' },
+                  { value: 'landing', label: '首页管理', href: '/admin/landing' },
+                  // 以下保留在旧 tab 中,稍后迁移到 Ops 或 Tools
+                  { value: 'videos', label: '视频任务', href: '/admin?tab=videos' },
+                  { value: 'issues', label: '售后反馈', href: '/admin?tab=issues' },
+                ].map((item) => (
+                  item.href ? (
+                    <Link key={item.value} href={item.href}>
+                      <button
+                        type="button"
+                        className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                          activeTab === item.value || (item.href.startsWith('/admin/') && typeof window !== 'undefined' && window.location.pathname === item.href)
+                            ? 'bg-energy-water text-white'
+                            : 'text-gray-700 hover:bg-energy-water-surface dark:text-gray-300 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    </Link>
+                  ) : (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => {
+                        console.log('切换标签页:', item.value)
+                        const newTab = item.value as typeof activeTab
+                        setActiveTab(newTab)
+                        router.push(`/admin?tab=${newTab}`, { scroll: false })
+                      }}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                        activeTab === item.value
+                          ? 'bg-energy-water text-white'
+                          : 'text-gray-700 hover:bg-energy-water-surface dark:text-gray-300 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  )
                 ))}
               </div>
             </div>
