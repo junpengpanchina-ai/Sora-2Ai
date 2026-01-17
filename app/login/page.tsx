@@ -14,12 +14,11 @@ const OAuthErrorLogger = dynamic(() => import('@/components/OAuthErrorLogger'), 
 })
 
 // Lazy load login components to improve initial page load
-// Temporarily disabled until Google OAuth configuration is fixed
-// const LoginButton = dynamic(() => import('@/components/LoginButton'), {
-//   loading: () => (
-//     <div className="w-full h-12 rounded-xl bg-white/10 animate-pulse" />
-//   ),
-// })
+const LoginButton = dynamic(() => import('@/components/LoginButton'), {
+  loading: () => (
+    <div className="w-full h-12 rounded-xl bg-white/10 animate-pulse" />
+  ),
+})
 
 const EmailLoginForm = dynamic(() => import('@/components/EmailLoginForm'), {
   loading: () => (
@@ -59,7 +58,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
             Welcome to Sora2Ai
           </h1>
           <p className="celestial-subtitle mx-auto max-w-2xl text-base sm:text-lg">
-            Sign in with your email to create, monitor, and ship AI videos inside a single
+            Sign in with your Google account to create, monitor, and ship AI videos inside a single
             starfield console that keeps everything encrypted end-to-end.
           </p>
           
@@ -127,36 +126,18 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 
           <div className="space-y-6">
             <div className="space-y-4">
-              {/* Google Sign-in temporarily disabled - Immediate fix for access_denied issue */}
-              <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4 backdrop-blur-sm">
-                <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 flex-shrink-0 text-yellow-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-yellow-100 mb-1">
-                      Google sign-in is temporarily unavailable.
-                    </p>
-                    <p className="text-xs text-yellow-100/90">
-                      Please use Email Magic Link to continue. We&apos;ll restore Google sign-in shortly.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Google login button temporarily hidden until OAuth configuration is fixed */}
-              {/* Uncomment below and remove the warning above once Google OAuth is properly configured */}
-              {/* <LoginButton className="celestial-cta shadow-[0_30px_100px_-45px_rgba(59,130,246,1)] hover:-translate-y-1" /> */}
+              {/* Google login button */}
+              <LoginButton className="celestial-cta shadow-[0_30px_100px_-45px_rgba(59,130,246,1)] hover:-translate-y-1" />
               
-              {/* Divider - only show when Google login is enabled */}
-              {/* <div className="relative my-6">
+              {/* Divider */}
+              <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-white/20"></div>
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
                   <span className="bg-[#030b2c] px-2 text-white/60">Or continue with</span>
                 </div>
-              </div> */}
+              </div>
 
               {/* Email Magic Link Login */}
               <EmailLoginForm />
@@ -212,7 +193,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
         <div className="celestial-status mt-10 flex flex-wrap items-center justify-center gap-4 text-xs">
           <div className="celestial-status__item flex items-center gap-2">
             <span className="celestial-status__dot celestial-status__dot--emerald" />
-            <span>Email sign-in · Encrypted</span>
+            <span>Google sign-in · Encrypted</span>
           </div>
           <div className="celestial-status__item flex items-center gap-2">
             <span className="celestial-status__dot celestial-status__dot--azure" />
