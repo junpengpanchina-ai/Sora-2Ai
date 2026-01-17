@@ -26,16 +26,14 @@ export async function middleware(request: NextRequest) {
   }
 
   // Admin 路由重定向：旧路径 → 新路径（308 永久重定向）
+  // 注意：只重定向不存在的旧路径，不要重定向已经存在的路径（如 /admin/billing, /admin/content）
   if (pathname.startsWith('/admin')) {
     const REDIRECTS: Array<{ from: string; to: string }> = [
-      // 老入口
+      // 老入口（/admin 没有对应的 page.tsx，需要重定向）
       { from: '/admin', to: '/admin/dashboard' },
 
-      // 旧聚合
-      { from: '/admin/content', to: '/admin/content/use-cases?tab=usecases' },
-      { from: '/admin/billing', to: '/admin/billing?tab=topups' },
-
       // 如果你以前确实存在这些旧路由（没有就删掉）
+      // 注意：/admin/billing 和 /admin/content 已经有对应的页面，不要重定向
       { from: '/admin/keywords', to: '/admin/content/use-cases?tab=keywords' },
       { from: '/admin/use-cases', to: '/admin/content/use-cases?tab=usecases' },
       { from: '/admin/compare', to: '/admin/content/compare' },

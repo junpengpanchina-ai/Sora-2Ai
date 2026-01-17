@@ -269,10 +269,10 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     '总览': '/admin/dashboard',
 
     // billing tabs
-    topup: '/admin/billing?tab=topups',
-    topups: '/admin/billing?tab=topups',
-    recharge: '/admin/billing?tab=topups',
-    '充值记录': '/admin/billing?tab=topups',
+    topup: '/admin/billing?tab=payments',
+    topups: '/admin/billing?tab=payments',
+    recharge: '/admin/billing?tab=payments',
+    '充值记录': '/admin/billing?tab=payments',
 
     usage: '/admin/billing?tab=usage',
     consume: '/admin/billing?tab=usage',
@@ -283,12 +283,13 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
     '积分调整': '/admin/billing?tab=adjustments',
 
     // content
-    usecases: '/admin/content/use-cases?tab=usecases',
-    scenes: '/admin/content/use-cases?tab=usecases',
-    '使用场景': '/admin/content/use-cases?tab=usecases',
+    usecases: '/admin/content?tab=use-cases',
+    'use-cases': '/admin/content?tab=use-cases',
+    scenes: '/admin/content?tab=use-cases',
+    '使用场景': '/admin/content?tab=use-cases',
 
-    keywords: '/admin/content/use-cases?tab=keywords',
-    '长尾词': '/admin/content/use-cases?tab=keywords',
+    keywords: '/admin/content?tab=keywords',
+    '长尾词': '/admin/content?tab=keywords',
 
     compare: '/admin/content/compare',
     '对比页': '/admin/content/compare',
@@ -348,25 +349,26 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
 
     // 1) /admin → /admin/dashboard
     if (pathname === '/admin') {
+      console.log('[AdminClient] 重定向 /admin → /admin/dashboard')
       router.replace('/admin/dashboard')
       return
     }
 
-    // 2) /admin/content（旧聚合）→ 默认落 use-cases
-    if (pathname === '/admin/content') {
-      router.replace('/admin/content/use-cases?tab=usecases')
-      return
-    }
-
-    // 3) 旧 tab/section/view/page → 新 URL
+    // 2) /admin/content 和 /admin/billing 已经有对应的页面，不要重定向
+    // 只处理旧 tab 参数的重定向
     const key = pickOldKey(new URLSearchParams(searchParams.toString()))
     if (key && OLD_KEY_TO_NEW_URL[key]) {
       const target = mergeQueryPreserveOtherParams(
         new URLSearchParams(searchParams.toString()),
         OLD_KEY_TO_NEW_URL[key]
       )
-      router.replace(target)
-      return
+      // 避免重定向到当前路径（防止循环）
+      const currentUrl = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+      if (target !== currentUrl) {
+        console.log(`[AdminClient] 重定向旧 tab "${key}": ${currentUrl} → ${target}`)
+        router.replace(target)
+        return
+      }
     }
   }, [pathname, router, searchParams])
   
