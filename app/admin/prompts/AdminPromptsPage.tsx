@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { Button } from '@/components/ui'
 import Link from 'next/link'
-import AdminPromptsManager from '../AdminPromptsManager'
+import AdminPromptsManagerV2 from './AdminPromptsManagerV2'
 
 interface AdminPromptsPageProps {
   adminUser: {
@@ -68,7 +68,7 @@ export default function AdminPromptsPage({ adminUser }: AdminPromptsPageProps) {
             {banner.text}
           </div>
         )}
-        <AdminPromptsManager onShowBanner={showBanner} />
+        <AdminPromptsManagerV2 onShowBanner={showBanner} />
       </main>
     </div>
   )
