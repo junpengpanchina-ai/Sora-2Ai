@@ -411,6 +411,109 @@ export interface Database {
           is_in_sitemap?: boolean
         }
       }
+      prompt_templates: {
+        Row: {
+          id: string
+          owner_scope: 'scene' | 'global'
+          scene_id: string | null
+          model_id: string
+          role: 'default' | 'fast' | 'high_quality' | 'long_form' | 'ads' | 'social' | 'compliance_safe'
+          content: string
+          variables: Json
+          version: number
+          parent_id: string | null
+          status: 'draft' | 'active' | 'deprecated'
+          is_published: boolean
+          weight: number
+          rollout_pct: number
+          min_plan: string | null
+          locale: string | null
+          notes: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          owner_scope?: 'scene' | 'global'
+          scene_id?: string | null
+          model_id: string
+          role: 'default' | 'fast' | 'high_quality' | 'long_form' | 'ads' | 'social' | 'compliance_safe'
+          content: string
+          variables?: Json
+          version?: number
+          parent_id?: string | null
+          status?: 'draft' | 'active' | 'deprecated'
+          is_published?: boolean
+          weight?: number
+          rollout_pct?: number
+          min_plan?: string | null
+          locale?: string | null
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          owner_scope?: 'scene' | 'global'
+          scene_id?: string | null
+          model_id?: string
+          role?: 'default' | 'fast' | 'high_quality' | 'long_form' | 'ads' | 'social' | 'compliance_safe'
+          content?: string
+          variables?: Json
+          version?: number
+          parent_id?: string | null
+          status?: 'draft' | 'active' | 'deprecated'
+          is_published?: boolean
+          weight?: number
+          rollout_pct?: number
+          min_plan?: string | null
+          locale?: string | null
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      scene_prompt_bindings: {
+        Row: {
+          id: number
+          scene_id: string
+          prompt_id: string
+          is_default: boolean
+          priority: number
+          enabled: boolean
+          last_used_at: string | null
+          success_rate: number | null
+          quality_score: number | null
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          scene_id: string
+          prompt_id: string
+          is_default?: boolean
+          priority?: number
+          enabled?: boolean
+          last_used_at?: string | null
+          success_rate?: number | null
+          quality_score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          scene_id?: string
+          prompt_id?: string
+          is_default?: boolean
+          priority?: number
+          enabled?: boolean
+          last_used_at?: string | null
+          success_rate?: number | null
+          quality_score?: number | null
+          updated_at?: string
+        }
+      }
       long_tail_keywords: {
         Row: {
           id: string
@@ -605,6 +708,13 @@ export interface Database {
           created_by_admin_id: string | null
           created_at: string
           updated_at: string
+          // 新增字段：SEO/GEO 控制
+          tier: number | null
+          in_sitemap: boolean | null
+          noindex: boolean | null
+          canonical_url: string | null
+          ai_citation_score: number | null
+          index_health_status: string | null
         }
         Insert: {
           id?: string
@@ -628,6 +738,13 @@ export interface Database {
           created_by_admin_id?: string | null
           created_at?: string
           updated_at?: string
+          // 新增字段
+          tier?: number | null
+          in_sitemap?: boolean | null
+          noindex?: boolean | null
+          canonical_url?: string | null
+          ai_citation_score?: number | null
+          index_health_status?: string | null
         }
         Update: {
           id?: string
@@ -649,6 +766,13 @@ export interface Database {
           reviewed_by_admin_id?: string | null
           reviewed_at?: string | null
           created_by_admin_id?: string | null
+          // 新增字段
+          tier?: number | null
+          in_sitemap?: boolean | null
+          noindex?: boolean | null
+          canonical_url?: string | null
+          ai_citation_score?: number | null
+          index_health_status?: string | null
           created_at?: string
           updated_at?: string
         }
