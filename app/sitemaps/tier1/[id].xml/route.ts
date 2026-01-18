@@ -6,6 +6,10 @@ export const dynamic = "force-dynamic";
 
 const CHUNK_SIZE = 5000;
 
+function xmlEscape(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 type SitemapRow = { loc: string; lastmod: string };
 
 type RpcResult = { data: unknown; error: { message: string } | null };
@@ -41,9 +45,9 @@ export async function GET(
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${rows.map((r) => {
-      const lastmod = new Date(r.lastmod).toISOString();
-      return `  <url><loc>${r.loc}</loc><lastmod>${lastmod}</lastmod></url>`;
+${(rows || []).map((r) => {
+      const lastmod = r.lastmod ? new Date(r.lastmod).toISOString() : new Date().toISOString();
+      return `  <url><loc>${xmlEscape(String(r.loc || ""))}</loc><lastmod>${lastmod}</lastmod></url>`;
     }).join("\n")}
 </urlset>`;
 

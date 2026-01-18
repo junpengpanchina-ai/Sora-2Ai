@@ -47,6 +47,35 @@ export interface Database {
           credits?: number
         }
       }
+      redirect_map: {
+        Row: {
+          id: number
+          from_path: string
+          to_path: string
+          code: number
+          reason: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          from_path: string
+          to_path: string
+          code?: number
+          reason?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          from_path?: string
+          to_path?: string
+          code?: number
+          reason?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
       video_tasks: {
         Row: {
           id: string

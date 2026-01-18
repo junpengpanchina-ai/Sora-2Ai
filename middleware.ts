@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { updateSession } from './lib/supabase/middleware'
 import { getLanguageFromRequest } from './lib/i18n'
 
@@ -23,6 +24,27 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone()
     url.hostname = hostname.replace('www.', '')
     return NextResponse.redirect(url, 301) // 301 永久重定向
+  }
+
+  // 308/301 映射：只对 /use-cases/* 生效，查 redirect_map（硬合并开关）
+  if (pathname.startsWith('/use-cases/')) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } })
+        const { data } = await supabase
+          .from('redirect_map')
+          .select('to_path, code')
+          .eq('from_path', pathname)
+          .maybeSingle()
+        if (data?.to_path && data.to_path !== pathname) {
+          const url = request.nextUrl.clone()
+          url.pathname = data.to_path
+          return NextResponse.redirect(url, { status: (data.code === 301 ? 301 : 308) as 301 | 308 })
+        }
+      } catch (_) { /* 查表失败则放行 */ }
+    }
   }
 
   // Admin 路由重定向：旧路径 → 新路径（308 永久重定向）
