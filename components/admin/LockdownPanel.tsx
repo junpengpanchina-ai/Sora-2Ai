@@ -19,6 +19,12 @@ const TREND_DISPLAY: Record<string, string> = {
   down: '↓',
 }
 
+function getTodayLocal(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
 function deriveFromEntries(entries: LockdownDailyEntry[]): {
   status: LockdownStatus
   metrics: LockdownMetric[]
@@ -144,6 +150,8 @@ export function LockdownPanel() {
   }, [fetchEntries])
 
   const { status, metrics, lastUpdated } = deriveFromEntries(entries)
+  const today = getTodayLocal()
+  const hasToday = entries.some((e) => e.date === today)
 
   if (loading) {
     return (
@@ -159,6 +167,12 @@ export function LockdownPanel() {
       <LockdownMetricsTable metrics={metrics} />
       <LockdownActionHint status={status} />
       <LockdownFooterNote />
+
+      {!hasToday && !showForm && (
+        <div className="mt-4 rounded-lg border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200/95">
+          今日尚未填报，请完成 GSC 5 指标后点击下方「今日填报」。
+        </div>
+      )}
 
       {showForm ? (
         <LockdownForm
