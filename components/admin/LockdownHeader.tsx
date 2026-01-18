@@ -21,6 +21,9 @@ export function LockdownHeader({
       <div className="mt-1 text-sm text-white/60">
         当前阶段：稳定期（Lockdown） · 最近更新 {lastUpdated}
       </div>
+      <div className="mt-1 text-xs text-white/40">
+        Current Phase: LOCKDOWN. Architecture completed. Waiting for Google / LLM trust ramp. Expansion is blocked by design.
+      </div>
     </div>
   )
 }

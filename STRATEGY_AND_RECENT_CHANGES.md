@@ -140,6 +140,8 @@
 | **FINAL_EXECUTION_PLAN_$20_LOCK.md** | 预算封顶、Phase A/B/C/D、主 Scene 候选 SQL |
 | **BUILD_REPORT.md** | `npm run build` 结果、ESLint 警告、路由概览 |
 | **LOCKDOWN_14DAY_MONITORING.md** | 14 天只观察不动：监控清单、第 15 天阈值表、填表模板、面板字段映射 |
+| **OWNER_BRIEF_LOCKDOWN.md** | Owner 决策交接 / 反误操作；最高优先级；仅 Owner 可解除 Lockdown |
+| **OWNER_DECISION_CARD_A4.md** | 一页老板决策卡片，贴 Admin / Notion |
 
 ---
 
