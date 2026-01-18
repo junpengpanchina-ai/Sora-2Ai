@@ -100,7 +100,12 @@ export async function GET(request: Request) {
           code: errorInfo.code || 'TIMEOUT',
           hint: errorInfo.hint 
         },
-        { status: 502 }
+        { 
+          status: 502,
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+          },
+        }
       )
     }
 
@@ -148,19 +153,31 @@ export async function GET(request: Request) {
       count = null
     }
 
-    return NextResponse.json({
-      success: true,
-      items,
-      page,
-      limit,
-      totalCount: count,
-      hasMore: count !== null ? offset + items.length < count : items.length === limit,
-    })
+    return NextResponse.json(
+      {
+        success: true,
+        items,
+        page,
+        limit,
+        totalCount: count,
+        hasMore: count !== null ? offset + items.length < count : items.length === limit,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+        },
+      }
+    )
   } catch (error) {
     console.error('[api/use-cases] exception:', error)
     return NextResponse.json(
       { error: 'Failed to load use cases', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+        },
+      }
     )
   }
 }

@@ -336,19 +336,31 @@ export async function generateMetadata({
   }
 
   const url = `${getBaseUrl()}/use-cases/${params.slug}`
+  const canonical =
+    useCase.canonical_url && typeof useCase.canonical_url === 'string' && useCase.canonical_url.trim().length > 0
+      ? useCase.canonical_url.startsWith('http')
+        ? useCase.canonical_url
+        : `${getBaseUrl()}${useCase.canonical_url.startsWith('/') ? '' : '/'}${useCase.canonical_url}`
+      : url
   const title = `${useCase.title} - AI Video Use Case | Sora Alternative`
   const description = useCase.description || `Learn how to use AI video generation for ${useCase.title.toLowerCase()}. Create professional videos with our Sora alternative text-to-video AI tool.`
 
   return {
     title,
     description,
+    robots: useCase.noindex
+      ? {
+          index: false,
+          follow: true,
+        }
+      : undefined,
     alternates: {
-      canonical: url,
+      canonical,
     },
     openGraph: {
       title,
       description,
-      url,
+      url: canonical,
       type: 'article',
     },
   }
@@ -387,6 +399,25 @@ export default async function UseCasePage({ params }: { params: { slug: string }
     if (!useCase) {
       console.warn('[UseCasePage] 使用场景不存在:', params.slug)
       notFound()
+    }
+
+    // ✅ 合并页：如果设置了 canonical_url，直接重定向到 canonical（把近似句式/重复页收敛到主 Scene）
+    if (
+      useCase.canonical_url &&
+      typeof useCase.canonical_url === 'string' &&
+      useCase.canonical_url.trim().length > 0
+    ) {
+      const target = useCase.canonical_url.startsWith('http')
+        ? useCase.canonical_url
+        : useCase.canonical_url.startsWith('/')
+          ? useCase.canonical_url
+          : `/${useCase.canonical_url}`
+
+      const current = `/use-cases/${params.slug.trim()}`
+      if (target !== current) {
+        const { redirect } = await import('next/navigation')
+        redirect(target)
+      }
     }
 
     // 确保 seo_keywords 是有效的数组

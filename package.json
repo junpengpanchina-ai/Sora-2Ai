@@ -44,7 +44,9 @@
     "calculate:ai-citation:v2": "node scripts/calculate-ai-citation-top5000-v2.js",
     "calculate:ai-scores:batch": "tsx scripts/recalculate-ai-citation-scores.ts",
     "generate:tier1-links": "tsx scripts/generate-tier1-internal-links.ts",
-    "monitor:ai-serp": "tsx scripts/run-ai-serp-checks.ts"
+    "monitor:ai-serp": "tsx scripts/run-ai-serp-checks.ts",
+    "execute:ai-citation-migration": "tsx scripts/execute-ai-citation-migration.ts",
+    "classify-keywords": "tsx scripts/classify-keywords.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.927.0",
