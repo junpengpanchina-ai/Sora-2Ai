@@ -3,6 +3,13 @@
  * 策略见 LOCKDOWN_14DAY_MONITORING.md
  */
 
+/** 全局锁仓阶段：只读、只由 judgeDay15 计算，Admin 内不可手改 */
+export type LockdownPhase =
+  | 'LOCKDOWN'   // 锁仓期（默认，<14 天数据）
+  | 'HOLD'       // 继续观察
+  | 'EXPAND'     // 允许下一批（唯一放行）
+  | 'STOP'       // 禁止扩展（异常）
+
 export type LockdownStatus = 'EXPAND' | 'HOLD' | 'STOP'
 
 export type MetricStatus = 'OK' | 'WARN' | 'FAIL'

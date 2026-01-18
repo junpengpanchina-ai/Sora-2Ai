@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateAdminSession } from '@/lib/admin-auth'
 import { createServiceClient } from '@/lib/supabase/service'
+import { assertWriteAllowed, getLockdownPhase } from '@/lib/admin-lockdown'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -37,6 +38,15 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createServiceClient()
+    try {
+      const phase = await getLockdownPhase(supabase)
+      assertWriteAllowed(phase)
+    } catch (e) {
+      return NextResponse.json(
+        { error: (e instanceof Error ? e.message : 'System is in LOCKDOWN. Write operations are blocked by design.') },
+        { status: 403 }
+      )
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const tasksTable = () => supabase.from('batch_generation_tasks') as any
 

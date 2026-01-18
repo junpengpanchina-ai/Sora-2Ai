@@ -7,6 +7,7 @@ import type {
   LockdownStatus,
   MetricStatus,
 } from '@/types/admin-lockdown'
+import { useLockdown } from './AdminLockdownContext'
 import { LockdownHeader } from './LockdownHeader'
 import { LockdownMetricsTable } from './LockdownMetricsTable'
 import { LockdownActionHint } from './LockdownActionHint'
@@ -149,9 +150,12 @@ export function LockdownPanel() {
     fetchEntries()
   }, [fetchEntries])
 
-  const { status, metrics, lastUpdated } = deriveFromEntries(entries)
+  const { metrics, lastUpdated } = deriveFromEntries(entries)
+  const { phase } = useLockdown()
   const today = getTodayLocal()
   const hasToday = entries.some((e) => e.date === today)
+  /** ActionHint 用 HOLD/EXPAND/STOP；LOCKDOWN 映射为 HOLD */
+  const actionStatus: LockdownStatus = phase === 'LOCKDOWN' ? 'HOLD' : phase
 
   if (loading) {
     return (
@@ -163,9 +167,9 @@ export function LockdownPanel() {
 
   return (
     <section className="rounded-xl border border-white/10 bg-black/40 p-6 backdrop-blur">
-      <LockdownHeader status={status} lastUpdated={lastUpdated} />
+      <LockdownHeader phase={phase} lastUpdated={lastUpdated} />
       <LockdownMetricsTable metrics={metrics} />
-      <LockdownActionHint status={status} />
+      <LockdownActionHint status={actionStatus} />
       <LockdownFooterNote />
 
       {!hasToday && !showForm && (

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { validateAdminSession } from '@/lib/admin-auth'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Database } from '@/types/database'
+import { assertWriteAllowed, getLockdownPhase } from '@/lib/admin-lockdown'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -93,6 +94,15 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     const supabase = await createServiceClient()
+    try {
+      const phase = await getLockdownPhase(supabase)
+      assertWriteAllowed(phase)
+    } catch (e) {
+      return NextResponse.json(
+        { error: (e instanceof Error ? e.message : 'System is in LOCKDOWN. Write operations are blocked by design.') },
+        { status: 403 }
+      )
+    }
 
     const updatePayload: Database['public']['Tables']['use_cases']['Update'] = {}
 
@@ -182,6 +192,15 @@ export async function DELETE(request: Request, { params }: RouteParams) {
 
     const { id } = await params
     const supabase = await createServiceClient()
+    try {
+      const phase = await getLockdownPhase(supabase)
+      assertWriteAllowed(phase)
+    } catch (e) {
+      return NextResponse.json(
+        { error: (e instanceof Error ? e.message : 'System is in LOCKDOWN. Write operations are blocked by design.') },
+        { status: 403 }
+      )
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any).from('use_cases').delete().eq('id', id)

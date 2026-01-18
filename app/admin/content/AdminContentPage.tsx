@@ -4,6 +4,8 @@ import { useState, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui'
 import Link from 'next/link'
+import { useLockdown } from '@/components/admin/AdminLockdownContext'
+import { DisabledOverlay } from '@/components/admin/DisabledOverlay'
 import AdminUseCasesManager from './use-cases/AdminUseCasesManager'
 import AdminKeywordsManager from './keywords/AdminKeywordsManager'
 import AdminComparePagesManager from './compare/AdminComparePagesManager'
@@ -30,6 +32,7 @@ export default function AdminContentPage({ adminUser }: AdminContentPageProps) {
   )
   
   const [banner, setBanner] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
+  const { phase } = useLockdown()
 
   const showBanner = useCallback((type: 'success' | 'error' | 'info', text: string) => {
     setBanner({ type, text })
@@ -105,11 +108,14 @@ export default function AdminContentPage({ adminUser }: AdminContentPageProps) {
           </div>
         )}
 
-        {activeTab === 'use-cases' && <AdminUseCasesManager onShowBanner={showBanner} />}
-        {activeTab === 'keywords' && <AdminKeywordsManager onShowBanner={showBanner} />}
-        {activeTab === 'compare' && <AdminComparePagesManager onShowBanner={showBanner} />}
-        {activeTab === 'blog' && <AdminBlogManager onShowBanner={showBanner} />}
-        {activeTab === 'batches' && <AdminBatchesPage onShowBanner={showBanner} />}
+        <div className="relative">
+          {phase !== 'EXPAND' && <DisabledOverlay />}
+          {activeTab === 'use-cases' && <AdminUseCasesManager onShowBanner={showBanner} />}
+          {activeTab === 'keywords' && <AdminKeywordsManager onShowBanner={showBanner} />}
+          {activeTab === 'compare' && <AdminComparePagesManager onShowBanner={showBanner} />}
+          {activeTab === 'blog' && <AdminBlogManager onShowBanner={showBanner} />}
+          {activeTab === 'batches' && <AdminBatchesPage onShowBanner={showBanner} />}
+        </div>
       </main>
     </div>
   )

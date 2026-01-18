@@ -17,6 +17,21 @@
 
 ---
 
+## 最终确认与执行清单（Owner 核定 · 可落地）
+
+- **策略判断**：锁仓 14 天、只观察、第 15 天一票否决 → 正确且最优。当前为 Google/LLM 信任消化期，非增长期。
+- **面板闭环**：GSC 5 指标 → 填表 → 字段映射 → 第 15 天判定 → 状态条，完整且自洽；只读反操作，防误触。
+- **执行纪律**：不跑新模型、不改结构、不扩展 sitemap、不调阈值；仅工程错误（canonical/noindex/308/sitemap 报错）时允许修复。
+- **Owner 权限**：决策权集中、节奏上限写死、口令明确，可交接、可复用。
+
+**立刻可用的执行清单**：  
+- **每天（≤3 分钟）**：填 1 行（5 指标）；看趋势，不解读情绪；面板显示 🟢/🟡/🔴 即止。  
+- **第 15 天**：只看阈值表；通过才允许极小幅下一批；不通过 → 继续 HOLD 7 天。
+
+**建议的最小实现（已落地）**：Admin 顶部固定 Banner、状态条 LOCKDOWN/HOLD/EXPAND/STOP、今日未填提醒。三者足以把「人性冲动」挡在系统之外。
+
+---
+
 ## 一、每天 5 个点（≤ 3 分钟，固定顺序）
 
 ### ① GSC → 页面 → 已发现网页数（Discovered）
@@ -227,7 +242,20 @@ pass =
 
 ---
 
-## 十、相关文档
+## 十、Admin 锁仓规则写死（最终落地版）
+
+- **phase**：`LOCKDOWN | HOLD | EXPAND | STOP`。只由 `judgeDay15` 计算，Admin 内**无任何入口**可手改。
+- **LockdownBanner**：全 Admin 顶部、sticky、不可关闭、不随路由变化。
+- **assertWriteAllowed(phase)**：`LOCKDOWN/HOLD/STOP` 时抛错 → API 返回 403。以下写操作均受检：  
+  新增/修改/删除 use_cases；batch-publish；batch-review；batch-generation/start、process、recover、control。
+- **lockdown-daily POST**：仅允许的写操作（append 今日一行），不经过 assertWriteAllowed。
+- **DisabledOverlay**：`phase !== EXPAND` 时覆盖内容库（使用场景、长尾词、对比、博客、批量生成），无法点击新增/批量/运行。
+- **14 天表**：不支持排序、筛选、导出、批量操作；只允许 append 今日一行。
+- **Owner 说明 + 系统级口令**：见 LockdownFooterNote：「Owner Decision Only…」「不是你不允许自己动，是系统不允许你动。」
+
+---
+
+## 十一、相关文档
 
 | 文档 | 用途 |
 |------|------|

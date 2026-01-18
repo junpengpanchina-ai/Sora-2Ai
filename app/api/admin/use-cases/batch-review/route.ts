@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { validateAdminSession } from '@/lib/admin-auth'
 import { createServiceClient } from '@/lib/supabase/service'
+import { assertWriteAllowed, getLockdownPhase } from '@/lib/admin-lockdown'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -36,6 +37,15 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createServiceClient()
+    try {
+      const phase = await getLockdownPhase(supabase)
+      assertWriteAllowed(phase)
+    } catch (e) {
+      return NextResponse.json(
+        { error: (e instanceof Error ? e.message : 'System is in LOCKDOWN. Write operations are blocked by design.') },
+        { status: 403 }
+      )
+    }
 
     // 确定质量状态
     const qualityStatus = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'needs_review'

@@ -9,6 +9,8 @@ export function LockdownActionHint({ status }: { status: LockdownStatus }) {
         · 每个 use_case_type +3–5 个主 Scene
         <br />
         · 运行合并脚本（不改阈值）
+        <br />
+        · 须 Owner 确认后执行，系统不自动扩展
       </div>
     )
   }
