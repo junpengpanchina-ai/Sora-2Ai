@@ -76,6 +76,62 @@ export interface Database {
           updated_at?: string
         }
       }
+      admin_lockdown_daily: {
+        Row: {
+          id: number
+          date: string
+          phase: string
+          crawl_pages_per_day: number
+          crawl_trend: string
+          discovered_total: number
+          discovered_trend: string
+          indexed_total: number
+          indexed_trend: string
+          sitemap_status: string
+          sitemap_submitted: number | null
+          sitemap_discovered: number | null
+          sitemap_indexed: number | null
+          sample_main_scene_ok: boolean
+          sample_merged_scene_ok: boolean
+          note: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          date: string
+          phase?: string
+          crawl_pages_per_day?: number
+          crawl_trend?: string
+          discovered_total?: number
+          discovered_trend?: string
+          indexed_total?: number
+          indexed_trend?: string
+          sitemap_status?: string
+          sitemap_submitted?: number | null
+          sitemap_discovered?: number | null
+          sitemap_indexed?: number | null
+          sample_main_scene_ok?: boolean
+          sample_merged_scene_ok?: boolean
+          note?: string | null
+        }
+        Update: {
+          date?: string
+          phase?: string
+          crawl_pages_per_day?: number
+          crawl_trend?: string
+          discovered_total?: number
+          discovered_trend?: string
+          indexed_total?: number
+          indexed_trend?: string
+          sitemap_status?: string
+          sitemap_submitted?: number | null
+          sitemap_discovered?: number | null
+          sitemap_indexed?: number | null
+          sample_main_scene_ok?: boolean
+          sample_merged_scene_ok?: boolean
+          note?: string | null
+        }
+      }
       video_tasks: {
         Row: {
           id: string

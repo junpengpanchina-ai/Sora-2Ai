@@ -12,6 +12,7 @@ import {
 } from '@/components/ui'
 import Link from 'next/link'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
+import { LockdownPanel } from '@/components/admin/LockdownPanel'
 // 以下导入已迁移到新路由，保留以备将来可能需要（通过重定向访问）
 // import AdminPromptsManager from './AdminPromptsManager'
 // import AdminKeywordsManager from './AdminKeywordsManager'
@@ -1352,6 +1353,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
           <>
             {activeTab === 'overview' && stats && (
               <div className="space-y-6">
+                <LockdownPanel />
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">数据总览</h2>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
                   <Card>

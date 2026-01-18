@@ -1,6 +1,6 @@
 # 策略与两日调整汇总
 
-> 本文档：**策略总览** + **近日（两天）所有调整动作**。执行细节见 `TONIGHT_LOCK_EXECUTION.md`，背景与流程见 `SCENE_MERGE_PLAYBOOK.md`。
+> 本文档：**策略总览** + **两日调整动作** + **锁仓结论与后续节奏**（含唯一风险、该做/不要做、安全合并节奏）。执行细节见 `TONIGHT_LOCK_EXECUTION.md`，背景与流程见 `SCENE_MERGE_PLAYBOOK.md`。
 
 ---
 
@@ -133,12 +133,13 @@
 
 | 文档 | 用途 |
 |------|------|
-| **STRATEGY_AND_RECENT_CHANGES.md**（本文） | 策略总览 + 两日调整动作汇总 |
+| **STRATEGY_AND_RECENT_CHANGES.md**（本文） | 策略总览 + 两日调整 + 锁仓结论与后续节奏 |
 | **TONIGHT_LOCK_EXECUTION.md** | 可复制执行清单（080–087、sitemap、middleware、顺序、验收） |
 | **SCENE_MERGE_PLAYBOOK.md** | 背景、078/079 流程、阈值、回滚、页面模板 |
 | **MERGE_USE_CASES_GUIDE.md** | 078/079 简明步骤、代码侧 canonical/redirect |
 | **FINAL_EXECUTION_PLAN_$20_LOCK.md** | 预算封顶、Phase A/B/C/D、主 Scene 候选 SQL |
 | **BUILD_REPORT.md** | `npm run build` 结果、ESLint 警告、路由概览 |
+| **LOCKDOWN_14DAY_MONITORING.md** | 14 天只观察不动：监控清单、第 15 天阈值表、填表模板、面板字段映射 |
 
 ---
 
@@ -157,3 +158,59 @@
 | `app/sitemap.xml/route.ts` | 索引，分片链接 **/sitemaps/tier1-{N}.xml** |
 | `app/sitemaps/[name]/route.ts` | 分片 tier1-{N}.xml（**已删 getBaseUrl**） |
 | `middleware.ts` | 对 /use-cases/* 查 redirect_map 做 308 |
+
+---
+
+## 五、锁仓结论与后续节奏
+
+> 以下为评审结论：**可锁仓、可静置、可交接**。唯一需要盯住的是**合并节奏**。
+
+### 5.1 结论先行
+
+- **系统状态**：✅ 可锁仓、可静置、可等待 Google 消化。
+- **架构**：正确；**风险**：可控；**方向**：无错误。
+- **策略与预算**：不需要再加新策略、不需要再动预算。
+- **停手 2–4 周**：不会伤害项目，而是**最优解**。
+
+### 5.2 关键设计确认（均已认可）
+
+- **软/硬合并分级**（§1.2）：merge_direct→308，merge_soft→只 canonical 不跳转，merge_as_faq→吸收；非一刀切 301，跳转可逆、可控、可延后；`redirect_map` 作为跳转白名单。→ 可沿用 3–5 年。
+- **sitemap**（§1.4）：信号收敛而非强制删页；不删 URL、不一夜 noindex 全站、不 sitemap 暴降；让 Google 自己看懂谁重要。→ 可持续。
+- **redirect_map + middleware**：DB 为事实源、代码为执行器；087 表不存在静默跳过、081 只写 merge_direct、middleware 只查表→308 无业务逻辑。→ 规模 >10 万 URL 时尤其重要。
+
+### 5.3 ⚠️ 唯一风险：合并节奏 vs Google 消化速度
+
+**不是技术问题，是节奏问题。**
+
+- **能力**：1–2 天内把 21 万 → 5k Tier1 在技术上可行。
+- **建议**：**不要一次性**把 21 万全部“标记完成”。
+
+**安全节奏（推荐）**：
+
+| 步骤 | 动作 |
+|------|------|
+| 第一批 | 每个 `use_case_type` 只挑 **5–10 个**主 Scene，跑合并脚本 |
+| 等待 | **7–14 天** |
+| 观察 | Search Console：**已发现网页、已编入索引、抓取统计、sitemap 读取成功率** |
+| 下一批 | 再扩 5–10 个主 Scene / type，重复 |
+
+**原因**：Google 对**结构性大规模调整**有 trust ramp；当前阶段是在**建立信任**，不是拼速度。
+
+### 5.4 状态判断
+
+> “现在不是扩展期，是稳定期。”
+
+平台型 SEO / GEO 的分水岭：多数会选择继续造词、烧模型、加页面；这里选择**收敛、固化、等待**。→ 正确，且属少数派。
+
+### 5.5 未来 1–2 周：该做的 / 不要做的
+
+| ✅ 该做的 | ❌ 不要做的 |
+|----------|-------------|
+| 冻结新 use_cases 生成 | 新模型 |
+| 只跑已写好的合并脚本 | 新 prompt 体系 |
+| 不改阈值、不改规则 | 新 sitemap 结构 |
+| 只看 4 个指标：**已发现网页数、已编入索引数、sitemap 读取成功率、抓取频率**（非排名） | 新 URL 模板 |
+
+### 5.6 一句评价
+
+> 当前这套：不像独立站、不像内容农场，像**可被 AI 引用的知识系统**——而这正是 Google AI Overview / LLM 引用在找的形态。
