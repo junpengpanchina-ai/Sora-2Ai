@@ -17,19 +17,18 @@ export const metadata: Metadata = {
 export default async function UseCasesIndexPage({
   searchParams,
 }: {
-  searchParams?: { page?: string; type?: string; industry?: string; q?: string }
+  searchParams?: { page?: string; type?: string; industry?: string; q?: string; tier?: string; limit?: string }
 }) {
   const supabase = await createSupabaseServerClient()
-  // 🔥 Performance optimization: Reduce initial page size for better LCP
-  // Desktop: 24 items, Mobile: 12 items (handled client-side)
-  const pageSize = 24
+  const pageSize = Math.min(100, Math.max(6, Number(searchParams?.limit ?? '24') || 24))
   const page = Math.max(1, Number(searchParams?.page ?? '1') || 1)
   const offset = (page - 1) * pageSize
 
   const type = (searchParams?.type ?? 'all').toLowerCase()
   const industry = searchParams?.industry ?? 'all'
+  const tier = (searchParams?.tier ?? 'all').toLowerCase()
   const q = (searchParams?.q ?? '').trim()
-  
+
   // Query timeout: 15 seconds for SSR
   const QUERY_TIMEOUT = 15000
 
@@ -53,6 +52,14 @@ export default async function UseCasesIndexPage({
 
   if (industry !== 'all' && industry !== '') {
     query = query.eq('industry', industry)
+  }
+
+  if (tier === 's') {
+    query = query.eq('tier', 1)
+  } else if (tier === 'a') {
+    query = query.eq('tier', 2)
+  } else if (tier === 's-a') {
+    query = query.in('tier', [1, 2])
   }
 
   if (q) {
@@ -93,7 +100,9 @@ export default async function UseCasesIndexPage({
       totalPages={totalPages}
       selectedType={type}
       selectedIndustry={industry}
+      selectedTier={tier}
       searchQuery={q}
+      itemsPerPage={pageSize}
     />
   )
 }

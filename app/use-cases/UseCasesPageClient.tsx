@@ -16,6 +16,13 @@ const USE_CASE_TYPE_LABELS: Record<string, string> = {
   'ugc-creator-content': 'UGC & Creator Content',
 }
 
+const TIER_OPTIONS = [
+  { value: 'all', label: '全部' },
+  { value: 's', label: 'S 级' },
+  { value: 'a', label: 'A 级' },
+  { value: 's-a', label: 'S+A 级' },
+] as const
+
 interface UseCasesPageClientProps {
   initialUseCases: Pick<
     UseCaseRow,
@@ -26,7 +33,9 @@ interface UseCasesPageClientProps {
   totalPages: number
   selectedType: string
   selectedIndustry: string
+  selectedTier?: string
   searchQuery: string
+  itemsPerPage?: number
 }
 
 function buildQueryString(params: Record<string, string | undefined>) {
@@ -44,15 +53,17 @@ export default function UseCasesPageClient({
   totalPages,
   selectedType,
   selectedIndustry,
+  selectedTier = 'all',
   searchQuery,
+  itemsPerPage: itemsPerPageProp = 24,
 }: UseCasesPageClientProps) {
   const [useCases, setUseCases] = useState(initialUseCases)
-  const [actualTotalCount, setActualTotalCount] = useState(totalCount)
+  const [actualTotalCount, setActualTotalCount] = useState<number | null>(totalCount)
   const [actualTotalPages, setActualTotalPages] = useState(totalPages)
   const [loading, setLoading] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [fetchAttempt, setFetchAttempt] = useState(0)
-  const [itemsPerPage, setItemsPerPage] = useState(24)
+  const [itemsPerPage, setItemsPerPage] = useState(itemsPerPageProp)
   const [pageInput, setPageInput] = useState(String(currentPage))
 
   const [selectedUseCase, setSelectedUseCase] = useState<
@@ -74,6 +85,7 @@ export default function UseCasesPageClient({
     if (searchQuery) params.set('q', searchQuery)
     if (selectedType !== 'all') params.set('type', selectedType)
     if (selectedIndustry !== 'all') params.set('industry', selectedIndustry)
+    if (selectedTier !== 'all') params.set('tier', selectedTier)
     params.set('page', String(currentPage))
     params.set('limit', String(itemsPerPage))
 
@@ -85,6 +97,9 @@ export default function UseCasesPageClient({
           if (typeof data.totalCount === 'number') {
             setActualTotalCount(data.totalCount)
             setActualTotalPages(Math.max(1, Math.ceil(data.totalCount / itemsPerPage)))
+          } else {
+            setActualTotalCount(null)
+            setActualTotalPages(data.items.length >= itemsPerPage ? 2 : 1)
           }
         } else if (!res.ok) {
           setFetchError((data.details || data.error) || `请求失败 (${res.status})`)
@@ -95,7 +110,7 @@ export default function UseCasesPageClient({
         setFetchError(err?.message || '网络错误，请重试')
       })
       .finally(() => setLoading(false))
-  }, [initialUseCases.length, totalCount, searchQuery, selectedType, selectedIndustry, currentPage, itemsPerPage, fetchAttempt])
+  }, [initialUseCases.length, totalCount, searchQuery, selectedType, selectedIndustry, selectedTier, currentPage, itemsPerPage, fetchAttempt])
 
   // 处理页码跳转
   const handlePageJump = (e: React.FormEvent) => {
@@ -106,6 +121,7 @@ export default function UseCasesPageClient({
       if (searchQuery) params.set('q', searchQuery)
       if (selectedType !== 'all') params.set('type', selectedType)
       if (selectedIndustry !== 'all') params.set('industry', selectedIndustry)
+      if (selectedTier !== 'all') params.set('tier', selectedTier)
       params.set('page', String(pageNum))
       if (itemsPerPage !== 24) params.set('limit', String(itemsPerPage))
       window.location.href = `/use-cases?${params.toString()}`
@@ -122,7 +138,8 @@ export default function UseCasesPageClient({
     if (searchQuery) params.set('q', searchQuery)
     if (selectedType !== 'all') params.set('type', selectedType)
     if (selectedIndustry !== 'all') params.set('industry', selectedIndustry)
-    params.set('page', '1') // 改变每页数量时重置到第一页
+    if (selectedTier !== 'all') params.set('tier', selectedTier)
+    params.set('page', '1')
     params.set('limit', String(newLimit))
     window.location.href = `/use-cases?${params.toString()}`
   }
@@ -225,7 +242,7 @@ export default function UseCasesPageClient({
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
               <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-blue-100/80">
-                Total: {actualTotalCount.toLocaleString()} cases
+                Total: {actualTotalCount != null ? actualTotalCount.toLocaleString() : '50,000+'} cases
                 {loading && <span className="ml-2">(Loading...)</span>}
               </span>
               <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-blue-100/80">
@@ -250,6 +267,8 @@ export default function UseCasesPageClient({
                 />
                 <input type="hidden" name="type" value={selectedType} />
                 <input type="hidden" name="industry" value={selectedIndustry} />
+                <input type="hidden" name="tier" value={selectedTier} />
+                <input type="hidden" name="limit" value={String(itemsPerPage)} />
                 <button
                   type="submit"
                   className="rounded-2xl bg-energy-water px-6 py-3 font-semibold text-white shadow-lg transition hover:bg-energy-water-deep"
@@ -273,7 +292,9 @@ export default function UseCasesPageClient({
                         page: '1',
                         type: option.value === 'all' ? undefined : option.value,
                         industry: selectedIndustry === 'all' ? undefined : selectedIndustry,
+                        tier: selectedTier === 'all' ? undefined : selectedTier,
                         q: searchQuery || undefined,
+                        limit: itemsPerPage !== 24 ? String(itemsPerPage) : undefined,
                       })}`}
                       className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                         isSelected
@@ -282,6 +303,37 @@ export default function UseCasesPageClient({
                       }`}
                     >
                       {option.label}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="mb-2 block text-sm font-medium text-blue-100/80">
+                级别 / Level
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {TIER_OPTIONS.map((opt) => {
+                  const isSelected = selectedTier === opt.value
+                  return (
+                    <Link
+                      key={opt.value}
+                      href={`/use-cases?${buildQueryString({
+                        page: '1',
+                        type: selectedType === 'all' ? undefined : selectedType,
+                        industry: selectedIndustry === 'all' ? undefined : selectedIndustry,
+                        tier: opt.value === 'all' ? undefined : opt.value,
+                        q: searchQuery || undefined,
+                        limit: itemsPerPage !== 24 ? String(itemsPerPage) : undefined,
+                      })}`}
+                      className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                        isSelected
+                          ? 'bg-energy-water text-white shadow-lg hover:bg-energy-water-deep'
+                          : 'bg-white/10 text-blue-100 hover:bg-white/20'
+                      }`}
+                    >
+                      {opt.label}
                     </Link>
                   )
                 })}
@@ -391,6 +443,7 @@ export default function UseCasesPageClient({
                     >
                       <option value={10}>10</option>
                       <option value={20}>20</option>
+                      <option value={28}>28</option>
                       <option value={50}>50</option>
                       <option value={100}>100</option>
                     </select>
@@ -403,8 +456,8 @@ export default function UseCasesPageClient({
                       href={`/use-cases?${buildQueryString({
                         page: String(Math.max(1, currentPage - 1)),
                         type: selectedType === 'all' ? undefined : selectedType,
-                        industry:
-                          selectedIndustry === 'all' ? undefined : selectedIndustry,
+                        industry: selectedIndustry === 'all' ? undefined : selectedIndustry,
+                        tier: selectedTier === 'all' ? undefined : selectedTier,
                         q: searchQuery || undefined,
                         limit: itemsPerPage !== 24 ? String(itemsPerPage) : undefined,
                       })}`}
@@ -434,8 +487,8 @@ export default function UseCasesPageClient({
                           href={`/use-cases?${buildQueryString({
                             page: String(pageNum),
                             type: selectedType === 'all' ? undefined : selectedType,
-                            industry:
-                              selectedIndustry === 'all' ? undefined : selectedIndustry,
+                            industry: selectedIndustry === 'all' ? undefined : selectedIndustry,
+                            tier: selectedTier === 'all' ? undefined : selectedTier,
                             q: searchQuery || undefined,
                             limit: itemsPerPage !== 24 ? String(itemsPerPage) : undefined,
                           })}`}
@@ -455,8 +508,8 @@ export default function UseCasesPageClient({
                       href={`/use-cases?${buildQueryString({
                         page: String(Math.min(actualTotalPages, currentPage + 1)),
                         type: selectedType === 'all' ? undefined : selectedType,
-                        industry:
-                          selectedIndustry === 'all' ? undefined : selectedIndustry,
+                        industry: selectedIndustry === 'all' ? undefined : selectedIndustry,
+                        tier: selectedTier === 'all' ? undefined : selectedTier,
                         q: searchQuery || undefined,
                         limit: itemsPerPage !== 24 ? String(itemsPerPage) : undefined,
                       })}`}

@@ -38,9 +38,10 @@ export async function GET(request: Request) {
     const q = qRaw.length > 0 ? escapeForIlike(qRaw.slice(0, 80)) : ''
     const type = (searchParams.get('type') ?? '').trim().toLowerCase()
     const industry = (searchParams.get('industry') ?? '').trim()
+    const tier = (searchParams.get('tier') ?? 'all').trim().toLowerCase()
 
     const page = clampInt(searchParams.get('page'), 1, 1, 200000)
-    const limit = clampInt(searchParams.get('limit'), 24, 6, 60)
+    const limit = clampInt(searchParams.get('limit'), 24, 6, 100)
     const offset = (page - 1) * limit
 
     const supabase = await createServiceClient()
@@ -69,6 +70,14 @@ export async function GET(request: Request) {
 
     if (industry && industry !== 'all') {
       dataQuery = dataQuery.eq('industry', industry)
+    }
+
+    if (tier === 's') {
+      dataQuery = dataQuery.eq('tier', 1)
+    } else if (tier === 'a') {
+      dataQuery = dataQuery.eq('tier', 2)
+    } else if (tier === 's-a') {
+      dataQuery = dataQuery.in('tier', [1, 2])
     }
 
     if (q) {
@@ -129,6 +138,14 @@ export async function GET(request: Request) {
 
       if (industry && industry !== 'all') {
         countQuery = countQuery.eq('industry', industry)
+      }
+
+      if (tier === 's') {
+        countQuery = countQuery.eq('tier', 1)
+      } else if (tier === 'a') {
+        countQuery = countQuery.eq('tier', 2)
+      } else if (tier === 's-a') {
+        countQuery = countQuery.in('tier', [1, 2])
       }
 
       if (q) {
