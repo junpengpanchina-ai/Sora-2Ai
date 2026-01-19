@@ -13,13 +13,15 @@ export const revalidate = 0
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify user identity
     const supabase = await createClient(request.headers)
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    // 若 session 仅存在客户端（localStorage）未写入 cookie，则用 Authorization: Bearer 取 user
+    const authHeader = request.headers.get('authorization')
+    const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null
+    const { data: { user }, error: userError } = bearer
+      ? await supabase.auth.getUser(bearer)
+      : await supabase.auth.getUser()
 
-    if (!user) {
+    if (userError || !user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }

@@ -268,13 +268,18 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     await startPaymentLinkCheckout(plan)
   }
 
-  // Check recharge records for new users
+  // Check recharge records for new users（传 Authorization 以免服务端从 cookie 取不到 session 导致 401）
   useEffect(() => {
-    if (!hydratedProfile || hasRechargeRecords !== null) return
+    if (!hydratedProfile || hasRechargeRecords !== null || !supabase) return
+    const client = supabase
 
-    async function checkRechargeRecords() {
+    async function run() {
       try {
-        const res = await fetch('/api/payment/recharge-records')
+        const { data: { session } } = await client.auth.getSession()
+        const headers: Record<string, string> = session?.access_token
+          ? { Authorization: `Bearer ${session.access_token}` }
+          : {}
+        const res = await fetch('/api/payment/recharge-records', { headers })
         if (res.ok) {
           const data = await res.json()
           if (data.success) {
@@ -288,8 +293,8 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       }
     }
 
-    checkRechargeRecords()
-  }, [hydratedProfile, hasRechargeRecords])
+    run()
+  }, [hydratedProfile, hasRechargeRecords, supabase])
 
   const startPaymentLinkCheckout = async (plan: (typeof paymentPlans)[number]) => {
     const returnTo = '/#pricing-plans'
