@@ -15,11 +15,11 @@ export async function GET() {
       return NextResponse.json({ error: '未授权' }, { status: 401 })
     }
 
-    // Get user profile to get user_id
+    // Get user profile by auth.uid() (users.id 应与 auth.uid 一致；RLS 只允许 id=auth.uid() 的行)
     const { data: profile, error: profileError } = await supabase
       .from('users')
       .select('id')
-      .eq('google_id', user.id)
+      .eq('id', user.id)
       .maybeSingle<{ id: string }>()
 
     if (profileError || !profile) {

@@ -30,16 +30,25 @@ export async function getOrCreateUser(
   user: User
 ): Promise<{ id: string; credits: number } | null> {
   const googleId = getGoogleId(user)
-  
+
   console.log('[getOrCreateUser] Attempting to get/create user:', {
     googleId,
     userId: user.id,
     email: user.email,
     userMetadata: user.user_metadata,
   })
-  
-  // 首先尝试获取现有用户
-  // 先尝试查询包含 credits 字段
+
+  // 优先按 id=auth.uid() 查询（RLS 允许；对已正确同步的付费用户等很重要）
+  const { data: byId } = await supabase
+    .from('users')
+    .select('id, credits')
+    .eq('id', user.id)
+    .maybeSingle()
+  if (byId) {
+    return { id: byId.id, credits: byId.credits ?? 0 }
+  }
+
+  // 再按 google_id 查询
   const { data: userProfile, error: queryError } = await supabase
     .from('users')
     .select('id, credits')

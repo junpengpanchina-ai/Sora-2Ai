@@ -274,19 +274,20 @@ export default function AuthCallbackPage() {
                          user.user_metadata?.picture || 
                          user.user_metadata?.avatar || ''
 
-        // Check if user already exists
-        const { data: existingUser, error: queryError } = await supabase
-          .from('users')
-          .select('id')
-          .eq('google_id', googleId)
-          .single()
-
-        if (queryError && queryError.code !== 'PGRST116') {
-          console.error('Query user error:', queryError)
+        // 先调 fix-user-id：用 service 按 google_id 查找，若 users.id !== auth.uid() 则修复，避免 RLS 导致付费用户登入后看不到钱包/积分
+        let fixRes: Response
+        let fixJson: { ok?: boolean; fixed?: boolean; error?: string }
+        try {
+          fixRes = await fetch('/api/auth/fix-user-id', { method: 'POST', credentials: 'include' })
+          fixJson = await fixRes.json().catch(() => ({}))
+        } catch (e) {
+          console.error('fix-user-id request failed:', e)
+          fixRes = new Response(null, { status: 500 })
+          fixJson = {}
         }
 
-        if (!existingUser) {
-          // Create new user record (use upsert to avoid duplicate-key issues)
+        if (fixRes.status === 404) {
+          // 无 users 行，走创建
           const { error: upsertError } = await supabase
             .from('users')
             .upsert(
@@ -298,53 +299,42 @@ export default function AuthCallbackPage() {
                 avatar_url: avatarUrl || null,
                 last_login_at: new Date().toISOString(),
               },
-              {
-                onConflict: 'google_id',
-              }
+              { onConflict: 'google_id' }
             )
 
           if (upsertError) {
             console.error('Error creating user via upsert:', upsertError)
-          } else {
-            console.log('User created/updated successfully via upsert:', email)
-            
-            // Add welcome bonus for new users (30 credits = 3 videos) - async, don't block login
-            // Fire and forget - don't wait for response to speed up login
-            fetch('/api/auth/welcome-bonus', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            }).then(response => {
-              if (response.ok) {
-                return response.json()
-              }
-              return null
-            }).then(bonusResult => {
-              if (bonusResult?.success && !bonusResult.alreadyGranted) {
-                console.log('✅ Welcome bonus (30 credits) added for new user:', email)
-              }
-            }).catch(() => {
-              // Silently fail - don't log to avoid console spam
-              // Welcome bonus will be retried on next login if needed
-            })
+            const errStr = String(upsertError.message || '') + String((upsertError as { details?: string }).details || '')
+            const isEmailConflict =
+              (upsertError as { code?: string }).code === '23505' ||
+              (/23505/.test(errStr) && /unique/i.test(errStr) && /email/i.test(errStr))
+            const msg = isEmailConflict
+              ? '此邮箱已绑定其他 Google 账号，请使用原账号登录。如需更换绑定，请联系客服。'
+              : (upsertError.message || '用户记录创建失败，请重试或联系客服。')
+            router.push(`/login?error=${encodeURIComponent(msg)}`)
+            return
           }
-        } else {
-          // Update last login time
+          console.log('User created/updated successfully via upsert:', email)
+          fetch('/api/auth/welcome-bonus', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((b) => { if (b?.success && !b.alreadyGranted) console.log('✅ Welcome bonus added:', email) })
+            .catch(() => {})
+        } else if (fixRes.ok) {
+          if (fixJson.fixed) console.log('User id 已修复:', email)
           const { error: updateError } = await supabase
             .from('users')
-            .update({ 
+            .update({
               last_login_at: new Date().toISOString(),
               name: name || undefined,
               avatar_url: avatarUrl || undefined,
             })
-            .eq('id', existingUser.id)
-
-          if (updateError) {
-            console.error('Error updating user:', updateError)
-          } else {
-            console.log('User updated successfully:', email)
-          }
+            .eq('id', user.id)
+          if (updateError) console.error('Error updating user:', updateError)
+          else console.log('User updated successfully:', email)
+        } else {
+          console.error('fix-user-id failed:', fixJson)
+          router.push(`/login?error=${encodeURIComponent(fixJson?.error || '账户数据同步失败，请重试或联系客服。')}`)
+          return
         }
 
         // Redirect back to the page user wanted before login
