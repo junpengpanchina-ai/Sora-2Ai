@@ -33,10 +33,11 @@ export default async function UseCasesIndexPage({
   // Query timeout: 15 seconds for SSR
   const QUERY_TIMEOUT = 15000
 
+  // 去掉 count: 'exact'，避免与主查询叠加加重 DB 负担，触发 statement timeout (57014)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase as any)
     .from('use_cases')
-    .select('id, slug, title, description, use_case_type, industry', { count: 'exact' })
+    .select('id, slug, title, description, use_case_type, industry')
     .eq('is_published', true)
     // Allow both approved and null quality_status (null means not reviewed yet, but still show)
     // Use or() with proper syntax: field.operator.value,field.operator.value
@@ -61,58 +62,28 @@ export default async function UseCasesIndexPage({
 
   // Execute query with timeout
   const queryPromise = query
-  const timeoutPromise = new Promise<{ data: unknown[] | null; count: number | null; error: unknown }>((resolve) => {
+  const timeoutPromise = new Promise<{ data: unknown[] | null; error: unknown }>((resolve) => {
     setTimeout(() => {
-      resolve({ data: null, count: null, error: { message: '查询超时（15秒）', code: 'TIMEOUT' } })
+      resolve({ data: null, error: { message: '查询超时（15秒）', code: 'TIMEOUT' } })
     }, QUERY_TIMEOUT)
   })
 
-  const { data, error, count } = await Promise.race([
+  const { data, error } = await Promise.race([
     queryPromise,
     timeoutPromise,
-  ]) as { data: unknown[] | null; count: number | null; error: unknown }
-
-  // 🔍 详细调试日志
-  console.log('[UseCasesPage] 查询参数:', {
-    type,
-    industry,
-    q,
-    page,
-    pageSize,
-    offset,
-  })
-  console.log('[UseCasesPage] 查询结果:', {
-    dataLength: Array.isArray(data) ? data.length : 0,
-    count,
-    error: error ? {
-      message: (error as { message?: string }).message,
-      code: (error as { code?: string }).code,
-      details: (error as { details?: string }).details,
-      hint: (error as { hint?: string }).hint,
-    } : null,
-  })
+  ]) as { data: unknown[] | null; error: unknown }
 
   if (error) {
-    console.error('[UseCasesPage] 查询失败:', error)
-    // 如果是超时错误，记录但不阻止页面渲染
-    if ((error as { code?: string }).code === 'TIMEOUT') {
-      console.warn('[UseCasesPage] 查询超时，返回空列表，客户端可以重试')
-    }
+    console.error('[UseCasesPage] 查询失败:', (error as { code?: string }).code === '57014' ? 'statement timeout (57014)' : error)
   }
 
   const useCases = (Array.isArray(data) ? data : []) as Pick<
     UseCaseRow,
     'id' | 'slug' | 'title' | 'description' | 'use_case_type' | 'industry'
   >[]
-  // 如果查询失败或超时，使用0作为默认值，让客户端通过API获取数据
-  const totalCount = typeof count === 'number' ? count : (error ? 0 : useCases.length)
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
-
-  console.log('[UseCasesPage] 最终数据:', {
-    useCasesCount: useCases.length,
-    totalCount,
-    totalPages,
-  })
+  // 已去掉 count:exact，用 data.length；满页时假定可能有下一页以便展示 Next
+  const totalCount = error ? 0 : useCases.length
+  const totalPages = useCases.length >= pageSize ? 2 : Math.max(1, Math.ceil(totalCount / pageSize))
 
   return (
     <UseCasesPageClient

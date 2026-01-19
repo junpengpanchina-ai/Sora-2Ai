@@ -50,6 +50,8 @@ export default function UseCasesPageClient({
   const [actualTotalCount, setActualTotalCount] = useState(totalCount)
   const [actualTotalPages, setActualTotalPages] = useState(totalPages)
   const [loading, setLoading] = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
+  const [fetchAttempt, setFetchAttempt] = useState(0)
   const [itemsPerPage, setItemsPerPage] = useState(24)
   const [pageInput, setPageInput] = useState(String(currentPage))
 
@@ -62,36 +64,38 @@ export default function UseCasesPageClient({
     setPageInput(String(currentPage))
   }, [currentPage])
 
-  // 如果服务端数据为空，尝试从API获取
+  // 如果服务端数据为空，尝试从 API 获取；502/超时时展示错误与重试
   useEffect(() => {
-    if (initialUseCases.length === 0 && totalCount === 0 && !loading) {
-      setLoading(true)
-      const params = new URLSearchParams()
-      if (searchQuery) params.set('q', searchQuery)
-      if (selectedType !== 'all') params.set('type', selectedType)
-      if (selectedIndustry !== 'all') params.set('industry', selectedIndustry)
-      params.set('page', String(currentPage))
-      params.set('limit', String(itemsPerPage))
+    if (initialUseCases.length !== 0 || totalCount !== 0) return
 
-      fetch(`/api/use-cases?${params.toString()}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.success && Array.isArray(data.items)) {
-            setUseCases(data.items)
-            if (typeof data.totalCount === 'number') {
-              setActualTotalCount(data.totalCount)
-              setActualTotalPages(Math.max(1, Math.ceil(data.totalCount / itemsPerPage)))
-            }
+    setFetchError(null)
+    setLoading(true)
+    const params = new URLSearchParams()
+    if (searchQuery) params.set('q', searchQuery)
+    if (selectedType !== 'all') params.set('type', selectedType)
+    if (selectedIndustry !== 'all') params.set('industry', selectedIndustry)
+    params.set('page', String(currentPage))
+    params.set('limit', String(itemsPerPage))
+
+    fetch(`/api/use-cases?${params.toString()}`)
+      .then(async res => {
+        const data = await res.json().catch(() => ({}))
+        if (res.ok && data.success && Array.isArray(data.items)) {
+          setUseCases(data.items)
+          if (typeof data.totalCount === 'number') {
+            setActualTotalCount(data.totalCount)
+            setActualTotalPages(Math.max(1, Math.ceil(data.totalCount / itemsPerPage)))
           }
-        })
-        .catch(err => {
-          console.error('[UseCasesPageClient] Failed to fetch from API:', err)
-        })
-        .finally(() => {
-          setLoading(false)
-        })
-    }
-  }, [initialUseCases.length, totalCount, searchQuery, selectedType, selectedIndustry, currentPage, itemsPerPage, loading])
+        } else if (!res.ok) {
+          setFetchError((data.details || data.error) || `请求失败 (${res.status})`)
+        }
+      })
+      .catch(err => {
+        console.error('[UseCasesPageClient] Failed to fetch from API:', err)
+        setFetchError(err?.message || '网络错误，请重试')
+      })
+      .finally(() => setLoading(false))
+  }, [initialUseCases.length, totalCount, searchQuery, selectedType, selectedIndustry, currentPage, itemsPerPage, fetchAttempt])
 
   // 处理页码跳转
   const handlePageJump = (e: React.FormEvent) => {
@@ -298,6 +302,17 @@ export default function UseCasesPageClient({
                   {loading ? (
                     <div className="py-12 text-center">
                       <p className="text-blue-100/70">Loading use cases...</p>
+                    </div>
+                  ) : fetchError ? (
+                    <div className="py-12 text-center space-y-3">
+                      <p className="text-amber-200/90">{fetchError}</p>
+                      <button
+                        type="button"
+                        onClick={() => setFetchAttempt(a => a + 1)}
+                        className="rounded-lg border border-energy-water bg-energy-water/20 px-4 py-2 text-sm font-medium text-energy-water transition hover:bg-energy-water/30"
+                      >
+                        重试
+                      </button>
                     </div>
                   ) : filteredUseCases.length === 0 ? (
                     <div className="py-12 text-center">
