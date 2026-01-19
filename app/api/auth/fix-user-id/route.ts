@@ -4,6 +4,7 @@
  * 需先执行迁移 089_fix_user_id_sync_rpc.sql；否则 RPC 不存在会 500。
  */
 import { NextResponse } from 'next/server'
+import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getGoogleId } from '@/lib/user'
@@ -11,11 +12,14 @@ import { getGoogleId } from '@/lib/user'
 export async function POST() {
   try {
     const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    // 回调阶段 session 可能尚未写入 cookie，优先用 Authorization: Bearer 的 access_token 取 user
+    const authHeader = (await headers()).get('authorization')
+    const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null
+    const { data: { user }, error: userError } = bearer
+      ? await supabase.auth.getUser(bearer)
+      : await supabase.auth.getUser()
 
-    if (!user) {
+    if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

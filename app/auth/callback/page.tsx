@@ -275,10 +275,15 @@ export default function AuthCallbackPage() {
                          user.user_metadata?.avatar || ''
 
         // 先调 fix-user-id：用 service 按 google_id 查找，若 users.id !== auth.uid() 则修复，避免 RLS 导致付费用户登入后看不到钱包/积分
+        // 传 Authorization: Bearer <access_token>，因回调时 session 可能尚未写入 cookie，服务端从 cookie 取不到 user 会 401
+        const { data: { session } } = await supabase.auth.getSession()
+        const fixHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+        if (session?.access_token) fixHeaders['Authorization'] = `Bearer ${session.access_token}`
+
         let fixRes: Response
         let fixJson: { ok?: boolean; fixed?: boolean; error?: string }
         try {
-          fixRes = await fetch('/api/auth/fix-user-id', { method: 'POST', credentials: 'include' })
+          fixRes = await fetch('/api/auth/fix-user-id', { method: 'POST', credentials: 'include', headers: fixHeaders })
           fixJson = await fixRes.json().catch(() => ({}))
         } catch (e) {
           console.error('fix-user-id request failed:', e)
