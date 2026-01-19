@@ -128,13 +128,8 @@ GRANT EXECUTE ON FUNCTION admin_create_session(TEXT, TEXT, TEXT, TIMESTAMP WITH 
 GRANT EXECUTE ON FUNCTION admin_validate_session(TEXT) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION admin_delete_session(TEXT) TO anon, authenticated, service_role;
 
-INSERT INTO admin_users (username, password_hash, is_super_admin)
-SELECT
-  '251144748',
-  extensions.crypt('peng000000'::text, extensions.gen_salt('bf'::text)),
-  TRUE
-WHERE NOT EXISTS (
-  SELECT 1 FROM admin_users WHERE username = '251144748'
-);
-
+-- 首个管理员需在 Supabase SQL 编辑器中手动创建，勿将明文密码写入版本库。示例：
+-- INSERT INTO admin_users (username, password_hash, is_super_admin)
+-- SELECT '你的用户名', crypt('你的密码', gen_salt('bf')), true
+-- WHERE NOT EXISTS (SELECT 1 FROM admin_users WHERE username = '你的用户名');
 
