@@ -134,11 +134,19 @@ export async function GET(req: Request) {
     console.error("[reconcile-daily] ledger_events_24h", e5);
   }
 
-  // 6) check_recharge_manual_reconciles：目前暂时没有 DB 留痕，先返回 0（后续可用 ledger metadata 补全）
+  // 6) check_recharge_manual_reconciles：如果未来在 wallet_ledger.metadata 中记录 type='manual_reconcile'，可在此用 SQL 统计
   const checkReconcileManual = 0;
 
-  // 7) legacy_credits_write_events：若未加审计触发器，暂时返回 0
-  const legacyWrites = 0;
+  // 7) legacy_credits_write_events：通过 legacy_credits_audit 审计表统计过去24h内写入次数
+  const { count: legacyWritesCount, error: e6 } = await supabase
+    .from("legacy_credits_audit")
+    .select("id", { count: "exact", head: true })
+    .gte("created_at", dayStartIso)
+    .lt("created_at", dayEndIso);
+  if (e6) {
+    console.error("[reconcile-daily] legacy_credits_audit", e6);
+  }
+  const legacyWrites = legacyWritesCount ?? 0;
 
   const base = {
     date,
