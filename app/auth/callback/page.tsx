@@ -320,7 +320,9 @@ export default function AuthCallbackPage() {
             return
           }
           console.log('User created/updated successfully via upsert:', email)
-          fetch('/api/auth/welcome-bonus', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+          const wbHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+          if (session?.access_token) wbHeaders['Authorization'] = `Bearer ${session.access_token}`
+          fetch('/api/auth/welcome-bonus', { method: 'POST', credentials: 'include', headers: wbHeaders })
             .then((r) => (r.ok ? r.json() : null))
             .then((b) => { if (b?.success && !b.alreadyGranted) console.log('✅ Welcome bonus added:', email) })
             .catch(() => {})

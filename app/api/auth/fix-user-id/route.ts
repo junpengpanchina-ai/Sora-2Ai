@@ -10,9 +10,9 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { getGoogleId } from '@/lib/user'
 
 export async function POST() {
+  const start = Date.now()
   try {
     const supabase = await createClient()
-    // 回调阶段 session 可能尚未写入 cookie，优先用 Authorization: Bearer 的 access_token 取 user
     const authHeader = (await headers()).get('authorization')
     const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null
     const { data: { user }, error: userError } = bearer
@@ -20,9 +20,11 @@ export async function POST() {
       : await supabase.auth.getUser()
 
     if (userError || !user) {
+      console.warn('[fix-user-id] 401', { hasBearer: !!bearer, duration: Date.now() - start })
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    console.info('[fix-user-id] start', { hasBearer: !!bearer, userId: user.id })
     const googleId = getGoogleId(user)
     const newId = user.id
     const name =
@@ -45,11 +47,13 @@ export async function POST() {
       .maybeSingle<{ id: string }>()
 
     if (findErr || !row) {
+      console.info('[fix-user-id] 404', { userId: newId, duration: Date.now() - start })
       return NextResponse.json({ error: 'User not found', fixed: false }, { status: 404 })
     }
 
     const oldId = row.id
     if (oldId === newId) {
+      console.info('[fix-user-id] 200 already_in_sync', { userId: newId, duration: Date.now() - start })
       return NextResponse.json({ ok: true, fixed: false, message: 'Already in sync' })
     }
 
@@ -61,7 +65,7 @@ export async function POST() {
     })
 
     if (rpcErr) {
-      console.error('[fix-user-id] fix_user_id_sync RPC failed:', rpcErr)
+      console.error('[fix-user-id] 500 RPC failed', { userId: newId, error: rpcErr.message, duration: Date.now() - start })
       return NextResponse.json(
         { error: 'Failed to fix user id', details: rpcErr.message },
         { status: 500 }
@@ -77,9 +81,10 @@ export async function POST() {
       await service.from('users').update(profileUpdate).eq('id', newId)
     }
 
+    console.info('[fix-user-id] 200 fixed', { userId: newId, duration: Date.now() - start })
     return NextResponse.json({ ok: true, fixed: true })
   } catch (e) {
-    console.error('[fix-user-id]', e)
+    console.error('[fix-user-id] 500 exception', { error: e instanceof Error ? e.message : String(e), duration: Date.now() - start })
     return NextResponse.json(
       { error: 'Internal error', details: e instanceof Error ? e.message : String(e) },
       { status: 500 }

@@ -31,8 +31,55 @@ interface LoginPageProps {
   }
 }
 
+type MappedError = { title: string; body: string; steps?: string[] }
+
+function getLoginErrorDisplay(raw?: string): MappedError | null {
+  if (!raw?.trim()) return null
+  const code = raw.trim()
+  switch (code) {
+    case 'no_code':
+      return {
+        title: 'Sign in failed',
+        body: 'The login link is missing required parameters, usually because you did not start from the Sign in button.',
+        steps: [
+          'Click «Sign in with Google» on the login page to start again.',
+          'Do not manually open or bookmark the /auth/callback URL.',
+        ],
+      }
+    case 'exchange_timeout':
+      return {
+        title: 'Verification timed out',
+        body: 'Verification with the login server timed out, often due to network delay or browser restrictions.',
+        steps: [
+          'Clear this site\'s cookies and local storage, then try again.',
+          'Temporarily disable browser extensions or VPN that may block traffic.',
+          'Try a different network (e.g. another Wi‑Fi or mobile hotspot).',
+        ],
+      }
+    case 'no_session':
+      return {
+        title: 'Session could not be created',
+        body: 'A valid session could not be created after sign-in.',
+        steps: [
+          'Clear this site\'s cookies and local storage.',
+          'Click «Sign in with Google» on the login page again.',
+        ],
+      }
+    case 'callback_error':
+    case 'unknown_error':
+      return {
+        title: 'Sign in failed',
+        body: 'An unexpected error occurred during sign-in.',
+        steps: ['Try again.', 'If it continues, clear this site\'s data and retry.'],
+      }
+    default:
+      return { title: 'Sign in failed', body: raw, steps: undefined }
+  }
+}
+
 export default function LoginPage({ searchParams }: LoginPageProps) {
   const errorMessage = searchParams?.error
+  const errorDisplay = getLoginErrorDisplay(errorMessage)
 
   return (
     <>
@@ -108,13 +155,22 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
         </div>
 
         <div className="celestial-panel mt-12 w-full max-w-xl p-10">
-          {errorMessage && (
+          {errorDisplay && (
             <div className="mb-6 rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-100">
-              <strong className="font-semibold">⚠️ Sign in failed:</strong>
-              <p className="mt-2">{errorMessage}</p>
-              <p className="mt-2 text-xs opacity-90">
-                Having trouble? Please check your browser settings and try again.
-              </p>
+              <strong className="font-semibold">⚠️ {errorDisplay.title}:</strong>
+              <p className="mt-2">{errorDisplay.body}</p>
+              {errorDisplay.steps && errorDisplay.steps.length > 0 && (
+                <ul className="mt-3 list-disc list-inside space-y-1 text-xs opacity-95">
+                  {errorDisplay.steps.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
+              )}
+              {!errorDisplay.steps && (
+                <p className="mt-2 text-xs opacity-90">
+                  Having trouble? Please check your browser settings and try again.
+                </p>
+              )}
             </div>
           )}
 
