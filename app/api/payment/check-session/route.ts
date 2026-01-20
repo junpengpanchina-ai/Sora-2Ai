@@ -85,20 +85,14 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // 获取用户当前积分
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('credits')
-      .eq('id', userId)
-      .single()
+    // P2: 只读 wallets
+    const { data: walletRow } = await supabase
+      .from('wallets')
+      .select('permanent_credits, bonus_credits')
+      .eq('user_id', userId)
+      .maybeSingle()
 
-    if (userError) {
-      console.error('Failed to fetch user credits:', userError)
-      return NextResponse.json(
-        { error: 'Failed to fetch user credits', details: userError.message },
-        { status: 500 }
-      )
-    }
+    const user_credits = Number(walletRow?.permanent_credits ?? 0) + Number(walletRow?.bonus_credits ?? 0)
 
     return NextResponse.json({
       success: true,
@@ -113,7 +107,7 @@ export async function GET(request: NextRequest) {
         created_at: rechargeRecord.created_at,
         completed_at: rechargeRecord.completed_at,
       },
-      user_credits: userData?.credits || 0,
+      user_credits,
       message: rechargeRecord.status === 'completed' 
         ? 'Payment completed and credits added successfully'
         : rechargeRecord.status === 'pending'

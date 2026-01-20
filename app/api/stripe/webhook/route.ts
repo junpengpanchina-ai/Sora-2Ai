@@ -62,6 +62,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ received: true });
   }
 
+  const started = Date.now();
   const session = event.data.object as Stripe.Checkout.Session;
 
   // ✅ 优先用 metadata.plan_id（最稳）
@@ -77,6 +78,13 @@ export async function POST(req: Request) {
   }
 
   if (!plan) {
+    console.warn("[stripe-webhook]", {
+      event_id: event.id,
+      session_id: session.id,
+      plan_id: planIdFromMetadata ?? null,
+      rpc_result: "unknown_plan",
+      duration_ms: Date.now() - started,
+    });
     return NextResponse.json({ error: `Unknown plan (metadata.plan_id=${planIdFromMetadata}, payment_link=${session.payment_link})` }, { status: 400 });
   }
 
@@ -91,7 +99,6 @@ export async function POST(req: Request) {
     (email ? await findUserIdByEmail(email) : null);
 
   if (!userId) {
-    // Fallback: store pending grant so user can claim later.
     await supabaseAdmin.from("pending_credit_grants").insert({
       stripe_event_id: event.id,
       stripe_session_id: session.id,
@@ -100,6 +107,14 @@ export async function POST(req: Request) {
       plan_id: plan.planId,
       amount_total: session.amount_total ?? null,
       currency: session.currency ?? "usd",
+    });
+    console.log("[stripe-webhook]", {
+      event_id: event.id,
+      session_id: session.id,
+      plan_id: plan.planId,
+      user_id: null,
+      rpc_result: "pending",
+      duration_ms: Date.now() - started,
     });
     return NextResponse.json({ ok: true, pending: true });
   }
@@ -119,10 +134,24 @@ export async function POST(req: Request) {
   });
 
   if (grantErr) {
-    // If duplicates happen, function should swallow via ON CONFLICT (idempotent)
-    console.error("[webhook] grant_credits_for_purchase error:", grantErr);
+    console.error("[stripe-webhook] grant_credits_for_purchase error:", {
+      event_id: event.id,
+      session_id: session.id,
+      plan_id: plan.planId,
+      user_id: userId,
+      rpc_error: grantErr.message,
+      duration_ms: Date.now() - started,
+    });
     return NextResponse.json({ error: grantErr.message }, { status: 500 });
   }
 
+  console.log("[stripe-webhook]", {
+    event_id: event.id,
+    session_id: session.id,
+    plan_id: plan.planId,
+    user_id: userId,
+    rpc_result: "ok",
+    duration_ms: Date.now() - started,
+  });
   return NextResponse.json({ ok: true });
 }

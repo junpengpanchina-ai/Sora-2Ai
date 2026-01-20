@@ -19,14 +19,6 @@ function getIp(req: Request) {
   );
 }
 
-// Payment Link URLs (from Stripe Dashboard)
-const PAYMENT_LINK_URLS: Record<keyof typeof PLAN_CONFIGS, string> = {
-  starter: "https://buy.stripe.com/28EbJ14jUg2L6550Ug0kE05",
-  creator: "https://buy.stripe.com/dRmcN55nY4k33WXfPa0kE03",
-  studio: "https://buy.stripe.com/6oU7sL17IdUD51132o0kE06",
-  pro: "https://buy.stripe.com/4gMcN5eYy5o70KLauQ0kE01",
-};
-
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const planId = (searchParams.get("plan") || "") as keyof typeof PLAN_CONFIGS;
@@ -38,7 +30,7 @@ export async function GET(req: Request) {
 
   // Only guard Starter; others can go direct.
   if (planId !== "starter") {
-    const paymentLinkUrl = PAYMENT_LINK_URLS[planId];
+    const paymentLinkUrl = PLAN_CONFIGS[planId].paymentLinkUrl;
     if (email) {
       return NextResponse.redirect(`${paymentLinkUrl}?prefilled_email=${encodeURIComponent(email)}`, 302);
     }
@@ -77,7 +69,7 @@ export async function GET(req: Request) {
   });
 
   // Prefill email so webhook can match user (IMPORTANT)
-  const paymentLink = PAYMENT_LINK_URLS.starter;
+  const paymentLink = PLAN_CONFIGS.starter.paymentLinkUrl;
   const redirectUrl = email
     ? `${paymentLink}?prefilled_email=${encodeURIComponent(email)}`
     : paymentLink;

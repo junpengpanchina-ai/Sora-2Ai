@@ -5,10 +5,17 @@
  * which gives us full control over success/cancel URLs
  */
 import { NextRequest, NextResponse } from "next/server";
+import { createClient as createSupabase } from "@supabase/supabase-js";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 import { PRICING_CONFIG, type PlanId } from "@/lib/billing/config";
 import type Stripe from "stripe";
+
+const supabaseAdmin = createSupabase(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } }
+);
 
 export async function POST(request: NextRequest) {
   try {
@@ -61,25 +68,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Risk control: Check if user can purchase Starter (anti-abuse)
-    // ⚠️ Simplified version: Only check device_id + IP (payment_fingerprint will be added later)
+    // 与 /api/checkout/create、/api/pay 一致：raw IP 计数，通过后写入 starter_purchase_guards
     if (planId === "starter") {
-      
-      // Extract IP and calculate prefix
-      const requestIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-                       request.headers.get("x-real-ip") ||
-                       request.headers.get("cf-connecting-ip") ||
-                       null;
-      
-      let ipPrefix: string | null = null;
-      if (requestIp) {
-        const ipv4Match = requestIp.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-        if (ipv4Match) {
-          ipPrefix = `${ipv4Match[1]}.${ipv4Match[2]}.${ipv4Match[3]}.0/24`;
-        }
-      }
+      const requestIp =
+        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        request.headers.get("x-real-ip") ||
+        request.headers.get("cf-connecting-ip") ||
+        "";
 
       // Check 1: User already purchased Starter
-      const { data: userPurchase } = await supabase
+      const { data: userPurchase } = await supabaseAdmin
         .from("purchases")
         .select("id")
         .eq("user_id", auth.user.id)
@@ -101,7 +99,7 @@ export async function POST(request: NextRequest) {
 
       // Check 2: Device already used for Starter
       if (deviceId) {
-        const { data: devicePurchase } = await supabase
+        const { data: devicePurchase } = await supabaseAdmin
           .from("starter_purchase_guards")
           .select("id")
           .eq("device_id", deviceId)
@@ -120,16 +118,16 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Check 3: IP /24 segment has too many Starter purchases in last 24h
-      if (ipPrefix) {
+      // Check 3: 同一 IP 24h 内最多 3 次（与 /api/pay 一致：starter_purchase_guards 存 raw IP）
+      if (requestIp) {
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-        const { data: ipPurchases, error: ipErr } = await supabase
+        const { count: ipCount } = await supabaseAdmin
           .from("starter_purchase_guards")
-          .select("id")
-          .eq("ip", ipPrefix)
+          .select("*", { count: "exact", head: true })
+          .eq("ip", requestIp)
           .gte("created_at", twentyFourHoursAgo);
 
-        if (!ipErr && ipPurchases && ipPurchases.length >= 3) {
+        if ((ipCount ?? 0) >= 3) {
           return NextResponse.json(
             {
               error: "Starter Access purchase not available",
@@ -140,6 +138,14 @@ export async function POST(request: NextRequest) {
           );
         }
       }
+
+      // 通过风控后写入 guard，与 /api/pay、/api/checkout/create 一致
+      await supabaseAdmin.from("starter_purchase_guards").insert({
+        user_id: auth.user.id,
+        device_id: deviceId || null,
+        ip: requestIp || null,
+        email: auth.user.email || null,
+      });
     }
 
     // Get base URL

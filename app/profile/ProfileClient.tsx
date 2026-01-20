@@ -91,8 +91,9 @@ export default function ProfileClient({ userProfile }: ProfileClientProps) {
         if (rechargeData.success) {
           setRechargeRecords(rechargeData.records || rechargeData.recharge_records || [])
           // Update credits from recharge data if available
-          if (rechargeData.user_credits !== undefined) {
-            setCredits(rechargeData.user_credits)
+          const total = rechargeData.wallet_total_credits ?? rechargeData.user_credits ?? 0
+          if (rechargeData.wallet_total_credits != null || rechargeData.user_credits != null) {
+            setCredits(total)
           }
         }
       }

@@ -50,18 +50,41 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get current user credits
-    const { data: userCreditsData } = await supabase
+    // P2: 主展示用 wallets；legacy_user_credits 仅对账/排查，后续 Phase 3 可删
+    const { data: walletRow, error: walletErr } = await supabase
+      .from('wallets')
+      .select('permanent_credits, bonus_credits, bonus_expires_at')
+      .eq('user_id', userProfile.id)
+      .maybeSingle()
+
+    if (walletErr) {
+      console.error('Failed to load wallet:', walletErr)
+      return NextResponse.json({ error: 'Failed to load wallet', details: walletErr.message }, { status: 500 })
+    }
+
+    const permanent = Number(walletRow?.permanent_credits ?? 0)
+    const bonus = Number(walletRow?.bonus_credits ?? 0)
+    const walletTotal = permanent + bonus
+
+    const { data: userRow } = await supabase
       .from('users')
       .select('credits')
       .eq('id', userProfile.id)
-      .single()
+      .maybeSingle()
+    const legacyUserCredits = Number(userRow?.credits ?? 0)
 
     return NextResponse.json({
       success: true,
       records: rechargeRecords || [],
       count: rechargeRecords?.length || 0,
-      user_credits: userCreditsData?.credits ?? 0,
+      user_credits: walletTotal,
+      wallet_total_credits: walletTotal,
+      wallet_permanent_credits: permanent,
+      wallet_bonus_credits: bonus,
+      permanent_credits: permanent,
+      bonus_credits: bonus,
+      bonus_expires_at: walletRow?.bonus_expires_at ?? null,
+      legacy_user_credits: legacyUserCredits,
     })
   } catch (error) {
     console.error('Failed to get recharge records:', error)

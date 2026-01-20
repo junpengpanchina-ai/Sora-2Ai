@@ -12,7 +12,10 @@ export type PlanConfig = {
   planId: PlanId;
   displayName: string;
   priceUsd: number;
+  /** Stripe Payment Link 的 plink_xxx，供 webhook planFromPaymentLink 识别 */
   paymentLinkId: string;
+  /** buy.stripe.com 跳转 URL，与 paymentLinkId 对应同一 Payment Link；供 /api/pay 重定向 */
+  paymentLinkUrl: string;
 
   // Wallet grant
   permanentCredits: number; // never expires
@@ -31,6 +34,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     displayName: "Starter Access",
     priceUsd: 4.9,
     paymentLinkId: "plink_1SjMNLDqGbi6No9vUku66neA",
+    paymentLinkUrl: "https://buy.stripe.com/28EbJ14jUg2L6550Ug0kE05",
     permanentCredits: 0,
     bonusCredits: 200,
     bonusExpiresDays: 7,
@@ -43,6 +47,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     displayName: "Creator Pack",
     priceUsd: 39,
     paymentLinkId: "plink_1SRxHLDqGbi6No9vhu7i5iud",
+    paymentLinkUrl: "https://buy.stripe.com/dRmcN55nY4k33WXfPa0kE03",
     permanentCredits: 2000,
     bonusCredits: 600,
     bonusExpiresDays: 14,
@@ -54,6 +59,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     displayName: "Studio Pack",
     priceUsd: 99,
     paymentLinkId: "plink_1SmxBiDqGbi6No9v4L6dFvvK",
+    paymentLinkUrl: "https://buy.stripe.com/6oU7sL17IdUD51132o0kE06",
     permanentCredits: 6000,
     bonusCredits: 1500,
     bonusExpiresDays: 30,
@@ -65,6 +71,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     displayName: "Pro Pack",
     priceUsd: 299,
     paymentLinkId: "plink_1SNF1zDqGbi6No9vqtJXYMhQ",
+    paymentLinkUrl: "https://buy.stripe.com/4gMcN5eYy5o70KLauQ0kE01",
     permanentCredits: 20000,
     bonusCredits: 4000,
     bonusExpiresDays: 60,
