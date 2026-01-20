@@ -569,3 +569,99 @@ flowchart LR
   - 内容审核服务（自研或第三方）。
   - 日志与审计平台。
 
+---
+
+## 十六、嵌入页面与下载风控及流出可视化（扩展设计）
+
+> 本章在前述访问决策与流出控制的基础上，进一步细化三项平台级能力：`/embed/{id}` iframe 页面、下载次数/并发风控阈值，以及基于 `video_external_access_log` 的 Admin 可视化（趋势与 Top 视频）。
+
+### 16.1 嵌入页面 `/embed/{id}`（受控 iframe 播放）
+
+- **目标**：为站外提供安全、受控的视频播放能力，同时：
+  - 不暴露真实视频文件或存储路径。
+  - 不作为下载入口。
+  - 不打破既有访问决策与审计体系。
+- **访问方式（示例）**：
+  - 外站通过如下 iframe 引用：
+    - `src="https://<your-domain>/embed/{video_id}"`
+    - 配置 `referrerpolicy="strict-origin"`，并限制允许的能力（`allow="autoplay; fullscreen"` 等）。
+- **访问链路（逻辑时序）**：
+  1. 外站页面加载 `<iframe src="/embed/{id}">`。
+  2. 浏览器请求 `/embed/{id}` 页面。
+  3. 页面服务端或客户端逻辑调用 `GET /api/videos/{id}/embed`。
+  4. `Video Service` 通过访问决策中枢（`request_type=embed`）校验：
+     - `external_access_policy.allow_embed`。
+     - （可选）`embed_domains` 与 `Referer` 域名匹配。
+  5. 若允许，生成**embed 专用播放 URL**（签名 + 有效期），返回给 `/embed/{id}`。
+  6. `/embed/{id}` 页面中的播放器使用该 URL 从 CDN 拉取内容。
+- **embed 页面约束**：
+  - 不展示下载按钮。
+  - 不暴露站内导航（视频详情页、主页等）。
+  - 仅负责“可控播放壳”，将业务与导航留在站内产品页面。
+- **风险控制要点**：
+  - 对 embed 请求统一记录到 `video_external_access_log`（`action="embed"`，`source="embed"`）。
+  - 对异常域名/异常访问量的视频，可在 Admin 中一键关闭该视频的 `allow_embed`。
+
+### 16.2 下载次数 / 并发 / 风控阈值设计
+
+- **设计目标**：
+  - 不使用水印破坏素材商业价值。
+  - 通过会员分层 + 请求阈值 + 审计，实现“防滥用不伤体验”的下载控制。
+- **会员级别下载风控示例配置**：
+  - 以代码常量或配置形式维护，例如：
+    - `basic`（如 4.9 会员）：
+      - `per_video_per_day`: 单视频每日最多下载次数（如 5）。
+      - `per_user_per_day`: 单用户每日最多下载总数（如 20）。
+      - `concurrent_downloads`: 同时进行的下载数（如 1）。
+    - `pro`（高端会员）：
+      - `per_video_per_day`: 例如 50。
+      - `per_user_per_day`: 例如 200。
+      - `concurrent_downloads`: 例如 3。
+- **决策流程（集成在下载访问决策后置步骤）**：
+  1. 基于 `video_external_access_log` 或专门统计表，获取：
+     - 当前用户当日下载总数。
+     - 当前用户对该视频当日下载次数。
+     - 当前用户进行中的下载任务数。
+  2. 按会员等级查找对应阈值，校验是否超限。
+  3. 若超过阈值：
+     - 返回带业务语义的错误码（如 `DOWNLOAD_LIMIT_REACHED`），附文案（可引导升级会员）。
+     - 不返回新的下载 URL。
+  4. 若未超限：
+     - 按前述逻辑生成无水印的短期下载 URL，并记录审计日志。
+- **用户体验建议**：
+  - 避免直接返回 HTTP 403；建议通过 JSON 响应明确告知：
+    - 当前下载额度已用尽。
+    - 下一次重置时间（如“明日凌晨 0 点重置”）。
+    - 可选升级路径（如“升级高端会员提升额度”）。
+
+### 16.3 基于 `video_external_access_log` 的 Admin 可视化
+
+- **目标**：将流出审计数据转化为运营与风控决策工具，支持：
+  - 按时间范围查看 play / download / embed 趋势。
+  - 找出流出最活跃的视频（Top 视频列表）。
+  - 快速对高风险视频采取操作（关闭下载/嵌入等）。
+- **Admin API 示例设计**：
+  - 趋势统计：
+    - `GET /api/admin/video-access/stats?range=7d|14d|30d`
+    - 返回按日聚合的 `play` / `download` / `embed` 计数。
+  - Top 视频：
+    - `GET /api/admin/video-access/top?type=download|embed&limit=20`
+    - 返回包含视频 ID、标题、下载/嵌入次数、去重用户数、典型会员等级分布等字段。
+- **Admin 界面建议布局**：
+  - **顶部状态条**：根据下载/播放比、异常峰值给出 OK / WARN / RISK 状态提示。
+  - **趋势图（折线图）**：展示 `play`、`download`、`embed` 随时间变化的曲线。
+  - **Top 列表（表格）**：
+    - 字段建议：
+      - 视频：`video_id + 标题`
+      - 下载数 / 嵌入数
+      - 去重用户数
+      - 会员分布（如 `free/basic/pro` 比例）
+  - **快捷操作**：
+    - 一键关闭某视频下载（修改其 `external_access_policy.allow_download=false`）。
+    - 一键关闭某视频嵌入（`allow_embed=false`）。
+    - 将视频标记为高风险，触发进一步人工复审或限制策略。
+- **高危识别示例规则**（可在服务端或前端计算）：
+  - `download` 占比异常高的视频（相对 `play`）。
+  - 短时间内下载/嵌入量激增的视频。
+  - 下载/嵌入主要集中于低等级会员或可疑账号。
+
