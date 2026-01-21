@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { createServiceClient } from "@/lib/supabase/service";
 import { validateAdminSession } from "@/lib/admin-auth";
 
+export const dynamic = "force-dynamic";
+
 type EnterpriseApiKeyRow = {
   id: string;
   user_id: string;
