@@ -22,6 +22,9 @@ type BatchJobRow = {
   failed_count: number | null;
   cost_per_video: number;
   frozen_credits: number | null;
+  webhook_url: string | null;
+  webhook_status: string | null;
+  webhook_attempts: number | null;
 };
 
 async function dispatchJobs(client: unknown) {
@@ -125,7 +128,7 @@ async function settleJobs(client: unknown) {
   const { data: running, error: scanError } = await supabase
     .from("batch_jobs")
     .select(
-      "id, user_id, status, total_count, success_count, failed_count, cost_per_video, frozen_credits",
+      "id, user_id, status, total_count, success_count, failed_count, cost_per_video, frozen_credits, webhook_url, webhook_status, webhook_attempts",
     )
     .eq("status", "processing")
     .order("created_at", { ascending: true })
@@ -225,10 +228,128 @@ async function settleJobs(client: unknown) {
       })
       .eq("id", job.id);
 
+    // 触发 webhook 回调（非阻塞，失败不阻断主流程）
+    if (job.webhook_url) {
+      // eslint-disable-next-line no-await-in-loop
+      await sendWebhookCallback(supabase, job, {
+        succeeded,
+        failed,
+        total: total,
+        status: newStatus,
+        credits_spent: spent,
+      });
+    }
+
     settled += 1;
   }
 
   return { scanned: jobs.length, settled };
+}
+
+// Webhook 回调函数（带重试逻辑）
+async function sendWebhookCallback(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  job: BatchJobRow,
+  payload: {
+    succeeded: number;
+    failed: number;
+    total: number;
+    status: string;
+    credits_spent: number;
+  },
+) {
+  const maxAttempts = 5;
+  const currentAttempts = Number(job.webhook_attempts ?? 0);
+
+  if (currentAttempts >= maxAttempts) {
+    // 已达到最大重试次数，标记为失败
+    await supabase
+      .from("batch_jobs")
+      .update({
+        webhook_status: "failed",
+        webhook_last_error: `Max retry attempts (${maxAttempts}) reached`,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", job.id);
+    return;
+  }
+
+  const webhookSecret = process.env.ENTERPRISE_WEBHOOK_SECRET ?? "";
+  const body = JSON.stringify({
+    event: "batch.completed",
+    batch_id: job.id,
+    status: payload.status,
+    total: payload.total,
+    succeeded: payload.succeeded,
+    failed: payload.failed,
+    credits_spent: payload.credits_spent,
+    timestamp: new Date().toISOString(),
+  });
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "User-Agent": "Sora2AI-Enterprise-Webhook/1.0",
+  };
+
+  if (webhookSecret) {
+    // 使用 HMAC-SHA256 签名（需要 crypto，Node.js 内置）
+    const crypto = await import("crypto");
+    const signature = crypto
+      .createHmac("sha256", webhookSecret)
+      .update(body)
+      .digest("hex");
+    headers["X-Sora-Signature"] = `sha256=${signature}`;
+  }
+
+  try {
+    const response = await fetch(job.webhook_url!, {
+      method: "POST",
+      headers,
+      body,
+      signal: AbortSignal.timeout(10000), // 10s 超时
+    });
+
+    if (response.ok) {
+      // 成功
+      await supabase
+        .from("batch_jobs")
+        .update({
+          webhook_status: "sent",
+          webhook_attempts: currentAttempts + 1,
+          webhook_last_sent_at: new Date().toISOString(),
+          webhook_last_error: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", job.id);
+    } else {
+      // HTTP 错误，需要重试
+      const errorText = await response.text().catch(() => response.statusText);
+
+      await supabase
+        .from("batch_jobs")
+        .update({
+          webhook_status: "retrying",
+          webhook_attempts: currentAttempts + 1,
+          webhook_last_error: `HTTP ${response.status}: ${errorText.substring(0, 200)}`,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", job.id);
+    }
+  } catch (error) {
+    // 网络错误，需要重试
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    await supabase
+      .from("batch_jobs")
+      .update({
+        webhook_status: "retrying",
+        webhook_attempts: currentAttempts + 1,
+        webhook_last_error: `Network error: ${errorMessage.substring(0, 200)}`,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", job.id);
+  }
 }
 
 export async function POST(req: Request) {

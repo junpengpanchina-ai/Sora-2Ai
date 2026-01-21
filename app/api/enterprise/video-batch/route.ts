@@ -148,6 +148,54 @@ export async function POST(req: Request) {
     );
   }
 
+  // 余额预检：计算预计成本并检查 credit_wallet 余额
+  const defaultCostPerVideo =
+    typeof process.env.ENTERPRISE_BATCH_COST_PER_VIDEO === "string"
+      ? Number(process.env.ENTERPRISE_BATCH_COST_PER_VIDEO)
+      : 10;
+
+  const costPerVideo =
+    Number.isFinite(defaultCostPerVideo) && defaultCostPerVideo > 0
+      ? defaultCostPerVideo
+      : 10;
+
+  const estimatedCredits = totalCount * costPerVideo;
+
+  // 使用现有 RPC 获取用户总可用积分（credit_wallet）
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: balanceData, error: balanceError } = await (client as any).rpc(
+    "get_total_available_credits",
+    { user_uuid: key.user_id },
+  );
+
+  if (balanceError) {
+    // eslint-disable-next-line no-console
+    console.error("[enterprise/video-batch] balance check failed", balanceError);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "BALANCE_CHECK_FAILED",
+        request_id: requestId ?? null,
+      },
+      { status: 500 },
+    );
+  }
+
+  const availableBalance = Number(balanceData ?? 0);
+  if (availableBalance < estimatedCredits) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "INSUFFICIENT_CREDITS",
+        message: `Insufficient credits. Required: ${estimatedCredits}, Available: ${availableBalance}`,
+        required: estimatedCredits,
+        available: availableBalance,
+        request_id: requestId ?? null,
+      },
+      { status: 402 }, // 402 Payment Required
+    );
+  }
+
   const now = new Date();
   const bucket = getMinuteBucketIso(now);
   const limit =
@@ -211,16 +259,12 @@ export async function POST(req: Request) {
     );
   }
 
-  // TODO: 根据企业定价/模型动态计算单条成本；当前按固定成本占位
-  const defaultCostPerVideo =
-    typeof process.env.ENTERPRISE_BATCH_COST_PER_VIDEO === "string"
-      ? Number(process.env.ENTERPRISE_BATCH_COST_PER_VIDEO)
-      : 10;
-
-  const costPerVideo =
-    Number.isFinite(defaultCostPerVideo) && defaultCostPerVideo > 0
-      ? defaultCostPerVideo
-      : 10;
+  // 从 body 提取 webhook_url（可选）
+  type BodyWithWebhook = BodyWithItems & { webhook_url?: string };
+  const webhookUrl =
+    typeof (body as BodyWithWebhook).webhook_url === "string"
+      ? (body as BodyWithWebhook).webhook_url?.trim() ?? null
+      : null;
 
   const { data: batch, error: batchError } = await client
     .from("batch_jobs")
@@ -229,6 +273,8 @@ export async function POST(req: Request) {
       status: "queued",
       total_count: totalCount,
       cost_per_video: costPerVideo,
+      webhook_url: webhookUrl,
+      webhook_status: webhookUrl ? "pending" : null,
       // 先交给内部 Worker 进行冻结和结算；此处不直接扣费
     })
     .select("*")
