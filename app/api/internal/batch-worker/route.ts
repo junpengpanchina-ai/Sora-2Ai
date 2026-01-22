@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
 import { createServiceClient } from "@/lib/supabase/service";
 
 export const dynamic = "force-dynamic";
@@ -15,110 +14,226 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
+function pickBaseUrl(): string | null {
+  // 你说"baseUrl 不存在就轮询"，这里按常见优先级取
+  const site =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null);
+
+  return site ? site.replace(/\/+$/, "") : null;
 }
 
-function signWebhook(body: string, secret: string) {
-  return crypto.createHmac("sha256", secret).update(body).digest("hex");
+// ---- grsai client 动态兼容（防止方法名略有差异导致 build 挂） ----
+async function grsai() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mod: any = await import("@/lib/grsai/client");
+  return mod;
 }
 
-async function postWebhook(
-  url: string,
-  payload: unknown,
-  secret?: string | null,
-) {
-  const body = JSON.stringify(payload);
-  const headers: Record<string, string> = {
-    "content-type": "application/json",
-    "x-webhook-timestamp": String(Date.now()),
-  };
-  if (secret) headers["x-webhook-signature"] = signWebhook(body, secret);
+type TaskRow = {
+  id: string;
+  batch_job_id: string;
+  batch_index: number;
 
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 8000);
+  status: "pending" | "processing" | "succeeded" | "failed" | string;
+  prompt: string | null;
+  model: string | null;
+  meta: unknown | null;
 
+  reference_url: string | null;
+  aspect_ratio: string | null;
+  duration: number | null;
+
+  grsai_task_id: string | null;
+  video_url: string | null;
+  error_message: string | null;
+};
+
+function isSora(model: string | null) {
+  const m = (model || "").toLowerCase();
+  return m.includes("sora");
+}
+function isVeo(model: string | null) {
+  const m = (model || "").toLowerCase();
+  return m.includes("veo");
+}
+
+function normalizeAspectRatio(x: string | null) {
+  // 你已有格式：9:16 / 16:9；如果为空就不给
+  if (!x) return null;
+  if (x === "9:16" || x === "16:9" || x === "1:1") return x;
+  return x;
+}
+
+// 从 reference_url 里提取 url 参数（你说 Sora-2 用这个）
+function extractUrlParam(referenceUrl: string | null): string | null {
+  if (!referenceUrl) return null;
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers,
-      body,
-      signal: ctrl.signal,
-    });
-    return { ok: res.ok, status: res.status };
-  } catch (e: unknown) {
-    return {
-      ok: false,
-      status: 0,
-      error: String((e as { message?: string })?.message ?? e),
-    };
-  } finally {
-    clearTimeout(t);
+    const u = new URL(referenceUrl);
+    const p = u.searchParams.get("url");
+    return p ? p : referenceUrl; // 没有 url 参数就当本身是 url
+  } catch {
+    return referenceUrl;
   }
 }
 
-function isRetryableError(msg: string) {
-  const m = msg.toLowerCase();
-  return (
-    m.includes("timeout") ||
-    m.includes("temporarily") ||
-    m.includes("rate") ||
-    m.includes("429") ||
-    m.includes("503") ||
-    m.includes("network") ||
-    m.includes("retryable")
-  );
-}
+async function createRemoteTask(task: TaskRow, baseUrl: string | null) {
+  const mod = await grsai();
 
-// 这里是"最小可运行"的关键：你把真实生成逻辑接进来即可
-// 默认实现：如果你没接生成，则直接失败（但会走退款，账不炸）
-async function runOneTask(_task: unknown) {
-  const endpoint = process.env.INTERNAL_GENERATE_ENDPOINT; // 例如 https://xxx/api/internal/generate
-  const secret = process.env.INTERNAL_GENERATE_SECRET;
+  // webhook：有 baseUrl 才启用，否则你要求 webHook = "-1"（轮询）
+  const webhookUrl = baseUrl
+    ? `${baseUrl}/api/video/callback?task_id=${encodeURIComponent(task.id)}`
+    : "-1";
 
-  if (!endpoint) {
-    return { ok: false, error: "NO_GENERATE_ENDPOINT_CONFIGURED" };
-  }
+  const model = task.model || ((task.meta as { model?: string })?.model as string) || "sora-2";
+  const aspectRatio = normalizeAspectRatio(task.aspect_ratio);
+  const prompt = task.prompt || "";
 
-  const task = _task as {
-    id: string;
-    prompt?: string | null;
-    model?: string | null;
-    meta?: unknown;
-  };
-
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 30000);
-  try {
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...(secret ? { "x-internal-secret": secret } : {}),
-      },
-      body: JSON.stringify({
-        task_id: task.id,
-        prompt: task.prompt,
-        model: task.model ?? null,
-        meta: task.meta ?? null,
-      }),
-      signal: ctrl.signal,
-    });
-
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      return { ok: false, error: `GENERATOR_HTTP_${res.status}:${txt}` };
+  if (isSora(model)) {
+    const reference = extractUrlParam(task.reference_url);
+    const duration = task.duration === 15 ? 15 : 10; // 固定 10/15
+    // 你要求：固定 size: "small"
+    const createSoraVideoTask = mod.createSoraVideoTask as ((params: unknown) => Promise<unknown>) | undefined;
+    if (!createSoraVideoTask) {
+      return { ok: false, error: "MISSING_createSoraVideoTask" };
     }
-    const data = await res.json().catch(() => ({}));
-    const videoUrl = data?.video_url || data?.url || null;
-    if (!videoUrl) return { ok: false, error: "GENERATOR_NO_VIDEO_URL" };
 
-    return { ok: true, video_url: String(videoUrl) };
-  } catch (e: unknown) {
-    return { ok: false, error: String((e as { message?: string })?.message ?? e) };
-  } finally {
-    clearTimeout(t);
+    const res = await createSoraVideoTask({
+      prompt,
+      model: "sora-2",
+      size: "small",
+      duration,
+      aspectRatio: aspectRatio ?? undefined,
+      // reference：按你描述从 url 参数提取
+      ...(reference ? { url: reference } : {}),
+      // webhook：baseUrl 不存在则 "-1"
+      webHook: webhookUrl,
+      shutProgress: false,
+      // 你已有 meta 里可能还有别的字段，不强行覆盖
+    });
+
+    const taskId =
+      (res as { task_id?: string; id?: string; data?: { task_id?: string; id?: string } })?.task_id ||
+      (res as { id?: string })?.id ||
+      (res as { data?: { task_id?: string; id?: string } })?.data?.task_id ||
+      (res as { data?: { id?: string } })?.data?.id ||
+      null;
+
+    if (!taskId) return { ok: false, error: "SORA_CREATE_NO_TASK_ID" };
+    return { ok: true, grsai_task_id: String(taskId) };
   }
+
+  if (isVeo(model)) {
+    const createVeoVideoTask = mod.createVeoVideoTask as ((params: unknown) => Promise<unknown>) | undefined;
+    if (!createVeoVideoTask) {
+      return { ok: false, error: "MISSING_createVeoVideoTask" };
+    }
+
+    const meta = (task.meta || {}) as {
+      firstFrameUrl?: string;
+      lastFrameUrl?: string;
+      urls?: string[];
+      [key: string]: unknown;
+    };
+    // veo：firstFrameUrl/lastFrameUrl/urls
+    const firstFrameUrl = meta.firstFrameUrl || null;
+    const lastFrameUrl = meta.lastFrameUrl || null;
+    const urls: string[] =
+      Array.isArray(meta.urls) && meta.urls.length
+        ? meta.urls
+        : task.reference_url
+          ? [task.reference_url]
+          : [];
+
+    const apiModelName = model === "veo-flash" ? "veo3.1-fast" : "veo3.1-pro";
+    const res = await createVeoVideoTask({
+      prompt,
+      model: apiModelName,
+      aspectRatio: aspectRatio ?? undefined,
+      ...(firstFrameUrl ? { firstFrameUrl } : {}),
+      ...(lastFrameUrl ? { lastFrameUrl } : {}),
+      ...(urls.length ? { urls } : {}),
+      webHook: webhookUrl,
+      shutProgress: false,
+    });
+
+    const taskId =
+      (res as { task_id?: string; id?: string; data?: { task_id?: string; id?: string } })?.task_id ||
+      (res as { id?: string })?.id ||
+      (res as { data?: { task_id?: string; id?: string } })?.data?.task_id ||
+      (res as { data?: { id?: string } })?.data?.id ||
+      null;
+
+    if (!taskId) return { ok: false, error: "VEO_CREATE_NO_TASK_ID" };
+    return { ok: true, grsai_task_id: String(taskId) };
+  }
+
+  // 默认按 sora 兜底（防止 model 为空）
+  return { ok: false, error: `UNKNOWN_MODEL:${model}` };
+}
+
+// 轮询：尽量兼容你 client 的"查询任务"方法名
+async function pollRemoteTask(grsaiTaskId: string) {
+  const mod = await grsai();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const candidates = [
+    mod.getTaskResult,
+    mod.getTask,
+    mod.getVideoTask,
+    mod.retrieveTask,
+    mod.fetchTask,
+    mod.queryTask,
+  ].filter(Boolean);
+
+  if (!candidates.length) {
+    return { ok: false, error: "NO_TASK_QUERY_METHOD" };
+  }
+
+  const fn = candidates[0] as (taskId: string) => Promise<unknown>;
+  // getTaskResult 返回 GrsaiResultResponse，包含 data.data.status 等
+  const res = await fn(grsaiTaskId);
+
+  // 兼容常见返回：{status, video_url} / {data:{status,url}} / {data:{data:{status,url}}}
+  // getTaskResult 返回 GrsaiResultResponse: { code, msg, data: SoraVideoResponse }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const resAny = res as any;
+  const status =
+    resAny?.status ||
+    resAny?.data?.status ||
+    resAny?.data?.data?.status ||
+    resAny?.state ||
+    resAny?.data?.state ||
+    null;
+
+  const videoUrl =
+    resAny?.video_url ||
+    resAny?.url ||
+    resAny?.data?.video_url ||
+    resAny?.data?.url ||
+    resAny?.data?.data?.video_url ||
+    resAny?.data?.data?.url ||
+    (resAny?.data?.results?.[0]?.url) ||
+    (resAny?.data?.data?.results?.[0]?.url) ||
+    null;
+
+  const errorMsg =
+    resAny?.error_message ||
+    resAny?.error ||
+    resAny?.data?.error_message ||
+    resAny?.data?.error ||
+    resAny?.data?.data?.error_message ||
+    resAny?.data?.data?.error ||
+    null;
+
+  return {
+    ok: true,
+    status: status ? String(status) : null,
+    video_url: videoUrl ? String(videoUrl) : null,
+    error_message: errorMsg ? String(errorMsg) : null,
+  };
 }
 
 export async function POST(req: Request) {
@@ -136,15 +251,13 @@ export async function POST(req: Request) {
 
   const CLAIM_LIMIT = Number(process.env.BATCH_CLAIM_LIMIT ?? 5) || 5;
   const TASK_CONCURRENCY = Number(process.env.BATCH_TASK_CONCURRENCY ?? 3) || 3;
-  const MAX_TASK_RETRIES = Number(process.env.MAX_TASK_RETRIES ?? 2) || 2;
 
-  // 1) claim queued batches -> processing
-  const { data: claimed, error: claimErr } = await client.rpc(
-    "claim_batch_jobs",
-    {
-      p_limit: CLAIM_LIMIT,
-    },
-  );
+  const baseUrl = pickBaseUrl();
+
+  // 1) claim queued -> processing（你已有 rpc）
+  const { data: claimed, error: claimErr } = await client.rpc("claim_batch_jobs", {
+    p_limit: CLAIM_LIMIT,
+  });
 
   if (claimErr) {
     return NextResponse.json(
@@ -157,36 +270,25 @@ export async function POST(req: Request) {
     );
   }
 
-  const batches: unknown[] = Array.isArray(claimed) ? claimed : [];
-  let frozenOk = 0;
-  let processedTasks = 0;
-  let settledBatches = 0;
-  let webhookSent = 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const batches: any[] = Array.isArray(claimed) ? claimed : [];
 
-  // 2) dispatch loop
+  let frozenOk = 0;
+  let createdRemote = 0;
+  let polled = 0;
+  let settled = 0;
+
   for (const b of batches) {
-    const batch = b as {
-      id: string;
-      user_id: string;
-      total_count?: number | null;
-      cost_per_video?: number | null;
-      webhook_url?: string | null;
-      webhook_secret?: string | null;
-    };
-    const batchId = String(batch.id);
-    const userId = String(batch.user_id);
-    const totalCount = Number(batch.total_count ?? 0);
-    const costPerVideo = Number(batch.cost_per_video ?? 10);
+    const batchId = String(b.id);
+    const userId = String(b.user_id);
+    const totalCount = Number(b.total_count ?? 0);
+    const costPerVideo = Number(b.cost_per_video ?? 10);
     const required = totalCount * costPerVideo;
 
-    // 2.1 freeze upfront（等价冻结）
+    // 2) freeze upfront（等价冻结）
     const { data: freezeRes, error: freezeErr } = await client.rpc(
       "freeze_credits_for_batch",
-      {
-        p_batch_id: batchId,
-        p_user_id: userId,
-        p_amount: required,
-      },
+      { p_batch_id: batchId, p_user_id: userId, p_amount: required },
     );
 
     if (freezeErr || !freezeRes?.ok) {
@@ -200,28 +302,26 @@ export async function POST(req: Request) {
           completed_at: nowIso(),
         })
         .eq("id", batchId);
-
       continue;
     }
     frozenOk += 1;
 
-    // 2.2 load tasks
+    // 3) load tasks
     const { data: tasks, error: taskErr } = await client
       .from("video_tasks")
       .select(
-        "id,batch_index,status,prompt,model,meta,video_url,error_message",
+        "id,batch_job_id,batch_index,status,prompt,model,meta,reference_url,aspect_ratio,duration,grsai_task_id,video_url,error_message",
       )
       .eq("batch_job_id", batchId)
       .order("batch_index", { ascending: true });
 
     if (taskErr) {
-      // 任务都处理不了 → 直接结算全退（spent=0）
+      // 查不了任务，直接结算全退（spent=0）
       await client.rpc("finalize_batch_credits", {
         p_batch_id: batchId,
         p_user_id: userId,
         p_spent: 0,
       });
-
       await client
         .from("batch_jobs")
         .update({
@@ -233,81 +333,108 @@ export async function POST(req: Request) {
           completed_at: nowIso(),
         })
         .eq("id", batchId);
-
+      settled += 1;
       continue;
     }
 
-    const taskList: unknown[] = Array.isArray(tasks) ? tasks : [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const taskList: TaskRow[] = (tasks || []) as any;
 
-    // 2.3 并发处理 queued/processing 的任务（最小：只处理 queued）
-    const queue = taskList.filter(
-      (t) => String((t as { status?: string }).status) === "queued",
+    // 4) A) 先把 pending 且没有 grsai_task_id 的任务发起创建（并发）
+    const toCreate = taskList.filter(
+      (t) => (t.status === "pending" || t.status === "queued") && !t.grsai_task_id,
     );
 
     let idx = 0;
-    async function workerOne() {
-      while (idx < queue.length) {
-        const t = queue[idx++] as {
-          id: string;
-          prompt?: string | null;
-          model?: string | null;
-          meta?: unknown;
-        };
-        const taskId = String(t.id);
+    async function creator() {
+      while (idx < toCreate.length) {
+        const t = toCreate[idx++];
 
-        // 标记 processing（如果你表没有这个状态，也不会影响；你可以只用 queued/succeeded/failed）
+        // 乐观置 processing（你字段支持）
         await client
           .from("video_tasks")
           .update({ status: "processing", updated_at: nowIso() })
-          .eq("id", taskId);
+          .eq("id", t.id);
 
-        let lastErr = "";
-        let ok = false;
-        let videoUrl: string | null = null;
+        const r = await createRemoteTask(t, baseUrl);
 
-        for (let attempt = 0; attempt <= MAX_TASK_RETRIES; attempt++) {
-          const r = await runOneTask(t);
-          if (r.ok) {
-            ok = true;
-            videoUrl = r.video_url ?? null;
-            break;
-          }
-          lastErr = String(r.error ?? "UNKNOWN_ERROR");
-          if (!isRetryableError(lastErr) || attempt === MAX_TASK_RETRIES) break;
-          await sleep(800 * (attempt + 1));
-        }
-
-        if (ok && videoUrl) {
+        if (r.ok) {
           await client
             .from("video_tasks")
             .update({
-              status: "succeeded",
-              video_url: videoUrl,
+              grsai_task_id: r.grsai_task_id,
+              // 继续 processing，等待 webhook/轮询把它改成 succeeded/failed
+              status: "processing",
               error_message: null,
               updated_at: nowIso(),
             })
-            .eq("id", taskId);
+            .eq("id", t.id);
+          createdRemote += 1;
         } else {
           await client
             .from("video_tasks")
             .update({
               status: "failed",
-              error_message: lastErr.slice(0, 800),
+              error_message: String(r.error ?? "CREATE_TASK_FAILED").slice(0, 800),
               updated_at: nowIso(),
             })
-            .eq("id", taskId);
+            .eq("id", t.id);
         }
-
-        processedTasks += 1;
       }
     }
 
-    const workers = Array.from({ length: Math.max(1, TASK_CONCURRENCY) }, () =>
-      workerOne(),
+    await Promise.all(
+      Array.from({ length: Math.max(1, TASK_CONCURRENCY) }, () => creator()),
     );
-    await Promise.all(workers);
 
-    // 2.4 settle if all done（succeeded/failed）
+    // 5) B) 如果没有 baseUrl（webHook=-1），就对 processing 且有 grsai_task_id 的任务轮询一次
+    if (!baseUrl) {
+      const toPoll = taskList.filter(
+        (t) => t.status === "processing" && !!t.grsai_task_id,
+      );
+      for (const t of toPoll) {
+        const r = await pollRemoteTask(String(t.grsai_task_id));
+        polled += 1;
+
+        // 你 grsai 状态名可能不同，这里做最常见兼容
+        const st = (r.status || "").toLowerCase();
+        if (st.includes("succeed") || st === "done" || st === "completed") {
+          if (r.video_url) {
+            await client
+              .from("video_tasks")
+              .update({
+                status: "succeeded",
+                video_url: r.video_url,
+                error_message: null,
+                updated_at: nowIso(),
+              })
+              .eq("id", t.id);
+          } else {
+            await client
+              .from("video_tasks")
+              .update({
+                status: "failed",
+                error_message: "POLL_OK_BUT_NO_VIDEO_URL",
+                updated_at: nowIso(),
+              })
+              .eq("id", t.id);
+          }
+        } else if (st.includes("fail") || st.includes("error")) {
+          await client
+            .from("video_tasks")
+            .update({
+              status: "failed",
+              error_message: String(r.error_message ?? "REMOTE_FAILED").slice(0, 800),
+              updated_at: nowIso(),
+            })
+            .eq("id", t.id);
+        } else {
+          // still processing → 不动
+        }
+      }
+    }
+
+    // 6) settle：只有当全部任务都进入 succeeded/failed 才结算退款
     const { data: finalTasks, error: finalErr } = await client
       .from("video_tasks")
       .select("status")
@@ -315,36 +442,26 @@ export async function POST(req: Request) {
 
     if (finalErr) continue;
 
-    const finals: unknown[] = Array.isArray(finalTasks) ? finalTasks : [];
-    const succ = finals.filter(
-      (x) => String((x as { status?: string }).status) === "succeeded",
-    ).length;
-    const fail = finals.filter(
-      (x) => String((x as { status?: string }).status) === "failed",
-    ).length;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const finals: any[] = Array.isArray(finalTasks) ? finalTasks : [];
+    const succ = finals.filter((x) => String(x.status) === "succeeded").length;
+    const fail = finals.filter((x) => String(x.status) === "failed").length;
 
     if (succ + fail !== totalCount) {
-      // 还有任务没结束（例如你后面引入异步 render）：保留 processing，等下一次 worker
+      // 还有 processing/pending，留给下一轮 worker
       continue;
     }
 
     const spent = succ * costPerVideo;
 
-    const { data: settleRes } = await client.rpc("finalize_batch_credits", {
+    await client.rpc("finalize_batch_credits", {
       p_batch_id: batchId,
       p_user_id: userId,
       p_spent: spent,
     });
 
-    const settlementStatus =
-      settleRes?.already === true
-        ? "finalized"
-        : spent < required
-          ? "refunded"
-          : "finalized";
-
-    const batchStatus =
-      succ === 0 ? "failed" : fail > 0 ? "partial" : "completed";
+    const batchStatus = succ === 0 ? "failed" : fail > 0 ? "partial" : "completed";
+    const settlementStatus = spent < required ? "refunded" : "finalized";
 
     await client
       .from("batch_jobs")
@@ -358,58 +475,19 @@ export async function POST(req: Request) {
       })
       .eq("id", batchId);
 
-    settledBatches += 1;
-
-    // 2.5 webhook notify（如果 enterprise_api_keys 上有 webhook_url / secret）
-    const webhookUrl = batch.webhook_url ?? null;
-    const webhookSecret = batch.webhook_secret ?? null;
-
-    // 如果 claim_batch_jobs 返回不带 webhook 字段，我们补查 enterprise key（最稳）
-    let finalWebhookUrl = webhookUrl;
-    let finalWebhookSecret = webhookSecret;
-
-    if (!finalWebhookUrl) {
-      const { data: k } = await client
-        .from("enterprise_api_keys")
-        .select("webhook_url,webhook_secret")
-        .eq("user_id", userId)
-        .limit(1)
-        .maybeSingle();
-
-      finalWebhookUrl = (k as { webhook_url?: string | null })?.webhook_url ?? null;
-      finalWebhookSecret =
-        (k as { webhook_secret?: string | null })?.webhook_secret ?? null;
-    }
-
-    if (finalWebhookUrl) {
-      const payload = {
-        type: "batch.completed",
-        batch_id: batchId,
-        status: batchStatus,
-        total_count: totalCount,
-        success_count: succ,
-        failed_count: fail,
-        cost_per_video: costPerVideo,
-        frozen_credits: required,
-        credits_spent: spent,
-        settlement_status: settlementStatus,
-        ts: Date.now(),
-      };
-      const r = await postWebhook(finalWebhookUrl, payload, finalWebhookSecret);
-      if (r.ok) webhookSent += 1;
-    }
+    settled += 1;
   }
-
-  const durationMs = Date.now() - started;
 
   return NextResponse.json({
     ok: true,
     dispatch: {
       claimed: batches.length,
       frozen: frozenOk,
-      processed_tasks: processedTasks,
+      created_remote: createdRemote,
+      polled,
     },
-    settle: { settled_batches: settledBatches, webhook_sent: webhookSent },
-    duration_ms: durationMs,
+    settle: { settled_batches: settled },
+    duration_ms: Date.now() - started,
+    base_url_mode: baseUrl ? "webhook" : "polling",
   });
 }

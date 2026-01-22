@@ -322,17 +322,23 @@ export async function POST(req: Request) {
 
   const batchId = String(batchInserted.id);
 
-  // 7) 入库 video_tasks（最小字段：batch_job_id + batch_index + prompt + status）
-  //    你后面要扩展 model/params/seed/webhook 等都可以在 items 里带，落到你的表字段/JSON
+  // 7) 入库 video_tasks（字段完全按你给的支持列表来）
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tasksPayload = items.map((it: any, idx: number) => ({
     batch_job_id: batchId,
     batch_index: idx,
-    status: "queued",
-    prompt: String(it?.prompt ?? it?.template ?? ""),
-    // 兼容你已有字段：variables / model / meta 等（有就写，没有就忽略）
-    ...(it?.model ? { model: String(it.model) } : {}),
-    ...(it?.meta ? { meta: it.meta } : {}),
+
+    // 状态：你表定义支持 pending/processing/succeeded/failed
+    status: "pending",
+
+    prompt: String(it?.prompt ?? ""),
+    model: it?.model ? String(it.model) : null,
+
+    meta: it?.meta ?? null,
+
+    reference_url: it?.reference_url ? String(it.reference_url) : null,
+    aspect_ratio: it?.aspect_ratio ? String(it.aspect_ratio) : null,
+    duration: typeof it?.duration === "number" ? it.duration : null,
   }));
 
   const { error: tasksErr } = await client
