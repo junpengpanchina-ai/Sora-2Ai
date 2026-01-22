@@ -349,11 +349,25 @@ export async function POST(req: Request) {
       });
   }
 
+  // 触发 internal worker（非阻塞，失败不影响批次创建）
+  const workerSecret = process.env.INTERNAL_WORKER_SECRET;
+  if (workerSecret) {
+    const workerUrl = new URL("/api/internal/batch-worker", req.url).toString();
+    fetch(workerUrl, {
+      method: "POST",
+      headers: { "x-worker-secret": workerSecret },
+    }).catch(() => {
+      // 静默失败，worker 会通过 cron 自动处理
+    });
+  }
+
   return NextResponse.json({
     ok: true,
     batch_id: batchId,
     total_count: totalCount,
     cost_per_video: costPerVideo,
+    required_credits: estimatedCredits,
+    available_credits: availableBalance,
     status: "queued",
     request_id: requestId ?? null,
   });
