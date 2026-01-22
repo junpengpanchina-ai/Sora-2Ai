@@ -124,6 +124,56 @@ fi
 echo "   Batch ID: $BATCH_ID"
 echo "   (expect cost_per_video≈$COST_PER_VIDEO_EXPECT, required_credits≈$((2 * COST_PER_VIDEO_EXPECT)))"
 
+# ========= Step 1.5: Idempotency test (必做小测试) =========
+echo ""
+echo "1.5) 🔄 Test idempotency (same request_id, POST twice) ..."
+
+if [[ "$JQ_OK" -eq 1 && -n "$BATCH_ID" ]]; then
+  echo "   First call batch_id: $BATCH_ID"
+  echo "   Making second call with same request_id: $REQ_ID"
+  
+  IDEMPOTENT_RES="$(curl -sS -X POST "$BASE_URL/api/enterprise/video-batch" \
+    -H "x-api-key: $ENTERPRISE_API_KEY" \
+    -H "Content-Type: application/json" \
+    -H "x-request-id: $REQ_ID" \
+    -d '{
+      "items": [
+        {"prompt":"A cinematic video of a city at sunset"},
+        {"prompt":"An anime style video of a cat playing"}
+      ]
+    }')"
+  
+  echo "$IDEMPOTENT_RES"
+  
+  IDEMPOTENT_OK="$(echo "$IDEMPOTENT_RES" | jq -r '.ok // empty')"
+  IDEMPOTENT_BATCH_ID="$(echo "$IDEMPOTENT_RES" | jq -r '.batch_id // empty')"
+  IDEMPOTENT_REPLAY="$(echo "$IDEMPOTENT_RES" | jq -r '.idempotent_replay // false')"
+  
+  if [[ "$IDEMPOTENT_OK" != "true" ]]; then
+    echo "❌ Idempotency test failed: second call returned ok=false"
+    echo "$IDEMPOTENT_RES" | jq .
+    exit 1
+  fi
+  
+  if [[ "$IDEMPOTENT_REPLAY" != "true" ]]; then
+    echo "❌ Idempotency test failed: idempotent_replay expected true, got: $IDEMPOTENT_REPLAY"
+    exit 1
+  fi
+  
+  if [[ "$IDEMPOTENT_BATCH_ID" != "$BATCH_ID" ]]; then
+    echo "❌ Idempotency test failed: batch_id mismatch"
+    echo "   First call:  $BATCH_ID"
+    echo "   Second call: $IDEMPOTENT_BATCH_ID"
+    exit 1
+  fi
+  
+  echo "✅ Idempotency test passed:"
+  echo "   idempotent_replay: $IDEMPOTENT_REPLAY"
+  echo "   batch_id matches: $IDEMPOTENT_BATCH_ID"
+else
+  echo "⚠️  jq not found or batch_id missing, skip idempotency test"
+fi
+
 # ========= Step 2: Worker dispatch+freeze =========
 echo ""
 echo "2) ⚙️  Call worker (dispatch + freeze) ..."
