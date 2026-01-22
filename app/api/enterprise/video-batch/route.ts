@@ -21,10 +21,18 @@ function getApiKey(req: Request): string | null {
   return match ? match[1]?.trim() ?? null : null;
 }
 
+function normalizeRequestId(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const s = v.trim();
+  if (!s) return null;
+  // 保险：避免超长 request_id 撑爆索引或日志
+  return s.length > 128 ? s.slice(0, 128) : s;
+}
+
 function getRequestId(req: Request): string | null {
   return (
-    req.headers.get("x-request-id")?.trim() ??
-    req.headers.get("x-idempotency-key")?.trim() ??
+    normalizeRequestId(req.headers.get("x-request-id")) ??
+    normalizeRequestId(req.headers.get("x-idempotency-key")) ??
     null
   );
 }
@@ -43,6 +51,23 @@ function getMinuteBucketIso(d: Date): string {
   const copy = new Date(d);
   copy.setUTCSeconds(0, 0);
   return copy.toISOString();
+}
+
+// ---- Unified success response (可卖级保障) ----
+type SuccessPayload = {
+  ok: true;
+  request_id: string | null;
+  batch_id: string;
+  idempotent_replay?: boolean;
+  total_count: number;
+  cost_per_video: number;
+  required_credits: number;
+  available_credits: number;
+  status: "queued" | "processing" | "completed" | "partial" | "failed";
+};
+
+function successResponse(p: SuccessPayload) {
+  return NextResponse.json(p, { status: 200 });
 }
 
 async function verifyApiKey(req: Request) {
@@ -88,9 +113,9 @@ export async function POST(req: Request) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const client: any = supabase;
 
-  // 幂等：若 request_id 已存在且关联了 batch_job_id，直接返回
+  // 幂等：若 request_id 已存在且关联了 batch_job_id，直接返回完整结构
   if (requestId) {
-    const { data: existing, error: existingError } = await client
+    const { data: existingUsage, error: existingUsageError } = await client
       .from("enterprise_api_usage")
       .select("batch_job_id")
       .eq("api_key_id", key.id)
@@ -99,13 +124,53 @@ export async function POST(req: Request) {
       .limit(1)
       .maybeSingle();
 
-    if (!existingError && existing?.batch_job_id) {
-      return NextResponse.json({
-        ok: true,
-        request_id: requestId,
-        batch_id: existing.batch_job_id,
-        idempotent_replay: true,
-      });
+    if (!existingUsageError && existingUsage?.batch_job_id) {
+      // 读取旧 batch，返回完整结构（和正常成功一致）
+      const { data: existingBatch, error: existingBatchError } = await client
+        .from("batch_jobs")
+        .select("id,total_count,cost_per_video,status")
+        .eq("id", existingUsage.batch_job_id)
+        .maybeSingle();
+
+      if (!existingBatchError && existingBatch) {
+        const existingTotal = Number(existingBatch.total_count ?? 0);
+        const existingCost = Number(existingBatch.cost_per_video ?? 10);
+        const existingRequired = existingTotal * existingCost;
+
+        // 获取当前余额（用于返回）
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: balanceData } = await (client as any).rpc(
+          "get_total_available_credits",
+          { user_uuid: key.user_id },
+        );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const raw = balanceData as any;
+        const available =
+          typeof raw === "number"
+            ? raw
+            : typeof raw?.total === "number"
+              ? raw.total
+              : typeof raw?.available === "number"
+                ? raw.available
+                : typeof raw?.credits === "number"
+                  ? raw.credits
+                  : Array.isArray(raw) && raw.length > 0 && typeof raw[0] === "number"
+                    ? raw[0]
+                    : 0;
+        const availableBalance = Number(available) || 0;
+
+        return successResponse({
+          ok: true,
+          request_id: requestId,
+          batch_id: existingBatch.id,
+          idempotent_replay: true,
+          total_count: existingTotal,
+          cost_per_video: existingCost,
+          required_credits: existingRequired,
+          available_credits: availableBalance,
+          status: (existingBatch.status as SuccessPayload["status"]) ?? "queued",
+        });
+      }
     }
   }
 
@@ -181,7 +246,22 @@ export async function POST(req: Request) {
     );
   }
 
-  const availableBalance = Number(balanceData ?? 0);
+  // 稳健解包：兼容 RPC 返回 INTEGER / {total} / {available} / {credits} 等多种形态
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const raw = balanceData as any;
+  const available =
+    typeof raw === "number"
+      ? raw
+      : typeof raw?.total === "number"
+        ? raw.total
+        : typeof raw?.available === "number"
+          ? raw.available
+          : typeof raw?.credits === "number"
+            ? raw.credits
+            : Array.isArray(raw) && raw.length > 0 && typeof raw[0] === "number"
+              ? raw[0]
+              : 0;
+  const availableBalance = Number(available) || 0;
   if (availableBalance < estimatedCredits) {
     return NextResponse.json(
       {
@@ -215,9 +295,10 @@ export async function POST(req: Request) {
       minute_bucket: bucket,
     });
 
-  // 如果因 request_id 冲突失败，按幂等重放处理
+  // ----------------- 可直接覆盖的幂等冲突处理（23505） -----------------
   if (usageInsertError && requestId && usageInsertError.code === "23505") {
-    const { data: existed } = await client
+    // 幂等重放：找到之前那条 usage，拿到 batch_job_id
+    const { data: existedUsage, error: existedUsageError } = await client
       .from("enterprise_api_usage")
       .select("batch_job_id")
       .eq("api_key_id", key.id)
@@ -226,14 +307,74 @@ export async function POST(req: Request) {
       .limit(1)
       .maybeSingle();
 
-    if (existed?.batch_job_id) {
-      return NextResponse.json({
-        ok: true,
+    if (existedUsageError) {
+      // eslint-disable-next-line no-console
+      console.error("[enterprise/video-batch] idempotency_lookup_failed", {
         request_id: requestId,
-        batch_id: existed.batch_job_id,
-        idempotent_replay: true,
+        api_key_id: key.id,
+        error: existedUsageError,
       });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "IDEMPOTENCY_LOOKUP_FAILED",
+          request_id: requestId,
+        },
+        { status: 500 },
+      );
     }
+
+    if (!existedUsage?.batch_job_id) {
+      // 理论上不会发生：有 unique 冲突却查不到记录
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "IDEMPOTENCY_INCONSISTENT",
+          request_id: requestId,
+        },
+        { status: 500 },
+      );
+    }
+
+    // 读取旧 batch，返回完整结构（和正常成功一致）
+    const { data: existingBatch, error: existingBatchError } = await client
+      .from("batch_jobs")
+      .select("id,total_count,cost_per_video,status")
+      .eq("id", existedUsage.batch_job_id)
+      .maybeSingle();
+
+    if (existingBatchError || !existingBatch) {
+      // eslint-disable-next-line no-console
+      console.error("[enterprise/video-batch] idempotency_batch_not_found", {
+        request_id: requestId,
+        batch_id: existedUsage.batch_job_id,
+        error: existingBatchError,
+      });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "IDEMPOTENCY_BATCH_NOT_FOUND",
+          request_id: requestId,
+        },
+        { status: 500 },
+      );
+    }
+
+    const existingTotal = Number(existingBatch.total_count ?? 0);
+    const existingCost = Number(existingBatch.cost_per_video ?? costPerVideo);
+    const existingRequired = existingTotal * existingCost;
+
+    return successResponse({
+      ok: true,
+      request_id: requestId,
+      batch_id: existingBatch.id,
+      idempotent_replay: true,
+      total_count: existingTotal,
+      cost_per_video: existingCost,
+      required_credits: existingRequired,
+      available_credits: Number(availableBalance ?? 0),
+      status: (existingBatch.status as SuccessPayload["status"]) ?? "queued",
+    });
   }
 
   // 按 minute_bucket 做硬限流
@@ -361,15 +502,16 @@ export async function POST(req: Request) {
     });
   }
 
-  return NextResponse.json({
+  // ----------------- 正常成功返回（可直接覆盖你 395-404 行） -----------------
+  return successResponse({
     ok: true,
+    request_id: requestId ?? null,
     batch_id: batchId,
     total_count: totalCount,
     cost_per_video: costPerVideo,
     required_credits: estimatedCredits,
     available_credits: availableBalance,
     status: "queued",
-    request_id: requestId ?? null,
   });
 }
 
