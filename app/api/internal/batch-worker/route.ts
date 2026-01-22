@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { getTaskResult } from "@/lib/grsai/client";
 
 export const dynamic = "force-dynamic";
 
@@ -175,65 +176,94 @@ async function createRemoteTask(task: TaskRow, baseUrl: string | null) {
   return { ok: false, error: `UNKNOWN_MODEL:${model}` };
 }
 
-// 轮询：尽量兼容你 client 的"查询任务"方法名
-async function pollRemoteTask(grsaiTaskId: string) {
-  const mod = await grsai();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const candidates = [
-    mod.getTaskResult,
-    mod.getTask,
-    mod.getVideoTask,
-    mod.retrieveTask,
-    mod.fetchTask,
-    mod.queryTask,
-  ].filter(Boolean);
+// 轮询：精准版，直接使用 getTaskResult，严格按 GrsaiResultResponse 结构解包
+type PollResult =
+  | {
+      ok: true;
+      status: "processing" | "succeeded" | "failed";
+      progress?: number;
+      video_url?: string | null;
+      error_message?: string | null;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
 
-  if (!candidates.length) {
-    return { ok: false, error: "NO_TASK_QUERY_METHOD" };
+async function pollRemoteTask(grsaiTaskId: string): Promise<PollResult> {
+  try {
+    const res = await getTaskResult(grsaiTaskId);
+
+    if (!res || typeof res.code !== "number") {
+      return { ok: false, error: "INVALID_RESPONSE" };
+    }
+
+    // Grsai 业务错误（code != 0）
+    if (res.code !== 0) {
+      return {
+        ok: true,
+        status: "failed",
+        error_message: res.msg || "REMOTE_ERROR",
+      };
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = res.data as any;
+    const status = data?.status;
+    const progress = data?.progress ?? null;
+
+    // ========= 成功 =========
+    if (status === "succeeded" || status === "success") {
+      // Sora: results[0].url
+      if (Array.isArray(data.results) && data.results[0]?.url) {
+        return {
+          ok: true,
+          status: "succeeded",
+          progress,
+          video_url: data.results[0].url,
+        };
+      }
+
+      // Veo: data.url
+      if (data.url) {
+        return {
+          ok: true,
+          status: "succeeded",
+          progress,
+          video_url: data.url,
+        };
+      }
+
+      // 理论不该发生：成功但无 url
+      return {
+        ok: true,
+        status: "failed",
+        error_message: "SUCCEEDED_WITHOUT_VIDEO_URL",
+      };
+    }
+
+    // ========= 失败 =========
+    if (status === "failed" || status === "error") {
+      return {
+        ok: true,
+        status: "failed",
+        error_message:
+          data.failure_reason || data.error || "REMOTE_TASK_FAILED",
+      };
+    }
+
+    // ========= 进行中 =========
+    return {
+      ok: true,
+      status: "processing",
+      progress,
+    };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: (err as { message?: string })?.message || "POLL_EXCEPTION",
+    };
   }
-
-  const fn = candidates[0] as (taskId: string) => Promise<unknown>;
-  // getTaskResult 返回 GrsaiResultResponse，包含 data.data.status 等
-  const res = await fn(grsaiTaskId);
-
-  // 兼容常见返回：{status, video_url} / {data:{status,url}} / {data:{data:{status,url}}}
-  // getTaskResult 返回 GrsaiResultResponse: { code, msg, data: SoraVideoResponse }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const resAny = res as any;
-  const status =
-    resAny?.status ||
-    resAny?.data?.status ||
-    resAny?.data?.data?.status ||
-    resAny?.state ||
-    resAny?.data?.state ||
-    null;
-
-  const videoUrl =
-    resAny?.video_url ||
-    resAny?.url ||
-    resAny?.data?.video_url ||
-    resAny?.data?.url ||
-    resAny?.data?.data?.video_url ||
-    resAny?.data?.data?.url ||
-    (resAny?.data?.results?.[0]?.url) ||
-    (resAny?.data?.data?.results?.[0]?.url) ||
-    null;
-
-  const errorMsg =
-    resAny?.error_message ||
-    resAny?.error ||
-    resAny?.data?.error_message ||
-    resAny?.data?.error ||
-    resAny?.data?.data?.error_message ||
-    resAny?.data?.data?.error ||
-    null;
-
-  return {
-    ok: true,
-    status: status ? String(status) : null,
-    video_url: videoUrl ? String(videoUrl) : null,
-    error_message: errorMsg ? String(errorMsg) : null,
-  };
 }
 
 export async function POST(req: Request) {
@@ -393,43 +423,46 @@ export async function POST(req: Request) {
         (t) => t.status === "processing" && !!t.grsai_task_id,
       );
       for (const t of toPoll) {
-        const r = await pollRemoteTask(String(t.grsai_task_id));
+        const result = await pollRemoteTask(String(t.grsai_task_id));
         polled += 1;
 
-        // 你 grsai 状态名可能不同，这里做最常见兼容
-        const st = (r.status || "").toLowerCase();
-        if (st.includes("succeed") || st === "done" || st === "completed") {
-          if (r.video_url) {
-            await client
-              .from("video_tasks")
-              .update({
-                status: "succeeded",
-                video_url: r.video_url,
-                error_message: null,
-                updated_at: nowIso(),
-              })
-              .eq("id", t.id);
-          } else {
-            await client
-              .from("video_tasks")
-              .update({
-                status: "failed",
-                error_message: "POLL_OK_BUT_NO_VIDEO_URL",
-                updated_at: nowIso(),
-              })
-              .eq("id", t.id);
-          }
-        } else if (st.includes("fail") || st.includes("error")) {
+        // 网络/异常，不动任务，留给下次轮询
+        if (!result.ok) {
+          continue;
+        }
+
+        // 进行中，不更新 status，只记录 progress（可选）
+        if (result.status === "processing") {
+          // 可选：更新 progress 字段（如果你表有）
+          // await client.from("video_tasks").update({ progress: result.progress ?? 0 }).eq("id", t.id);
+          continue;
+        }
+
+        // 成功，更新 video_url 和 status
+        if (result.status === "succeeded") {
+          await client
+            .from("video_tasks")
+            .update({
+              status: "succeeded",
+              video_url: result.video_url ?? null,
+              error_message: null,
+              updated_at: nowIso(),
+            })
+            .eq("id", t.id);
+          continue;
+        }
+
+        // 失败，更新 error_message 和 status
+        if (result.status === "failed") {
           await client
             .from("video_tasks")
             .update({
               status: "failed",
-              error_message: String(r.error_message ?? "REMOTE_FAILED").slice(0, 800),
+              error_message: String(result.error_message ?? "REMOTE_FAILED").slice(0, 800),
               updated_at: nowIso(),
             })
             .eq("id", t.id);
-        } else {
-          // still processing → 不动
+          continue;
         }
       }
     }
