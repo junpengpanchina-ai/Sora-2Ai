@@ -9,6 +9,12 @@ const SITE_URL = getBaseUrl();
 export async function GET() {
   const body = `User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /auth/
+Disallow: /storage-test/
+Disallow: /payment-test/
+Disallow: /prompts/
 
 Sitemap: ${SITE_URL}/sitemap.xml
 `;

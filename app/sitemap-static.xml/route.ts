@@ -86,12 +86,16 @@ export async function GET() {
   const baseUrl = getBaseUrl()
   const dynamicPaths = await getDynamicPaths()
   const allPaths = [...STATIC_PATHS, ...dynamicPaths]
+  
+  // 使用当前日期作为 lastmod（静态页面通常不会频繁更新）
+  const now = new Date().toISOString().split('T')[0]
 
   const urls = allPaths.map((item) => {
     const path = typeof item === 'string' ? item : item.path
     const priority = typeof item === 'string' ? (path === '/' ? '1.0' : '0.6') : item.priority
     return `    <url>
       <loc>${baseUrl}${path}</loc>
+      <lastmod>${now}</lastmod>
       <priority>${priority}</priority>
     </url>`
   })
