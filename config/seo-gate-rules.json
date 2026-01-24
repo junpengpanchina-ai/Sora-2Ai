@@ -1,0 +1,155 @@
+{
+  "seo_scaling_gate": {
+    "version": "1.0",
+    "last_updated": "2026-01-24",
+    
+    "observation_window_days": 14,
+    
+    "index_rate_thresholds": {
+      "green": {
+        "min": 0.70,
+        "action": "ALLOW_SCALE",
+        "description": "Scale allowed - can expand sitemaps and admit core"
+      },
+      "yellow": {
+        "min": 0.40,
+        "max": 0.69,
+        "action": "FREEZE",
+        "description": "Observe only - no structural changes allowed"
+      },
+      "red": {
+        "max": 0.39,
+        "action": "BLOCK_AND_ROLLBACK",
+        "description": "Freeze all expansion, consider rollback"
+      }
+    },
+    
+    "sitemap_core_admission": {
+      "description": "Conditions for admitting sitemap-core.xml to sitemap index",
+      "required": {
+        "index_rate_min": 0.65,
+        "stability_days": 7,
+        "max_volatility": 0.05,
+        "crawl_errors_allowed": false,
+        "crawl_trend_declining": false,
+        "manual_checks": {
+          "min_urls": 5,
+          "eligible_only": true
+        }
+      },
+      "on_pass": "ALLOW_ADMISSION",
+      "on_fail": "DENY_ADMISSION"
+    },
+    
+    "tier_expansion": {
+      "tier1": {
+        "chunk_size": 1000,
+        "expansion_requires": "GREEN",
+        "observation_before_next": 7
+      },
+      "tier2": {
+        "chunk_size": 500,
+        "expansion_requires": "GREEN",
+        "observation_before_next": 3
+      }
+    },
+    
+    "alerts": {
+      "index_rate_drop": {
+        "threshold": 0.10,
+        "window_days": 1,
+        "severity": "critical"
+      },
+      "consecutive_decline": {
+        "days": 3,
+        "severity": "warning"
+      },
+      "zone_transition": {
+        "from": "green",
+        "to": "yellow",
+        "severity": "info"
+      },
+      "zone_transition_critical": {
+        "from": "any",
+        "to": "red",
+        "severity": "critical"
+      }
+    },
+    
+    "forbidden_actions": [
+      "ADD_SITEMAP_CORE_BEFORE_TIER1_VALIDATION",
+      "EXPAND_TIER_DURING_YELLOW",
+      "EXPAND_TIER_DURING_RED",
+      "COMPENSATE_LOW_INDEX_RATE_WITH_CORE",
+      "SCALE_ON_ASSUMPTION",
+      "OVERRIDE_WITHOUT_JUSTIFICATION"
+    ],
+    
+    "default_action": "FREEZE",
+    
+    "rollback": {
+      "enabled": true,
+      "max_rollback_days": 7,
+      "method": "noindex_recent_pages"
+    },
+    
+    "audit": {
+      "log_all_decisions": true,
+      "require_justification_for_override": true,
+      "metrics_snapshot_required": true
+    }
+  },
+  
+  "reason_codes": {
+    "BLOCKED_TIER1_EMPTY": {
+      "description": "tier1-0.xml has 0 URLs",
+      "severity": "fatal",
+      "action": "BLOCK"
+    },
+    "BLOCKED_LOW_INDEX_RATE": {
+      "description": "Index Rate below 40%",
+      "severity": "fatal",
+      "action": "BLOCK"
+    },
+    "BLOCKED_INDEX_DELTA_NEGATIVE": {
+      "description": "Index delta negative for 3+ days",
+      "severity": "fatal",
+      "action": "BLOCK"
+    },
+    "BLOCKED_HIGH_DUPLICATE": {
+      "description": "Duplicate rate above 20%",
+      "severity": "fatal",
+      "action": "BLOCK"
+    },
+    "HOLD_MODERATE_INDEX_RATE": {
+      "description": "Index Rate between 40-70%",
+      "severity": "warning",
+      "action": "HOLD"
+    },
+    "CAUTIOUS_BORDERLINE": {
+      "description": "Index Rate between 65-70%",
+      "severity": "info",
+      "action": "CAUTIOUS"
+    },
+    "SAFE_TO_SCALE": {
+      "description": "All conditions met",
+      "severity": "ok",
+      "action": "ALLOW"
+    }
+  },
+  
+  "daily_metrics": {
+    "required": [
+      "discovered_urls",
+      "indexed_urls",
+      "index_rate",
+      "crawled_not_indexed",
+      "crawl_stats"
+    ],
+    "derived": [
+      "index_rate_7d_ma",
+      "index_delta",
+      "duplicate_rate"
+    ]
+  }
+}

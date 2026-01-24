@@ -609,6 +609,14 @@ Preview features do not imply future availability or contractual obligation.
 |------|------|
 | `docs/playbooks/14_DAY_OBSERVATION_CHECKLIST.md` | 14 天观测清单 |
 
+### 11.10 核心 Gate 文档（v1.1.2 新增）
+
+| 文件 | 用途 |
+|------|------|
+| `docs/SEO_SCALING_GATE.md` | SEO 扩容门控正式文档（SSOT） |
+| `docs/investor/SEO_SCALING_ARCHITECTURE_ONE_PAGE.md` | 投资人 1 页扩容图 |
+| `config/seo-gate-rules.json` | CI/CD 可执行 JSON 规则 |
+
 ### 11.8 网站资源
 
 | 文件 | 用途 |

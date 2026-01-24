@@ -17,6 +17,30 @@
 
 ---
 
+## [v1.1.2] - 2026-01-24
+
+### 新增
+
+1. **SEO Scaling Gate Policy 正式文档**
+   - `docs/SEO_SCALING_GATE.md`
+   - 工程/SEO/商业共用的单一真相源
+   - 完整决策矩阵和审计要求
+
+2. **投资人 1 页扩容图**
+   - `docs/investor/SEO_SCALING_ARCHITECTURE_ONE_PAGE.md`
+   - 可直接用于 PPT/Notion/投资人沟通
+
+3. **CI/CD JSON Gate Rule**
+   - `config/seo-gate-rules.json`
+   - 机器可读的完整规则定义
+   - 包含阈值、原因码、告警配置
+
+### 变更
+
+- 主指南新增 config 目录索引
+
+---
+
 ## [v1.1.1] - 2026-01-24
 
 ### 新增
