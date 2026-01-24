@@ -154,42 +154,97 @@ Sitemap: https://sora2aivideos.com/sitemap.xml
 
 ---
 
-## 六、发现的问题
+## 六、策略决策：sitemap-core 暂不加入 index
 
-### ⚠️ 问题 1：sitemap-core.xml 未被 sitemap index 引用
-
-**现状**：
+### 现状
 
 ```
 sitemap.xml 只引用了：
-├── tier1-0.xml ✅
+└── tier1-0.xml ✅ (1,000 URLs)
 
-缺少：
-└── sitemap-core.xml ❌ (276 URLs)
+独立存在：
+└── sitemap-core.xml (276 URLs) — 刻意保留在 index 外
 ```
 
-**影响**：
-- sitemap-core.xml 的 276 个 URL 不会通过主 sitemap 被 Google 自动发现
-- 需要在 GSC 单独提交，或修改 sitemap index
+### ⛔ 决策：现在不把 sitemap-core 加入 index
 
-**建议修复方案**：
+**结论**：这不是 Bug，而是正确的策略选择。
 
-**方案 A（推荐）**：将 sitemap-core 加入 index
+### 决策理由
 
-修改 `app/sitemap.xml/route.ts`：
+#### 1️⃣ 需要建立 Index Rate 基准线
 
-```typescript
-const sitemaps = [
-  { loc: `${baseUrl}/sitemap-core.xml`, lastmod: now },  // 新增
-  ...tier1Sitemaps,
-];
+当前最重要的问题不是：
+> "Google 能不能抓 1,276 个？"
+
+而是：
+> "Google 在只给 1,000 个 Tier1 时，实际索引率是多少？"
+
+如果现在把 core 也加进去：
+- Index Rate 被污染
+- 后续所有扩容判断都不再干净
+
+#### 2️⃣ 必须保持单变量实验
+
+已经吃过 off-by-one 的亏。如果现在：
+- 同时修复 index ✅（已完成）
+- 同时引入 core ❌
+- 同时观察 GSC
+
+→ 一旦数据异常，无法定位原因
+
+#### 3️⃣ sitemap-core 的角色本来就不是 Tier1
+
+| Sitemap | 角色 | 定位 |
+|---------|------|------|
+| `tier1-0` | Scaling Probe | 扩容与抓取实验池 |
+| `sitemap-core` | Brand Anchor | 站点稳定核心 |
+
+Core 的正确命运是：
+- 要么自然被发现（内链）
+- 要么在 Index Gate 放行后再补进 index
+
+**而不是现在抢跑。**
+
+#### 4️⃣ 符合 SEO Infra 5 条铁律
+
+| 铁律 | 当前状态 |
+|------|----------|
+| sitemap 从 tier1-0 开始 | ✅ 正确执行 |
+| 信号干净 | ✅ 只有 tier1-0 |
+| 扩容由 Index Gate 决定 | ✅ 未擅自扩容 |
+| 不在 Index Rate 未知时扩容 | ✅ |
+| Gate BLOCKED 时不 override | ✅ |
+
+### 时间线决策
+
+#### Day 0–14（现在）
+
+```
+什么都不要加
+
+只做 3 件事：
+1. 盯 Index Rate（发现 / 已索引）
+2. 抽样 URL Inspection（5 个）
+3. 观察 Crawl Stats
 ```
 
-**方案 B**：在 GSC 单独提交
+#### Day 14 之后：根据条件决定
 
-1. 登录 GSC
-2. Sitemaps → Add a new sitemap
-3. 提交：`sitemap-core.xml`
+| 条件 | Index Rate | 动作 |
+|------|------------|------|
+| **A（理想）** | ≥ 60-70% | 允许把 sitemap-core 加入 index |
+| **B（保守）** | 低但抓取稳定 | GSC 单独提交 sitemap-core（不进 index） |
+| **C（危险）** | 抓取异常/索引失败 | 冻结一切新增 sitemap |
+
+### 本质判断
+
+```
+"sitemap-core 未进 index" 不是缺陷，
+而是一个 SEO Scaling Gate 的手动阀门。
+
+当前状态 = 完全 OK，甚至是理想状态。
+```
 
 ---
 
@@ -199,33 +254,41 @@ const sitemaps = [
 |------|------|------|
 | Sitemap Index | ✅ 正常（修复后） | 10/10 |
 | tier1-0 | ✅ 1,000 URLs | 10/10 |
-| sitemap-core | ⚠️ 未在 index | 5/10 |
+| sitemap-core | ✅ 刻意保留在 index 外 | 10/10 |
 | URL 可访问性 | ✅ 200 | 10/10 |
 | Canonical | ✅ 正确 | 10/10 |
 | robots.txt | ✅ 正确 | 10/10 |
-| **总分** | | **55/60** |
+| **总分** | | **60/60** |
+
+> **评分说明**：sitemap-core 未进 index 从"问题"重新定性为"正确的策略选择"。
 
 ---
 
 ## 八、下一步行动
 
-### 立即（Day 0）
+### Day 0-3（观察期）
 
-- [ ] 决定 sitemap-core 处理方案（加入 index 或 GSC 单独提交）
-- [ ] 如选方案 A，修改 `app/sitemap.xml/route.ts`
-- [ ] 如选方案 B，在 GSC 提交 `sitemap-core.xml`
-
-### 短期（Day 1-3）
-
-- [ ] GSC 确认 sitemap 状态更新
+- [ ] **不要动 sitemap-core**
+- [ ] GSC 确认 sitemap.xml 状态（应显示 tier1-0）
 - [ ] 观察 Pages 报告中"已发现"是否增长
-- [ ] URL Inspection 抽查 5 个 URL
+- [ ] URL Inspection 抽查 5 个 tier1-0 URL
 
-### 中期（Day 4-14）
+### Day 4-14（基准建立期）
 
+- [ ] **继续不动 sitemap-core**
 - [ ] 按 14 天冷启动 Playbook 执行
-- [ ] 监控 Index Rate
-- [ ] 准备 tier1-1 数据（如需扩容）
+- [ ] 记录 Index Rate 数据（建立基准线）
+- [ ] 观察 Crawl Stats
+
+### Day 14+（条件触发期）
+
+根据 Index Rate 决定 sitemap-core 命运：
+
+| Index Rate | 动作 |
+|------------|------|
+| ≥ 60-70% | ✅ 可将 sitemap-core 加入 index |
+| 低但稳定 | ⚠️ GSC 单独提交（不进 index） |
+| 异常 | ❌ 冻结，排查问题 |
 
 ---
 
