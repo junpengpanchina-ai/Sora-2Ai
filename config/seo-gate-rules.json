@@ -1,9 +1,48 @@
 {
   "seo_scaling_gate": {
-    "version": "1.0",
+    "version": "1.1",
     "last_updated": "2026-01-24",
     
     "observation_window_days": 14,
+    
+    "systemic_errors": {
+      "description": "5xx/404 hard rules - overrides Index Rate if violated",
+      "5xx": {
+        "red": {
+          "condition": "count_7d >= 10 OR (count_today > 0 AND consecutive_days >= 3)",
+          "action": "BLOCK_SYSTEMIC_5XX",
+          "description": "Immediate freeze due to 5xx errors"
+        },
+        "yellow": {
+          "condition": "count_today > 0",
+          "action": "FREEZE_SYSTEMIC_5XX",
+          "description": "Freeze expansion, allow fixes"
+        },
+        "green": {
+          "condition": "count_today = 0 AND clean_days >= 7",
+          "action": "ALLOW",
+          "description": "No 5xx for 7 days"
+        }
+      },
+      "404": {
+        "red": {
+          "condition": "count_in_sitemap > 0",
+          "action": "BLOCK_404_IN_SITEMAP",
+          "description": "Sitemap contains 404 URLs"
+        },
+        "yellow": {
+          "condition": "count_total > 20",
+          "action": "FREEZE_HIGH_404",
+          "description": "High 404 count needs attention"
+        },
+        "green": {
+          "condition": "count_in_sitemap = 0 AND clean_days >= 7",
+          "action": "ALLOW",
+          "description": "No 404 in sitemap for 7 days"
+        }
+      },
+      "combined_rule": "systemic_errors must be GREEN before Index Rate is evaluated"
+    },
     
     "index_rate_thresholds": {
       "green": {
@@ -101,40 +140,71 @@
   },
   
   "reason_codes": {
+    "BLOCKED_SYSTEMIC_5XX": {
+      "description": "5xx errors detected - system health issue",
+      "severity": "fatal",
+      "action": "BLOCK",
+      "priority": 1
+    },
+    "BLOCKED_404_IN_SITEMAP": {
+      "description": "404 URLs found in sitemap",
+      "severity": "fatal",
+      "action": "BLOCK",
+      "priority": 2
+    },
     "BLOCKED_TIER1_EMPTY": {
       "description": "tier1-0.xml has 0 URLs",
       "severity": "fatal",
-      "action": "BLOCK"
+      "action": "BLOCK",
+      "priority": 3
     },
     "BLOCKED_LOW_INDEX_RATE": {
       "description": "Index Rate below 40%",
       "severity": "fatal",
-      "action": "BLOCK"
+      "action": "BLOCK",
+      "priority": 4
     },
     "BLOCKED_INDEX_DELTA_NEGATIVE": {
       "description": "Index delta negative for 3+ days",
       "severity": "fatal",
-      "action": "BLOCK"
+      "action": "BLOCK",
+      "priority": 5
     },
     "BLOCKED_HIGH_DUPLICATE": {
       "description": "Duplicate rate above 20%",
       "severity": "fatal",
-      "action": "BLOCK"
+      "action": "BLOCK",
+      "priority": 6
+    },
+    "FREEZE_SYSTEMIC_5XX": {
+      "description": "5xx detected today - freeze until clean",
+      "severity": "warning",
+      "action": "FREEZE",
+      "priority": 1
+    },
+    "FREEZE_HIGH_404": {
+      "description": "High 404 count needs attention",
+      "severity": "warning",
+      "action": "FREEZE",
+      "priority": 2
     },
     "HOLD_MODERATE_INDEX_RATE": {
       "description": "Index Rate between 40-70%",
       "severity": "warning",
-      "action": "HOLD"
+      "action": "HOLD",
+      "priority": 10
     },
     "CAUTIOUS_BORDERLINE": {
       "description": "Index Rate between 65-70%",
       "severity": "info",
-      "action": "CAUTIOUS"
+      "action": "CAUTIOUS",
+      "priority": 11
     },
     "SAFE_TO_SCALE": {
-      "description": "All conditions met",
+      "description": "All conditions met - no systemic errors, good Index Rate",
       "severity": "ok",
-      "action": "ALLOW"
+      "action": "ALLOW",
+      "priority": 100
     }
   },
   
@@ -144,12 +214,34 @@
       "indexed_urls",
       "index_rate",
       "crawled_not_indexed",
-      "crawl_stats"
+      "crawl_stats",
+      "error_5xx_count",
+      "error_404_count",
+      "error_404_in_sitemap"
     ],
     "derived": [
       "index_rate_7d_ma",
       "index_delta",
-      "duplicate_rate"
+      "duplicate_rate",
+      "5xx_clean_days",
+      "404_clean_days"
     ]
+  },
+  
+  "current_status": {
+    "description": "Snapshot from GSC 2026-01-20",
+    "indexed": 29000,
+    "not_indexed": 1126,
+    "index_rate": 0.963,
+    "issues": {
+      "5xx": 43,
+      "404": 8,
+      "redirect": 708,
+      "discovered_not_indexed": 266,
+      "crawled_not_indexed": 100
+    },
+    "gate_state": "YELLOW",
+    "reason": "FREEZE_SYSTEMIC_5XX",
+    "action_required": "Fix 5xx errors before scaling"
   }
 }
