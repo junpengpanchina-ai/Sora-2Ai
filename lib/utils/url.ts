@@ -20,12 +20,29 @@ export function getKeywordPageUrl(slug: string): string {
 }
 
 /**
- * 生成长尾词页面的 XML API URL（用于 API 调用）
- * 注意：这个用于 ?format=xml 场景，不应该在 sitemap 中使用
+ * @deprecated 不要使用！format=xml 会导致 GSC 404 错误
+ * 如果需要 XML 格式，使用 /api/keywords/[slug].xml 路由
  */
-export function getKeywordXmlUrl(slug: string): string {
-  const baseUrl = getBaseUrl()
-  return `${baseUrl}/keywords/${slug}?format=xml`
+// export function getKeywordXmlUrl - REMOVED to prevent format=xml URLs
+
+/**
+ * 规范化 keyword slug
+ * - 去掉重复的 keywords- 前缀
+ * - 去掉 .xml 后缀
+ * - 去掉 format=xml 等查询参数
+ */
+export function normalizeKeywordSlug(slug: string): string {
+  if (!slug) return slug
+  
+  let normalized = slug
+  
+  // 去掉 .xml 后缀
+  normalized = normalized.replace(/\.xml$/i, '')
+  
+  // 去掉重复的 keywords- 前缀 (keywords-keywords-xxx → keywords-xxx)
+  normalized = normalized.replace(/^(keywords-)+/i, 'keywords-')
+  
+  return normalized.trim()
 }
 
 /**
