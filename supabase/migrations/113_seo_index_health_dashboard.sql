@@ -331,6 +331,84 @@ as $$
 $$;
 
 -- ============================================
+-- 7. CI/Deploy Gate RPC（用于自动化阻断）
+-- ============================================
+create or replace function get_seo_scaling_gate()
+returns table (
+  can_scale boolean,
+  decision text,
+  reason text,
+  tier1_ok boolean,
+  index_rate_ok boolean,
+  index_delta_ok boolean,
+  duplicate_ok boolean
+)
+language plpgsql
+as $$
+declare
+  m seo_daily_metrics%rowtype;
+  prev_indexed int;
+  dup_rate numeric;
+begin
+  -- 获取最新数据
+  select * into m from seo_daily_metrics order by date desc limit 1;
+  
+  if not found then
+    return query select 
+      false, 
+      'BLOCKED'::text, 
+      'No metrics data available'::text,
+      false, false, false, false;
+    return;
+  end if;
+  
+  -- 获取前一天 indexed
+  select indexed into prev_indexed 
+  from seo_daily_metrics 
+  where date = m.date - 1;
+  
+  -- 计算 duplicate rate
+  if m.indexed > 0 then
+    dup_rate := m.duplicate_urls::numeric / m.indexed;
+  else
+    dup_rate := 0;
+  end if;
+  
+  return query select
+    -- can_scale
+    (m.tier1_empty_chunks = 0 
+     and (m.indexed::float / nullif(m.crawled, 0)) >= 0.4
+     and (prev_indexed is null or m.indexed >= prev_indexed)
+    ),
+    -- decision
+    case
+      when m.tier1_empty_chunks > 0 then 'BLOCKED'
+      when (m.indexed::float / nullif(m.crawled, 0)) < 0.4 then 'BLOCKED'
+      when (m.indexed::float / nullif(m.crawled, 0)) < 0.5 then 'HOLD'
+      when dup_rate > 0.2 then 'HOLD'
+      when (m.indexed::float / nullif(m.crawled, 0)) >= 0.7 then 'SAFE_TO_SCALE'
+      else 'CAUTIOUS'
+    end::text,
+    -- reason
+    case
+      when m.tier1_empty_chunks > 0 then 'Tier1 has empty chunks'
+      when (m.indexed::float / nullif(m.crawled, 0)) < 0.4 then 'Index Rate < 40%'
+      when (m.indexed::float / nullif(m.crawled, 0)) < 0.5 then 'Index Rate < 50%'
+      when dup_rate > 0.2 then 'Duplicate rate > 20%'
+      when (m.indexed::float / nullif(m.crawled, 0)) >= 0.7 then 'Index Rate healthy'
+      else 'Proceed with caution'
+    end::text,
+    -- checks
+    (m.tier1_empty_chunks = 0),
+    ((m.indexed::float / nullif(m.crawled, 0)) >= 0.5),
+    (prev_indexed is null or m.indexed >= prev_indexed),
+    (dup_rate < 0.1);
+end;
+$$;
+
+comment on function get_seo_scaling_gate() is 'CI/Deploy 阻断检查，返回是否允许扩容';
+
+-- ============================================
 -- 使用示例
 -- ============================================
 --
