@@ -1,0 +1,751 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Sora2 Enterprise API",
+    "version": "1.0.0",
+    "description": "Enterprise-grade batch video generation API with ledger-based credits, automatic refunds, and full audit trail.",
+    "contact": {
+      "email": "enterprise@sora2aivideos.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://sora2aivideos.com/api/v1",
+      "description": "Production"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "paths": {
+    "/batches": {
+      "post": {
+        "operationId": "createBatch",
+        "summary": "Create a batch job",
+        "description": "Create a new batch video generation job. Supports idempotency via `request_id`.",
+        "tags": ["Batches"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBatchRequest"
+              },
+              "example": {
+                "request_id": "order-12345",
+                "items": [
+                  {
+                    "prompt": "A cinematic shot of a city skyline at sunset",
+                    "model": "sora-2",
+                    "aspect_ratio": "16:9"
+                  },
+                  {
+                    "prompt": "An anime style forest scene with falling leaves",
+                    "model": "sora-2",
+                    "aspect_ratio": "16:9"
+                  }
+                ],
+                "webhook_url": "https://your-server.com/webhook/sora2"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Batch created successfully (or idempotent replay)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResponse"
+                },
+                "example": {
+                  "ok": true,
+                  "batch_id": "bat_abc123def456",
+                  "request_id": "order-12345",
+                  "status": "pending",
+                  "total_count": 2,
+                  "cost_per_video": 10,
+                  "required_credits": 20,
+                  "available_credits": 1000,
+                  "idempotent_replay": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Insufficient credits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "ok": false,
+                  "error": "INSUFFICIENT_CREDITS",
+                  "required": 100,
+                  "available": 50
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/batches/{batch_id}": {
+      "get": {
+        "operationId": "getBatch",
+        "summary": "Get batch status",
+        "description": "Retrieve the current status and summary of a batch job.",
+        "tags": ["Batches"],
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The batch ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Batch details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchDetail"
+                },
+                "example": {
+                  "ok": true,
+                  "batch_id": "bat_abc123def456",
+                  "request_id": "order-12345",
+                  "status": "succeeded",
+                  "total_count": 10,
+                  "succeeded_count": 9,
+                  "failed_count": 1,
+                  "cost_per_video": 10,
+                  "credits_reserved": 100,
+                  "credits_settled": 90,
+                  "credits_refunded": 10,
+                  "created_at": "2026-01-24T10:00:00Z",
+                  "completed_at": "2026-01-24T10:05:30Z"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Batch not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/batches/{batch_id}/items": {
+      "get": {
+        "operationId": "getBatchItems",
+        "summary": "Get batch items",
+        "description": "Retrieve all items (tasks) in a batch with their individual status and results.",
+        "tags": ["Batches"],
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "running", "succeeded", "failed"]
+            },
+            "description": "Filter by item status"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of batch items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchItemsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/batches/{batch_id}/cancel": {
+      "post": {
+        "operationId": "cancelBatch",
+        "summary": "Cancel a batch",
+        "description": "Cancel a pending or running batch. Completed items are not affected. Unused reserved credits are refunded.",
+        "tags": ["Batches"],
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Batch cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "batch_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["cancelled"]
+                    },
+                    "credits_refunded": {
+                      "type": "integer",
+                      "description": "Credits refunded for uncompleted items"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Batch cannot be cancelled (already completed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/credits/balance": {
+      "get": {
+        "operationId": "getCreditsBalance",
+        "summary": "Get credits balance",
+        "description": "Get the current available credits balance for the authenticated API key's account.",
+        "tags": ["Credits"],
+        "responses": {
+          "200": {
+            "description": "Credits balance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreditsBalance"
+                },
+                "example": {
+                  "ok": true,
+                  "available": 5000,
+                  "reserved": 200,
+                  "total": 5200
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/credits/ledger": {
+      "get": {
+        "operationId": "getCreditsLedger",
+        "summary": "Get credits ledger",
+        "description": "Get the credits transaction history for audit and reconciliation.",
+        "tags": ["Credits"],
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by batch ID"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["reserve", "settle", "refund", "purchase"]
+            },
+            "description": "Filter by transaction type"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Start date (ISO 8601)"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "End date (ISO 8601)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ledger entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key",
+        "description": "Enterprise API key. Contact enterprise@sora2aivideos.com to obtain one."
+      }
+    },
+    "schemas": {
+      "CreateBatchRequest": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "description": "Idempotency key. Same request_id guarantees at-most-once execution. If omitted, a random ID is generated.",
+            "maxLength": 128
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/BatchItem"
+            }
+          },
+          "webhook_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to receive webhook notifications for this batch"
+          }
+        }
+      },
+      "BatchItem": {
+        "type": "object",
+        "required": ["prompt"],
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "The prompt for video generation",
+            "maxLength": 2000
+          },
+          "model": {
+            "type": "string",
+            "enum": ["sora-2", "veo-flash", "veo-pro"],
+            "default": "sora-2",
+            "description": "Model to use for generation"
+          },
+          "aspect_ratio": {
+            "type": "string",
+            "enum": ["16:9", "9:16"],
+            "default": "16:9",
+            "description": "Video aspect ratio"
+          },
+          "duration": {
+            "type": "integer",
+            "enum": [5, 10],
+            "default": 5,
+            "description": "Video duration in seconds"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Custom metadata to attach to this item (returned in results)",
+            "additionalProperties": true
+          }
+        }
+      },
+      "BatchResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "batch_id": {
+            "type": "string",
+            "description": "Unique batch identifier"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "The request_id used for idempotency"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BatchStatus"
+          },
+          "total_count": {
+            "type": "integer",
+            "description": "Number of items in the batch"
+          },
+          "cost_per_video": {
+            "type": "integer",
+            "description": "Credits cost per video"
+          },
+          "required_credits": {
+            "type": "integer",
+            "description": "Total credits required (reserved)"
+          },
+          "available_credits": {
+            "type": "integer",
+            "description": "Available credits after reservation"
+          },
+          "idempotent_replay": {
+            "type": "boolean",
+            "description": "True if this is a replay of an existing request_id"
+          }
+        }
+      },
+      "BatchDetail": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "batch_id": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BatchStatus"
+          },
+          "total_count": {
+            "type": "integer"
+          },
+          "succeeded_count": {
+            "type": "integer"
+          },
+          "failed_count": {
+            "type": "integer"
+          },
+          "cost_per_video": {
+            "type": "integer"
+          },
+          "credits_reserved": {
+            "type": "integer",
+            "description": "Credits reserved at batch start"
+          },
+          "credits_settled": {
+            "type": "integer",
+            "description": "Credits actually charged for successful items"
+          },
+          "credits_refunded": {
+            "type": "integer",
+            "description": "Credits refunded for failed items"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "BatchStatus": {
+        "type": "string",
+        "enum": ["pending", "running", "succeeded", "failed", "cancelled", "partial"],
+        "description": "Batch lifecycle status. 'partial' means some items succeeded, some failed."
+      },
+      "BatchItemsResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BatchItemDetail"
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          }
+        }
+      },
+      "BatchItemDetail": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "string"
+          },
+          "index": {
+            "type": "integer",
+            "description": "Position in the original items array"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "running", "succeeded", "failed"]
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "video_url": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true,
+            "description": "Video URL (only for succeeded items)"
+          },
+          "thumbnail_url": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          },
+          "error": {
+            "type": "string",
+            "nullable": true,
+            "description": "Error message (only for failed items)"
+          },
+          "failure_type": {
+            "type": "string",
+            "enum": ["model_error", "param_error", "timeout", "network", "unknown"],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "CreditsBalance": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "available": {
+            "type": "integer",
+            "description": "Credits available for use"
+          },
+          "reserved": {
+            "type": "integer",
+            "description": "Credits currently reserved by pending batches"
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total credits (available + reserved)"
+          }
+        }
+      },
+      "LedgerResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LedgerEntry"
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          }
+        }
+      },
+      "LedgerEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["reserve", "settle", "refund", "purchase", "bonus"],
+            "description": "Transaction type"
+          },
+          "delta": {
+            "type": "integer",
+            "description": "Credits change (negative for debits, positive for credits)"
+          },
+          "balance_after": {
+            "type": "integer",
+            "description": "Balance after this transaction"
+          },
+          "batch_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "Associated batch ID (if applicable)"
+          },
+          "item_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "Associated item ID (if applicable)"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [false]
+          },
+          "error": {
+            "type": "string",
+            "description": "Error code"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message"
+          },
+          "details": {
+            "type": "object",
+            "description": "Additional error details",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Batches",
+      "description": "Batch video generation operations"
+    },
+    {
+      "name": "Credits",
+      "description": "Credits balance and transaction history"
+    }
+  ]
+}
