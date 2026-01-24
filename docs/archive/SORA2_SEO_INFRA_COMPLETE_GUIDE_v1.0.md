@@ -1,12 +1,9 @@
 # Sora2 SEO Infrastructure 完整指南
 
-> **文档版本**: 1.1  
+> **文档版本**: 1.0  
 > **创建日期**: 2026-01-24  
-> **最后更新**: 2026-01-24  
 > **适用身份**: 超体个体（Individual Operator）  
-> **收款模式**: Stripe 一次性充值（Prepaid Credits）  
-> **基线版本**: [v1.0 归档](./archive/SORA2_SEO_INFRA_COMPLETE_GUIDE_v1.0.md)  
-> **变更记录**: [CHANGELOG.md](./CHANGELOG.md)
+> **收款模式**: Stripe 一次性充值（Prepaid Credits）
 
 ---
 
@@ -147,46 +144,24 @@ sitemap.xml (唯一入口)
 | 指标 | 公式 | 健康值 | 危险值 |
 |------|------|--------|--------|
 | **Index Rate** | Indexed / Crawled | > 70% | < 40% |
-| **Index Rate 7d MA** | 7 日移动平均 | > 60% | < 45% |
 | **Index Delta** | 今日 Indexed - 昨日 | > 0 | < 0 连续 3 天 |
 | **Empty Chunks** | count(url_count = 0) | 0 | > 0 |
 | **Duplicate Rate** | Duplicate / Indexed | < 10% | > 20% |
-
-> **v1.1 新增**: Index Rate 7d MA（7 日移动平均）用于防止单日波动误判。
-> 决策时优先看 7d MA，而不是单日值。
 
 ### 3.3 扩容决策
 
 ```sql
 SELECT
   CASE
-    -- v1.1: Reason Code 体系
-    WHEN tier1_empty > 0 THEN 'BLOCKED_TIER1_EMPTY'
-    WHEN index_rate < 0.4 THEN 'BLOCKED_LOW_INDEX_RATE'
-    WHEN index_delta < 0 AND days_negative >= 3 THEN 'BLOCKED_INDEX_DELTA_NEGATIVE'
-    WHEN duplicate_rate > 0.2 THEN 'BLOCKED_HIGH_DUPLICATE'
+    WHEN tier1_empty > 0 THEN 'BLOCKED'
+    WHEN index_rate < 0.4 THEN 'BLOCKED'
+    WHEN index_delta < 0 AND days_negative >= 3 THEN 'BLOCKED'
     WHEN index_rate < 0.5 THEN 'HOLD'
     WHEN index_rate < 0.7 THEN 'CAUTIOUS'
     ELSE 'SAFE_TO_SCALE'
-  END as scaling_decision,
-  
-  -- v1.1: 7 日移动平均（防止单日波动误判）
-  AVG(index_rate) OVER (ORDER BY date ROWS 6 PRECEDING) as index_rate_7d_ma
-  
+  END as scaling_decision
 FROM seo_metrics;
 ```
-
-### 3.4 Reason Code 说明（v1.1 新增）
-
-| Code | 含义 | 严重程度 |
-|------|------|----------|
-| `BLOCKED_TIER1_EMPTY` | tier1-0 为空 | FATAL |
-| `BLOCKED_LOW_INDEX_RATE` | Index Rate < 40% | FATAL |
-| `BLOCKED_INDEX_DELTA_NEGATIVE` | 连续 3 天负增长 | FATAL |
-| `BLOCKED_HIGH_DUPLICATE` | Duplicate Rate > 20% | FATAL |
-| `HOLD` | Index Rate 40-50% | WARNING |
-| `CAUTIOUS` | Index Rate 50-70% | INFO |
-| `SAFE_TO_SCALE` | 一切正常 | OK |
 
 ---
 
@@ -287,29 +262,15 @@ if (decision.decision === 'BLOCKED') {
 
 ## 六、SEO 扩容 SOP
 
-### 6.0 Gate Override 禁止条款（v1.1 新增）
-
-```
-⛔ No manual override is allowed when SEO Gate is BLOCKED.
-
-这条规则是为"未来的自己"准备的。
-当 Gate 显示 BLOCKED 时，不允许：
-- 手动跳过检查
-- 修改阈值来"通过"
-- 以"这次特殊"为由绕过
-
-唯一的出路是：修复根因，让 Gate 自然变绿。
-```
-
 ### 6.1 扩容准入条件
 
-| 检查项 | 要求 | 阻断级别 | Reason Code |
-|--------|------|----------|-------------|
-| tier1-0 URL 数 | > 0 | FATAL | `BLOCKED_TIER1_EMPTY` |
-| Index Rate | ≥ 40% | FATAL | `BLOCKED_LOW_INDEX_RATE` |
-| Index Delta | ≥ 0（3日均） | FATAL | `BLOCKED_INDEX_DELTA_NEGATIVE` |
-| Duplicate Rate | < 20% | FATAL | `BLOCKED_HIGH_DUPLICATE` |
-| Soft 404 | 不增长 | WARNING | - |
+| 检查项 | 要求 | 阻断级别 |
+|--------|------|----------|
+| tier1-0 URL 数 | > 0 | FATAL |
+| Index Rate | ≥ 40% | FATAL |
+| Index Delta | ≥ 0（3日均） | WARNING |
+| Duplicate Rate | < 20% | WARNING |
+| Soft 404 | 不增长 | WARNING |
 
 ### 6.2 Kill-Switch 机制
 
@@ -406,17 +367,6 @@ a formal Enterprise arrangement.
 你是在"筛选未来的 Enterprise 客户"
 ```
 
-### 8.4 Preview 不构成承诺（v1.1 新增）
-
-```
-Preview features do not imply future availability or contractual obligation.
-```
-
-这句话的作用：
-- 防止"你上次给我看过"型纠纷
-- 明确 Preview = 实验性质
-- 保留随时调整的权利
-
 ---
 
 ## 九、法律文档体系
@@ -505,29 +455,6 @@ Preview features do not imply future availability or contractual obligation.
 在你没被迫承担责任前，
 保持个人身份 = 最低风险 + 最大灵活性。
 ```
-
-### 10.5 心理误判提醒（v1.1 新增）
-
-```
-❗ "觉得自己应该注册公司" ≠ 触发条件
-
-以下都不是注册理由：
-- "感觉更专业"
-- "别人都有公司"
-- "万一以后需要"
-- "有点焦虑"
-
-这些是情绪，不是条件。
-```
-
-**自检问题**：
-1. 有客户明确要求合同吗？
-2. 年收入超过 $50k 了吗？
-3. 单客户超过 $10k 了吗？
-4. Stripe/银行要求了吗？
-5. 要雇人了吗？
-
-如果 5 个都是"没有" = 情绪驱动，不是条件驱动。
 
 ---
 
@@ -646,8 +573,6 @@ Preview features do not imply future availability or contractual obligation.
 3. 宁可不扩，也不盲目扩
 4. 个人身份 = 最大灵活性
 5. 准备得早，但不被迫升级
-6. Gate BLOCKED 时不允许手动 override（v1.1）
-7. Preview ≠ 承诺（v1.1）
 ```
 
 ### 一句话总结
@@ -663,18 +588,4 @@ Preview features do not imply future availability or contractual obligation.
 
 ---
 
-## v1.1 变更摘要
-
-| 增强点 | 内容 |
-|--------|------|
-| **Reason Code** | BLOCKED 细分为 4 种类型 |
-| **No Override** | Gate BLOCKED 时禁止手动绕过 |
-| **7d MA** | Index Rate 加入 7 日移动平均 |
-| **Preview 条款** | 明确不构成长期承诺 |
-| **心理误判** | "觉得应该" ≠ 触发条件 |
-
-完整变更记录见 [CHANGELOG.md](./CHANGELOG.md)
-
----
-
-*文档版本: 1.1 | 创建时间: 2026-01-24 | 基线版本: [v1.0](./archive/SORA2_SEO_INFRA_COMPLETE_GUIDE_v1.0.md)*
+*文档版本: 1.0 | 创建时间: 2026-01-24*

@@ -107,6 +107,12 @@ These features:
 - May have additional limitations or requirements
 - Are not covered by any service level commitments
 
+**Important (v1.1):**
+
+> **Preview features do not imply future availability or contractual obligation.**
+> 
+> Access to preview features does not create any expectation of continued access, future pricing, or service level commitments. The Operator may modify, limit, or discontinue preview features without notice or liability.
+
 Use of preview features is at your own discretion and risk.
 
 ---
