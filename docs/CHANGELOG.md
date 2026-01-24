@@ -17,6 +17,33 @@
 
 ---
 
+## [v1.1.1] - 2026-01-24
+
+### 新增
+
+1. **sitemap-core 准入 Gate Policy**
+   - `docs/policies/SITEMAP_CORE_ADMISSION_POLICY.md`
+   - 5 个硬性准入条件
+   - 审计日志模板
+
+2. **Index Rate 红/黄/绿阈值定义**
+   - `docs/policies/INDEX_RATE_THRESHOLDS.md`
+   - 🟢 GREEN ≥ 70%: 允许扩容
+   - 🟡 YELLOW 40-69%: 观察
+   - 🔴 RED < 40%: 冻结
+
+3. **14 天极简观测表**
+   - `docs/playbooks/14_DAY_OBSERVATION_CHECKLIST.md`
+   - 每天 5 个指标
+   - 每天 3 个问题
+   - 14 天追踪表模板
+
+### 变更
+
+- 主指南新增 Policy 和 Playbook 文档索引
+
+---
+
 ## [v1.1] - 2026-01-24
 
 ### 新增

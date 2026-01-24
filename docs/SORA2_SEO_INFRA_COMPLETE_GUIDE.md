@@ -596,6 +596,19 @@ Preview features do not imply future availability or contractual obligation.
 |------|------|
 | `docs/operations/COMPANY_REGISTRATION_TRIGGERS.md` | 注册触发条件 |
 
+### 11.8 Policy 文档（v1.1 新增）
+
+| 文件 | 用途 |
+|------|------|
+| `docs/policies/SITEMAP_CORE_ADMISSION_POLICY.md` | sitemap-core 准入规则 |
+| `docs/policies/INDEX_RATE_THRESHOLDS.md` | Index Rate 红/黄/绿阈值 |
+
+### 11.9 Playbook 文档（v1.1 新增）
+
+| 文件 | 用途 |
+|------|------|
+| `docs/playbooks/14_DAY_OBSERVATION_CHECKLIST.md` | 14 天观测清单 |
+
 ### 11.8 网站资源
 
 | 文件 | 用途 |
