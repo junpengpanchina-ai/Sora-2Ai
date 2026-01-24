@@ -31,9 +31,10 @@ export async function GET() {
 
     const now = new Date().toISOString()
 
-    // 构建 Tier1 分片列表（从 1 开始，与 /sitemaps/tier1-[...n]/route.ts 保持一致）
+    // 构建 Tier1 分片列表（从 0 开始，与 /sitemaps/[name]/route.ts 保持一致）
+    // 注意：[name]/route.ts 处理 tier1-0.xml，使用 get_tier1_sitemap_chunk RPC
     const tier1Sitemaps = Array.from({ length: tier1Chunks }, (_, i) => ({
-      loc: `${baseUrl}/sitemaps/tier1-${i + 1}.xml`,
+      loc: `${baseUrl}/sitemaps/tier1-${i}.xml`,
       lastmod: now,
     }))
 
@@ -65,7 +66,7 @@ ${tier1Sitemaps
     const now = new Date().toISOString()
     
     const tier1Sitemaps = Array.from({ length: fallbackChunks }, (_, i) => ({
-      loc: `${baseUrl}/sitemaps/tier1-${i + 1}.xml`,
+      loc: `${baseUrl}/sitemaps/tier1-${i}.xml`,
       lastmod: now,
     }))
 
