@@ -170,4 +170,4 @@ try {
 
 - API Documentation: [/docs/enterprise](/docs/enterprise)
 - OpenAPI Spec: [/openapi.json](/openapi.json)
-- Enterprise Support: enterprise@sora2aivideos.com
+- Enterprise Support: junpengpanchina@gmail.com

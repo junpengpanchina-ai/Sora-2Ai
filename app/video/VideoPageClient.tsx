@@ -81,6 +81,19 @@ export default function VideoPageClient() {
   // size parameter removed, API only supports small, backend uses small fixed
   const [useWebhook, setUseWebhook] = useState(false)
   const [model, setModel] = useState<'sora-2' | 'veo-flash' | 'veo-pro'>('sora-2')
+  const [generationMode, setGenerationMode] = useState<'single' | 'batch'>('single')
+  const [batchPrompts, setBatchPrompts] = useState('')
+  const [batchModel, setBatchModel] = useState<'sora-2' | 'veo-flash' | 'veo-pro'>('sora-2')
+  const [batchAspectRatio, setBatchAspectRatio] = useState<'16:9' | '9:16'>('16:9')
+  const [batchLoading, setBatchLoading] = useState(false)
+  const [batchResult, setBatchResult] = useState<{
+    ok: boolean;
+    batch_id?: string;
+    total_count?: number;
+    credits_frozen?: number;
+    message?: string;
+    error?: string;
+  } | null>(null)
   const [firstFrameUrl, setFirstFrameUrl] = useState('')
   const [lastFrameUrl, setLastFrameUrl] = useState('')
   const [loading, setLoading] = useState(false)
@@ -1108,9 +1121,39 @@ export default function VideoPageClient() {
         {/* Generation Form - Display first, highest priority */}
         <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-white">
-              {prompt && prompt.trim() ? 'Modify or Generate Video' : 'Create New Task'}
-            </h2>
+            <div className="flex items-center gap-4">
+              <h2 className="text-xl font-semibold text-white">
+                {generationMode === 'single' 
+                  ? (prompt && prompt.trim() ? '修改或生成视频' : '创建新任务')
+                  : '批量生成'
+                }
+              </h2>
+              {/* Mode Toggle */}
+              <div className="flex rounded-lg bg-white/10 p-1">
+                <button
+                  type="button"
+                  onClick={() => setGenerationMode('single')}
+                  className={`rounded-md px-3 py-1 text-sm font-medium transition-all ${
+                    generationMode === 'single'
+                      ? 'bg-white/20 text-white'
+                      : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  单条
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGenerationMode('batch')}
+                  className={`rounded-md px-3 py-1 text-sm font-medium transition-all ${
+                    generationMode === 'batch'
+                      ? 'bg-white/20 text-white'
+                      : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  批量
+                </button>
+              </div>
+            </div>
             {credits !== null && (
               <div className="text-sm text-blue-100/80">
                 {model === 'sora-2' && (
@@ -1127,6 +1170,169 @@ export default function VideoPageClient() {
               </div>
             )}
           </div>
+          
+          {/* Batch Mode UI */}
+          {generationMode === 'batch' && (
+            <div className="space-y-4">
+              <div className="rounded-xl bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-white/10 p-6">
+                <h3 className="text-lg font-semibold text-white mb-2">批量生成</h3>
+                <p className="text-sm text-blue-100/70 mb-4">
+                  一次提交多条 prompt，批量生成视频。适合需要大量内容的场景。
+                </p>
+                
+                {/* Batch Result */}
+                {batchResult && (
+                  <div className={`mb-4 rounded-lg p-4 ${batchResult.ok ? 'bg-green-500/20 border border-green-500/30' : 'bg-red-500/20 border border-red-500/30'}`}>
+                    {batchResult.ok ? (
+                      <div>
+                        <p className="text-green-300 font-medium">{batchResult.message}</p>
+                        <p className="text-sm text-green-300/70 mt-1">
+                          批次 ID: {batchResult.batch_id}
+                          <span className="mx-2">·</span>
+                          已冻结 {batchResult.credits_frozen} Credits
+                        </p>
+                        <p className="text-xs text-green-300/50 mt-2">
+                          任务已加入队列，将自动执行。完成后可在历史记录中查看。
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-red-300">{batchResult.error || batchResult.message}</p>
+                    )}
+                  </div>
+                )}
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-blue-100/80">
+                      输入多条 Prompt（每行一条）
+                    </label>
+                    <textarea
+                      rows={8}
+                      value={batchPrompts}
+                      onChange={(e) => setBatchPrompts(e.target.value)}
+                      disabled={batchLoading}
+                      className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white placeholder:text-blue-100/50 shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water font-mono text-sm disabled:opacity-50"
+                      placeholder={`城市日落的电影感镜头\n樱花飘落的动漫风格森林\n海边冲浪的慢动作画面\n...`}
+                    />
+                    <p className="mt-1 text-xs text-blue-100/50">
+                      每行一条 prompt，支持 1-100 条，每条至少 5 个字符
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-blue-100/80">
+                        模型
+                      </label>
+                      <select
+                        value={batchModel}
+                        onChange={(e) => setBatchModel(e.target.value as 'sora-2' | 'veo-flash' | 'veo-pro')}
+                        disabled={batchLoading}
+                        className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water disabled:opacity-50"
+                      >
+                        <option value="sora-2" className="text-black">Sora-2 (10 Credits/条)</option>
+                        <option value="veo-flash" className="text-black">Veo Flash (50 Credits/条)</option>
+                        <option value="veo-pro" className="text-black">Veo Pro (250 Credits/条)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-blue-100/80">
+                        画面比例
+                      </label>
+                      <select
+                        value={batchAspectRatio}
+                        onChange={(e) => setBatchAspectRatio(e.target.value as '16:9' | '9:16')}
+                        disabled={batchLoading}
+                        className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water disabled:opacity-50"
+                      >
+                        <option value="16:9" className="text-black">16:9 (横屏)</option>
+                        <option value="9:16" className="text-black">9:16 (竖屏)</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                    <div className="text-sm text-blue-100/70">
+                      {(() => {
+                        const prompts = batchPrompts.split('\n').filter(p => p.trim().length >= 5);
+                        const count = prompts.length;
+                        const costPerVideo = batchModel === 'sora-2' ? 10 : batchModel === 'veo-flash' ? 50 : 250;
+                        const totalCost = count * costPerVideo;
+                        return (
+                          <>
+                            <span className="font-medium text-white">{count}</span> 条待生成
+                            <span className="mx-2">·</span>
+                            预计消耗 <span className="font-medium text-white">{totalCost}</span> Credits
+                          </>
+                        );
+                      })()}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={batchLoading || batchPrompts.split('\n').filter(p => p.trim().length >= 5).length === 0}
+                      onClick={async () => {
+                        const prompts = batchPrompts.split('\n').map(p => p.trim()).filter(p => p.length >= 5);
+                        if (prompts.length === 0) return;
+                        
+                        setBatchLoading(true);
+                        setBatchResult(null);
+                        
+                        try {
+                          const response = await fetch('/api/video/batch', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'x-csrf-token': '1',
+                            },
+                            body: JSON.stringify({
+                              prompts,
+                              model: batchModel,
+                              aspectRatio: batchAspectRatio,
+                              duration: '5',
+                            }),
+                          });
+                          
+                          const data = await response.json();
+                          
+                          if (response.ok && data.ok) {
+                            setBatchResult(data);
+                            setBatchPrompts(''); // Clear on success
+                          } else {
+                            setBatchResult({
+                              ok: false,
+                              error: data.error || data.message || '创建批量任务失败',
+                            });
+                          }
+                        } catch {
+                          setBatchResult({
+                            ok: false,
+                            error: '网络错误，请重试',
+                          });
+                        } finally {
+                          setBatchLoading(false);
+                        }
+                      }}
+                      className="rounded-xl bg-gradient-to-r from-energy-water to-energy-water-deep px-6 py-2 text-sm font-semibold text-white shadow-lg transition-transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+                    >
+                      {batchLoading ? '提交中...' : '开始批量生成'}
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <p className="text-xs text-blue-100/50">
+                    需要更大规模的批量生成或 API 接入？
+                    <a href="/enterprise" className="text-energy-water hover:underline ml-1">
+                      了解 Enterprise API →
+                    </a>
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Single Mode Form */}
+          {generationMode === 'single' && (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="mb-2 block text-sm font-medium text-blue-100/80">
@@ -1443,6 +1649,7 @@ export default function VideoPageClient() {
                     : 'Ready to generate.'}
               </p>
           </form>
+          )}
         </div>
 
         {/* Unique Content Section for Prompt-based Pages */}

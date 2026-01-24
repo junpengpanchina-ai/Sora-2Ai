@@ -13,9 +13,8 @@ export default function EnterprisePage() {
             <span className="opacity-80">Only Pay for Successful Videos</span>
           </h1>
           <p className="mt-5 text-lg opacity-80">
-            Batch generation with ledger-based credits, idempotency, automatic
-            refunds, webhooks, and full audit logs — built for real production
-            workloads.
+            批量生成 AI 视频，失败自动退款，每笔账目清晰可查。
+            专为企业生产环境设计。
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
@@ -80,21 +79,21 @@ export default function EnterprisePage() {
             <div className="text-sm font-semibold opacity-70">Step 2</div>
             <div className="mt-2 font-bold">Credits Reserved</div>
             <p className="mt-2 text-sm opacity-80">
-              Batch-level pre-deduct (equivalent to freeze).
+              系统预留所需额度，确保任务有足够资金。
             </p>
           </div>
           <div className="rounded-2xl border p-6">
             <div className="text-sm font-semibold opacity-70">Step 3</div>
             <div className="mt-2 font-bold">Run Concurrently</div>
             <p className="mt-2 text-sm opacity-80">
-              Controlled concurrency, retries, and failure reasons.
+              并行处理，自动重试，失败原因清晰可见。
             </p>
           </div>
           <div className="rounded-2xl border p-6">
             <div className="text-sm font-semibold opacity-70">Step 4</div>
             <div className="mt-2 font-bold">Settle + Refund</div>
             <p className="mt-2 text-sm opacity-80">
-              Pay only for succeeded items, auto-refund failed items.
+              只付成功的，失败的自动退款。
             </p>
           </div>
         </div>
@@ -115,8 +114,7 @@ export default function EnterprisePage() {
           <div className="rounded-3xl border p-8">
             <h3 className="font-bold">API Keys & Rate Limits</h3>
             <p className="mt-3 text-sm opacity-80">
-              Per-key limits, usage audit, safe retries with request_id
-              idempotency.
+              每个 Key 独立限流，用量可审计，重试安全不重复扣费。
             </p>
           </div>
           <div className="rounded-3xl border p-8">
@@ -228,15 +226,15 @@ export default function EnterprisePage() {
           <div>
             <h3 className="font-semibold">How do refunds work?</h3>
             <p className="mt-2 text-sm opacity-80">
-              Credits are reserved at batch start. On settlement, failed items
-              are automatically refunded with ledger entries for audit.
+              提交任务时预留额度，完成后只收成功的钱，失败的自动退回，
+              每笔都有记录可查。
             </p>
           </div>
           <div>
             <h3 className="font-semibold">Can we integrate with our system?</h3>
             <p className="mt-2 text-sm opacity-80">
-              Yes. Use API keys, webhooks, and idempotency with request_id. We
-              also support rate limiting and usage reporting.
+              可以。提供完整 API、任务完成通知、用量报表，
+              可对接你们的系统。
             </p>
           </div>
           <div>

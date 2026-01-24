@@ -143,10 +143,10 @@ export default function EnterpriseDocsPage() {
         <p className="mt-4 text-sm opacity-70">
           Contact{" "}
           <a
-            href="mailto:enterprise@sora2aivideos.com"
+            href="mailto:junpengpanchina@gmail.com"
             className="underline"
           >
-            enterprise@sora2aivideos.com
+            junpengpanchina@gmail.com
           </a>{" "}
           to obtain an API key.
         </p>
@@ -239,7 +239,7 @@ console.log(\`Failed: \${result.failedCount}\`);`}
         </p>
         <div className="mt-4 flex flex-wrap gap-4">
           <a
-            href="mailto:enterprise@sora2aivideos.com"
+            href="mailto:junpengpanchina@gmail.com"
             className="rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white"
           >
             Contact Support

@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "description": "Enterprise-grade batch video generation API with ledger-based credits, automatic refunds, and full audit trail.",
     "contact": {
-      "email": "enterprise@sora2aivideos.com"
+      "email": "junpengpanchina@gmail.com"
     }
   },
   "servers": [
@@ -397,7 +397,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "x-api-key",
-        "description": "Enterprise API key. Contact enterprise@sora2aivideos.com to obtain one."
+        "description": "Enterprise API key. Contact junpengpanchina@gmail.com to obtain one."
       }
     },
     "schemas": {

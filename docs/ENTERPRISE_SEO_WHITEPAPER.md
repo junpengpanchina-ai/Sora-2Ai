@@ -286,7 +286,7 @@ When you choose Sora2 for enterprise AI content, you're not just getting content
 For technical deep-dives or custom enterprise requirements:
 
 - **Technical Documentation**: [Internal Wiki]
-- **Enterprise Sales**: enterprise@sora2aivideos.com
+- **Enterprise Sales**: junpengpanchina@gmail.com
 - **API Documentation**: [API Docs]
 
 ---
