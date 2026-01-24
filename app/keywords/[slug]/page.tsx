@@ -436,28 +436,41 @@ const buildMetaTitle = (keyword: KeywordPageRecord) => {
   }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const keyword = await getKeywordBySlug(params.slug)
-  if (!keyword) {
-    return {
-      title: 'Keyword Not Found',
+  try {
+    const keyword = await getKeywordBySlug(params.slug)
+    if (!keyword) {
+      return {
+        title: 'Keyword Not Found',
+        robots: { index: false, follow: false },
+      }
     }
-  }
 
-  const { getKeywordPageUrl } = await import('@/lib/utils/url')
-  const canonical = getKeywordPageUrl(keyword.page_slug.replace(/\.xml$/i, ''))
+    const { getKeywordPageUrl } = await import('@/lib/utils/url')
+    const canonical = getKeywordPageUrl(keyword.page_slug.replace(/\.xml$/i, ''))
 
-  return {
-    title: buildMetaTitle(keyword),
-    description: buildMetaDescription(keyword),
-    alternates: {
-      canonical,
-    },
-    openGraph: {
-      type: 'article',
+    return {
       title: buildMetaTitle(keyword),
       description: buildMetaDescription(keyword),
-      url: canonical,
-    },
+      alternates: {
+        canonical,
+      },
+      openGraph: {
+        type: 'article',
+        title: buildMetaTitle(keyword),
+        description: buildMetaDescription(keyword),
+        url: canonical,
+      },
+    }
+  } catch (error) {
+    // 防止 generateMetadata 抛异常导致 500
+    console.error('[keywords/generateMetadata] Error:', {
+      slug: params.slug,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return {
+      title: 'Keyword Not Found',
+      robots: { index: false, follow: false },
+    }
   }
 }
 
