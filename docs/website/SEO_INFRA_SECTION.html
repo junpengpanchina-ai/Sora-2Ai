@@ -1,0 +1,207 @@
+<!--
+  SEO Infrastructure Section - 官网 HTML 结构
+  
+  使用位置：
+  - Enterprise 定价页下方
+  - /enterprise 页面
+  - 首页向下滚动的「可信度模块」
+  
+  建议页面结构：
+  1. pricing-hero
+  2. pricing-plans
+  3. enterprise-seo-infra (本文件) ← 插在价格之后、CTA 之前
+  4. enterprise-batch-api
+  5. enterprise-cta
+-->
+
+<section id="enterprise-seo-infra" class="enterprise-seo-infra py-20 bg-slate-50">
+  
+  <!-- Anchor Title (销售指路用) -->
+  <div class="container mx-auto px-6">
+    <h2 id="seo-infra-anchor" class="text-3xl font-bold text-center mb-4">
+      Why Enterprise Plans Are Safe to Scale
+    </h2>
+    <p class="text-xl text-gray-600 text-center mb-12 max-w-2xl mx-auto">
+      Built-in protection for large-scale AI-generated content.
+    </p>
+  </div>
+
+  <!-- Hero -->
+  <header class="infra-hero container mx-auto px-6 text-center mb-16">
+    <h3 class="text-2xl font-semibold mb-4">Enterprise SEO Infrastructure</h3>
+    <p class="text-lg text-gray-600 max-w-xl mx-auto">
+      Scaling AI content is easy. Scaling it <strong>safely</strong> is not.
+    </p>
+    <p class="text-gray-500 mt-2">
+      Sora2 prevents silent SEO failures by treating indexing as infrastructure, not a guessing game.
+    </p>
+  </header>
+
+  <!-- Dashboard Screenshot -->
+  <div class="infra-dashboard container mx-auto px-6 mb-16">
+    <div class="bg-white rounded-xl shadow-lg p-4 max-w-4xl mx-auto">
+      <img
+        src="/images/index-health-dashboard.png"
+        alt="Index Health Dashboard showing discovered, crawled, and indexed pages over time"
+        class="w-full rounded-lg"
+        loading="lazy"
+      />
+    </div>
+    <p class="text-center text-gray-500 mt-4 text-sm">
+      Index Health Dashboard — full visibility into how Google discovers, crawls, and indexes your pages.
+    </p>
+  </div>
+
+  <!-- Feature Grid -->
+  <div class="container mx-auto px-6">
+    <div class="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+      
+      <!-- Crawl Pipeline -->
+      <div class="infra-block bg-white rounded-xl p-6 shadow-sm">
+        <h4 class="text-lg font-semibold mb-3">From Discovery to Index — Fully Observable</h4>
+        <p class="text-gray-600 mb-4">
+          We monitor the complete Google indexing pipeline every day:
+        </p>
+        <ul class="space-y-2 text-gray-600">
+          <li class="flex items-start">
+            <span class="text-blue-500 mr-2">•</span>
+            <span><strong>Discovered</strong> — URLs Google has found</span>
+          </li>
+          <li class="flex items-start">
+            <span class="text-orange-500 mr-2">•</span>
+            <span><strong>Crawled</strong> — URLs Google has fetched</span>
+          </li>
+          <li class="flex items-start">
+            <span class="text-green-500 mr-2">•</span>
+            <span><strong>Indexed</strong> — URLs actually shown in search</span>
+          </li>
+        </ul>
+        <p class="text-gray-500 text-sm mt-4">
+          If indexing slows down, scaling is automatically frozen.
+        </p>
+      </div>
+
+      <!-- Index Rate -->
+      <div class="infra-block bg-white rounded-xl p-6 shadow-sm">
+        <h4 class="text-lg font-semibold mb-3">Index Rate Control</h4>
+        <p class="text-gray-600 mb-4">
+          Index Rate measures whether scaling is safe:
+        </p>
+        <ul class="space-y-2 text-gray-600">
+          <li class="flex items-center">
+            <span class="w-3 h-3 bg-green-500 rounded-full mr-3"></span>
+            <span>Healthy: <strong>&gt; 70%</strong></span>
+          </li>
+          <li class="flex items-center">
+            <span class="w-3 h-3 bg-yellow-500 rounded-full mr-3"></span>
+            <span>Acceptable: <strong>40–70%</strong></span>
+          </li>
+          <li class="flex items-center">
+            <span class="w-3 h-3 bg-red-500 rounded-full mr-3"></span>
+            <span>Unsafe: <strong>&lt; 40%</strong> (automatic freeze)</span>
+          </li>
+        </ul>
+        <p class="text-gray-500 text-sm mt-4">
+          Most AI tools never measure this. We block scaling when risk appears.
+        </p>
+      </div>
+
+      <!-- Sitemap Integrity -->
+      <div class="infra-block bg-white rounded-xl p-6 shadow-sm">
+        <h4 class="text-lg font-semibold mb-3">Sitemap Integrity Protection</h4>
+        <p class="text-gray-600 mb-4">
+          A technically valid but empty sitemap can silently destroy SEO.
+        </p>
+        <ul class="space-y-2 text-gray-600">
+          <li class="flex items-start">
+            <svg class="w-5 h-5 text-green-500 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+            </svg>
+            <span>Tier-based sitemap architecture</span>
+          </li>
+          <li class="flex items-start">
+            <svg class="w-5 h-5 text-green-500 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+            </svg>
+            <span>Automatic empty-sitemap detection</span>
+          </li>
+          <li class="flex items-start">
+            <svg class="w-5 h-5 text-green-500 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+            </svg>
+            <span>Deployment blocked if Tier1 sitemap is empty</span>
+          </li>
+        </ul>
+        <p class="text-gray-500 text-sm mt-4">
+          Google never receives broken indexing signals.
+        </p>
+      </div>
+
+      <!-- Quality Signals -->
+      <div class="infra-block bg-white rounded-xl p-6 shadow-sm">
+        <h4 class="text-lg font-semibold mb-3">Early Warning Quality Signals</h4>
+        <p class="text-gray-600 mb-4">
+          We detect risk before traffic drops by tracking:
+        </p>
+        <ul class="space-y-2 text-gray-600">
+          <li class="flex items-start">
+            <svg class="w-5 h-5 text-yellow-500 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            <span>Duplicate URL detection</span>
+          </li>
+          <li class="flex items-start">
+            <svg class="w-5 h-5 text-yellow-500 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            <span>Soft 404 monitoring</span>
+          </li>
+          <li class="flex items-start">
+            <svg class="w-5 h-5 text-yellow-500 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            <span>Daily index growth delta</span>
+          </li>
+        </ul>
+        <p class="text-gray-500 text-sm mt-4">
+          Catch quality issues before rankings drop.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Risk Reversal Statement -->
+  <div class="infra-risk-note container mx-auto px-6 mt-16 text-center">
+    <p class="text-gray-600 max-w-2xl mx-auto">
+      We don't promise that Google will index everything.
+      <br />
+      <strong class="text-gray-800">We promise that we will never scale blindly.</strong>
+    </p>
+  </div>
+
+  <!-- Enterprise Guarantee -->
+  <div class="infra-guarantee container mx-auto px-6 mt-8 text-center">
+    <div class="bg-blue-50 rounded-xl p-6 max-w-2xl mx-auto">
+      <p class="text-blue-800 font-medium">
+        SEO Infrastructure is included in all Enterprise plans.
+        <br />
+        <span class="text-blue-600">Because scaling without control would be irresponsible.</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="infra-cta container mx-auto px-6 mt-12 text-center">
+    <a 
+      href="/contact-enterprise" 
+      class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-4 rounded-lg transition-colors"
+    >
+      Talk to Enterprise Team
+    </a>
+    <p class="text-gray-500 text-sm mt-4">
+      See the Index Health Dashboard in action →
+    </p>
+  </div>
+
+</section>
