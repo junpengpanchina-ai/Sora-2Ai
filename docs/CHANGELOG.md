@@ -17,6 +17,29 @@
 
 ---
 
+## [v1.1.3] - 2026-01-24
+
+### 新增
+
+1. **seo-scaling-gate.ts 完整实现**
+   - `scripts/seo-scaling-gate.ts`
+   - 内嵌 JSON Policy
+   - 支持 ENV JSON 和 Supabase 数据源
+   - Exit codes: 0/2/3/4/10
+
+2. **Index Health Dashboard Schema**
+   - `supabase/migrations/114_seo_daily_metrics_schema.sql`
+   - 表：`seo_daily_metrics`, `seo_gate_decisions`
+   - 视图：`v_index_health`, `v_latest_gate_decision`, `v_seo_dashboard_summary`
+   - Helper functions: `upsert_seo_daily_metrics`, `record_gate_decision`
+
+3. **Investor Due Diligence 附录**
+   - `docs/investor/DUE_DILIGENCE_SEO_APPENDIX.md`
+   - 可直接贴进 Data Room
+   - 架构图 + 风险管理 + 审计说明
+
+---
+
 ## [v1.1.2] - 2026-01-24
 
 ### 新增
