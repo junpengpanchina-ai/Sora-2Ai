@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 
 // 6 个核心事件
 export type EventName = 
+  | 'home_view'                // 首页加载 - Phase 2D 入口基数
   | 'hero_generate_click'      // Hero 点 Generate - 首屏转化
   | 'example_click'            // 点 Example 卡 - 学习成本
   | 'video_page_enter'         // 进 /video - 意图确认
@@ -79,6 +80,13 @@ export async function trackEvent({ name, userId, meta }: EventPayload) {
 // ============================================================
 
 export const Events = {
+  // 首页加载
+  homeView: (userId?: string) =>
+    trackEvent({
+      name: 'home_view',
+      userId,
+    }),
+
   // 首屏转化
   heroGenerateClick: (userId?: string, prompt?: string) => 
     trackEvent({ 

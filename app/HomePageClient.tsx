@@ -17,6 +17,7 @@ import { createClient } from '@/lib/supabase/client'
 import { setPostLoginRedirect } from '@/lib/auth/post-login-redirect'
 import { PRICING_CONFIG } from '@/lib/billing/config'
 import type { PlanId } from '@/lib/billing/config'
+import { Events } from '@/lib/analytics/events'
 
 interface Stats {
   total: number
@@ -253,6 +254,12 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
 
   useEffect(() => {
     setHeroMounted(true)
+  }, [])
+
+  // Phase 2D: home_view（每次首页进入只打一次）
+  useEffect(() => {
+    Events.homeView(accountProfile?.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Map planId to payment plan for checkout
