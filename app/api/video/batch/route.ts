@@ -144,7 +144,8 @@ export async function POST(request: NextRequest) {
       success_count: 0,
       failed_count: 0,
       cost_per_video: costPerVideo,
-      frozen_credits: requiredCredits,
+      // Credits are frozen via RPC below (atomic wallet deduction + batch_jobs.frozen_credits update).
+      frozen_credits: 0,
       credits_spent: 0,
       settlement_status: "pending",
     });
@@ -183,7 +184,7 @@ export async function POST(request: NextRequest) {
       aspect_ratio: aspectRatio,
       duration: parseInt(duration),
       status: "pending",
-      index_in_batch: index,
+      batch_index: index,
     }));
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -195,10 +196,10 @@ export async function POST(request: NextRequest) {
       console.error("[batch/create] Failed to create tasks:", tasksError);
       // Refund credits and delete batch
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (serviceClient as any).rpc("refund_frozen_credits", {
+      await (serviceClient as any).rpc("finalize_batch_credits", {
         p_user_id: user.id,
         p_batch_id: batchId,
-        p_amount: requiredCredits,
+        p_spent: 0,
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (serviceClient as any).from("batch_jobs").delete().eq("id", batchId);
@@ -290,9 +291,9 @@ export async function GET(request: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: tasks, error: tasksError } = await (serviceClient as any)
     .from("video_tasks")
-    .select("id, prompt, status, video_url, error, created_at, updated_at")
+    .select("id, prompt, status, video_url, error_message, created_at, updated_at")
     .eq("batch_job_id", batchId)
-    .order("index_in_batch", { ascending: true });
+    .order("batch_index", { ascending: true });
 
   if (tasksError) {
     return consumerJson({ error: "Failed to fetch tasks" }, { status: 500 });
