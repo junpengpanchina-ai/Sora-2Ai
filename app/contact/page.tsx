@@ -14,14 +14,45 @@ function ContactForm() {
     message: "",
   });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const isEnterprise = intent === "enterprise-demo";
+  const isEnterprise = intent === "enterprise-demo" || intent === "enterprise-pricing";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // For now, just show success message
-    // In production, connect to email service or CRM
-    setSubmitted(true);
+    setSubmitError(null);
+    setSubmitting(true);
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          intent: intent ?? "contact",
+          name: formData.name,
+          email: formData.email,
+          company: formData.company,
+          message: formData.message,
+          sourcePath: typeof window !== "undefined" ? window.location.pathname + window.location.search : "/contact",
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) {
+        setSubmitError("Submission failed. Please try again, or email us directly.");
+        setSubmitting(false);
+        return;
+      }
+
+      setSubmitted(true);
+    } catch {
+      setSubmitError("Network error. Please try again, or email us directly.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -48,11 +79,15 @@ function ContactForm() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
       <h1 className="text-3xl font-bold">
-        {isEnterprise ? "Book an Enterprise Demo" : "Contact Us"}
+        {intent === "enterprise-demo"
+          ? "Book an Enterprise Demo"
+          : intent === "enterprise-pricing"
+            ? "Contact Sales"
+            : "Contact Us"}
       </h1>
       <p className="mt-4 opacity-80">
         {isEnterprise
-          ? "Tell us about your use case and we'll schedule a personalized demo."
+          ? "Tell us about your use case and we'll follow up by email."
           : "Have questions? We'd love to hear from you."}
       </p>
 
@@ -120,11 +155,16 @@ function ContactForm() {
           </div>
         )}
 
+        {submitError ? (
+          <p className="text-sm text-red-600">{submitError}</p>
+        ) : null}
+
         <button
           type="submit"
-          className="w-full rounded-xl bg-black px-6 py-3 font-semibold text-white"
+          disabled={submitting}
+          className="w-full rounded-xl bg-black px-6 py-3 font-semibold text-white disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {isEnterprise ? "Request Demo" : "Send Message"}
+          {submitting ? "Sending..." : isEnterprise ? "Request Demo" : "Send Message"}
         </button>
       </form>
 
