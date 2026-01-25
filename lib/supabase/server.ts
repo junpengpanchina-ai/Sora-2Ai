@@ -32,6 +32,18 @@ export async function createClient(customHeaders?: Headers | HeadersInit): Promi
     }
   }
 
+  // Only forward Supabase JWTs via Authorization header.
+  // This prevents accidental API keys or non-JWT tokens from overriding valid cookie sessions.
+  const normalizedAuth = authorizationHeader?.trim()
+  const bearerToken =
+    normalizedAuth && normalizedAuth.toLowerCase().startsWith('bearer ') ? normalizedAuth.slice(7).trim() : null
+  const looksLikeJwt =
+    !!bearerToken &&
+    // Typical JWT header is base64url-encoded JSON: starts with "eyJ"
+    bearerToken.startsWith('eyJ') &&
+    bearerToken.split('.').length === 3 &&
+    bearerToken.length > 20
+
   const globalConfig: {
     headers?: Record<string, string>
     fetch: typeof fetch
@@ -47,9 +59,9 @@ export async function createClient(customHeaders?: Headers | HeadersInit): Promi
       }),
   }
 
-  if (authorizationHeader) {
+  if (normalizedAuth && looksLikeJwt) {
     globalConfig.headers = {
-      Authorization: authorizationHeader,
+      Authorization: normalizedAuth,
     }
   }
 

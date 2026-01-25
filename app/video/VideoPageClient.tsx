@@ -1310,12 +1310,15 @@ export default function VideoPageClient() {
                         setBatchResult(null);
                         
                         try {
+                          const authHeaders = await getAuthHeaders()
                           const response = await fetch('/api/video/batch', {
                             method: 'POST',
                             headers: {
                               'Content-Type': 'application/json',
                               'x-csrf-token': '1',
+                              ...authHeaders,
                             },
+                            credentials: 'include',
                             body: JSON.stringify({
                               prompts,
                               model: batchModel,
@@ -1324,15 +1327,54 @@ export default function VideoPageClient() {
                             }),
                           });
                           
-                          const data = await response.json();
+                          const data = await response.json().catch(() => ({} as Record<string, unknown>));
                           
                           if (response.ok && data.ok) {
                             setBatchResult(data);
                             setBatchPrompts(''); // Clear on success
                           } else {
+                            if (response.status === 401) {
+                              setBatchResult({
+                                ok: false,
+                                error: 'Please sign in first, then retry batch generation.',
+                              });
+                              const intended =
+                                typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : '/video'
+                              setPostLoginRedirect(intended)
+                              router.push(`/login?redirect=${encodeURIComponent(intended)}`)
+                              return
+                            }
+                            if (response.status === 403) {
+                              setBatchResult({
+                                ok: false,
+                                error: 'Your account does not have permission to use batch generation.',
+                              });
+                              return
+                            }
+                            if (response.status === 402) {
+                              const required =
+                                typeof (data as { required?: unknown }).required === 'number'
+                                  ? (data as { required: number }).required
+                                  : undefined
+                              const available =
+                                typeof (data as { available?: unknown }).available === 'number'
+                                  ? (data as { available: number }).available
+                                  : undefined
+                              setBatchResult({
+                                ok: false,
+                                error:
+                                  `Insufficient credits for this batch.` +
+                                  (typeof required === 'number' ? ` Required: ${required}.` : '') +
+                                  (typeof available === 'number' ? ` Available: ${available}.` : ''),
+                              });
+                              return
+                            }
                             setBatchResult({
                               ok: false,
-                              error: data.error || data.message || 'Failed to create batch.',
+                              error:
+                                (data as { error?: string; message?: string }).error ||
+                                (data as { error?: string; message?: string }).message ||
+                                `Failed to create batch (HTTP ${response.status}).`,
                             });
                           }
                         } catch {

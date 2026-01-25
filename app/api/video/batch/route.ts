@@ -26,7 +26,56 @@ function jsonResponse<T>(data: T, init?: ResponseInit): NextResponse {
   });
 }
 
+function isJwtBearer(authHeader: string | null): boolean {
+  if (!authHeader) return false;
+  const m = authHeader.match(/^Bearer\s+(.+)$/i);
+  if (!m) return false;
+  const token = m[1].trim();
+  return token.startsWith("eyJ") && token.split(".").length === 3;
+}
+
+function getEnterpriseApiKeyCandidate(request: Request): string | null {
+  const x = request.headers.get("x-api-key");
+  if (x && x.trim()) return x.trim();
+
+  const auth = request.headers.get("authorization");
+  if (!auth) return null;
+  // If Authorization is present but not a Supabase JWT, treat it as an enterprise API key candidate.
+  if (!isJwtBearer(auth) && auth.toLowerCase().startsWith("bearer ")) {
+    const token = auth.slice(7).trim();
+    return token || null;
+  }
+  return null;
+}
+
+async function proxyToEnterpriseBatch(request: NextRequest): Promise<NextResponse> {
+  const url = new URL("/api/enterprise/video-batch", request.url);
+  const upstreamRequest = request.clone();
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: upstreamRequest.headers,
+    body: upstreamRequest.body,
+    // Enterprise is intended for server/server and may be cross-origin; do not rely on cookies here.
+    credentials: "omit",
+  });
+
+  const text = await res.text();
+  return new NextResponse(text, {
+    status: res.status,
+    headers: {
+      "Content-Type": res.headers.get("content-type") ?? "application/json; charset=utf-8",
+    },
+  });
+}
+
 export async function POST(request: NextRequest) {
+  // Enterprise fast-path (API key): bypass CSRF + do not call getUser().
+  const enterpriseKey = getEnterpriseApiKeyCandidate(request);
+  if (enterpriseKey) {
+    return proxyToEnterpriseBatch(request);
+  }
+
   // CSRF validation
   if (!validateOrigin(request)) {
     return jsonResponse({ error: "Invalid origin" }, { status: 403 });
