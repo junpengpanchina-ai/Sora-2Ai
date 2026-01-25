@@ -90,7 +90,7 @@ export async function GET(request: Request) {
     const dataPromise = dataQuery
     const dataTimeoutPromise = new Promise<{ data: unknown[] | null; error: unknown }>((resolve) => {
       setTimeout(() => {
-        resolve({ data: null, error: { message: '查询超时（20秒）', code: 'TIMEOUT' } })
+        resolve({ data: null, error: { message: 'Query timed out (20s).', code: 'TIMEOUT' } })
       }, QUERY_TIMEOUT)
     })
 
@@ -105,7 +105,7 @@ export async function GET(request: Request) {
       return NextResponse.json(
         { 
           error: 'Failed to load use cases', 
-          details: errorInfo.message || '查询超时或失败', 
+          details: errorInfo.message || 'Query timed out or failed.', 
           code: errorInfo.code || 'TIMEOUT',
           hint: errorInfo.hint 
         },

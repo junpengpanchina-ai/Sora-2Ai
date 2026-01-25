@@ -196,7 +196,7 @@ export default async function PromptPage({ params }: { params: { slug: string } 
                     {prompt.category}
                   </span>
                   <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                    {prompt.locale === 'zh' ? '中文' : 'English'}
+                    {prompt.locale === 'zh' ? 'Chinese' : 'English'}
                   </span>
                   {prompt.tags && prompt.tags.length > 0 && (
                     <>

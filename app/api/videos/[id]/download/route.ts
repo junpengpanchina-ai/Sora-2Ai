@@ -100,7 +100,7 @@ export async function GET(
           ok: false,
           reason: "DOWNLOAD_LIMIT_REACHED",
           message:
-            "当前会员等级不支持直接下载，请升级会员以解锁下载能力。",
+            "Your current plan does not support direct downloads. Please upgrade to unlock downloads.",
         },
         { status: 403 },
       );
@@ -113,7 +113,8 @@ export async function GET(
         {
           ok: false,
           reason: "DOWNLOAD_LIMIT_REACHED",
-          message: "该视频今天的下载次数已用完，请明天再试或升级会员提高额度。",
+          message:
+            "This video has reached its download limit for today. Try again tomorrow or upgrade your plan.",
         },
         { status: 429 },
       );
@@ -125,7 +126,7 @@ export async function GET(
           ok: false,
           reason: "DOWNLOAD_LIMIT_REACHED",
           message:
-            "今日下载总次数已用完，请明天再试或升级到更高等级会员。",
+            "You have reached your total download limit for today. Try again tomorrow or upgrade your plan.",
         },
         { status: 429 },
       );

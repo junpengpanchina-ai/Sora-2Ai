@@ -12,7 +12,7 @@ export async function GET() {
     } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: '未授权' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
     }
 
     // Get user profile by auth.uid() (users.id 应与 auth.uid 一致；RLS 只允许 id=auth.uid() 的行)
@@ -23,7 +23,7 @@ export async function GET() {
       .maybeSingle<{ id: string }>()
 
     if (profileError || !profile) {
-      return NextResponse.json({ error: '用户不存在' }, { status: 404 })
+      return NextResponse.json({ error: 'User not found.' }, { status: 404 })
     }
 
     // Get wallet info
@@ -38,8 +38,8 @@ export async function GET() {
       }>()
 
     if (walletError && walletError.code !== 'PGRST116') {
-      console.error('获取钱包信息失败:', walletError)
-      return NextResponse.json({ error: '获取钱包信息失败' }, { status: 500 })
+      console.error('Failed to fetch wallet:', walletError)
+      return NextResponse.json({ error: 'Failed to fetch wallet.' }, { status: 500 })
     }
 
     // Calculate valid bonus credits
@@ -61,9 +61,9 @@ export async function GET() {
       },
     })
   } catch (error) {
-    console.error('获取钱包信息失败:', error)
+    console.error('Failed to fetch wallet:', error)
     return NextResponse.json(
-      { error: '获取钱包信息失败', details: error instanceof Error ? error.message : '未知错误' },
+      { error: 'Failed to fetch wallet.', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

@@ -172,8 +172,8 @@ export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
           const lastAttempt = parseInt(redirectAttempt, 10)
           // 如果 5 秒内已经重定向过，不再重定向
           if (now - lastAttempt < 5000) {
-            console.error('[PricingModal] 检测到无限循环，停止重定向')
-            alert('登录状态异常，请刷新页面后重试')
+            console.error('[PricingModal] Detected redirect loop, aborting redirect')
+            alert('Login status error. Please refresh the page and try again.')
             return
           }
         }

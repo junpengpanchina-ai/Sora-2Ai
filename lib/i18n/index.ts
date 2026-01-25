@@ -5,7 +5,7 @@ import { messages, type Locale } from './messages'
  * - We keep the locale parameter for future expansion.
  * - For now we intentionally force `en` in non-admin flows.
  */
-export function getLocaleFromRequest(_req?: Request): Locale {
+export function getLocaleFromRequest(): Locale {
   return 'en'
 }
 

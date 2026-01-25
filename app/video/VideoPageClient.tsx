@@ -175,7 +175,7 @@ export default function VideoPageClient() {
     }
   }, [])
 
-  // Phase 2: video_page_enter（只打一次）
+  // Phase 2: video_page_enter (track once)
   useEffect(() => {
     if (hasTrackedEnterRef.current) return
     hasTrackedEnterRef.current = true
@@ -183,7 +183,7 @@ export default function VideoPageClient() {
     Events.videoPageEnter(userId, fromHero)
   }, [searchParams, userId])
 
-  // Phase 2: generation_success / generation_failed（按 task_id 去重）
+  // Phase 2: generation_success / generation_failed (dedupe by task_id)
   useEffect(() => {
     const taskId = currentResult?.task_id
     const status = currentResult?.status
@@ -347,7 +347,7 @@ export default function VideoPageClient() {
       // Next.js useSearchParams().get() already decodes the URL parameter
       // No need to call decodeURIComponent again, which would cause double-decoding and garbled text
       
-      // 清理提示词：移除重复的前缀和多余空格
+      // Clean the prompt: remove duplicated prefix and extra spaces
       const cleanedPrompt = promptParam
         .replace(/^create\s+a\s+professional\s+create\s+a\s+professional\s+/i, 'Create a professional ')
         .replace(/\s+/g, ' ')
@@ -389,8 +389,8 @@ export default function VideoPageClient() {
     if (!pollingTaskId || !isMountedRef.current) return
 
     let consecutiveErrors = 0
-    const MAX_CONSECUTIVE_ERRORS = 5 // 允许最多5次连续错误
-    const POLLING_INTERVAL = 3000 // 3秒轮询一次
+    const MAX_CONSECUTIVE_ERRORS = 5 // Allow up to 5 consecutive errors
+    const POLLING_INTERVAL = 3000 // Poll every 3 seconds
 
     const interval = setInterval(async () => {
       // Check if component is still mounted before making updates
@@ -402,9 +402,9 @@ export default function VideoPageClient() {
       try {
         console.log('[VideoPage] 🔍 Polling task status:', { taskId: pollingTaskId })
         
-        // 使用 AbortController 添加超时控制
+        // Use AbortController for request timeout
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10秒超时
+        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10s timeout
         
         let response: Response
         try {
@@ -416,7 +416,7 @@ export default function VideoPageClient() {
         } catch (fetchError) {
           clearTimeout(timeoutId)
           
-          // 处理网络错误
+          // Handle network errors
           if (fetchError instanceof Error && fetchError.name === 'AbortError') {
             console.warn('[VideoPage] ⚠️ Polling request timeout:', { taskId: pollingTaskId })
             consecutiveErrors++
@@ -434,7 +434,7 @@ export default function VideoPageClient() {
             consecutiveErrors++
           }
           
-          // 如果连续错误太多，停止轮询并显示错误
+          // Stop polling after too many consecutive errors and surface a friendly error
           if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
             console.error('[VideoPage] ❌ Too many consecutive polling errors, stopping:', {
               taskId: pollingTaskId,
@@ -461,7 +461,7 @@ export default function VideoPageClient() {
           return
         }
         
-        // 重置连续错误计数
+        // Reset consecutive error counter
         consecutiveErrors = 0
         
         console.log('[VideoPage] 📥 Polling response:', {
@@ -470,7 +470,7 @@ export default function VideoPageClient() {
           ok: response.ok,
         })
         
-        // 检查响应状态
+        // Check response status
         if (!response.ok) {
           console.error('[VideoPage] ❌ Polling response not OK:', {
             taskId: pollingTaskId,
@@ -478,7 +478,7 @@ export default function VideoPageClient() {
             statusText: response.statusText,
           })
           
-          // 如果是404，任务可能不存在
+          // 404: task might not exist
           if (response.status === 404) {
             clearInterval(interval)
             if (isMountedRef.current) {
@@ -494,7 +494,7 @@ export default function VideoPageClient() {
             return
           }
           
-          // 其他错误，继续重试但增加错误计数
+          // Other errors: keep retrying but increase the error counter
           consecutiveErrors++
           if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
             clearInterval(interval)
@@ -553,7 +553,7 @@ export default function VideoPageClient() {
             setPollingTaskId(null)
           }
         } else if (data.status === 'failed') {
-          // 获取更友好的错误信息
+          // Create a more user-friendly error message
           const errorMessage = data.error || data.details || 'Video generation failed'
           const friendlyError = errorMessage.includes('system error') || errorMessage.includes('temporary')
             ? 'The video generation service encountered a system error. This is usually temporary. Please try again in a few minutes. Your credits have been automatically refunded.'
@@ -587,7 +587,7 @@ export default function VideoPageClient() {
           }
         }
       } catch (error) {
-        // 处理 JSON 解析错误或其他意外错误
+        // Handle JSON parsing errors or other unexpected errors
         console.error(`[VideoPage] ❌ Failed to poll task ${pollingTaskId}:`, {
           error: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : undefined,
@@ -596,7 +596,7 @@ export default function VideoPageClient() {
         
         consecutiveErrors++
         
-        // 如果连续错误太多，停止轮询
+        // Stop polling after too many consecutive errors
         if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
           console.error('[VideoPage] ❌ Too many consecutive errors, stopping polling:', {
             taskId: pollingTaskId,
@@ -655,7 +655,7 @@ export default function VideoPageClient() {
       // Make validation obvious and avoid popping blocking alerts.
       setPromptTouched(true)
       
-      // 验证清理后的提示词
+      // Validate cleaned prompt
       if (!cleanedPrompt || cleanedPrompt.length < MIN_PROMPT_LENGTH) {
         console.warn('[VideoPage] ⚠️ Prompt too short:', {
           cleanedLength: cleanedPrompt.length,
@@ -696,9 +696,9 @@ export default function VideoPageClient() {
 
       const authHeaders = await getAuthHeaders()
       
-      // 使用 AbortController 添加超时控制
+      // Use AbortController for request timeout
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60秒超时
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60s timeout
       
       let response: Response
       try {
@@ -715,7 +715,7 @@ export default function VideoPageClient() {
       } catch (fetchError) {
         clearTimeout(timeoutId)
         
-        // 处理网络错误
+        // Handle network errors
         if (fetchError instanceof Error && fetchError.name === 'AbortError') {
           console.error('[VideoPage] ❌ Request timeout:', { error: 'Request took too long' })
           alert('Request timeout. Please check your network connection and try again.')
@@ -1156,8 +1156,8 @@ export default function VideoPageClient() {
             <div className="flex items-center gap-4">
               <h2 className="text-xl font-semibold text-white">
                 {generationMode === 'single' 
-                  ? (prompt && prompt.trim() ? '修改或生成视频' : '创建新任务')
-                  : '批量生成'
+                  ? (prompt && prompt.trim() ? 'Edit or generate a video' : 'Create a new generation')
+                  : 'Batch generation'
                 }
               </h2>
               {/* Mode Toggle */}
@@ -1171,7 +1171,7 @@ export default function VideoPageClient() {
                       : 'text-white/60 hover:text-white'
                   }`}
                 >
-                  单条
+                  Single
                 </button>
                 <button
                   type="button"
@@ -1182,7 +1182,7 @@ export default function VideoPageClient() {
                       : 'text-white/60 hover:text-white'
                   }`}
                 >
-                  批量
+                  Batch
                 </button>
               </div>
             </div>
@@ -1207,9 +1207,9 @@ export default function VideoPageClient() {
           {generationMode === 'batch' && (
             <div className="space-y-4">
               <div className="rounded-xl bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-white/10 p-6">
-                <h3 className="text-lg font-semibold text-white mb-2">批量生成</h3>
+                <h3 className="text-lg font-semibold text-white mb-2">Batch generation</h3>
                 <p className="text-sm text-blue-100/70 mb-4">
-                  一次提交多条 prompt，批量生成视频。适合需要大量内容的场景。
+                  Submit multiple prompts at once and generate videos in a batch. Great for large-scale content creation.
                 </p>
                 
                 {/* Batch Result */}
@@ -1219,12 +1219,12 @@ export default function VideoPageClient() {
                       <div>
                         <p className="text-green-300 font-medium">{batchResult.message}</p>
                         <p className="text-sm text-green-300/70 mt-1">
-                          批次 ID: {batchResult.batch_id}
+                          Batch ID: {batchResult.batch_id}
                           <span className="mx-2">·</span>
-                          已冻结 {batchResult.credits_frozen} Credits
+                          Frozen {batchResult.credits_frozen} credits
                         </p>
                         <p className="text-xs text-green-300/50 mt-2">
-                          任务已加入队列，将自动执行。完成后可在历史记录中查看。
+                          Added to the queue and will run automatically. Review results in your history once finished.
                         </p>
                       </div>
                     ) : (
@@ -1236,7 +1236,7 @@ export default function VideoPageClient() {
                 <div className="space-y-4">
                   <div>
                     <label className="mb-2 block text-sm font-medium text-blue-100/80">
-                      输入多条 Prompt（每行一条）
+                      Prompts (one per line)
                     </label>
                     <textarea
                       rows={8}
@@ -1244,17 +1244,17 @@ export default function VideoPageClient() {
                       onChange={(e) => setBatchPrompts(e.target.value)}
                       disabled={batchLoading}
                       className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white placeholder:text-blue-100/50 shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water font-mono text-sm disabled:opacity-50"
-                      placeholder={`城市日落的电影感镜头\n樱花飘落的动漫风格森林\n海边冲浪的慢动作画面\n...`}
+                      placeholder={`Cinematic sunset over a modern city skyline\nAnime-style forest with falling cherry blossoms\nSlow-motion surfing at a sunny beach\n...`}
                     />
                     <p className="mt-1 text-xs text-blue-100/50">
-                      每行一条 prompt，支持 1-100 条，每条至少 5 个字符
+                      One prompt per line. Supports 1–100 prompts. Each prompt must be at least 5 characters.
                     </p>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="mb-2 block text-sm font-medium text-blue-100/80">
-                        模型
+                        Model
                       </label>
                       <select
                         value={batchModel}
@@ -1262,14 +1262,14 @@ export default function VideoPageClient() {
                         disabled={batchLoading}
                         className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water disabled:opacity-50"
                       >
-                        <option value="sora-2" className="text-black">Sora-2 (10 Credits/条)</option>
-                        <option value="veo-flash" className="text-black">Veo Flash (50 Credits/条)</option>
-                        <option value="veo-pro" className="text-black">Veo Pro (250 Credits/条)</option>
+                        <option value="sora-2" className="text-black">Sora-2 (10 credits/video)</option>
+                        <option value="veo-flash" className="text-black">Veo Flash (50 credits/video)</option>
+                        <option value="veo-pro" className="text-black">Veo Pro (250 credits/video)</option>
                       </select>
                     </div>
                     <div>
                       <label className="mb-2 block text-sm font-medium text-blue-100/80">
-                        画面比例
+                        Aspect ratio
                       </label>
                       <select
                         value={batchAspectRatio}
@@ -1277,8 +1277,8 @@ export default function VideoPageClient() {
                         disabled={batchLoading}
                         className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water disabled:opacity-50"
                       >
-                        <option value="16:9" className="text-black">16:9 (横屏)</option>
-                        <option value="9:16" className="text-black">9:16 (竖屏)</option>
+                        <option value="16:9" className="text-black">16:9 (Landscape)</option>
+                        <option value="9:16" className="text-black">9:16 (Portrait)</option>
                       </select>
                     </div>
                   </div>
@@ -1292,9 +1292,9 @@ export default function VideoPageClient() {
                         const totalCost = count * costPerVideo;
                         return (
                           <>
-                            <span className="font-medium text-white">{count}</span> 条待生成
+                            <span className="font-medium text-white">{count}</span> prompts queued
                             <span className="mx-2">·</span>
-                            预计消耗 <span className="font-medium text-white">{totalCost}</span> Credits
+                            Estimated cost: <span className="font-medium text-white">{totalCost}</span> credits
                           </>
                         );
                       })()}
@@ -1332,13 +1332,13 @@ export default function VideoPageClient() {
                           } else {
                             setBatchResult({
                               ok: false,
-                              error: data.error || data.message || '创建批量任务失败',
+                              error: data.error || data.message || 'Failed to create batch.',
                             });
                           }
                         } catch {
                           setBatchResult({
                             ok: false,
-                            error: '网络错误，请重试',
+                            error: 'Network error. Please try again.',
                           });
                         } finally {
                           setBatchLoading(false);
@@ -1346,16 +1346,16 @@ export default function VideoPageClient() {
                       }}
                       className="rounded-xl bg-gradient-to-r from-energy-water to-energy-water-deep px-6 py-2 text-sm font-semibold text-white shadow-lg transition-transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
                     >
-                      {batchLoading ? '提交中...' : '开始批量生成'}
+                      {batchLoading ? 'Submitting…' : 'Start batch generation'}
                     </button>
                   </div>
                 </div>
                 
                 <div className="mt-4 pt-4 border-t border-white/10">
                   <p className="text-xs text-blue-100/50">
-                    需要更大规模的批量生成或 API 接入？
+                    Need larger-scale batch generation or API access?
                     <a href="/enterprise" className="text-energy-water hover:underline ml-1">
-                      了解 Enterprise API →
+                      Learn about Enterprise API →
                     </a>
                   </p>
                 </div>
@@ -1734,10 +1734,10 @@ export default function VideoPageClient() {
 
               {currentResult.status === 'processing' && (
                 <div className="mt-4">
-                  {/* Phase 2B: 分阶段进度展示 */}
+                  {/* Phase 2B: Staged progress display */}
                   <h3 className="text-lg font-semibold text-white mb-4">Generating your video</h3>
                   
-                  {/* 三阶段进度 */}
+                  {/* 3-stage progress */}
                   <ul className="space-y-3 mb-4">
                     {[
                       { label: 'Processing prompt', threshold: 10 },
@@ -1774,7 +1774,7 @@ export default function VideoPageClient() {
                     })}
                   </ul>
                   
-                  {/* 进度条 */}
+                  {/* Progress bar */}
                   <div className="h-2 w-full rounded-full bg-gray-700 overflow-hidden">
                     <div
                       className="h-2 rounded-full bg-gradient-to-r from-energy-water to-blue-400 transition-all duration-500"
@@ -1786,7 +1786,7 @@ export default function VideoPageClient() {
                     <span>~1-3 min</span>
                   </div>
                   
-                  {/* Phase 2B: 信任文案 - Credits 退款保证 */}
+                  {/* Phase 2B: Trust copy - automatic credit refund */}
                   <div className="mt-4 p-3 rounded-lg bg-white/5 border border-white/10">
                     <p className="text-xs text-gray-400 flex items-center gap-2">
                       <svg className="h-4 w-4 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1800,7 +1800,7 @@ export default function VideoPageClient() {
 
               {currentResult.status === 'succeeded' && currentResult.video_url && (
                 <>
-                  {/* Phase 2B: 简化成功态 - 先展示关键操作 */}
+                  {/* Phase 2B: Simplified success state - highlight key actions */}
                   <div className="mt-4 text-center">
                     <div className="inline-flex items-center gap-2 text-green-400 mb-4">
                       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1884,7 +1884,7 @@ export default function VideoPageClient() {
                     </div>
                   ) : null}
                   
-                  {/* Phase 2B: 主要操作按钮 - 突出显示 */}
+                  {/* Phase 2B: Primary action buttons */}
                   <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
                     {/* Generate Another */}
                     <button
@@ -1910,7 +1910,7 @@ export default function VideoPageClient() {
                           title={videoLoadError ? "Video URL may have expired. Click to try downloading (will attempt to re-fetch from API)." : "Download original quality video directly from API (no compression, no storage)"}
                           onClick={async (e) => {
                             // Always download via fetch + blob with Authorization header.
-                            // This avoids "无法从网站上提取文件" caused by missing cookies in some download flows.
+                            // This avoids download failures caused by missing cookies in some flows.
                             e.preventDefault()
                             Events.downloadClick(userId)
                             setDidDownloadOrShare(true) // Track download action
@@ -1928,54 +1928,54 @@ export default function VideoPageClient() {
                                 a.download = `video-${currentResult.task_id}.mp4`
                                 a.style.display = 'none'
                                 
-                                // 安全地添加元素
+                                // Safely append the element
                                 try {
                                   document.body.appendChild(a)
                                 } catch (e) {
                                   console.warn('Failed to append download link:', e)
                                 }
                                 
-                                // 触发下载
+                                // Trigger download
                                 try {
                                   a.click()
                                 } catch (e) {
                                   console.warn('Failed to trigger download:', e)
                                 }
                                 
-                                // 安全地移除元素，使用 try-catch 和多重检查
+                                // Safely remove the element with multi-check + try/catch
                                 try {
-                                  // 检查元素是否仍在 DOM 中
+                                  // Ensure the element is still in the DOM
                                   if (a.parentNode && document.body.contains(a)) {
                                     document.body.removeChild(a)
                                   } else if (a.parentNode) {
-                                    // 如果 parentNode 存在但不是 body，尝试从父节点移除
+                                    // If parentNode exists but isn't body, remove from the parent
                                     a.parentNode.removeChild(a)
                                   } else {
-                                    // 如果元素已经被移除，使用 remove() 方法（更安全）
+                                    // If already removed, call remove() if available
                                     if (a.remove && typeof a.remove === 'function') {
                                       a.remove()
                                     }
                                   }
                                 } catch {
-                                  // 如果所有移除方法都失败，尝试使用 remove() 方法
+                                  // If all removal methods fail, try remove() as a fallback
                                   try {
                                     if (a.remove && typeof a.remove === 'function') {
                                       a.remove()
                                     }
                                   } catch (e) {
-                                    // 最后的手段：忽略错误，元素可能已经被 React 或其他代码移除了
+                                    // Last resort: ignore. The element may already be removed by other code.
                                     console.debug('Element removal failed (safe to ignore):', e)
                                   }
                                 }
                                 
-                                // 清理 URL
+                                // Revoke object URL
                                 try {
                                   window.URL.revokeObjectURL(url)
                                 } catch (e) {
                                   console.warn('Failed to revoke object URL:', e)
                                 }
                                 
-                                // 检查组件是否仍挂载再更新状态
+                                // Update state only if still mounted
                                 if (isMountedRef.current) {
                                   setVideoLoadError(null) // Clear error on success
                                 }
@@ -2012,33 +2012,33 @@ export default function VideoPageClient() {
                     )}
                   </div>
                   
-                  {/* 提示信息 */}
+                  {/* Helper note */}
                   <p className="mt-4 text-xs text-gray-500 text-center">
                     Issues? <Link href="/support" className="underline hover:text-gray-400">Contact support</Link>
                   </p>
                   
-                  {/* Sora → Veo 无感引导（只在 Sora 成功时显示） */}
+                  {/* Sora → Veo guide (only shown after successful Sora generation) */}
                   {model === 'sora-2' && (
                     <>
                       <SoraToVeoGuide
                         onRefine={() => {
-                          // 保持当前 prompt，重新生成
+                          // Keep the current prompt and regenerate
                           setCurrentResult(null)
                         }}
                         onUpgrade={() => {
-                          // 切换到 Veo Pro，保持当前 prompt
+                          // Switch to Veo Pro while keeping the current prompt
                           setModel('veo-pro')
                           setCurrentResult(null)
                         }}
                         prompt={currentResult.prompt}
                       />
                       
-                      {/* Veo 升级提示（基于简单触发点：第2次 Sora + 导出行为） */}
+                      {/* Veo upgrade nudge (simple triggers: repeated Sora usage + export intent) */}
                       <div className="mt-4">
                         <VeoUpgradeNudge
                           soraRenders7d={soraRenders7d}
                           remixSamePrompt24h={remixSamePrompt24h}
-                          bonusUsageRatio={0} // TODO: 从钱包信息计算 Bonus 使用比例
+                          bonusUsageRatio={0} // TODO: compute from wallet bonus usage ratio
                           exportIntent={didDownloadOrShare}
                           prompt={currentResult.prompt}
                           aspectRatio={aspectRatio}
@@ -2051,7 +2051,7 @@ export default function VideoPageClient() {
                         />
                       </div>
 
-                      {/* 无感升级提示（Starter → Veo Pro） */}
+                      {/* Upgrade nudge (Starter → Veo Pro) */}
                       <UpgradeNudge
                         planId={hasRechargeRecords ? 'creator' : 'starter'}
                         soraRendersThisSession={soraGenerationsSession}
@@ -2060,7 +2060,7 @@ export default function VideoPageClient() {
                           router.push('/pricing')
                         }}
                         onDismiss={() => {
-                          // 用户选择继续用 Sora
+                          // User chose to continue with Sora
                         }}
                       />
                     </>

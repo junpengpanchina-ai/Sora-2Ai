@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       return jsonResponse(
         {
           error: "INSUFFICIENT_CREDITS",
-          message: "余额不足",
+          message: "Insufficient credits.",
           required: requiredCredits,
           available: availableCredits,
         },
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
       cost_per_video: costPerVideo,
       credits_frozen: requiredCredits,
       credits_remaining: availableCredits - requiredCredits,
-      message: `批量任务已创建，共 ${totalCount} 条视频`,
+      message: `Batch created. Total: ${totalCount} videos.`,
     });
   } catch (error) {
     console.error("[batch/create] Unexpected error:", error);
