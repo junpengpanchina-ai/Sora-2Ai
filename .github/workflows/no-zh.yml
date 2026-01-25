@@ -1,0 +1,23 @@
+name: No Chinese Outside Admin (diff-only)
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  no-zh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run no-zh check
+        env:
+          # PR: compare against base branch. Push: compare against previous SHA.
+          BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+        run: |
+          chmod +x scripts/no_zh_outside_admin.sh
+          bash scripts/no_zh_outside_admin.sh
+
