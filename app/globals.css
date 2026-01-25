@@ -2,7 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ========================================
+   V2.1 克制版设计系统 - 语义化 Tokens
+   ======================================== */
 :root {
+  /* === Brand === */
+  --primary: #2080ff;
+  --secondary: #8b5cf6;
+  --accent: #10b981;
+
+  /* === Text === */
+  --text: rgba(241, 245, 249, 0.92);
+  --muted: rgba(241, 245, 249, 0.66);
+
+  /* === Surfaces === */
+  --bg: #0a0f1a;
+  --surface: rgba(255, 255, 255, 0.04);
+  --surface-2: rgba(255, 255, 255, 0.06);
+
+  /* === Borders === */
+  --border: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  /* === Shadows (克制) === */
+  --shadow-v2-sm: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-v2-md: 0 10px 30px rgba(0, 0, 0, 0.35);
+
+  /* === Focus ring === */
+  --ring: rgba(32, 128, 255, 0.45);
+  --ring-soft: rgba(32, 128, 255, 0.20);
+
+  /* === Radius V2.1 === */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+
+  /* === Spacing (只用这 7 个) === */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-12: 48px;
+
+  /* === Gradients (只留一个主渐变) === */
+  --grad-primary: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+
+/* ========================================
+   原有设计系统变量（保持兼容）
+   ======================================== */
   /* 基础颜色 */
   --background: var(--energy-base-white);
   --foreground: var(--energy-deep-black);
@@ -226,81 +275,14 @@ body {
   }
 }
 
-/* 组件样式层 */
+/* ========================================
+   旧组件样式层 - 已被 V2.1 纯 CSS 替代
+   保留部分不冲突的样式
+   ======================================== */
 @layer components {
-  /* 按钮基础样式 */
-  .btn {
-    @apply inline-flex items-center justify-center rounded-lg font-semibold transition-colors focus-ring disabled:opacity-50 disabled:cursor-not-allowed;
-  }
+  /* btn / input / card / badge 已移至 V2.1 纯 CSS */
   
-  .btn-primary {
-    @apply bg-energy-water text-white hover:bg-energy-water-deep dark:bg-energy-water dark:hover:bg-energy-water-deep;
-  }
-  
-  .btn-secondary {
-    @apply bg-white text-energy-deep shadow-sm ring-1 ring-inset ring-energy-gold-outline hover:bg-energy-water-surface dark:bg-gray-800 dark:text-white dark:ring-gray-600 dark:hover:bg-gray-700;
-  }
-  
-  .btn-danger {
-    @apply bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700;
-  }
-  
-  .btn-ghost {
-    @apply text-energy-deep hover:bg-energy-water-surface dark:text-gray-300 dark:hover:bg-gray-800;
-  }
-  
-  /* 输入框基础样式 */
-  .input {
-    @apply w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm transition-colors;
-    @apply focus:border-energy-water focus:outline-none focus:ring-energy-water;
-    @apply dark:border-gray-600 dark:bg-gray-700 dark:text-white;
-    @apply disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed;
-    @apply dark:disabled:bg-gray-800 dark:disabled:text-gray-400;
-  }
-  
-  .input-error {
-    @apply border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-600;
-  }
-  
-  /* 卡片基础样式 */
-  .card {
-    @apply rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800;
-  }
-  
-  .card-bordered {
-    @apply rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800;
-  }
-  
-  .card-elevated {
-    @apply rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800;
-  }
-  
-  /* 标签基础样式 */
-  .badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
-  }
-  
-  .badge-success {
-    @apply text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/20;
-  }
-  
-  .badge-error {
-    @apply text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/20;
-  }
-  
-  .badge-warning {
-    @apply text-yellow-600 bg-yellow-50 dark:text-yellow-400 dark:bg-yellow-900/20;
-  }
-  
-  .badge-info {
-    @apply text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/20;
-  }
-  
-  .badge-default {
-    @apply text-gray-600 bg-gray-50 dark:text-gray-400 dark:bg-gray-800;
-  }
-  
-  /* 提示框基础样式 */
+  /* 保留：提示框 */
   .alert {
     @apply rounded-lg p-4 text-sm;
   }
@@ -321,20 +303,225 @@ body {
     @apply bg-blue-50 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400;
   }
   
-  /* 导航栏样式 */
-  .navbar {
-    @apply border-b border-gray-200 bg-white/80 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/80;
-  }
-  
-  /* 容器样式 */
+  /* 保留：容器 */
   .container {
     @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
   }
   
-  /* 渐变背景 */
+  /* 保留：渐变背景 */
   .gradient-bg {
     @apply bg-energy-hero dark:bg-energy-hero-dark;
   }
+  
+  /* V2.1 额外变体：用于浅色场景的按钮 */
+  .btn-danger {
+    background: #ef4444;
+    color: white;
+  }
+  .btn-danger:hover {
+    background: #dc2626;
+  }
+}
+
+/* ========================================
+   V2.1 克制版组件样式
+   用于深色宇宙背景的场景
+   ======================================== */
+
+/* V2.1 Button - 克制版 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 44px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--r-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 120ms ease, 
+              background-color 120ms ease, 
+              border-color 120ms ease, 
+              box-shadow 120ms ease;
+}
+
+.btn-sm { 
+  height: 36px; 
+  padding: 0 12px; 
+  font-size: 12px; 
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring-soft), 0 0 0 1px var(--ring);
+}
+
+/* Primary Button */
+.btn-primary {
+  background: var(--grad-primary);
+  color: white;
+  box-shadow: 0 8px 24px rgba(32, 128, 255, 0.25);
+}
+
+.btn-primary:hover { 
+  transform: translateY(-1px); 
+  box-shadow: 0 12px 34px rgba(32, 128, 255, 0.32); 
+}
+
+.btn-primary:active { 
+  transform: translateY(0); 
+}
+
+/* Secondary Button */
+.btn-secondary {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btn-secondary:hover { 
+  background: var(--surface-2); 
+  border-color: var(--border-strong); 
+}
+
+/* Ghost Button */
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.btn-ghost:hover { 
+  background: var(--surface); 
+  color: var(--text); 
+}
+
+/* Disabled Button */
+.btn:disabled { 
+  opacity: 0.55; 
+  cursor: not-allowed; 
+  transform: none !important; 
+  box-shadow: none !important; 
+}
+
+/* V2.1 Card - 统一风格，靠层级取胜 */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-v2-sm);
+}
+
+.card-hover {
+  transition: transform 160ms ease, 
+              background-color 160ms ease, 
+              border-color 160ms ease, 
+              box-shadow 160ms ease;
+}
+
+.card-hover:hover {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-v2-md);
+}
+
+/* V2.1 Input */
+.input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  font-size: 14px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  transition: border-color 120ms ease, 
+              box-shadow 120ms ease, 
+              background-color 120ms ease;
+}
+
+.input::placeholder { 
+  color: rgba(241, 245, 249, 0.45); 
+}
+
+.input:hover {
+  background: rgba(255, 255, 255, 0.045);
+  border-color: var(--border-strong);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px var(--ring-soft);
+}
+
+/* V2.1 Badge - 克制版 */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+/* V2.1 动效 - 只保留 6 个 */
+@keyframes fade-up {
+  from { 
+    opacity: 0; 
+    transform: translateY(12px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes scale-in {
+  from { 
+    opacity: 0; 
+    transform: scale(0.95); 
+  }
+  to { 
+    opacity: 1; 
+    transform: scale(1); 
+  }
+}
+
+.animate-fade-up { 
+  animation: fade-up 400ms ease-out both; 
+}
+
+.animate-scale-in { 
+  animation: scale-in 200ms ease-out both; 
+}
+
+/* V2.1 深色宇宙背景 */
+.bg-cosmic {
+  background: var(--bg);
+}
+
+.bg-cosmic-gradient {
+  background: 
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(32, 128, 255, 0.12), transparent),
+    var(--bg);
+}
+
+/* Details 展开时旋转箭头 */
+details[open] > summary svg {
+  transform: rotate(90deg);
+}
+
+/* 隐藏默认 marker */
+details summary::-webkit-details-marker {
+  display: none;
 }
 
 @layer utilities {

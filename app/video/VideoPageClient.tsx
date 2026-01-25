@@ -11,6 +11,7 @@ import VeoUpgradeNudge from '@/components/growth/VeoUpgradeNudge'
 import { UpgradeNudge } from '@/components/upsell/UpgradeNudge'
 import { createClient } from '@/lib/supabase/client'
 import { setPostLoginRedirect } from '@/lib/auth/post-login-redirect'
+import { Events } from '@/lib/analytics/events'
 
 type ViolationType = 'input_moderation' | 'output_moderation' | 'third_party'
 
@@ -131,6 +132,9 @@ export default function VideoPageClient() {
   const [soraRenders7d, setSoraRenders7d] = useState(0) // Approximate Sora usage for triggers
   const [remixSamePrompt24h, setRemixSamePrompt24h] = useState(0) // Approximate remix count for same prompt
   const lastSubmittedPromptRef = useRef<string | null>(null)
+  const hasTrackedEnterRef = useRef(false)
+  const generationStartMsRef = useRef<number | null>(null)
+  const trackedResultTaskIdsRef = useRef<Set<string>>(new Set())
   const [userEntitlements, setUserEntitlements] = useState<{
     planId: string;
     veoProEnabled: boolean;
@@ -170,6 +174,32 @@ export default function VideoPageClient() {
       isMountedRef.current = false
     }
   }, [])
+
+  // Phase 2: video_page_enter（只打一次）
+  useEffect(() => {
+    if (hasTrackedEnterRef.current) return
+    hasTrackedEnterRef.current = true
+    const fromHero = !!searchParams.get('prompt')
+    Events.videoPageEnter(userId, fromHero)
+  }, [searchParams, userId])
+
+  // Phase 2: generation_success / generation_failed（按 task_id 去重）
+  useEffect(() => {
+    const taskId = currentResult?.task_id
+    const status = currentResult?.status
+    if (!taskId || !status) return
+    if (trackedResultTaskIdsRef.current.has(taskId)) return
+
+    if (status === 'succeeded') {
+      trackedResultTaskIdsRef.current.add(taskId)
+      const durationMs = generationStartMsRef.current ? Date.now() - generationStartMsRef.current : undefined
+      Events.generationSuccess(userId, model, durationMs)
+    }
+    if (status === 'failed') {
+      trackedResultTaskIdsRef.current.add(taskId)
+      Events.generationFailed(userId, currentResult?.error)
+    }
+  }, [currentResult?.status, currentResult?.task_id, currentResult?.error, model, userId])
 
 
   const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
@@ -618,6 +648,8 @@ export default function VideoPageClient() {
       return
     }
     setLoading(true)
+    generationStartMsRef.current = Date.now()
+    Events.generationStarted(userId, model)
 
     try {
       // Make validation obvious and avoid popping blocking alerts.
@@ -1702,24 +1734,82 @@ export default function VideoPageClient() {
 
               {currentResult.status === 'processing' && (
                 <div className="mt-4">
-                  <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    <span>Generation Progress</span>
-                    <span>{currentResult.progress || 0}%</span>
-                  </div>
-                  <div className="h-3 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+                  {/* Phase 2B: 分阶段进度展示 */}
+                  <h3 className="text-lg font-semibold text-white mb-4">Generating your video</h3>
+                  
+                  {/* 三阶段进度 */}
+                  <ul className="space-y-3 mb-4">
+                    {[
+                      { label: 'Processing prompt', threshold: 10 },
+                      { label: 'Generating frames', threshold: 50 },
+                      { label: 'Finalizing output', threshold: 90 },
+                    ].map((step, idx) => {
+                      const progress = currentResult.progress || 0
+                      const isActive = progress >= step.threshold && (idx === 2 || progress < [10, 50, 90][idx + 1])
+                      const isCompleted = progress > step.threshold + 30 || (idx < 2 && progress >= [10, 50, 90][idx + 1])
+                      
+                      return (
+                        <li 
+                          key={step.label}
+                          className={`flex items-center gap-3 text-sm transition-colors ${
+                            isCompleted 
+                              ? 'text-green-400' 
+                              : isActive 
+                                ? 'text-white' 
+                                : 'text-gray-500'
+                          }`}
+                        >
+                          {isCompleted ? (
+                            <svg className="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : isActive ? (
+                            <div className="h-5 w-5 rounded-full border-2 border-energy-water border-t-transparent animate-spin" />
+                          ) : (
+                            <div className="h-5 w-5 rounded-full border-2 border-gray-600" />
+                          )}
+                          <span className={isActive ? 'font-medium' : ''}>{step.label}</span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                  
+                  {/* 进度条 */}
+                  <div className="h-2 w-full rounded-full bg-gray-700 overflow-hidden">
                     <div
-                      className="h-3 rounded-full bg-energy-water transition-all duration-300"
+                      className="h-2 rounded-full bg-gradient-to-r from-energy-water to-blue-400 transition-all duration-500"
                       style={{ width: `${currentResult.progress || 0}%` }}
                     />
                   </div>
-                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    Generating video, please wait...
-                  </p>
+                  <div className="mt-2 flex justify-between text-xs text-gray-500">
+                    <span>Progress: {currentResult.progress || 0}%</span>
+                    <span>~1-3 min</span>
+                  </div>
+                  
+                  {/* Phase 2B: 信任文案 - Credits 退款保证 */}
+                  <div className="mt-4 p-3 rounded-lg bg-white/5 border border-white/10">
+                    <p className="text-xs text-gray-400 flex items-center gap-2">
+                      <svg className="h-4 w-4 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                      <span>Credits are reserved. <strong className="text-gray-300">Refunded automatically</strong> if generation fails.</span>
+                    </p>
+                  </div>
                 </div>
               )}
 
               {currentResult.status === 'succeeded' && currentResult.video_url && (
                 <>
+                  {/* Phase 2B: 简化成功态 - 先展示关键操作 */}
+                  <div className="mt-4 text-center">
+                    <div className="inline-flex items-center gap-2 text-green-400 mb-4">
+                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-lg font-semibold">Your video is ready</span>
+                    </div>
+                  </div>
+                  
                   <div className="mt-4 flex justify-center">
                     <video
                       src={currentResult.video_url}
@@ -1792,19 +1882,27 @@ export default function VideoPageClient() {
                         ⚠️ {videoLoadError}
                       </p>
                     </div>
-                  ) : (
-                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-                      If you encounter any issues, please return to the homepage and provide feedback. We will contact you as soon as possible after receiving your message.
-                    </p>
-                  )}
-                  <div className="mt-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {currentResult.remove_watermark && (
-                        <span className="text-xs text-green-600 dark:text-green-400">
-                          ✓ No Watermark
-                        </span>
-                      )}
-                      {currentResult.task_id && (
+                  ) : null}
+                  
+                  {/* Phase 2B: 主要操作按钮 - 突出显示 */}
+                  <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                    {/* Generate Another */}
+                    <button
+                      onClick={() => {
+                        Events.generateAnotherClick(userId)
+                        setCurrentResult(null)
+                        setPrompt(currentResult.prompt || '')
+                        setPromptTouched(true)
+                      }}
+                      className="inline-flex items-center gap-2 rounded-xl bg-white/10 border border-white/20 px-5 py-2.5 text-sm font-medium text-white hover:bg-white/15 transition-colors"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Generate another
+                    </button>
+                    
+                    {currentResult.task_id && (
                         <a
                           href={`/api/video/download/${currentResult.task_id}`}
                           download={`video-${currentResult.task_id}.mp4`}
@@ -1814,6 +1912,7 @@ export default function VideoPageClient() {
                             // Always download via fetch + blob with Authorization header.
                             // This avoids "无法从网站上提取文件" caused by missing cookies in some download flows.
                             e.preventDefault()
+                            Events.downloadClick(userId)
                             setDidDownloadOrShare(true) // Track download action
                             try {
                               const authHeaders = await getAuthHeaders()
@@ -1899,30 +1998,24 @@ export default function VideoPageClient() {
                             }
                           }}
                         >
-                          <svg
-                            className="h-4 w-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                            />
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                           </svg>
-                          {videoLoadError ? 'Try Download (Re-fetch)' : 'Download Original Video'}
+                          {videoLoadError ? 'Try Download' : 'Download'}
                         </a>
                       )}
-                    </div>
-                    <button
-                      onClick={() => setCurrentResult(null)}
-                      className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                    >
-                      Clear
-                    </button>
+                    
+                    {currentResult.remove_watermark && (
+                      <span className="text-xs text-green-400 px-2">
+                        ✓ No Watermark
+                      </span>
+                    )}
                   </div>
+                  
+                  {/* 提示信息 */}
+                  <p className="mt-4 text-xs text-gray-500 text-center">
+                    Issues? <Link href="/support" className="underline hover:text-gray-400">Contact support</Link>
+                  </p>
                   
                   {/* Sora → Veo 无感引导（只在 Sora 成功时显示） */}
                   {model === 'sora-2' && (

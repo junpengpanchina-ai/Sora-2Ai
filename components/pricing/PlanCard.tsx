@@ -8,6 +8,7 @@ type Props = {
   title: string;
   price: string;
   badge?: string;
+  videoEstimate?: string; // Phase 2C: 用视频数量表达价值
   bullets: string[];
   ctaLabel: string;
   onCta: (planId: PlanId) => void;
@@ -20,6 +21,7 @@ export function PlanCard({
   title,
   price,
   badge,
+  videoEstimate,
   bullets,
   ctaLabel,
   onCta,
@@ -44,7 +46,11 @@ export function PlanCard({
           ) : null}
         </div>
         <div className="text-right">
-          <div className="text-2xl font-semibold text-white">{price}</div>
+          {/* Phase 2C: 结果导向 - 先显示视频数量 */}
+          {videoEstimate && (
+            <div className="text-2xl font-bold text-white">{videoEstimate}</div>
+          )}
+          <div className={videoEstimate ? "text-lg font-semibold text-white/80" : "text-2xl font-semibold text-white"}>{price}</div>
           <div className="text-xs text-white/60">One-time purchase</div>
         </div>
       </div>

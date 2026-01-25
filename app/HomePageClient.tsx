@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback, useRef, type RefObject } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@/components/ui'
+import HeroV2 from './HeroV2'
 import LogoutButton from '@/components/LogoutButton'
 import LoginButton from '@/components/LoginButton'
 import R2Image from '@/components/R2Image'
@@ -213,11 +214,14 @@ interface HomepageSettings {
 
 export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const router = useRouter()
+  // 避免 Hero A/B & emoji 导致 hydration mismatch：
+  // 首次渲染（服务端/客户端）都不渲染 Hero，挂载后再显示
+  const [heroMounted, setHeroMounted] = useState(false)
   const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null)
   const [hydratedProfile, setHydratedProfile] = useState<UserProfile | null>(userProfile)
-  const [stats, setStats] = useState<Stats | null>(null)
+  const [, setStats] = useState<Stats | null>(null)
   const [credits, setCredits] = useState<number>(userProfile?.credits || 0)
-  const [walletInfo, setWalletInfo] = useState<{
+  const [, setWalletInfo] = useState<{
     permanentCredits: number
     bonusCredits: number
     bonusExpiresAt: string | null
@@ -246,6 +250,10 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
   const [hasRechargeRecords, setHasRechargeRecords] = useState<boolean | null>(null)
   const imageSectionRef = useRef<HTMLDivElement | null>(null)
   const accountProfile = hydratedProfile ?? userProfile
+
+  useEffect(() => {
+    setHeroMounted(true)
+  }, [])
 
   // Map planId to payment plan for checkout
   const getPaymentPlanByPlanId = (planId: PlanId) => {
@@ -821,10 +829,11 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     })
   }
 
-  const successRate =
-    stats && typeof stats.succeeded === 'number'
-      ? Math.round((stats.succeeded / Math.max(stats.total || 1, 1)) * 100)
-      : null
+  // NOTE: Currently unused; keep the computation for future UI.
+  // const successRate =
+  //   stats && typeof stats.succeeded === 'number'
+  //     ? Math.round((stats.succeeded / Math.max(stats.total || 1, 1)) * 100)
+  //     : null
 
   // 根据主题样式动态设置背景类
   const themeStyle = homepageSettings?.theme_style || 'cosmic'
@@ -880,180 +889,87 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         <div key={index} className={`${decoration} absolute inset-0`} aria-hidden="true" />
       ))}
       <div className="relative z-10">
-      {/* Navigation */}
-      <nav className="border-b border-gray-200 bg-white/80 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/80 sticky top-0 z-50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                Sora2Ai Videos
-              </h1>
-              <Link
-                href="/prompts"
-                className="text-sm font-medium text-gray-700 transition-colors hover:text-energy-water dark:text-gray-300 dark:hover:text-energy-water-deep"
-              >
-                Prompts
+      {/* Navigation - V2.1 简化版：只保留 5 项 */}
+      <nav className="border-b border-[var(--border)] bg-[var(--bg)]/90 backdrop-blur-md sticky top-0 z-50">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-14 items-center justify-between">
+            {/* 左侧：Logo + 导航链接 */}
+            <div className="flex items-center gap-6">
+              <Link href="/" className="text-lg font-semibold text-[var(--text)]">
+                Sora2Ai
               </Link>
-              <Link
-                href={hydratedProfile ? '/video' : '/login'}
-                className="text-sm font-medium text-gray-700 transition-colors hover:text-energy-water dark:text-gray-300 dark:hover:text-energy-water-deep"
-              >
-                Video Generation
-              </Link>
+              <div className="hidden md:flex items-center gap-5">
                 <Link
-                href="/use-cases"
-                  className="text-sm font-medium text-gray-700 transition-colors hover:text-energy-water dark:text-gray-300 dark:hover:text-energy-water-deep"
+                  href="/prompts"
+                  className="text-sm text-[var(--muted)] hover:text-[var(--text)] transition-colors"
                 >
-                Use Cases
+                  Prompts
                 </Link>
+                <Link
+                  href={hydratedProfile ? '/video' : '/login'}
+                  className="text-sm text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+                >
+                  Generate
+                </Link>
+                <Link
+                  href="#pricing-plans"
+                  className="text-sm text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+                >
+                  Pricing
+                </Link>
+                <Link
+                  href="/use-cases"
+                  className="text-sm text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+                >
+                  Examples
+                </Link>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
-              {/* Stats Cards in Navbar - Only show if logged in */}
-              {hydratedProfile && stats && (
-                <div className="hidden lg:flex items-center gap-3">
-                  <div className="px-2 py-1 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                    <p className="text-xs text-gray-600 dark:text-gray-400">Total</p>
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">{stats.total}</p>
-                  </div>
-                  <div className="px-2 py-1 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                    <p className="text-xs text-gray-600 dark:text-gray-400">Success</p>
-                    <p className="text-sm font-bold text-green-600 dark:text-green-400">{stats.succeeded}</p>
-                  </div>
-                  <div className="px-2 py-1 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                    <p className="text-xs text-gray-600 dark:text-gray-400">Processing</p>
-                    <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{stats.processing}</p>
-                  </div>
-                  <div className="px-2 py-1 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                    <p className="text-xs text-gray-600 dark:text-gray-400">Failed</p>
-                    <p className="text-sm font-bold text-red-600 dark:text-red-400">{stats.failed}</p>
-                  </div>
-                </div>
-              )}
-              
+            
+            {/* 右侧：Credits + 登录 */}
+            <div className="flex items-center gap-3">
               {hydratedProfile ? (
                 <>
-                <div className="flex flex-col items-end gap-1 px-3 py-1.5 rounded-lg bg-energy-water-surface dark:bg-energy-water-muted">
-                  <span className="text-sm font-medium text-energy-water dark:text-energy-soft">
-                    Credits: {credits}
-                  </span>
-                  {walletInfo && walletInfo.bonusCredits > 0 && (
-                    <span className="text-xs text-orange-600 dark:text-orange-400">
-                      临时积分: {walletInfo.bonusCredits}
-                      {walletInfo.bonusExpiresAt && (
-                        <span className="ml-1">
-                          ({new Date(walletInfo.bonusExpiresAt).toLocaleDateString('zh-CN', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}过期)
-                        </span>
-                      )}
-                    </span>
-                  )}
-                </div>
-                {hydratedProfile.avatar_url ? (
-                  <img
-                    src={hydratedProfile.avatar_url}
-                    alt={hydratedProfile.name ?? 'User avatar'}
-                    width={32}
-                    height={32}
-                    className="h-8 w-8 rounded-full object-cover"
-                    referrerPolicy="no-referrer"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-semibold text-gray-600">
-                    {(hydratedProfile.name ?? hydratedProfile.email ?? '?').charAt(0).toUpperCase()}
+                  {/* Credits 显示 */}
+                  <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--surface)] border border-[var(--border)]">
+                    <span className="text-xs text-[var(--muted)]">Credits:</span>
+                    <span className="text-sm font-semibold text-[var(--text)]">{credits}</span>
                   </div>
-                )}
-                <span className="hidden text-sm font-medium text-gray-700 dark:text-gray-300 sm:inline">
-                  {hydratedProfile.name ?? hydratedProfile.email}
-                </span>
-                <Button 
-                  variant="primary" 
-                  size="sm" 
-                  onClick={() => {
-                    const pricingSection = document.getElementById('pricing-plans')
-                    if (pricingSection) {
-                      pricingSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                    }
-                  }}
-                >
-                  Buy Plan
-                </Button>
-                <LogoutButton />
+                  {/* 头像 */}
+                  {hydratedProfile.avatar_url ? (
+                    <img
+                      src={hydratedProfile.avatar_url}
+                      alt={hydratedProfile.name ?? 'User'}
+                      className="h-8 w-8 rounded-full object-cover border border-[var(--border)]"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-sm font-medium text-[var(--text)]">
+                      {(hydratedProfile.name ?? hydratedProfile.email ?? '?').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <LogoutButton />
                 </>
               ) : (
-                <>
-                  <Button 
-                    variant="primary" 
-                    size="sm"
-                    onClick={() => {
-                      const pricingSection = document.getElementById('pricing-plans')
-                      if (pricingSection) {
-                        pricingSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                      }
-                    }}
-                  >
-                    Buy Plan
-                  </Button>
-                  <LoginButton />
-                </>
+                <LoginButton />
               )}
             </div>
           </div>
         </div>
       </nav>
 
+      {/* ========== SELL 区域：HeroV2 ========== */}
+      {heroMounted ? (
+        <HeroV2
+          isLoggedIn={!!hydratedProfile}
+          onGenerate={(prompt) => {
+            router.push(`/video?prompt=${encodeURIComponent(prompt)}`)
+          }}
+        />
+      ) : null}
+
+      {/* ========== SHOW 区域 ========== */}
       <div className="cosmic-content">
-        <section className="relative isolate overflow-hidden py-24 sm:py-28 lg:py-32">
-        <div className="relative z-10 mx-auto max-w-6xl px-6 text-left">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-1 text-[0.7rem] uppercase tracking-[0.45em] text-energy-gold-light">
-            {homepageSettings?.hero_badge_text || 'Best Sora Alternative'}
-            <span className="h-1.5 w-1.5 rounded-full bg-energy-gold-light" />
-          </div>
-          <h2 className="mt-6 text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-[3.2rem]">
-            {hydratedProfile
-              ? homepageSettings?.hero_h1_text_logged_in?.replace('{name}', hydratedProfile.name || 'Creator') || `Welcome back, ${hydratedProfile.name || 'Creator'}! Create AI Videos Like Sora`
-              : homepageSettings?.hero_h1_text || 'Best Sora Alternatives for AI Video Generation'}
-          </h2>
-          <p className="mt-4 max-w-3xl text-base text-blue-100/90 sm:text-lg">
-            {homepageSettings?.hero_description || 'Find the best Sora alternatives for creating stunning text-to-video content. Our free AI video generator lets you create professional videos from text prompts in seconds. Compare top Sora alternatives and start creating today.'}
-          </p>
-          <div className="mt-8 flex flex-wrap gap-4">
-            <Link href={hydratedProfile ? '/video' : '/login'}>
-              <Button variant="primary" size="lg" className="shadow-energy-focus">
-                {homepageSettings?.cta_primary_text_logged_out || homepageSettings?.cta_primary_text || 'Start Generating Videos Free'}
-              </Button>
-            </Link>
-            <Link href="/use-cases">
-              <Button variant="secondary" size="lg">
-                {homepageSettings?.cta_secondary_text || 'View AI Video Examples'}
-              </Button>
-            </Link>
-          </div>
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              { label: 'Tasks in progress', value: stats ? stats.processing : '—' },
-              { label: 'Total renders', value: stats ? stats.total : '—' },
-              {
-                label: 'Success rate',
-                value: successRate === null ? '—' : `${successRate}%`,
-              },
-              { label: 'Available credits', value: typeof credits === 'number' ? credits : '—' },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_10px_40px_-20px_rgba(15,30,70,0.8)]"
-              >
-                <p className="text-sm uppercase tracking-[0.2em] text-blue-100/70">{item.label}</p>
-                <p className="mt-3 text-4xl font-semibold text-white">{item.value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-        </section>
 
 
         <main className="mx-auto max-w-7xl px-4 py-8 text-white sm:px-6 lg:px-8">
@@ -1410,83 +1326,87 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
 
         {/* Pricing Plans Section - Full pricing page content */}
         <div id="pricing-plans" className="mb-12 scroll-mt-24">
+          {/* Phase 2C: 简化开场 */}
           <div className="text-center mb-10">
-            <h2 className="text-3xl md:text-4xl font-semibold text-white mb-3">
-              Pricing that fits your workflow — draft fast, finish clean
+            <h2 className="text-3xl md:text-4xl font-semibold text-white mb-2">
+              Simple prepaid credits.
             </h2>
-            <p className="text-base text-white/70 mb-2">
-              Use Sora for everyday iteration. Upgrade the final cut with Veo when quality matters.
+            <p className="text-xl text-white/90 mb-4">
+              Pay once. Use anytime.
             </p>
-            <p className="text-sm text-white/50">
-              Credits never expire. Bonus credits may have an expiry (clearly labeled).
+            <p className="text-base text-white/60">
+              Most videos cost 10 credits. No subscriptions. No lock-in.
             </p>
           </div>
 
-          {/* Pricing Cards */}
+          {/* Pricing Cards - Phase 2C: 结果导向 */}
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4 mb-10">
             <PlanCard
               planId="starter"
-              title="Starter Access (7 days)"
+              title="Starter"
               price="$4.90"
+              videoEstimate="~12 videos"
               badge="Try the workflow"
               bullets={[
-                "120 bonus credits (expires in 7 days)",
-                "Great for testing the workflow",
-                "Daily limits keep the service reliable and fair",
-                "Sora + Veo Fast available, Veo Pro locked",
+                "120 bonus credits (7 days)",
+                "Test with Sora + Veo Fast",
+                "Daily limits keep service fair",
               ]}
-              ctaLabel="Start with Starter Access"
+              ctaLabel="Start with Starter"
               onCta={handlePricingCheckout}
-              footnote="One-time purchase. New users also get 30 bonus credits (7 days)."
+              footnote="Most videos cost 10 credits."
             />
 
             <PlanCard
               planId="creator"
-              title="Creator Pack"
+              title="Creator"
               price="$39"
+              videoEstimate="~60 videos"
               badge="Recommended"
               bullets={[
                 "600 permanent credits",
-                "+60 bonus credits (expires in 30 days)",
-                "Access to Sora, Veo Fast, and Veo Pro",
-                "Better limits + smoother queue",
-                "Note: Veo Pro uses permanent credits only",
+                "+60 bonus (30 days)",
+                "Unlock Veo Pro",
+                "Better limits + queue",
               ]}
               ctaLabel="Get Creator Pack"
               onCta={handlePricingCheckout}
               variant="primary"
+              footnote="Most videos cost 10 credits."
             />
 
             <PlanCard
               planId="studio"
-              title="Studio Pack"
+              title="Studio"
               price="$99"
-              badge="Best value for Veo Pro"
+              videoEstimate="~180 videos"
+              badge="Best for Veo Pro"
               bullets={[
                 "1,800 permanent credits",
-                "+270 bonus credits (expires in 45 days)",
-                "Built for final exports and client work",
-                "Priority queue + higher concurrency",
-                "Note: Veo Pro uses permanent credits only",
+                "+270 bonus (45 days)",
+                "Priority queue",
+                "For final exports",
               ]}
               ctaLabel="Get Studio Pack"
               onCta={handlePricingCheckout}
+              footnote="Most videos cost 10 credits."
             />
 
             <PlanCard
               planId="pro"
-              title="Pro Pack"
+              title="Pro"
               price="$299"
-              badge="For teams & heavy usage"
+              videoEstimate="~600 videos"
+              badge="Teams & heavy usage"
               bullets={[
                 "6,000 permanent credits",
-                "+1,200 bonus credits (expires in 60 days)",
-                "Highest value per credit",
-                "Best limits + fastest queue",
-                "Note: Veo Pro uses permanent credits only",
+                "+1,200 bonus (60 days)",
+                "Best value per credit",
+                "Fastest queue",
               ]}
               ctaLabel="Get Pro Pack"
               onCta={handlePricingCheckout}
+              footnote="Most videos cost 10 credits."
             />
           </div>
 
@@ -1498,6 +1418,24 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               veoFlashCreditsPerRender: PRICING_CONFIG.modelCosts.veo_fast,
               veoProCreditsPerRender: PRICING_CONFIG.modelCosts.veo_pro,
             }} />
+          </div>
+
+          {/* Phase 2C: 风险反转文案 */}
+          <div className="mb-10 rounded-2xl border border-green-500/20 bg-green-500/5 p-6 backdrop-blur-sm">
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 justify-center items-center text-center">
+              <div className="flex items-center gap-2 text-green-400">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm font-medium">Unused credits never expire</span>
+              </div>
+              <div className="flex items-center gap-2 text-green-400">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm font-medium">Failed generations refunded automatically</span>
+              </div>
+            </div>
           </div>
 
           {/* Workflow Section */}
@@ -1535,6 +1473,93 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
               </Button>
             </Link>
           </div>
+        </section>
+
+        {/* ========== EXPLAIN 区域：SEO 长文（折叠） ========== */}
+        <section id="seo-content" className="mb-12">
+          <details className="card p-6">
+            <summary className="cursor-pointer text-sm font-medium text-[var(--muted)] hover:text-[var(--text)] transition-colors list-none flex items-center gap-2">
+              <svg className="w-4 h-4 transition-transform details-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              Read more about Sora2 AI video generation
+            </summary>
+            
+            <div className="mt-6 space-y-6 text-sm text-[var(--muted)] leading-relaxed">
+              <div>
+                <h3 className="text-base font-semibold text-[var(--text)] mb-2">
+                  Best Sora Alternatives for AI Video Generation
+                </h3>
+                <p>
+                  Looking for the best Sora alternatives? Our platform is one of the top text-to-video AI tools that 
+                  creates stunning, professional-quality videos from text prompts in seconds. Whether you&apos;re 
+                  creating marketing content, social media videos, educational materials, or creative projects, we 
+                  make AI video generation accessible to everyone, regardless of technical expertise.
+                </p>
+              </div>
+              
+              <div>
+                <h3 className="text-base font-semibold text-[var(--text)] mb-2">
+                  How Our Text-to-Video AI Works
+                </h3>
+                <p>
+                  As a leading Sora alternative, we offer 30 free credits when you sign up - no credit card required. 
+                  Our platform supports various video styles including cinematic shots, documentary footage, fashion 
+                  content, nature scenes, sports highlights, and abstract visuals. Each video is generated using 
+                  advanced AI technology to ensure high quality and creative results that match your vision.
+                </p>
+                <p className="mt-3">
+                  Our text-to-video AI generator process is simple: enter a detailed text description of the video 
+                  you want to create, select your preferred aspect ratio and duration, and let our AI do the rest. 
+                  The platform supports both portrait (9:16) and landscape (16:9) formats, with video durations of 
+                  10 or 15 seconds. All videos are generated in high quality and can be downloaded immediately after 
+                  completion.
+                </p>
+              </div>
+              
+              <div>
+                <h3 className="text-base font-semibold text-[var(--text)] mb-2">
+                  Why Choose Our Sora Alternative?
+                </h3>
+                <ul className="list-disc list-inside space-y-1 ml-2">
+                  <li>Free AI video generator - Get started with 30 free credits</li>
+                  <li>Text-to-video AI technology comparable to OpenAI Sora</li>
+                  <li>Multiple video styles and categories</li>
+                  <li>Fast generation times, typically completed in minutes</li>
+                  <li>High-quality output suitable for professional use</li>
+                  <li>Easy-to-use interface with prompt templates</li>
+                  <li>Flexible pricing plans with credit-based system</li>
+                  <li>No watermark on generated videos</li>
+                </ul>
+              </div>
+              
+              <div>
+                <h3 className="text-base font-semibold text-[var(--text)] mb-2">
+                  Compare Sora Alternatives
+                </h3>
+                <p>
+                  When comparing Sora alternatives like Runway, Pika, Luma, and our platform, we stand out with our 
+                  user-friendly interface, competitive pricing, and high-quality output. Our free tier makes it easy 
+                  to get started, and our credit system ensures you only pay for what you use.
+                </p>
+              </div>
+              
+              <div className="pt-4 border-t border-[var(--border)]">
+                <h3 className="text-base font-semibold text-[var(--text)] mb-2">
+                  Data Usage Transparency
+                </h3>
+                <p>
+                  We use Google Sign-In to securely authenticate your account. We only request your email address 
+                  and basic profile information (name, profile picture) to create your account and provide 
+                  personalized video generation services. Your data is encrypted and stored securely. For more 
+                  information, please review our{' '}
+                  <Link href="/privacy" className="underline underline-offset-2 hover:text-[var(--text)]">
+                    Privacy Policy
+                  </Link>.
+                </p>
+              </div>
+            </div>
+          </details>
         </section>
           </>
       </main>

@@ -46,86 +46,108 @@ export function PricingPage({ config, onCheckout }: Props) {
     <main className="min-h-screen bg-gradient-to-b from-[#0a0a0a] via-[#1a1a1a] to-[#0a0a0a] text-white">
       <div className="mx-auto max-w-5xl px-4 py-10">
         <header className="text-center">
+          {/* Phase 2C: 简化开场 - 强调简单、无订阅 */}
           <h1 className="text-3xl md:text-4xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-            Pricing that fits your workflow — draft fast, finish clean
+            Simple prepaid credits.
           </h1>
-          <p className="mt-3 text-base text-white/70">
-            Use Sora for everyday iteration. Upgrade the final cut with Veo when quality matters.
+          <p className="mt-2 text-xl text-white/90">
+            Pay once. Use anytime.
           </p>
-          <p className="mt-2 text-sm text-white/50">
-            Credits never expire. Bonus credits may have an expiry (clearly labeled).
+          <p className="mt-4 text-base text-white/60">
+            Most videos cost 10 credits. No subscriptions. No lock-in.
           </p>
         </header>
 
         <section className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
           <PlanCard
             planId="starter"
-            title="Starter Access (7 days)"
+            title="Starter"
             price="$4.90"
+            videoEstimate="~12 videos"
             badge="Try the workflow"
             bullets={[
-              "120 bonus credits (expires in 7 days)",
-              "Great for testing the workflow",
-              "Daily limits keep the service reliable and fair",
-              "Sora + Veo Fast available, Veo Pro locked",
+              "120 bonus credits (7 days)",
+              "Test with Sora + Veo Fast",
+              "Daily limits keep service fair",
             ]}
-            ctaLabel="Start with Starter Access"
+            ctaLabel="Start with Starter"
             onCta={(id) => onCheckout(id)}
-            footnote="One-time purchase. New users also get 30 bonus credits (7 days)."
+            footnote="Most videos cost 10 credits."
           />
 
           <PlanCard
             planId="creator"
-            title="Creator Pack"
+            title="Creator"
             price="$39"
+            videoEstimate="~60 videos"
             badge="Recommended"
             bullets={[
               "600 permanent credits",
-              "+60 bonus credits (expires in 30 days)",
-              "Access to Sora, Veo Fast, and Veo Pro",
-              "Better limits + smoother queue",
-              "Note: Veo Pro uses permanent credits only",
+              "+60 bonus (30 days)",
+              "Unlock Veo Pro",
+              "Better limits + queue",
             ]}
             ctaLabel="Get Creator Pack"
             onCta={(id) => onCheckout(id)}
             variant="primary"
+            footnote="Most videos cost 10 credits."
           />
 
           <PlanCard
             planId="studio"
-            title="Studio Pack"
+            title="Studio"
             price="$99"
-            badge="Best value for Veo Pro"
+            videoEstimate="~180 videos"
+            badge="Best for Veo Pro"
             bullets={[
               "1,800 permanent credits",
-              "+270 bonus credits (expires in 45 days)",
-              "Built for final exports and client work",
-              "Priority queue + higher concurrency",
-              "Note: Veo Pro uses permanent credits only",
+              "+270 bonus (45 days)",
+              "Priority queue",
+              "For final exports",
             ]}
             ctaLabel="Get Studio Pack"
             onCta={(id) => onCheckout(id)}
+            footnote="Most videos cost 10 credits."
           />
 
           <PlanCard
             planId="pro"
-            title="Pro Pack"
+            title="Pro"
             price="$299"
-            badge="For teams & heavy usage"
+            videoEstimate="~600 videos"
+            badge="Teams & heavy usage"
             bullets={[
               "6,000 permanent credits",
-              "+1,200 bonus credits (expires in 60 days)",
-              "Highest value per credit",
-              "Best limits + fastest queue",
-              "Note: Veo Pro uses permanent credits only",
+              "+1,200 bonus (60 days)",
+              "Best value per credit",
+              "Fastest queue",
             ]}
             ctaLabel="Get Pro Pack"
             onCta={(id) => onCheckout(id)}
+            footnote="Most videos cost 10 credits."
           />
         </section>
 
         <section className="mt-10">
           <CreditUsageTable config={config} />
+        </section>
+
+        {/* Phase 2C: 风险反转文案 - 降低付费摩擦 */}
+        <section className="mt-10 rounded-2xl border border-green-500/20 bg-green-500/5 p-6 backdrop-blur-sm">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 justify-center items-center text-center">
+            <div className="flex items-center gap-2 text-green-400">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-sm font-medium">Unused credits never expire</span>
+            </div>
+            <div className="flex items-center gap-2 text-green-400">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-sm font-medium">Failed generations refunded automatically</span>
+            </div>
+          </div>
         </section>
 
         <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
