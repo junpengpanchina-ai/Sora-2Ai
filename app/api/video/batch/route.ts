@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { validateOrigin } from "@/lib/csrf";
 import { getCreditsForModel, type ModelType } from "@/lib/credits";
+import { handleEnterpriseBatchViaApiKey } from "@/lib/enterprise/videoBatch";
+import { getRequestId } from "@/lib/http/requestId";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { randomUUID } from "crypto";
@@ -26,59 +28,49 @@ function jsonResponse<T>(data: T, init?: ResponseInit): NextResponse {
   });
 }
 
-function isJwtBearer(authHeader: string | null): boolean {
-  if (!authHeader) return false;
-  const m = authHeader.match(/^Bearer\s+(.+)$/i);
-  if (!m) return false;
-  const token = m[1].trim();
-  return token.startsWith("eyJ") && token.split(".").length === 3;
-}
-
-function getEnterpriseApiKeyCandidate(request: Request): string | null {
-  const x = request.headers.get("x-api-key");
-  if (x && x.trim()) return x.trim();
-
-  const auth = request.headers.get("authorization");
-  if (!auth) return null;
-  // If Authorization is present but not a Supabase JWT, treat it as an enterprise API key candidate.
-  if (!isJwtBearer(auth) && auth.toLowerCase().startsWith("bearer ")) {
-    const token = auth.slice(7).trim();
-    return token || null;
-  }
-  return null;
-}
-
-async function proxyToEnterpriseBatch(request: NextRequest): Promise<NextResponse> {
-  const url = new URL("/api/enterprise/video-batch", request.url);
-  const upstreamRequest = request.clone();
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: upstreamRequest.headers,
-    body: upstreamRequest.body,
-    // Enterprise is intended for server/server and may be cross-origin; do not rely on cookies here.
-    credentials: "omit",
-  });
-
-  const text = await res.text();
-  return new NextResponse(text, {
-    status: res.status,
-    headers: {
-      "Content-Type": res.headers.get("content-type") ?? "application/json; charset=utf-8",
-    },
-  });
-}
-
 export async function POST(request: NextRequest) {
+  const requestId = getRequestId(request);
+  const consumerJson = <T extends Record<string, unknown>>(data: T, init?: ResponseInit): NextResponse =>
+    jsonResponse(
+      { ...data, mode: "consumer", request_id: requestId },
+      {
+        ...init,
+        headers: {
+          ...(init?.headers ?? {}),
+          "x-request-id": requestId,
+        },
+      }
+    );
+
   // Enterprise fast-path (API key): bypass CSRF + do not call getUser().
-  const enterpriseKey = getEnterpriseApiKeyCandidate(request);
-  if (enterpriseKey) {
-    return proxyToEnterpriseBatch(request);
+  const hasApiKeyHeader = !!(request.headers.get("x-api-key") || "").trim();
+  const hasApiKey =
+    hasApiKeyHeader ||
+    (() => {
+      const auth = request.headers.get("authorization");
+      // If Authorization is present and isn't a Supabase JWT, treat it as API-key auth.
+      if (!auth) return false;
+      const m = auth.match(/^Bearer\s+(.+)$/i);
+      if (!m) return false;
+      const token = m[1].trim();
+      const isJwt = token.startsWith("eyJ") && token.split(".").length === 3;
+      return !isJwt;
+    })();
+
+  if (hasApiKey) {
+    const origin = request.headers.get("origin");
+    const shouldLogOrigin =
+      process.env.NODE_ENV !== "production" || process.env.LOG_ORIGIN_ON_APIKEY === "1";
+    if (origin && shouldLogOrigin) {
+      console.debug("[video-batch][enterprise] api-key request has Origin:", { requestId, origin });
+    }
+    // `handleEnterpriseBatchViaApiKey` reads key via `x-api-key` or `Authorization: Bearer <key>`
+    return handleEnterpriseBatchViaApiKey(request, { requestId });
   }
 
   // CSRF validation
   if (!validateOrigin(request)) {
-    return jsonResponse({ error: "Invalid origin" }, { status: 403 });
+    return consumerJson({ error: "Invalid origin" }, { status: 403 });
   }
 
   try {
@@ -89,10 +81,7 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return jsonResponse(
-        { error: "Unauthorized, please login first" },
-        { status: 401 }
-      );
+      return consumerJson({ error: "Unauthorized, please login first" }, { status: 401 });
     }
 
     // Parse request body
@@ -100,7 +89,7 @@ export async function POST(request: NextRequest) {
     const parsed = batchRequestSchema.safeParse(body);
 
     if (!parsed.success) {
-      return jsonResponse(
+      return consumerJson(
         { error: "Invalid request", details: parsed.error.flatten() },
         { status: 400 }
       );
@@ -123,10 +112,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (walletError || !wallet) {
-      return jsonResponse(
-        { error: "Failed to get wallet balance" },
-        { status: 500 }
-      );
+      return consumerJson({ error: "Failed to get wallet balance" }, { status: 500 });
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -134,7 +120,7 @@ export async function POST(request: NextRequest) {
     const availableCredits = (walletData.permanent_credits || 0) + (walletData.bonus_credits || 0);
 
     if (availableCredits < requiredCredits) {
-      return jsonResponse(
+      return consumerJson(
         {
           error: "INSUFFICIENT_CREDITS",
           message: "Insufficient credits.",
@@ -151,6 +137,8 @@ export async function POST(request: NextRequest) {
     const { error: batchError } = await (serviceClient as any).from("batch_jobs").insert({
       id: batchId,
       user_id: user.id,
+      request_id: requestId,
+      source: "consumer",
       status: "queued",
       total_count: totalCount,
       success_count: 0,
@@ -163,10 +151,7 @@ export async function POST(request: NextRequest) {
 
     if (batchError) {
       console.error("[batch/create] Failed to create batch job:", batchError);
-      return jsonResponse(
-        { error: "Failed to create batch job" },
-        { status: 500 }
-      );
+      return consumerJson({ error: "Failed to create batch job" }, { status: 500 });
     }
 
     // Freeze credits (deduct from wallet, record in ledger)
@@ -185,10 +170,7 @@ export async function POST(request: NextRequest) {
       // Rollback batch job
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (serviceClient as any).from("batch_jobs").delete().eq("id", batchId);
-      return jsonResponse(
-        { error: "Failed to freeze credits" },
-        { status: 500 }
-      );
+      return consumerJson({ error: "Failed to freeze credits" }, { status: 500 });
     }
 
     // Create video tasks for each prompt
@@ -220,10 +202,7 @@ export async function POST(request: NextRequest) {
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (serviceClient as any).from("batch_jobs").delete().eq("id", batchId);
-      return jsonResponse(
-        { error: "Failed to create video tasks" },
-        { status: 500 }
-      );
+      return consumerJson({ error: "Failed to create video tasks" }, { status: 500 });
     }
 
     // Update batch status to queued (ready for worker)
@@ -233,7 +212,7 @@ export async function POST(request: NextRequest) {
       .update({ status: "queued" })
       .eq("id", batchId);
 
-    return jsonResponse({
+    return consumerJson({
       ok: true,
       batch_id: batchId,
       total_count: totalCount,
@@ -244,22 +223,32 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("[batch/create] Unexpected error:", error);
-    return jsonResponse(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return consumerJson({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 // GET: Check batch status
 export async function GET(request: NextRequest) {
+  const requestId = getRequestId(request);
+  const consumerJson = <T extends Record<string, unknown>>(data: T, init?: ResponseInit): NextResponse =>
+    jsonResponse(
+      { ...data, mode: "consumer", request_id: requestId },
+      {
+        ...init,
+        headers: {
+          ...(init?.headers ?? {}),
+          "x-request-id": requestId,
+        },
+      }
+    );
+
   const supabase = await createClient(request.headers);
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return jsonResponse({ error: "Unauthorized" }, { status: 401 });
+    return consumerJson({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -277,10 +266,10 @@ export async function GET(request: NextRequest) {
       .limit(20);
 
     if (error) {
-      return jsonResponse({ error: "Failed to fetch batches" }, { status: 500 });
+      return consumerJson({ error: "Failed to fetch batches" }, { status: 500 });
     }
 
-    return jsonResponse({ batches });
+    return consumerJson({ batches });
   }
 
   // Return specific batch with tasks
@@ -295,7 +284,7 @@ export async function GET(request: NextRequest) {
     .single();
 
   if (batchError || !batch) {
-    return jsonResponse({ error: "Batch not found" }, { status: 404 });
+    return consumerJson({ error: "Batch not found" }, { status: 404 });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -306,10 +295,10 @@ export async function GET(request: NextRequest) {
     .order("index_in_batch", { ascending: true });
 
   if (tasksError) {
-    return jsonResponse({ error: "Failed to fetch tasks" }, { status: 500 });
+    return consumerJson({ error: "Failed to fetch tasks" }, { status: 500 });
   }
 
-  return jsonResponse({
+  return consumerJson({
     batch: {
       id: batch.id,
       status: batch.status,
