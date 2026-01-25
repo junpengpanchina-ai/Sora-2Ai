@@ -84,6 +84,7 @@ interface HeroV2Props {
 export default function HeroV2({ isLoggedIn = false, onGenerate }: HeroV2Props) {
   const [prompt, setPrompt] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+  const [showTips, setShowTips] = useState(false)
 
   // A/B 文案切换（避免 hydration mismatch）：
   // - 首次渲染永远用 A（服务端/客户端一致）
@@ -98,6 +99,22 @@ export default function HeroV2({ isLoggedIn = false, onGenerate }: HeroV2Props) 
     }
   }, [])
   const copy = HERO_COPY[heroVariant]
+
+  // Phase 2：10 秒新手引导（不弹窗、不遮挡、不打断，只出现一次）
+  useEffect(() => {
+    const key = 'sora2_show_tips_v1'
+    try {
+      const v = window.localStorage.getItem(key)
+      if (!v) {
+        setShowTips(true)
+        window.localStorage.setItem(key, '1')
+        const t = window.setTimeout(() => setShowTips(false), 10_000)
+        return () => window.clearTimeout(t)
+      }
+    } catch {
+      // ignore (privacy mode etc.)
+    }
+  }, [])
 
   const handleExampleClick = (examplePrompt: string, exampleTitle: string) => {
     setPrompt(examplePrompt)
@@ -186,6 +203,11 @@ export default function HeroV2({ isLoggedIn = false, onGenerate }: HeroV2Props) 
                 <label className="block text-xs mb-2 text-[var(--muted)] font-medium">
                   Your prompt
                 </label>
+                {showTips && (
+                  <p className="mb-2 text-xs text-[var(--muted)] opacity-70">
+                    Tip: Click an example on the right to start fast.
+                  </p>
+                )}
                 <div className="flex gap-2">
                   <input
                     ref={inputRef}
@@ -226,6 +248,15 @@ export default function HeroV2({ isLoggedIn = false, onGenerate }: HeroV2Props) 
                     </button>
                   </Link>
                 </div>
+
+                {/* 轻量保险话术：降低第一次使用的心理摩擦 */}
+                <p className="mt-3 text-xs text-[var(--muted)] opacity-70">
+                  {showTips ? (
+                    <>You&apos;ll see progress immediately. Failed generations are refunded automatically.</>
+                  ) : (
+                    <>You&apos;ll see progress and can retry if it fails — credits are refunded automatically.</>
+                  )}
+                </p>
               </div>
 
               {/* 合规小字 */}
@@ -240,39 +271,51 @@ export default function HeroV2({ isLoggedIn = false, onGenerate }: HeroV2Props) 
           </div>
 
           {/* Right: Show (Examples) */}
-          <div className="grid gap-3 sm:grid-cols-2 animate-fade-up" style={{ animationDelay: '100ms' }}>
-            {EXAMPLES.map((ex) => (
-              <button
-                key={ex.title}
-                className="card card-hover text-left p-3 group"
-                onClick={() => handleExampleClick(ex.prompt, ex.title)}
-              >
-                {/* 缩略图：16:9 比例，渐变占位 */}
-                <div 
-                  className="aspect-video w-full rounded-lg overflow-hidden border border-[var(--border)] flex items-center justify-center"
-                  style={{ background: ex.gradient }}
+          <div className="animate-fade-up" style={{ animationDelay: '100ms' }}>
+            {/* 使用指令：把“平权”改成“推荐入口” */}
+            <div className="mb-3">
+              <div className="text-sm font-medium text-[var(--text)]">
+                Start with an example <span className="text-[var(--muted)]">(recommended)</span>
+              </div>
+              <div className="text-xs text-[var(--muted)]">
+                Click any card to auto-fill the prompt, then hit Generate.
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {EXAMPLES.map((ex) => (
+                <button
+                  key={ex.title}
+                  className="card card-hover text-left p-3 group"
+                  onClick={() => handleExampleClick(ex.prompt, ex.title)}
                 >
-                  <span className="text-3xl opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-all duration-200" suppressHydrationWarning>
-                    {ex.icon}
-                  </span>
-                </div>
-                
-                {/* 标题和标签 */}
-                <div className="mt-2.5 flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-[var(--text)] truncate">
-                      {ex.title}
-                    </div>
-                    <div className="text-xs text-[var(--muted)] mt-0.5">
-                      {ex.tag}
-                    </div>
+                  {/* 缩略图：16:9 比例，渐变占位 */}
+                  <div 
+                    className="aspect-video w-full rounded-lg overflow-hidden border border-[var(--border)] flex items-center justify-center"
+                    style={{ background: ex.gradient }}
+                  >
+                    <span className="text-3xl opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-all duration-200" suppressHydrationWarning>
+                      {ex.icon}
+                    </span>
                   </div>
-                  <span className="badge shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-xs">
-                    Use
-                  </span>
-                </div>
-              </button>
-            ))}
+                  
+                  {/* 标题和标签 */}
+                  <div className="mt-2.5 flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-[var(--text)] truncate">
+                        {ex.title}
+                      </div>
+                      <div className="text-xs text-[var(--muted)] mt-0.5">
+                        {ex.tag}
+                      </div>
+                    </div>
+                    <span className="badge badge-cta shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-xs">
+                      Use <span aria-hidden="true">→</span>
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>

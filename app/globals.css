@@ -524,6 +524,18 @@ details summary::-webkit-details-marker {
   display: none;
 }
 
+/* ========================================
+   Phase 2: “Use →” 更像下一步（极克制）
+   ======================================== */
+.badge-cta {
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.card-hover:hover .badge-cta {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
