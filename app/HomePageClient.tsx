@@ -930,6 +930,12 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                 >
                   Examples
                 </Link>
+                <Link
+                  href="/enterprise"
+                  className="text-sm text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+                >
+                  Enterprise
+                </Link>
               </div>
             </div>
             
