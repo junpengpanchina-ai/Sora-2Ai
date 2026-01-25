@@ -306,6 +306,11 @@ SELECT
 FROM m;
 
 -- 4.5 Admin list view: prompt_templates + gate + AB flags
+-- NOTE: Postgres限制：CREATE OR REPLACE VIEW 不能“删除列/改变已有列定义”。
+-- 如果你之前手动改过这个 view（列更多/不同），会报：
+--   ERROR: 42P16: cannot drop columns from view
+-- 解决：先 DROP VIEW 再重建（这里做成可重复执行）。
+DROP VIEW IF EXISTS public.v_prompt_templates_admin_list CASCADE;
 CREATE OR REPLACE VIEW public.v_prompt_templates_admin_list AS
 SELECT
   pt.id,

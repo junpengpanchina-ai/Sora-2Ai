@@ -12,6 +12,7 @@ import { UpgradeNudge } from '@/components/upsell/UpgradeNudge'
 import { createClient } from '@/lib/supabase/client'
 import { setPostLoginRedirect } from '@/lib/auth/post-login-redirect'
 import { Events } from '@/lib/analytics/events'
+import { trackPromptEvent } from '@/lib/analytics/prompt-template-events'
 
 type ViolationType = 'input_moderation' | 'output_moderation' | 'third_party'
 
@@ -76,6 +77,13 @@ export default function VideoPageClient() {
   const searchParams = useSearchParams()
   const [prompt, setPrompt] = useState('')
   const [promptTouched, setPromptTouched] = useState(false)
+  const [promptTemplateId, setPromptTemplateId] = useState<string | null>(null)
+  const promptTemplateRequestIdRef = useRef<string | null>(null)
+  const [templateStartMode, setTemplateStartMode] = useState<'template' | 'custom'>('template')
+  const [templateGoal, setTemplateGoal] = useState<'ads' | 'social' | 'long_form' | 'default'>('ads')
+  const [templateBrand, setTemplateBrand] = useState('')
+  const [templateLoading, setTemplateLoading] = useState(false)
+  const [templateNotice, setTemplateNotice] = useState<string | null>(null)
   const [referenceUrl, setReferenceUrl] = useState('')
   const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>('9:16')
   const [duration, setDuration] = useState<'10' | '15'>('10')
@@ -153,6 +161,50 @@ export default function VideoPageClient() {
 
   const canSubmit = !!supabase && !loading && !!cleanedPrompt && cleanedPrompt.length >= MIN_PROMPT_LENGTH
 
+  function fillTemplate(raw: string, vars: { brand: string; goal: string; duration: string; aspect_ratio: string }) {
+    return raw
+      .replaceAll('{{brand}}', vars.brand)
+      .replaceAll('{{goal}}', vars.goal)
+      .replaceAll('{{duration}}', vars.duration)
+      .replaceAll('{{aspect_ratio}}', vars.aspect_ratio)
+  }
+
+  async function applyRecommendedTemplate(nextRole: 'ads' | 'social' | 'long_form' | 'default') {
+    try {
+      setTemplateLoading(true)
+      setTemplateNotice(null)
+      const res = await fetch(`/api/prompt-templates/recommend?role=${encodeURIComponent(nextRole)}&locale=en`)
+      const data = await res.json()
+      if (!res.ok || !data?.success || !data?.item?.id || !data?.item?.content) {
+        throw new Error(data?.error || 'Failed to load a template')
+      }
+      const vars = {
+        brand: templateBrand.trim() || 'Acme',
+        goal:
+          nextRole === 'ads'
+            ? 'increase CTR'
+            : nextRole === 'social'
+              ? 'increase followers'
+              : nextRole === 'long_form'
+                ? 'explain product clearly'
+                : 'create a great video',
+        duration: model === 'sora-2' ? `${duration}s` : '10s',
+        aspect_ratio: aspectRatio,
+      }
+      const filled = fillTemplate(String(data.item.content), vars).trim()
+      setPromptTemplateId(String(data.item.id))
+      setPromptTouched(true)
+      setPrompt(filled)
+      setTemplateNotice(
+        data?.item?.ltv_gate_color ? `Template loaded (LTV ${String(data.item.ltv_gate_color)})` : 'Template loaded'
+      )
+    } catch (e) {
+      setTemplateNotice(e instanceof Error ? e.message : 'Failed to load template')
+    } finally {
+      setTemplateLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (typeof window === 'undefined') {
       return
@@ -194,12 +246,54 @@ export default function VideoPageClient() {
       trackedResultTaskIdsRef.current.add(taskId)
       const durationMs = generationStartMsRef.current ? Date.now() - generationStartMsRef.current : undefined
       Events.generationSuccess(userId, model, durationMs)
+
+      if (promptTemplateId) {
+        trackPromptEvent({
+          event_type: 'success',
+          prompt_template_id: promptTemplateId,
+          session_id: sessionId,
+          request_id: promptTemplateRequestIdRef.current,
+          props: {
+            model_target: model === 'sora-2' ? 'Sora-2' : model === 'veo-flash' ? 'Veo-Fast' : 'Veo-Pro',
+            latency_ms: typeof durationMs === 'number' ? durationMs : undefined,
+            aspect_ratio: aspectRatio,
+            duration_sec: model === 'sora-2' ? Number(duration) : undefined,
+            locale: 'en',
+          },
+        })
+      }
     }
     if (status === 'failed') {
       trackedResultTaskIdsRef.current.add(taskId)
       Events.generationFailed(userId, currentResult?.error)
+
+      if (promptTemplateId) {
+        trackPromptEvent({
+          event_type: 'failure',
+          prompt_template_id: promptTemplateId,
+          session_id: sessionId,
+          request_id: promptTemplateRequestIdRef.current,
+          props: {
+            model_target: model === 'sora-2' ? 'Sora-2' : model === 'veo-flash' ? 'Veo-Fast' : 'Veo-Pro',
+            error_code: currentResult?.error ? String(currentResult.error).slice(0, 200) : undefined,
+            aspect_ratio: aspectRatio,
+            duration_sec: model === 'sora-2' ? Number(duration) : undefined,
+            locale: 'en',
+          },
+        })
+      }
     }
-  }, [currentResult?.status, currentResult?.task_id, currentResult?.error, model, userId])
+  }, [
+    currentResult?.status,
+    currentResult?.task_id,
+    currentResult?.error,
+    model,
+    userId,
+    promptTemplateId,
+    sessionId,
+    aspectRatio,
+    duration,
+  ])
 
 
   const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
@@ -357,6 +451,8 @@ export default function VideoPageClient() {
       // Mark as touched so validation is visible if the URL prompt is too short
       setPromptTouched(true)
       hasReadPromptFromUrl.current = true
+      setTemplateStartMode('custom')
+      setPromptTemplateId(null)
       
       // Clear the URL parameter after reading, but delay to avoid DOM conflicts during navigation
       // Use setTimeout to ensure the component is fully mounted and React reconciliation is complete
@@ -650,6 +746,28 @@ export default function VideoPageClient() {
     setLoading(true)
     generationStartMsRef.current = Date.now()
     Events.generationStarted(userId, model)
+    // Prompt-template event (optional): execute
+    if (promptTemplateId) {
+      const requestId =
+        (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : `req_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`)
+      promptTemplateRequestIdRef.current = requestId
+      trackPromptEvent({
+        event_type: 'execute',
+        prompt_template_id: promptTemplateId,
+        session_id: sessionId,
+        request_id: requestId,
+        props: {
+          model_target: model === 'sora-2' ? 'Sora-2' : model === 'veo-flash' ? 'Veo-Fast' : 'Veo-Pro',
+          aspect_ratio: aspectRatio,
+          duration_sec: model === 'sora-2' ? Number(duration) : undefined,
+          locale: 'en',
+        },
+      })
+    } else {
+      promptTemplateRequestIdRef.current = null
+    }
 
     try {
       // Make validation obvious and avoid popping blocking alerts.
@@ -1408,6 +1526,99 @@ export default function VideoPageClient() {
           {/* Single Mode Form */}
           {generationMode === 'single' && (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* New-user template starter (24h path) */}
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_20px_60px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-white">Start mode</div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTemplateStartMode('template')
+                      setTemplateNotice(null)
+                      // keep current prompt; user can choose to load a template
+                    }}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      templateStartMode === 'template'
+                        ? 'bg-energy-water text-black'
+                        : 'bg-white/10 text-blue-100/80 hover:bg-white/15'
+                    }`}
+                  >
+                    Start with a Template
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTemplateStartMode('custom')
+                      setPromptTemplateId(null)
+                      setTemplateNotice(null)
+                    }}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      templateStartMode === 'custom'
+                        ? 'bg-energy-water text-black'
+                        : 'bg-white/10 text-blue-100/80 hover:bg-white/15'
+                    }`}
+                  >
+                    Paste my own prompt
+                  </button>
+                </div>
+              </div>
+
+              {templateStartMode === 'template' ? (
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <div className="mb-1 text-xs text-blue-100/60">Goal</div>
+                    <select
+                      value={templateGoal}
+                      onChange={(e) =>
+                        setTemplateGoal(e.target.value as 'ads' | 'social' | 'long_form' | 'default')
+                      }
+                      className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
+                    >
+                      <option value="ads" className="text-black">
+                        Ads
+                      </option>
+                      <option value="social" className="text-black">
+                        Social
+                      </option>
+                      <option value="long_form" className="text-black">
+                        Explainer
+                      </option>
+                      <option value="default" className="text-black">
+                        General
+                      </option>
+                    </select>
+                  </div>
+                  <div>
+                    <div className="mb-1 text-xs text-blue-100/60">Brand / product (optional)</div>
+                    <input
+                      value={templateBrand}
+                      onChange={(e) => setTemplateBrand(e.target.value)}
+                      className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-blue-100/40 shadow-lg backdrop-blur-sm focus:border-energy-water focus:outline-none focus:ring-2 focus:ring-energy-water"
+                      placeholder="e.g., Acme"
+                    />
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => applyRecommendedTemplate(templateGoal)}
+                      disabled={templateLoading}
+                      className="w-full rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15 disabled:opacity-50"
+                    >
+                      {templateLoading ? 'Loading…' : 'Load a best template'}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {templateNotice ? <div className="mt-2 text-xs text-blue-100/70">{templateNotice}</div> : null}
+              {promptTemplateId ? (
+                <div className="mt-2 text-xs text-blue-100/60">
+                  Tracking enabled: prompt_template_id = <span className="text-blue-100/80">{promptTemplateId}</span>
+                </div>
+              ) : null}
+            </div>
+
             <div>
               <label className="mb-2 block text-sm font-medium text-blue-100/80">
                 Prompt <span className="text-red-400">*</span>

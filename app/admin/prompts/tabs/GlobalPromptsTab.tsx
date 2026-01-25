@@ -33,6 +33,7 @@ export default function GlobalPromptsTab({ onShowBanner }: GlobalPromptsTabProps
     delta_cr_7d?: number | null
     roi_value_cents_7d?: number | null
     gate_pass?: boolean | null
+    ltv_gate_color?: 'RED' | 'YELLOW' | 'GREEN' | null
   }>>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -185,6 +186,21 @@ export default function GlobalPromptsTab({ onShowBanner }: GlobalPromptsTabProps
                             <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                               Gate PASS
                             </Badge>
+                          ) : null}
+                          {prompt.ltv_gate_color ? (
+                            prompt.ltv_gate_color === 'GREEN' ? (
+                              <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                LTV GREEN
+                              </Badge>
+                            ) : prompt.ltv_gate_color === 'YELLOW' ? (
+                              <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                LTV YELLOW
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                LTV RED
+                              </Badge>
+                            )
                           ) : null}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">

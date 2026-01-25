@@ -25,6 +25,7 @@ type PromptItem = {
   gate_pass?: boolean | null
   ab_data_sufficient?: boolean | null
   variant_count_14d?: number | null
+  ltv_gate_color?: 'RED' | 'YELLOW' | 'GREEN' | null
 }
 
 /**
@@ -490,6 +491,21 @@ export default function ScenePromptsTab({ onShowBanner }: ScenePromptsTabProps) 
                                   <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                                     Gate PASS
                                   </Badge>
+                                ) : null}
+                                {prompt.ltv_gate_color ? (
+                                  prompt.ltv_gate_color === 'GREEN' ? (
+                                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                      LTV GREEN
+                                    </Badge>
+                                  ) : prompt.ltv_gate_color === 'YELLOW' ? (
+                                    <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                      LTV YELLOW
+                                    </Badge>
+                                  ) : (
+                                    <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                      LTV RED
+                                    </Badge>
+                                  )
                                 ) : null}
                                 {prompt.ab_data_sufficient === false && (prompt.variant_count_14d ?? 0) > 1 ? (
                                   <Badge variant="secondary">AB 数据不足</Badge>

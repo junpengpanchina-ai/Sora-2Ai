@@ -28,6 +28,7 @@ export default function PromptExperimentsTab({ onShowBanner }: PromptExperiments
     ab_data_sufficient?: boolean | null
     executions_7d?: number | null
     success_rate_7d?: number | null
+    ltv_gate_color?: 'RED' | 'YELLOW' | 'GREEN' | null
   }>>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -157,6 +158,21 @@ export default function PromptExperimentsTab({ onShowBanner }: PromptExperiments
                             <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                               样本充足
                             </Badge>
+                          ) : null}
+                          {exp.ltv_gate_color ? (
+                            exp.ltv_gate_color === 'GREEN' ? (
+                              <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                LTV GREEN
+                              </Badge>
+                            ) : exp.ltv_gate_color === 'YELLOW' ? (
+                              <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                LTV YELLOW
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                LTV RED
+                              </Badge>
+                            )
                           ) : null}
                           </div>
                           {exp.scene_id && (
