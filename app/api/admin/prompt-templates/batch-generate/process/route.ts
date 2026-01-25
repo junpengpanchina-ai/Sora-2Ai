@@ -246,12 +246,12 @@ export async function POST(request: NextRequest) {
         content: it.content,
         variables: it.variables ?? {},
         version: 1,
-        status: 'draft',
-        is_published: false,
-        weight: 100,
-        rollout_pct: 100,
+        status: task.initial_status || 'draft',
+        is_published: typeof task.initial_is_published === 'boolean' ? task.initial_is_published : false,
+        weight: typeof task.initial_weight === 'number' ? task.initial_weight : 100,
+        rollout_pct: typeof task.initial_rollout_pct === 'number' ? task.initial_rollout_pct : 100,
         locale: task.locale || 'en',
-        notes: it.notes ?? `auto-generated: ${industry} / ${scene}`,
+        notes: it.notes ?? `auto-generated: ${industry} / ${scene}${task.preset_id ? ` (preset: ${task.preset_id})` : ''}`,
         created_by: adminUser?.id ?? null,
       }))
 

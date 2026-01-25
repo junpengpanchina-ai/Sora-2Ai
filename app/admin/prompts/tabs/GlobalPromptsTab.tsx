@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Input, Button, Badge } from '@/components/ui'
+import { PromptGeneratorForm } from '@/app/admin/prompts/components/prompt-generator/PromptGeneratorForm'
 
 interface GlobalPromptsTabProps {
   onShowBanner: (type: 'success' | 'error' | 'info', text: string) => void
@@ -40,6 +41,7 @@ export default function GlobalPromptsTab({ onShowBanner }: GlobalPromptsTabProps
   const [modelFilter, setModelFilter] = useState<'all' | 'sora' | 'veo_fast' | 'veo_pro' | 'gemini'>('all')
   const [roleFilter, setRoleFilter] = useState<'all' | 'default' | 'fast' | 'high_quality' | 'social' | 'ads' | 'compliance_safe'>('all')
 
+
   // 加载全局模板
   const fetchGlobalPrompts = useCallback(async () => {
     setLoading(true)
@@ -59,9 +61,11 @@ export default function GlobalPromptsTab({ onShowBanner }: GlobalPromptsTabProps
     }
   }, [onShowBanner])
 
+
   useEffect(() => {
     fetchGlobalPrompts()
   }, [fetchGlobalPrompts])
+
 
   const filteredPrompts = prompts.filter((prompt) => {
     const matchesSearch = searchQuery === '' || 
@@ -93,6 +97,8 @@ export default function GlobalPromptsTab({ onShowBanner }: GlobalPromptsTabProps
 
   return (
     <div className="space-y-6">
+      <PromptGeneratorForm />
+
       {/* 说明卡片 */}
       <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
         <CardContent className="pt-6">

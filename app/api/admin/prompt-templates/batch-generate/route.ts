@@ -29,6 +29,11 @@ type PromptGenerationTaskInsert = {
   max_retries_per_cell: number
   total_planned: number
   progress: number
+  preset_id?: string | null
+  initial_status?: 'draft' | 'active' | 'deprecated'
+  initial_is_published?: boolean
+  initial_weight?: number
+  initial_rollout_pct?: number
 }
 
 type InsertIdResult = {
@@ -94,6 +99,17 @@ export async function POST(request: Request) {
     const modelId = String(p.modelId ?? 'sora')
     const role = String(p.role ?? 'default')
     const locale = String(p.locale ?? 'en')
+    const presetId = typeof p.presetId === 'string' && p.presetId.trim().length > 0 ? p.presetId.trim() : null
+
+    const initialStatusRaw = typeof p.initialStatus === 'string' ? p.initialStatus.trim() : ''
+    const initialStatus =
+      initialStatusRaw === 'active' || initialStatusRaw === 'deprecated' || initialStatusRaw === 'draft'
+        ? (initialStatusRaw as 'draft' | 'active' | 'deprecated')
+        : undefined
+    const initialIsPublished = typeof p.initialIsPublished === 'boolean' ? p.initialIsPublished : undefined
+    const initialWeight = typeof p.initialWeight === 'number' ? Math.max(0, Math.min(1000, p.initialWeight)) : undefined
+    const initialRolloutPct =
+      typeof p.initialRolloutPct === 'number' ? Math.max(0, Math.min(100, p.initialRolloutPct)) : undefined
 
     const strategyInput =
       p.strategy && typeof p.strategy === 'object' && p.strategy !== null ? (p.strategy as Partial<Strategy>) : undefined
@@ -135,6 +151,11 @@ export async function POST(request: Request) {
         max_retries_per_cell: maxRetriesPerCell,
         total_planned: totalPlanned,
         progress: 0,
+        preset_id: presetId ?? undefined,
+        initial_status: initialStatus,
+        initial_is_published: initialIsPublished,
+        initial_weight: initialWeight,
+        initial_rollout_pct: initialRolloutPct,
       })
       .select('id')
       .single()

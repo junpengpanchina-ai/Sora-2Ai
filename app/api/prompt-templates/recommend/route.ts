@@ -57,6 +57,7 @@ export async function GET(request: Request) {
 
     const supabase = await createServiceClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const q = (supabase as any)
       .from('v_prompt_templates_admin_list')
       .select(
@@ -65,6 +66,7 @@ export async function GET(request: Request) {
       .eq('owner_scope', 'global')
       .eq('status', 'active')
       .eq('is_published', true)
+      .eq('ltv_gate_color', 'GREEN')
       .limit(50)
 
     if (role) q.eq('role', role)
@@ -73,7 +75,25 @@ export async function GET(request: Request) {
     const { data, error } = await q
     if (error) throw error
 
-    const items = (data || []) as RecItem[]
+    let items = (data || []) as RecItem[]
+    if (items.length === 0) {
+      // fallback: allow YELLOW when no GREEN exists yet
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const q2 = (supabase as any)
+        .from('v_prompt_templates_admin_list')
+        .select(
+          'id,content,role,locale,status,is_published,owner_scope,ltv_gate_color,completion_rate_30d,reuse_rate_30d,delta_cr_30d,t_first_success_median_sec_30d,executions_30d'
+        )
+        .eq('owner_scope', 'global')
+        .eq('status', 'active')
+        .eq('is_published', true)
+        .in('ltv_gate_color', ['GREEN', 'YELLOW'])
+        .limit(50)
+      if (role) q2.eq('role', role)
+      if (locale) q2.eq('locale', locale)
+      const { data: data2 } = await q2
+      items = (data2 || []) as RecItem[]
+    }
     if (items.length === 0) {
       return NextResponse.json({ success: false, error: 'No recommended templates found' }, { status: 404 })
     }
