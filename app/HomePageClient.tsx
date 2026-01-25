@@ -934,7 +934,7 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                   href="/enterprise"
                   className="text-sm text-[var(--muted)] hover:text-[var(--text)] transition-colors"
                 >
-                  Enterprise
+                  For Teams
                 </Link>
               </div>
             </div>
