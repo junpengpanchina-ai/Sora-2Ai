@@ -13,6 +13,7 @@ function ContactForm() {
     company: "",
     message: "",
   });
+  const [website, setWebsite] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -36,6 +37,7 @@ function ContactForm() {
           email: formData.email,
           company: formData.company,
           message: formData.message,
+          website,
           sourcePath: typeof window !== "undefined" ? window.location.pathname + window.location.search : "/contact",
         }),
       });
@@ -92,6 +94,20 @@ function ContactForm() {
       </p>
 
       <form onSubmit={handleSubmit} className="mt-10 space-y-6">
+        {/* Honeypot: hidden field for simple anti-abuse */}
+        <div className="hidden">
+          <label className="block text-sm font-medium">Website</label>
+          <input
+            type="text"
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            autoComplete="off"
+            tabIndex={-1}
+            className="mt-1 w-full rounded-lg border px-4 py-2"
+            placeholder="https://"
+          />
+        </div>
+
         <div>
           <label className="block text-sm font-medium">Name *</label>
           <input
@@ -117,10 +133,12 @@ function ContactForm() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium">Company *</label>
+          <label className="block text-sm font-medium">
+            {isEnterprise ? "Company *" : "Company (optional)"}
+          </label>
           <input
             type="text"
-            required
+            required={isEnterprise}
             value={formData.company}
             onChange={(e) => setFormData({ ...formData, company: e.target.value })}
             className="mt-1 w-full rounded-lg border px-4 py-2"

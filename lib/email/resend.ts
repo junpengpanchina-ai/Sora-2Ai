@@ -2,6 +2,7 @@ type SendEmailInput = {
   to: string
   from: string
   subject: string
+  text?: string
   html: string
   replyTo?: string
 }
@@ -23,6 +24,7 @@ export async function sendEmailViaResend(input: SendEmailInput): Promise<{ ok: t
         from: input.from,
         to: [input.to],
         subject: input.subject,
+        text: input.text,
         html: input.html,
         reply_to: input.replyTo,
       }),
