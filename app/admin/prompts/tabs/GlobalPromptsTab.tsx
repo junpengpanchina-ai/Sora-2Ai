@@ -18,8 +18,6 @@ interface GlobalPromptsTabProps {
 export default function GlobalPromptsTab({ onShowBanner }: GlobalPromptsTabProps) {
   const [prompts, setPrompts] = useState<Array<{
     id: string
-    title: string
-    description?: string
     content?: string
     model_id?: string
     role?: string
@@ -29,6 +27,12 @@ export default function GlobalPromptsTab({ onShowBanner }: GlobalPromptsTabProps
     locale?: string
     owner_scope?: string
     scene_id?: string
+    // analytics / gate (optional)
+    executions_7d?: number | null
+    success_rate_7d?: number | null
+    delta_cr_7d?: number | null
+    roi_value_cents_7d?: number | null
+    gate_pass?: boolean | null
   }>>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -39,13 +43,12 @@ export default function GlobalPromptsTab({ onShowBanner }: GlobalPromptsTabProps
   const fetchGlobalPrompts = useCallback(async () => {
     setLoading(true)
     try {
-      // TODO: 创建 API 端点 /api/admin/prompts?ownerScope=global
-      const response = await fetch('/api/admin/prompts')
+      const response = await fetch(
+        '/api/admin/prompt-templates?owner_scope=global&page=1&page_size=200&sort_by=updated_at&sort_dir=desc'
+      )
       const data = await response.json()
-      if (response.ok && data.prompts) {
-        // 过滤出全局模板
-        const globalPrompts = data.prompts.filter((p: { owner_scope?: string; scene_id?: string }) => p.owner_scope === 'global' || !p.scene_id)
-        setPrompts(globalPrompts)
+      if (response.ok && data.items) {
+        setPrompts(data.items)
       }
     } catch (error) {
       console.error('加载全局模板失败:', error)
@@ -61,7 +64,6 @@ export default function GlobalPromptsTab({ onShowBanner }: GlobalPromptsTabProps
 
   const filteredPrompts = prompts.filter((prompt) => {
     const matchesSearch = searchQuery === '' || 
-      prompt.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       prompt.content?.toLowerCase().includes(searchQuery.toLowerCase())
     
     const matchesModel = modelFilter === 'all' || prompt.model_id === modelFilter
@@ -165,7 +167,7 @@ export default function GlobalPromptsTab({ onShowBanner }: GlobalPromptsTabProps
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-semibold text-gray-900 dark:text-white">
-                            {prompt.title}
+                            {prompt.content ? prompt.content.slice(0, 40) : 'Untitled'}
                           </h3>
                           <Badge variant="secondary">{prompt.model_id ? (MODEL_LABELS[prompt.model_id] || prompt.model_id) : 'unknown'}</Badge>
                           <Badge variant="secondary">{prompt.role ? (ROLE_LABELS[prompt.role] || prompt.role) : 'default'}</Badge>
@@ -179,15 +181,21 @@ export default function GlobalPromptsTab({ onShowBanner }: GlobalPromptsTabProps
                           ) : (
                             <Badge variant="secondary">草稿</Badge>
                           )}
+                          {prompt.gate_pass ? (
+                            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              Gate PASS
+                            </Badge>
+                          ) : null}
                         </div>
-                        {prompt.description && (
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {prompt.description}
-                          </p>
-                        )}
                         <div className="text-xs text-gray-500 dark:text-gray-400">
                           <span>内容长度: {prompt.content?.length || 0} 字符</span>
                           {prompt.locale && <span className="ml-3">语言: {prompt.locale}</span>}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 dark:text-gray-400">
+                          <div>exec_7d: {prompt.executions_7d ?? '—'}</div>
+                          <div>sr_7d: {typeof prompt.success_rate_7d === 'number' ? `${Math.round(prompt.success_rate_7d * 100)}%` : '—'}</div>
+                          <div>ΔCR_7d: {typeof prompt.delta_cr_7d === 'number' ? `${(prompt.delta_cr_7d * 100).toFixed(2)}%` : '—'}</div>
+                          <div>ROI_7d: {prompt.roi_value_cents_7d != null ? `¥${(Number(prompt.roi_value_cents_7d) / 100).toFixed(2)}` : '—'}</div>
                         </div>
                       </div>
                       <div className="flex gap-2">

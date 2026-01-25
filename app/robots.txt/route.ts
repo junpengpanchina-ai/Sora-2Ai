@@ -14,9 +14,8 @@ Disallow: /api/
 Disallow: /auth/
 Disallow: /storage-test/
 Disallow: /payment-test/
-Disallow: /prompts/
 
-Sitemap: ${SITE_URL}/sitemap.xml
+Sitemap: ${SITE_URL}/sitemap-index.xml
 `;
   return new NextResponse(body, {
     headers: { "Content-Type": "text/plain; charset=utf-8" },

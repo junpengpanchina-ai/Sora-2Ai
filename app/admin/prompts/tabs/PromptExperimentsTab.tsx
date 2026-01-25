@@ -17,7 +17,6 @@ interface PromptExperimentsTabProps {
 export default function PromptExperimentsTab({ onShowBanner }: PromptExperimentsTabProps) {
   const [experiments, setExperiments] = useState<Array<{
     id: string
-    title?: string
     scene_id?: string
     model_id?: string
     role?: string
@@ -25,6 +24,10 @@ export default function PromptExperimentsTab({ onShowBanner }: PromptExperiments
     rollout_pct?: number
     weight?: number
     parent_id?: string | null
+    content?: string
+    ab_data_sufficient?: boolean | null
+    executions_7d?: number | null
+    success_rate_7d?: number | null
   }>>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -33,16 +36,12 @@ export default function PromptExperimentsTab({ onShowBanner }: PromptExperiments
   const fetchExperiments = useCallback(async () => {
     setLoading(true)
     try {
-      // TODO: 创建 API 端点 /api/admin/prompts/experiments
-      const response = await fetch('/api/admin/prompts')
+      const response = await fetch(
+        '/api/admin/prompt-templates?experiments_only=true&page=1&page_size=200&sort_by=updated_at&sort_dir=desc'
+      )
       const data = await response.json()
-      if (response.ok && data.prompts) {
-        // 过滤出正在进行实验的 prompt（rollout_pct < 100 或有不同版本）
-        const experiments = data.prompts.filter((p: { rollout_pct?: number; parent_id?: string | null }) => 
-          (p.rollout_pct && p.rollout_pct < 100) || 
-          (p.parent_id !== null) // 有父版本的是新版本
-        )
-        setExperiments(experiments)
+      if (response.ok && data.items) {
+        setExperiments(data.items)
       }
     } catch (error) {
       console.error('加载实验数据失败:', error)
@@ -58,7 +57,7 @@ export default function PromptExperimentsTab({ onShowBanner }: PromptExperiments
 
   const filteredExperiments = experiments.filter((exp) => {
     const matchesSearch = searchQuery === '' || 
-      exp.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      exp.content?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       exp.scene_id?.toLowerCase().includes(searchQuery.toLowerCase())
     return matchesSearch
   })
@@ -147,11 +146,18 @@ export default function PromptExperimentsTab({ onShowBanner }: PromptExperiments
                         <div className="flex-1 space-y-2">
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-semibold text-gray-900 dark:text-white">
-                              {exp.title}
+                            {exp.content ? exp.content.slice(0, 40) : 'Experiment'}
                             </h3>
                             <Badge variant="secondary">{exp.model_id || 'unknown'}</Badge>
                             <Badge variant="secondary">{exp.role || 'default'}</Badge>
                             {exp.version && <Badge variant="secondary">v{exp.version}</Badge>}
+                          {exp.ab_data_sufficient === false ? (
+                            <Badge variant="secondary">样本不足</Badge>
+                          ) : exp.ab_data_sufficient === true ? (
+                            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              样本充足
+                            </Badge>
+                          ) : null}
                           </div>
                           {exp.scene_id && (
                             <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -207,15 +213,16 @@ export default function PromptExperimentsTab({ onShowBanner }: PromptExperiments
                         <div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">成功率</div>
                           <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                            {/* TODO: 从 scene_prompt_bindings 获取 */}
-                            N/A
+                            {typeof exp.success_rate_7d === 'number'
+                              ? `${Math.round(exp.success_rate_7d * 100)}%`
+                              : '—'}
                           </div>
                         </div>
                         <div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">质量分数</div>
                           <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                            {/* TODO: 从 scene_prompt_bindings 获取 */}
-                            N/A
+                            {/* 这里暂用 executions_7d 作为可观测指标占位；后续可接 quality_score */}
+                            {exp.executions_7d ?? '—'}
                           </div>
                         </div>
                       </div>

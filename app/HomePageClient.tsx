@@ -906,12 +906,15 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
                 Sora2Ai
               </Link>
               <div className="hidden md:flex items-center gap-5">
-                <Link
-                  href="/prompts"
-                  className="text-sm text-[var(--muted)] hover:text-[var(--text)] transition-colors"
-                >
-                  Prompts
-                </Link>
+                {hydratedProfile ? (
+                  <Link
+                    href="/prompts"
+                    className="text-sm text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+                    rel="nofollow"
+                  >
+                    Prompts
+                  </Link>
+                ) : null}
                 <Link
                   href={hydratedProfile ? '/video' : '/login'}
                   className="text-sm text-[var(--muted)] hover:text-[var(--text)] transition-colors"

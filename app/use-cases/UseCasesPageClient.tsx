@@ -217,12 +217,6 @@ export default function UseCasesPageClient({
                   Video Generation
                 </Link>
                 <Link
-                  href="/prompts"
-                  className="text-sm font-medium text-blue-100 transition-colors hover:text-white"
-                >
-                  Prompt Library
-                </Link>
-                <Link
                   href="/use-cases"
                   className="text-sm font-medium text-energy-water"
                 >

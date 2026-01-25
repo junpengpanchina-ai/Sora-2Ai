@@ -4,6 +4,10 @@ import PromptsEnPageClient from './PromptsEnPageClient'
 export const metadata: Metadata = {
   title: 'Prompt Templates (English) - AI Video Generation Ideas',
   description: 'Discover English-language AI video prompt templates for Sora2Ai. Professional prompts for cinematic, documentary, and creative video generation.',
+  robots: {
+    index: false,  // ❌ Prompt 列表页不索引（内部资产，不是 SEO/GEO 内容主体）
+    follow: false, // ❌ 不传递内链权重
+  },
 }
 
 export default async function PromptsEnPage() {

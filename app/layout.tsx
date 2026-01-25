@@ -89,14 +89,6 @@ export default function RootLayout({
               name: 'Best Sora Alternative',
               url: 'https://sora2aivideos.com',
               description: 'Best Sora alternative for AI video generation. Create text-to-video content with our free AI video generator.',
-              potentialAction: {
-                '@type': 'SearchAction',
-                target: {
-                  '@type': 'EntryPoint',
-                  urlTemplate: 'https://sora2aivideos.com/prompts?search={search_term_string}',
-                },
-                'query-input': 'required name=search_term_string',
-              },
             }),
           }}
         />

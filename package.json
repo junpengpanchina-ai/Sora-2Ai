@@ -30,6 +30,7 @@
     "monitor:backlinks": "node scripts/monitor-backlinks.js",
     "verify:page-style": "node scripts/verify-page-style-migration.js",
     "monitor:supabase": "node scripts/monitor-supabase-usage.js",
+    "check:prompt-guards": "tsx scripts/prompt-asset-ci-guards.ts",
     "test:page-meta": "tsx scripts/test-page-meta-supabase.ts",
     "batch-update-intent": "tsx scripts/batch-update-purchase-intent.ts",
     "batch-update-intent-smart": "tsx scripts/batch-update-purchase-intent-smart.ts",

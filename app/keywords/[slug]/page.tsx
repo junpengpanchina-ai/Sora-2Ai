@@ -707,8 +707,8 @@ export default async function KeywordLandingPage({ params }: PageProps) {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/prompts" className="hover:underline">
-                    View Prompt Library
+                  <Link href="/video" className="hover:underline">
+                    Go to Video Generator
                   </Link>
                 </li>
                 <li>
