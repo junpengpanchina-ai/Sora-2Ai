@@ -14,6 +14,8 @@ Disallow: /api/
 Disallow: /auth/
 Disallow: /storage-test/
 Disallow: /payment-test/
+Disallow: /prompts/
+Disallow: /prompts-en/
 
 Sitemap: ${SITE_URL}/sitemap-index.xml
 `;
