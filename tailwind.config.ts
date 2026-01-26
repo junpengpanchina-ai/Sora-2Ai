@@ -91,6 +91,7 @@ const config: Config = {
         'energy-water': "var(--energy-water-blue)",
         'energy-water-deep': "var(--energy-water-blue-deep)",
         'energy-gold': "var(--energy-gold-mid)",
+        'energy-gold-outline': "var(--energy-gold-outline)",
       },
       outlineColor: {
         'energy-water': "var(--energy-water-blue)",

@@ -35,6 +35,42 @@ function parseArrayInput(input: string | string[] | undefined): string[] {
   return []
 }
 
+async function assertFeaturedPromptsAreTopPrompts(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  featuredPromptIds: string[],
+) {
+  if (!Array.isArray(featuredPromptIds) || featuredPromptIds.length === 0) return
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from('prompt_templates')
+    .select('id,top_prompt,gate_status,is_active,freeze_until')
+    .in('id', featuredPromptIds)
+
+  if (error) throw error
+  const rows = Array.isArray(data) ? data : []
+  const ok = new Set<string>()
+  const now = Date.now()
+  for (const r of rows) {
+    if (!r || typeof r !== 'object') continue
+    const rec = r as Record<string, unknown>
+    const id = typeof rec.id === 'string' ? rec.id : ''
+    if (!id) continue
+    const top = rec.top_prompt === true
+    const active = rec.is_active !== false
+    const gate = typeof rec.gate_status === 'string' ? rec.gate_status : 'unknown'
+    const freezeUntil = typeof rec.freeze_until === 'string' ? rec.freeze_until : null
+    const frozen = freezeUntil ? new Date(freezeUntil).getTime() > now : false
+    if (top && active && !frozen && gate === 'green') ok.add(id)
+  }
+
+  const invalid = featuredPromptIds.filter((id) => !ok.has(id))
+  if (invalid.length > 0) {
+    throw new Error(`featured_prompt_ids must be TOP prompts only (top_prompt+green+active+not frozen). Invalid: ${invalid.join(', ')}`)
+  }
+}
+
 function extractSupabaseErrorInfo(error: unknown): {
   message: string
   code?: string
@@ -332,6 +368,13 @@ export async function POST(request: Request) {
         { error: (e instanceof Error ? e.message : 'System is in LOCKDOWN. Write operations are blocked by design.') },
         { status: 403 }
       )
+    }
+
+    // Scene Draft promotion rule: only TOP prompts can be attached as featured prompts
+    try {
+      await assertFeaturedPromptsAreTopPrompts(supabase, featuredPromptIds)
+    } catch (e) {
+      return NextResponse.json({ error: e instanceof Error ? e.message : 'Invalid featured_prompt_ids' }, { status: 400 })
     }
 
     // 确保 slug 唯一性：如果已存在，自动添加后缀

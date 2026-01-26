@@ -1,10 +1,12 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { refundCreditsByVideoTaskId } from '@/lib/credits'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import type { Database } from '@/types/database'
+import { attributePromptFailure } from '@/lib/prompt-template-events/failure-attribution'
 
 
 // Force dynamic rendering to prevent build-time execution
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest) {
     // Find task by grsai_task_id
     const { data: videoTask, error: findError } = await supabase
       .from('video_tasks')
-      .select('*, model')
+      .select('*, model, prompt_template_id, scene_id, variant_label')
       .eq('grsai_task_id', callbackData.id)
       .single()
 
@@ -160,6 +162,48 @@ export async function POST(request: NextRequest) {
         { error: 'Failed to update task status', details: updateError.message },
         { status: 500 }
       )
+    }
+
+    // Best-effort prompt asset event: success / failure (requires prompt_template_id on task)
+    if (videoTask?.prompt_template_id) {
+      try {
+        const service = await createServiceClient()
+        const isFailed = callbackData.status === 'failed'
+        // Map failure_reason to a stable failure_type for Gate.
+        const att = isFailed
+          ? attributePromptFailure({
+              failureReason: callbackData.failure_reason ?? null,
+              error: callbackData.error ?? null,
+            })
+          : null
+
+        const eventType = isFailed ? 'failure' : 'success'
+        const requestId = `${String(callbackData.id)}:${eventType}`
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (service as any).from('prompt_template_events').insert({
+          occurred_at: new Date().toISOString(),
+          user_id: videoTask.user_id ?? null,
+          session_id: null,
+          scene_id: videoTask.scene_id ?? null,
+          prompt_template_id: videoTask.prompt_template_id,
+          variant_label: videoTask.variant_label ?? null,
+          event_type: eventType,
+          revenue_cents: 0,
+          request_id: requestId,
+          props: {
+            source: 'video_callback',
+            ...(att ? { failure_type: att.failure_type, fail_code: att.fail_code } : {}),
+            provider_task_id: String(callbackData.id),
+            status: callbackData.status,
+            progress: callbackData.progress,
+            error: callbackData.error ?? null,
+            failure_reason: callbackData.failure_reason ?? null,
+          },
+        })
+      } catch (e) {
+        console.warn('[video/callback] prompt event insert failed:', e)
+      }
     }
 
     return NextResponse.json({ 

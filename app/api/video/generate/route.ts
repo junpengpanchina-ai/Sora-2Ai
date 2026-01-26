@@ -1,8 +1,10 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { createSoraVideoTask, createVeoVideoTask } from '@/lib/grsai/client'
 import { formatGrsaiFriendlyError } from '@/lib/grsai/error-utils'
+import { attributePromptFailure } from '@/lib/prompt-template-events/failure-attribution'
 import { deductCredits, refundCredits, getCreditsForModel, type ModelType } from '@/lib/credits'
 import { getOrCreateUser } from '@/lib/user'
 import { validateOrigin } from '@/lib/csrf'
@@ -40,6 +42,11 @@ function jsonResponse<T = unknown>(data: T, init?: ResponseInit): NextResponse {
 // Request parameter validation schema
 const generateVideoSchema = z.object({
   prompt: z.string().min(1, 'Prompt cannot be empty'),
+  // Optional: when generated from a scene/prompt asset, pass the template id for analytics + governance.
+  promptTemplateId: z.string().uuid().optional(),
+  sceneId: z.string().uuid().optional(),
+  variantLabel: z.string().min(1).max(32).optional(),
+  requestId: z.string().min(8).max(128).optional(),
   url: z.string().url().optional().or(z.literal('')),
   aspectRatio: z.enum(['9:16', '16:9']).optional().default('9:16'),
   duration: z.enum(['10', '15']).optional().default('10'),
@@ -235,6 +242,10 @@ export async function POST(request: NextRequest) {
         user_id: userProfile.id,
         model: model,
         prompt: validatedData.prompt,
+        // prompt asset refs (optional)
+        prompt_template_id: validatedData.promptTemplateId ?? null,
+        scene_id: validatedData.sceneId ?? null,
+        variant_label: validatedData.variantLabel ?? null,
         reference_url: validatedData.url || null,
         aspect_ratio: validatedData.aspectRatio,
         duration: isVeoModel ? null : parseInt(validatedData.duration), // Veo models don't support duration
@@ -251,6 +262,34 @@ export async function POST(request: NextRequest) {
         { error: 'Failed to create video task', details: taskError?.message },
         { status: 500 }
       )
+    }
+
+    // Best-effort prompt asset event: execute
+    if (validatedData.promptTemplateId) {
+      try {
+        const service = await createServiceClient()
+        const requestId = validatedData.requestId ? `${validatedData.requestId}:execute` : null
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (service as any).from('prompt_template_events').insert({
+          occurred_at: new Date().toISOString(),
+          user_id: userProfile.id,
+          session_id: null,
+          scene_id: validatedData.sceneId ?? null,
+          prompt_template_id: validatedData.promptTemplateId,
+          variant_label: validatedData.variantLabel ?? null,
+          event_type: 'execute',
+          revenue_cents: 0,
+          request_id: requestId,
+          props: {
+            source: 'video_generate',
+            model_target: model,
+            aspect_ratio: validatedData.aspectRatio,
+            duration_sec: isVeoModel ? null : parseInt(validatedData.duration),
+          },
+        })
+      } catch (e) {
+        console.warn('[video/generate] prompt event execute insert failed:', e)
+      }
     }
 
     // Deduct credits before calling API (with model type)
@@ -350,6 +389,37 @@ export async function POST(request: NextRequest) {
           error_message: errorMessage
         })
         .eq('id', videoTask.id)
+
+      // Prompt asset event: failure (preflight / upstream call failed)
+      if (validatedData.promptTemplateId) {
+        try {
+          const service = await createServiceClient()
+          const att = attributePromptFailure({ error: errorMessage })
+          const requestId = `${videoTask.id}:failure:api_call`
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (service as any).from('prompt_template_events').insert({
+            occurred_at: new Date().toISOString(),
+            user_id: userProfile.id,
+            session_id: null,
+            scene_id: validatedData.sceneId ?? null,
+            prompt_template_id: validatedData.promptTemplateId,
+            variant_label: validatedData.variantLabel ?? null,
+            event_type: 'failure',
+            revenue_cents: 0,
+            request_id: requestId,
+            props: {
+              source: 'video_generate',
+              phase: 'api_call',
+              failure_type: att.failure_type,
+              fail_code: att.fail_code,
+              error: errorMessage,
+              model_target: model,
+            },
+          })
+        } catch (e) {
+          console.warn('[video/generate] prompt event failure(api_call) insert failed:', e)
+        }
+      }
       
       // Provide more helpful error message
       let userFriendlyError = errorMessage
@@ -470,6 +540,34 @@ export async function POST(request: NextRequest) {
           .update(updateData)
           .eq('id', videoTask.id)
 
+        // Prompt asset event: success (streaming mode)
+        if (validatedData.promptTemplateId) {
+          try {
+            const service = await createServiceClient()
+            const requestId = `${videoTask.id}:success:stream`
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (service as any).from('prompt_template_events').insert({
+              occurred_at: new Date().toISOString(),
+              user_id: userProfile.id,
+              session_id: null,
+              scene_id: validatedData.sceneId ?? null,
+              prompt_template_id: validatedData.promptTemplateId,
+              variant_label: validatedData.variantLabel ?? null,
+              event_type: 'success',
+              revenue_cents: 0,
+              request_id: requestId,
+              props: {
+                source: 'video_generate',
+                phase: 'stream',
+                model_target: model,
+                provider_task_id: grsaiResponse.id ?? null,
+              },
+            })
+          } catch (e) {
+            console.warn('[video/generate] prompt event success(stream) insert failed:', e)
+          }
+        }
+
         // Update Veo usage log on success
         if (isVeoModel && veoUsageLogId) {
           await updateVeoUsageLog(supabase, veoUsageLogId, 'succeeded')
@@ -524,6 +622,43 @@ export async function POST(request: NextRequest) {
           error: grsaiResponse.error,
           fallback: 'Video generation failed because the request was rejected by the upstream service.',
         })
+
+        // Prompt asset event: failure (streaming mode)
+        if (validatedData.promptTemplateId) {
+          try {
+            const service = await createServiceClient()
+            const att = attributePromptFailure({
+              failureReason: grsaiResponse.failure_reason,
+              violationType: friendlyError.violationType ?? null,
+              error: friendlyError.message,
+            })
+            const requestId = `${videoTask.id}:failure:stream`
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (service as any).from('prompt_template_events').insert({
+              occurred_at: new Date().toISOString(),
+              user_id: userProfile.id,
+              session_id: null,
+              scene_id: validatedData.sceneId ?? null,
+              prompt_template_id: validatedData.promptTemplateId,
+              variant_label: validatedData.variantLabel ?? null,
+              event_type: 'failure',
+              revenue_cents: 0,
+              request_id: requestId,
+              props: {
+                source: 'video_generate',
+                phase: 'stream',
+                failure_type: att.failure_type,
+                fail_code: att.fail_code,
+                failure_reason: grsaiResponse.failure_reason ?? null,
+                error: grsaiResponse.error ?? null,
+                model_target: model,
+                provider_task_id: grsaiResponse.id ?? null,
+              },
+            })
+          } catch (e) {
+            console.warn('[video/generate] prompt event failure(stream) insert failed:', e)
+          }
+        }
         
         // Update Veo usage log on failure (only for Veo Pro, auto-refund)
         if (isVeoModel && veoUsageLogId) {

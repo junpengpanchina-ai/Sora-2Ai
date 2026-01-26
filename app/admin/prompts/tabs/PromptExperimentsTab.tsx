@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Input, Button, Badge } from '@/components/ui'
+import { AssetBadges, GateColorBadge, GateScoreBar, LifecycleBadge, LtvGateBadge } from '@/app/admin/prompts/components/gate/GateWidgets'
 
 interface PromptExperimentsTabProps {
   onShowBanner: (type: 'success' | 'error' | 'info', text: string) => void
@@ -25,10 +26,19 @@ export default function PromptExperimentsTab({ onShowBanner }: PromptExperiments
     weight?: number
     parent_id?: string | null
     content?: string
+    // asset fields (optional)
+    is_active?: boolean | null
+    top_prompt?: boolean | null
+    freeze_until?: string | null
+    kill_reason?: string | null
     ab_data_sufficient?: boolean | null
     executions_7d?: number | null
     success_rate_7d?: number | null
+    gate_score_7d?: number | null
+    gate_color_7d?: 'RED' | 'YELLOW' | 'GREEN' | null
+    last_execute_at?: string | null
     ltv_gate_color?: 'RED' | 'YELLOW' | 'GREEN' | null
+    lifecycle_recommendation?: 'HARD_KILL' | 'FREEZE' | 'PROMOTE' | 'KEEP' | null
   }>>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -159,21 +169,18 @@ export default function PromptExperimentsTab({ onShowBanner }: PromptExperiments
                               样本充足
                             </Badge>
                           ) : null}
-                          {exp.ltv_gate_color ? (
-                            exp.ltv_gate_color === 'GREEN' ? (
-                              <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                LTV GREEN
-                              </Badge>
-                            ) : exp.ltv_gate_color === 'YELLOW' ? (
-                              <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                                LTV YELLOW
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                                LTV RED
-                              </Badge>
-                            )
-                          ) : null}
+                          <AssetBadges
+                            isActive={exp.is_active ?? null}
+                            freezeUntil={exp.freeze_until ?? null}
+                            topPrompt={exp.top_prompt ?? null}
+                            killReason={exp.kill_reason ?? null}
+                          />
+                          <GateColorBadge
+                            color={exp.gate_color_7d ?? null}
+                            title={typeof exp.gate_score_7d === 'number' ? `GateScore_7d=${exp.gate_score_7d.toFixed(3)}` : undefined}
+                          />
+                          <LtvGateBadge color={exp.ltv_gate_color ?? null} />
+                          <LifecycleBadge rec={exp.lifecycle_recommendation ?? null} />
                           </div>
                           {exp.scene_id && (
                             <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -235,12 +242,21 @@ export default function PromptExperimentsTab({ onShowBanner }: PromptExperiments
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">质量分数</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">GateScore_7d</div>
                           <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                            {/* 这里暂用 executions_7d 作为可观测指标占位；后续可接 quality_score */}
-                            {exp.executions_7d ?? '—'}
+                            {typeof exp.gate_score_7d === 'number' ? exp.gate_score_7d.toFixed(3) : '—'}
                           </div>
                         </div>
+                      </div>
+                      <div className="pt-2">
+                        <GateScoreBar
+                          score={exp.gate_score_7d ?? null}
+                          color={exp.gate_color_7d ?? null}
+                          title="0.6×S + 0.4×ln(U+1)/ln(101)"
+                        />
+                      </div>
+                      <div className="pt-2 text-xs text-gray-500 dark:text-gray-400">
+                        last_exec: {exp.last_execute_at ? new Date(exp.last_execute_at).toLocaleString() : '—'}
                       </div>
                     </div>
                   </CardContent>

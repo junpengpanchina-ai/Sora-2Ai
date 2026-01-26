@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Input, Button } from '@/components/ui'
 import { Badge } from '@/components/ui'
+import { AssetBadges, GateColorBadge, GateScoreBar, LifecycleBadge, LtvGateBadge } from '@/app/admin/prompts/components/gate/GateWidgets'
 
 interface ScenePromptsTabProps {
   onShowBanner: (type: 'success' | 'error' | 'info', text: string) => void
@@ -17,15 +18,27 @@ type PromptItem = {
   is_published?: boolean
   rollout_pct?: number
   content?: string
+  // asset fields (optional)
+  is_active?: boolean | null
+  top_prompt?: boolean | null
+  freeze_until?: string | null
+  kill_reason?: string | null
   // analytics / gate (optional, from v_prompt_templates_admin_list)
   executions_7d?: number | null
+  success_7d?: number | null
+  failure_7d?: number | null
   success_rate_7d?: number | null
   delta_cr_7d?: number | null
   roi_value_cents_7d?: number | null
   gate_pass?: boolean | null
+  gate_score_7d?: number | null
+  gate_color_7d?: 'RED' | 'YELLOW' | 'GREEN' | null
+  last_execute_at?: string | null
   ab_data_sufficient?: boolean | null
   variant_count_14d?: number | null
   ltv_gate_color?: 'RED' | 'YELLOW' | 'GREEN' | null
+  lifecycle_recommendation?: 'HARD_KILL' | 'FREEZE' | 'PROMOTE' | 'KEEP' | null
+  lifecycle_should_unpublish?: boolean | null
 }
 
 /**
@@ -60,6 +73,7 @@ export default function ScenePromptsTab({ onShowBanner }: ScenePromptsTabProps) 
   >('default')
   const [genTaskId, setGenTaskId] = useState<string | null>(null)
   const [genProgress, setGenProgress] = useState<number | null>(null)
+  const [sceneGateRunning, setSceneGateRunning] = useState(false)
 
   // 加载场景列表
   const fetchScenes = useCallback(async () => {
@@ -221,6 +235,28 @@ export default function ScenePromptsTab({ onShowBanner }: ScenePromptsTabProps) 
     selectedScene,
   ])
 
+  const runSceneGate = useCallback(async () => {
+    if (!selectedSceneId || sceneGateRunning) return
+    setSceneGateRunning(true)
+    onShowBanner('info', 'Running Scene Gate (7d)…')
+    try {
+      const res = await fetch(`/api/admin/prompts/force-gate-scene?sceneId=${encodeURIComponent(selectedSceneId)}`, {
+        method: 'POST',
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json?.ok) {
+        onShowBanner('error', String(json?.error || `Scene gate failed (${res.status})`))
+        return
+      }
+      const s = json.summary as { total: number; green: number; yellow: number; red: number }
+      onShowBanner('success', `Scene Gate updated: total=${s.total}, green=${s.green}, yellow=${s.yellow}, red=${s.red}`)
+    } catch (e) {
+      onShowBanner('error', e instanceof Error ? e.message : 'Scene gate failed')
+    } finally {
+      setSceneGateRunning(false)
+    }
+  }, [onShowBanner, sceneGateRunning, selectedSceneId])
+
   // 按 model + role 分组 prompts
   const promptsByModelRole = prompts.reduce((acc, prompt) => {
     const key = `${prompt.model_id || 'unknown'}_${prompt.role || 'default'}`
@@ -356,6 +392,9 @@ export default function ScenePromptsTab({ onShowBanner }: ScenePromptsTabProps) 
                   <Button variant="outline" onClick={() => setGenOpen((v) => !v)}>
                     批量自动生成
                   </Button>
+                  <Button variant="outline" onClick={runSceneGate} disabled={sceneGateRunning || !selectedSceneId}>
+                    {sceneGateRunning ? 'Gating…' : 'Gate This Scene (7d)'}
+                  </Button>
                 </div>
 
                 {genOpen ? (
@@ -486,27 +525,28 @@ export default function ScenePromptsTab({ onShowBanner }: ScenePromptsTabProps) 
                                 {Boolean(prompt.is_published) && (
                                   <Badge variant="success">已发布</Badge>
                                 )}
+                                <AssetBadges
+                                  isActive={prompt.is_active ?? null}
+                                  freezeUntil={prompt.freeze_until ?? null}
+                                  topPrompt={prompt.top_prompt ?? null}
+                                  killReason={prompt.kill_reason ?? null}
+                                />
                                 <span className="text-xs text-gray-500">v{String(prompt.version ?? 'N/A')}</span>
                                 {prompt.gate_pass ? (
                                   <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                                     Gate PASS
                                   </Badge>
                                 ) : null}
-                                {prompt.ltv_gate_color ? (
-                                  prompt.ltv_gate_color === 'GREEN' ? (
-                                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                      LTV GREEN
-                                    </Badge>
-                                  ) : prompt.ltv_gate_color === 'YELLOW' ? (
-                                    <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                                      LTV YELLOW
-                                    </Badge>
-                                  ) : (
-                                    <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                                      LTV RED
-                                    </Badge>
-                                  )
-                                ) : null}
+                                <GateColorBadge
+                                  color={prompt.gate_color_7d ?? null}
+                                  title={
+                                    typeof prompt.gate_score_7d === 'number'
+                                      ? `GateScore_7d=${prompt.gate_score_7d.toFixed(3)}`
+                                      : undefined
+                                  }
+                                />
+                                <LtvGateBadge color={prompt.ltv_gate_color ?? null} />
+                                <LifecycleBadge rec={prompt.lifecycle_recommendation ?? null} />
                                 {prompt.ab_data_sufficient === false && (prompt.variant_count_14d ?? 0) > 1 ? (
                                   <Badge variant="secondary">AB 数据不足</Badge>
                                 ) : null}
@@ -533,6 +573,22 @@ export default function ScenePromptsTab({ onShowBanner }: ScenePromptsTabProps) 
                               <div>sr_7d: {typeof prompt.success_rate_7d === 'number' ? `${Math.round(prompt.success_rate_7d * 100)}%` : '—'}</div>
                               <div>ΔCR_7d: {typeof prompt.delta_cr_7d === 'number' ? `${(prompt.delta_cr_7d * 100).toFixed(2)}%` : '—'}</div>
                               <div>ROI_7d: {prompt.roi_value_cents_7d != null ? `¥${(Number(prompt.roi_value_cents_7d) / 100).toFixed(2)}` : '—'}</div>
+                              <div className="col-span-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div>GateScore_7d: {typeof prompt.gate_score_7d === 'number' ? prompt.gate_score_7d.toFixed(3) : '—'}</div>
+                                  <div>last_exec: {prompt.last_execute_at ? new Date(prompt.last_execute_at).toLocaleDateString() : '—'}</div>
+                                </div>
+                                <div className="mt-1">
+                                  <GateScoreBar
+                                    score={prompt.gate_score_7d ?? null}
+                                    color={prompt.gate_color_7d ?? null}
+                                    title="0.6×S + 0.4×ln(U+1)/ln(101)"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                {/* spacer */}
+                              </div>
                             </div>
                           </div>
                         ))}
