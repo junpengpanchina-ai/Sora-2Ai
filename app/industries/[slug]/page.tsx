@@ -6,6 +6,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { cache } from 'react'
 import type { Database } from '@/types/database'
 import { INDUSTRIES_100 } from '@/lib/data/industries-100'
+import { isProdBuildPhase, shouldSkipStaticGeneration } from '@/lib/utils/buildPhase'
 
 type UseCaseRow = Database['public']['Tables']['use_cases']['Row']
 
@@ -67,7 +68,7 @@ const getIndustryUseCases = cache(async (industry: string) => {
 // 获取所有行业的 slugs（用于静态生成）
 export async function generateStaticParams() {
   // 🔥 如果设置了 SKIP_STATIC_GENERATION，跳过静态生成（用于快速构建）
-  if (process.env.SKIP_STATIC_GENERATION === 'true') {
+  if (isProdBuildPhase() && shouldSkipStaticGeneration()) {
     console.warn('[industries/generateStaticParams] SKIP_STATIC_GENERATION=true, skipping static generation, using dynamic rendering')
     return []
   }

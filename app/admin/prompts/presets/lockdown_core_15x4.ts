@@ -5,6 +5,8 @@ export const LOCKDOWN_CORE_15x4 = {
   enabled: true,
 
   scenes: ['ad_promo', 'product_explainer', 'social_short', 'landing_hero'],
+  // Default scene slugs for auto-selecting UUIDs in Admin (must match use_cases.slug)
+  default_scene_slugs: ['ad_promo', 'product_explainer', 'social_short', 'landing_hero'],
 
   industries: [
     'ecommerce',

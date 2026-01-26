@@ -10,6 +10,7 @@ import { parseMarkdownSections, markdownToHtml } from '@/lib/utils/markdown-pars
 import CosmicBackground from '@/components/CosmicBackground'
 import LazyRelatedContent from '@/components/LazyRelatedContent'
 import { RelatedTier1Links } from '@/components/RelatedTier1Links'
+import { isProdBuildPhase, shouldSkipStaticGeneration } from '@/lib/utils/buildPhase'
 
 type UseCaseRow = Database['public']['Tables']['use_cases']['Row']
 
@@ -238,7 +239,7 @@ export async function generateStaticParams() {
   }
 
   // 🔥 如果设置了 SKIP_STATIC_GENERATION，跳过静态生成（用于快速构建）
-  if (process.env.SKIP_STATIC_GENERATION === 'true') {
+  if (isProdBuildPhase() && shouldSkipStaticGeneration()) {
     console.warn('[generateStaticParams] SKIP_STATIC_GENERATION=true, skipping static generation, using dynamic rendering')
     return []
   }

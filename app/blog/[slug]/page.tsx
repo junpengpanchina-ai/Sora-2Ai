@@ -2,34 +2,43 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getBaseUrl } from '@/lib/utils/url'
-import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { cache } from 'react'
+import { isProdBuildPhase, shouldSkipStaticGeneration } from '@/lib/utils/buildPhase'
 
 // 从数据库获取博客文章
 const getBlogPostBySlug = cache(async (slug: string) => {
-  const supabase = await createSupabaseServerClient()
-  
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('blog_posts')
-    .select('*')
-    .eq('slug', slug)
-    .eq('is_published', true)
-    .single()
+  try {
+    // Use service client to keep SSG build stable (no cookies usage).
+    const supabase = await createServiceClient()
 
-  if (error || !data) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('blog_posts')
+      .select('*')
+      .eq('slug', slug)
+      .eq('is_published', true)
+      .single()
+
+    if (error || !data) {
+      return null
+    }
+
+    return {
+      slug: data.slug,
+      title: data.title,
+      description: data.description,
+      h1: data.h1,
+      content: data.content,
+      publishedAt: data.published_at || data.created_at,
+      relatedPosts: Array.isArray(data.related_posts) ? data.related_posts : [],
+    }
+  } catch (error) {
+    console.warn('[blog/getBlogPostBySlug] fetch failed (build/runtime), returning null:', {
+      slug,
+      error: error instanceof Error ? error.message : String(error),
+    })
     return null
-  }
-
-  return {
-    slug: data.slug,
-    title: data.title,
-    description: data.description,
-    h1: data.h1,
-    content: data.content,
-    publishedAt: data.published_at || data.created_at,
-    relatedPosts: Array.isArray(data.related_posts) ? data.related_posts : [],
   }
 })
 
@@ -39,28 +48,40 @@ export async function generateStaticParams() {
     return []
   }
 
-  // 在静态生成时使用 service client，不需要 cookies
-  const supabase = await createServiceClient()
-  
-  // 限制静态生成的数量，避免构建时间过长
-  const MAX_STATIC_PAGES = 100
-  
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('blog_posts')
-    .select('slug')
-    .eq('is_published', true)
-    .order('created_at', { ascending: false }) // 按创建时间倒序，优先生成最新的
-    .limit(MAX_STATIC_PAGES) // 限制数量
-
-  if (error || !data) {
-    // 如果数据库查询失败，返回空数组（fallback到动态渲染）
+  // Optional opt-out for flaky build environments (build-time only)
+  if (isProdBuildPhase() && shouldSkipStaticGeneration()) {
     return []
   }
 
-  return data.map((post: { slug: string }) => ({
-    slug: post.slug,
-  }))
+  try {
+    // 在静态生成时使用 service client，不需要 cookies
+    const supabase = await createServiceClient()
+
+    // 限制静态生成的数量，避免构建时间过长
+    const MAX_STATIC_PAGES = 100
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('blog_posts')
+      .select('slug')
+      .eq('is_published', true)
+      .order('created_at', { ascending: false }) // 按创建时间倒序，优先生成最新的
+      .limit(MAX_STATIC_PAGES) // 限制数量
+
+    if (error || !data) {
+      // 如果数据库查询失败，返回空数组（fallback到动态渲染）
+      return []
+    }
+
+    return data.map((post: { slug: string }) => ({
+      slug: post.slug,
+    }))
+  } catch (error) {
+    console.warn('[blog/generateStaticParams] fetch failed, skipping SSG:', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return []
+  }
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
@@ -96,23 +117,31 @@ const getRelatedPosts = cache(async (slugs: string[]) => {
     return []
   }
 
-  const supabase = await createSupabaseServerClient()
-  
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('blog_posts')
-    .select('slug, title')
-    .in('slug', slugs)
-    .eq('is_published', true)
+  try {
+    // Use service client to keep SSG build stable (no cookies usage).
+    const supabase = await createServiceClient()
 
-  if (error || !data) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('blog_posts')
+      .select('slug, title')
+      .in('slug', slugs)
+      .eq('is_published', true)
+
+    if (error || !data) {
+      return []
+    }
+
+    return data.map((post: { slug: string; title: string }) => ({
+      slug: post.slug,
+      title: post.title,
+    }))
+  } catch (error) {
+    console.warn('[blog/getRelatedPosts] fetch failed (build/runtime), returning empty:', {
+      error: error instanceof Error ? error.message : String(error),
+    })
     return []
   }
-
-  return data.map((post: { slug: string; title: string }) => ({
-    slug: post.slug,
-    title: post.title,
-  }))
 })
 
 export default async function BlogPostPage({ params }: { params: { slug: string } }) {

@@ -7,6 +7,7 @@ import type { Database } from '@/types/database'
 import { normalizeFaq, normalizeSteps, KEYWORD_INTENT_LABELS } from '@/lib/keywords/schema'
 import KeywordToolEmbed from '../KeywordToolEmbed'
 import ChristmasBGM from '@/components/ChristmasBGM'
+import { isProdBuildPhase, shouldSkipStaticGeneration } from '@/lib/utils/buildPhase'
 
 type KeywordRow = Database['public']['Tables']['long_tail_keywords']['Row']
 
@@ -317,6 +318,10 @@ const getRelatedUseCases = cache(async (keyword: string): Promise<Array<{
 // 获取所有已发布的关键词 slugs（用于静态生成）
 // 预生成热门关键词（按 priority 和 search_volume 排序）
 export async function generateStaticParams() {
+  if (isProdBuildPhase() && shouldSkipStaticGeneration()) {
+    return []
+  }
+
   // To keep production builds stable (avoid flaky Supabase connections during SSG),
   // we disable keyword SSG by default. Enable explicitly via env:
   //   ENABLE_KEYWORD_SSG=true

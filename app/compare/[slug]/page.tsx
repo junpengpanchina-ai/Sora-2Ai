@@ -6,45 +6,62 @@ import { createClient as createSupabaseServerClient } from '@/lib/supabase/serve
 import { createServiceClient } from '@/lib/supabase/service'
 import { cache } from 'react'
 import type { Database } from '@/types/database'
+import { isProdBuildPhase, shouldSkipStaticGeneration } from '@/lib/utils/buildPhase'
 
 type ComparePageRow = Database['public']['Tables']['compare_pages']['Row']
 
 // 从数据库获取对比页
 const getComparePageBySlug = cache(async (slug: string) => {
-  const supabase = await createSupabaseServerClient()
-  
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('compare_pages')
-    .select('*')
-    .eq('slug', slug)
-    .eq('is_published', true)
-    .maybeSingle()
+  try {
+    const supabase = await createSupabaseServerClient()
 
-  if (error || !data) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('compare_pages')
+      .select('*')
+      .eq('slug', slug)
+      .eq('is_published', true)
+      .maybeSingle()
+
+    if (error || !data) {
+      return null
+    }
+
+    return data as ComparePageRow
+  } catch (error) {
+    console.warn('[compare/getComparePageBySlug] fetch failed (build/runtime), returning null:', {
+      slug,
+      error: error instanceof Error ? error.message : String(error),
+    })
     return null
   }
-
-  return data as ComparePageRow
 })
 
 // 获取相关对比页
 const getRelatedComparePages = cache(async (excludeId: string, limit = 6) => {
-  const supabase = await createSupabaseServerClient()
-  
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('compare_pages')
-    .select('id, slug, title, description, tool_b_name')
-    .eq('is_published', true)
-    .neq('id', excludeId)
-    .limit(limit)
+  try {
+    const supabase = await createSupabaseServerClient()
 
-  if (error || !data) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('compare_pages')
+      .select('id, slug, title, description, tool_b_name')
+      .eq('is_published', true)
+      .neq('id', excludeId)
+      .limit(limit)
+
+    if (error || !data) {
+      return []
+    }
+
+    return data as Pick<ComparePageRow, 'id' | 'slug' | 'title' | 'description' | 'tool_b_name'>[]
+  } catch (error) {
+    console.warn('[compare/getRelatedComparePages] fetch failed (build/runtime), returning empty:', {
+      excludeId,
+      error: error instanceof Error ? error.message : String(error),
+    })
     return []
   }
-
-  return data as Pick<ComparePageRow, 'id' | 'slug' | 'title' | 'description' | 'tool_b_name'>[]
 })
 
 // 获取所有已发布的对比页 slugs（用于静态生成）
@@ -53,27 +70,38 @@ export async function generateStaticParams() {
     return []
   }
 
-  // 在静态生成时使用 service client，不需要 cookies
-  const supabase = await createServiceClient()
-  
-  // 限制静态生成的数量，避免构建时间过长
-  const MAX_STATIC_PAGES = 50
-  
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('compare_pages')
-    .select('slug')
-    .eq('is_published', true)
-    .order('created_at', { ascending: false }) // 按创建时间倒序，优先生成最新的
-    .limit(MAX_STATIC_PAGES) // 限制数量
-
-  if (error || !data) {
+  if (isProdBuildPhase() && shouldSkipStaticGeneration()) {
     return []
   }
 
-  return data.map((item: { slug: string }) => ({
-    slug: item.slug,
-  }))
+  try {
+    // 在静态生成时使用 service client，不需要 cookies
+    const supabase = await createServiceClient()
+
+    // 限制静态生成的数量，避免构建时间过长
+    const MAX_STATIC_PAGES = 50
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('compare_pages')
+      .select('slug')
+      .eq('is_published', true)
+      .order('created_at', { ascending: false }) // 按创建时间倒序，优先生成最新的
+      .limit(MAX_STATIC_PAGES) // 限制数量
+
+    if (error || !data) {
+      return []
+    }
+
+    return data.map((item: { slug: string }) => ({
+      slug: item.slug,
+    }))
+  } catch (error) {
+    console.warn('[compare/generateStaticParams] fetch failed, skipping SSG:', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return []
+  }
 }
 
 export async function generateMetadata({ 

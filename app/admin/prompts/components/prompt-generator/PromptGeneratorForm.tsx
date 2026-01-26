@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle, Input, Button } from '@/compo
 import { LOCKDOWN_CORE_15x4 } from '@/app/admin/prompts/presets/lockdown_core_15x4'
 import { BatchGenerateBodySchema, type BatchGenerateBodyForm, type BatchGenerateBody, parseLines, computeEst } from './schema'
 import { presetToBatchBody } from './presetToBody'
+import { SceneMultiSelect, type SceneOption } from './SceneMultiSelect'
+import { mapSceneSlugsToIds } from './mapPresetScenes'
 
 type RunState =
   | { status: 'idle' }
@@ -33,8 +35,10 @@ function makeDefaultValues(): BatchGenerateBodyForm {
   }
 }
 
-export function PromptGeneratorForm() {
+export function PromptGeneratorForm(props: { sceneOptions?: SceneOption[] }) {
   const [runState, setRunState] = useState<RunState>({ status: 'idle' })
+  const [fetchedSceneOptions, setFetchedSceneOptions] = useState<SceneOption[]>([])
+  const [sceneSearch, setSceneSearch] = useState('')
 
   const form = useForm<BatchGenerateBodyForm>({
     resolver: zodResolver(BatchGenerateBodySchema),
@@ -42,13 +46,50 @@ export function PromptGeneratorForm() {
     mode: 'onChange',
   })
 
+  const sceneOptions = props.sceneOptions ?? fetchedSceneOptions
+
+  useEffect(() => {
+    if (props.sceneOptions) return
+    let active = true
+    ;(async () => {
+      try {
+        const res = await fetch('/api/admin/use-cases?limit=200')
+        const data = await res.json().catch(() => ({}))
+        const arr = (data?.useCases || data?.use_cases || data?.use_cases || []) as unknown
+        const list = Array.isArray(arr) ? arr : []
+        const options: SceneOption[] = list
+          .map((row): SceneOption | null => {
+            if (!row || typeof row !== 'object') return null
+            const r = row as Record<string, unknown>
+            const id = typeof r.id === 'string' ? r.id : ''
+            if (!id) return null
+            return {
+              id,
+              slug: typeof r.slug === 'string' ? r.slug : null,
+              title: typeof r.title === 'string' ? r.title : null,
+              tier: typeof r.tier === 'number' ? r.tier : null,
+              industry: typeof r.industry === 'string' ? r.industry : null,
+            }
+          })
+          .filter((x): x is SceneOption => Boolean(x))
+        if (active) setFetchedSceneOptions(options)
+      } catch {
+        // ignore selector loading errors (form can still run with scenes[])
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [props.sceneOptions])
+
   const v = form.watch()
   const est = useMemo(() => {
     const parsed = BatchGenerateBodySchema.safeParse(v)
     if (parsed.success) return computeEst(parsed.data)
-    const fallback: Pick<BatchGenerateBody, 'industries' | 'scenes' | 'perCellCount' | 'maxTotalPrompts'> = {
+    const fallback: Pick<BatchGenerateBody, 'industries' | 'scenes' | 'sceneIds' | 'perCellCount' | 'maxTotalPrompts'> = {
       industries: getStringArray((v as unknown as { industries?: unknown })?.industries),
       scenes: getStringArray((v as unknown as { scenes?: unknown })?.scenes),
+      sceneIds: getStringArray((v as unknown as { sceneIds?: unknown })?.sceneIds),
       perCellCount: Number((v as unknown as { perCellCount?: unknown })?.perCellCount ?? 0) || 0,
       maxTotalPrompts: Number((v as unknown as { maxTotalPrompts?: unknown })?.maxTotalPrompts ?? 0) || 0,
     }
@@ -80,6 +121,42 @@ export function PromptGeneratorForm() {
   }
 
   const canRun = form.formState.isValid && runState.status !== 'running'
+  const selectedSceneIds = v.sceneIds ?? []
+  const usingSceneIds = Array.isArray(selectedSceneIds) && selectedSceneIds.length > 0
+  const presetSceneCount = LOCKDOWN_CORE_15x4.scenes.length
+
+  function onUseDefaultPreset() {
+    setRunState({ status: 'idle' })
+    const base = makeDefaultValues()
+
+    const rawSlugs =
+      (LOCKDOWN_CORE_15x4 as unknown as { default_scene_slugs?: readonly string[] }).default_scene_slugs ?? LOCKDOWN_CORE_15x4.scenes
+    const slugs = [...rawSlugs]
+
+    if (sceneOptions.length > 0 && slugs.length > 0) {
+      const { ids, missing } = mapSceneSlugsToIds(sceneOptions, slugs)
+
+      if (missing.length > 0) {
+        setRunState({
+          status: 'error',
+          message: `Preset scenes not found by slug: ${missing.join(', ')}`,
+        })
+        return
+      }
+
+      form.reset({
+        ...base,
+        ownerScope: 'scene',
+        sceneIds: ids.slice(0, presetSceneCount),
+        scenes: [], // ✅ mutually exclusive: UUID mode clears scenes[]
+      })
+      return
+    }
+
+    // fallback: apply non-scene defaults only
+    form.reset(base)
+    setRunState({ status: 'error', message: 'Scene options not loaded yet; try again in a moment.' })
+  }
 
   return (
     <Card>
@@ -88,7 +165,7 @@ export function PromptGeneratorForm() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" onClick={() => form.reset(makeDefaultValues())}>
+          <Button type="button" variant="outline" onClick={onUseDefaultPreset}>
             Use Default Preset
           </Button>
           <Button type="button" onClick={form.handleSubmit(onSubmit)} disabled={!canRun}>
@@ -99,7 +176,8 @@ export function PromptGeneratorForm() {
         <div className="rounded-lg border border-gray-200 bg-white/50 p-3 text-sm dark:border-gray-700 dark:bg-gray-900/40">
           <div className="flex flex-wrap gap-x-5 gap-y-2">
             <div>
-              <span className="font-semibold">Scenes:</span> {v.scenes?.length ?? 0}
+              <span className="font-semibold">Scenes:</span>{' '}
+              {usingSceneIds ? `${selectedSceneIds.length} (UUID)` : `${v.scenes?.length ?? 0} (slug)`}
             </div>
             <div>
               <span className="font-semibold">Industries:</span> {v.industries?.length ?? 0}
@@ -113,6 +191,44 @@ export function PromptGeneratorForm() {
             <div>
               <span className="font-semibold">Estimated Total:</span> {est.estTotal} / {est.cap}
             </div>
+          </div>
+        </div>
+
+        {/* Scene selector (UUID) */}
+        <div className="rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-700">
+          <div className="font-semibold">Scene selector (UUID)</div>
+          <div className="mt-2">
+            <Input
+              placeholder="Search scene title/slug..."
+              value={sceneSearch}
+              onChange={(e) => setSceneSearch(e.target.value)}
+            />
+          </div>
+          <div className="mt-3">
+            <SceneMultiSelect
+              options={sceneOptions.filter((s) => {
+                if (!sceneSearch.trim()) return true
+                const q = sceneSearch.toLowerCase()
+                return (
+                  (s.title || '').toLowerCase().includes(q) ||
+                  (s.slug || '').toLowerCase().includes(q) ||
+                  (s.industry || '').toLowerCase().includes(q)
+                )
+              })}
+              value={getStringArray(v.sceneIds)}
+              onChange={(ids) => {
+                form.setValue('sceneIds', ids, { shouldValidate: true })
+                // ✅ mutual exclusion: choosing UUID clears scenes[]
+                if (ids.length > 0) form.setValue('scenes', [], { shouldValidate: true })
+              }}
+              max={8}
+            />
+          </div>
+          {form.formState.errors.sceneIds?.message ? (
+            <div className="mt-2 text-xs text-red-600">{String(form.formState.errors.sceneIds.message)}</div>
+          ) : null}
+          <div className="mt-2 text-xs text-gray-500">
+            Tip: If you fill UUIDs here, the `scenes[]` textarea below will be cleared/disabled to avoid mixing.
           </div>
         </div>
 
@@ -252,8 +368,17 @@ export function PromptGeneratorForm() {
             <textarea
               className="min-h-[220px] w-full rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
               value={(v.scenes ?? []).join('\n')}
-              onChange={(e) => form.setValue('scenes', parseLines(e.target.value), { shouldValidate: true })}
+              disabled={usingSceneIds}
+              onChange={(e) => {
+                const next = parseLines(e.target.value)
+                form.setValue('scenes', next, { shouldValidate: true })
+                // ✅ mutual exclusion: typing slugs clears UUIDs
+                if (next.length > 0) form.setValue('sceneIds', [], { shouldValidate: true })
+              }}
             />
+            {usingSceneIds ? (
+              <div className="mt-1 text-xs text-gray-500">Disabled because you selected sceneIds (UUID mode).</div>
+            ) : null}
             {form.formState.errors.scenes?.message ? (
               <div className="mt-1 text-xs text-red-600">{String(form.formState.errors.scenes.message)}</div>
             ) : null}

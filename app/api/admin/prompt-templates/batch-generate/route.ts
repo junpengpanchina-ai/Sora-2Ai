@@ -58,12 +58,54 @@ function asStringArray(value: unknown, field: string): string[] {
   return value.map((s) => s.trim())
 }
 
+function asOptionalStringArray(value: unknown, field: string): string[] {
+  if (value == null) return []
+  if (!Array.isArray(value) || value.some((v) => typeof v !== 'string' || v.trim().length === 0)) {
+    throw new Error(`${field} must be a string[]`)
+  }
+  return value.map((s) => s.trim()).filter(Boolean)
+}
+
 function asUuidArray(value: unknown): string[] | null {
   if (value == null) return null
   if (!Array.isArray(value) || value.some((v) => typeof v !== 'string' || v.trim().length === 0)) {
     throw new Error(`sceneIds must be a string[]`)
   }
   return value.map((s) => s.trim())
+}
+
+async function resolveUseCaseSceneNames(sb: unknown, sceneIds: string[]): Promise<string[]> {
+  if (sceneIds.length === 0) return []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = sb as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from('use_cases')
+    .select('id,slug,title')
+    .in('id', sceneIds)
+
+  if (error) {
+    throw new Error(`Failed to resolve sceneIds: ${error.message || 'unknown error'}`)
+  }
+
+  const rows = Array.isArray(data) ? data : []
+  const byId = new Map<string, { slug?: string | null; title?: string | null }>()
+  for (const r of rows) {
+    if (!r || typeof r !== 'object') continue
+    const obj = r as Record<string, unknown>
+    const id = typeof obj.id === 'string' ? obj.id : ''
+    if (!id) continue
+    byId.set(id, {
+      slug: typeof obj.slug === 'string' ? obj.slug : null,
+      title: typeof obj.title === 'string' ? obj.title : null,
+    })
+  }
+
+  // Preserve order of input IDs
+  return sceneIds.map((id) => {
+    const meta = byId.get(id)
+    return (meta?.title || meta?.slug || id).toString()
+  })
 }
 
 function getSiteUrl() {
@@ -88,8 +130,8 @@ export async function POST(request: Request) {
     const p = payload as Record<string, unknown>
 
     const industries = asStringArray(p.industries, 'industries')
-    const scenes = asStringArray(p.scenes, 'scenes')
     const sceneIds = asUuidArray(p.sceneIds)
+    const scenesInput = asOptionalStringArray(p.scenes, 'scenes')
 
     const perCellCount = Math.max(Number(p.perCellCount ?? 10), 1)
     const maxTotalPrompts = Math.max(Number(p.maxTotalPrompts ?? 1200), 1)
@@ -119,7 +161,21 @@ export async function POST(request: Request) {
       fallback: strategyInput?.fallback ?? 'gemini-3-pro',
     }
 
+    // Allow UUID-only scene selection: if scenes[] empty and sceneIds[] provided, resolve names from DB.
+    const hasSceneIds = Array.isArray(sceneIds) && sceneIds.length > 0
+    const hasScenes = scenesInput.length > 0
+    if (!hasScenes && !hasSceneIds) {
+      return NextResponse.json({ error: '请提供 scenes[] 或 sceneIds[]（至少 1 个）' }, { status: 400 })
+    }
+
+    const supabase = await createServiceClient()
+    const sb = supabase as unknown as SupabaseInsertIdClient
+
+    const scenes = hasScenes ? scenesInput : await resolveUseCaseSceneNames(supabase, sceneIds ?? [])
     const totalCells = industries.length * scenes.length
+    if (totalCells <= 0) {
+      return NextResponse.json({ error: '无可生成的 cells（请检查 industries / scenes）' }, { status: 400 })
+    }
     const totalPlanned = totalCells * perCellCount
     if (totalPlanned > maxTotalPrompts) {
       return NextResponse.json(
@@ -127,9 +183,6 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
-
-    const supabase = await createServiceClient()
-    const sb = supabase as unknown as SupabaseInsertIdClient
 
     const { data, error } = await sb
       .from('prompt_generation_tasks')

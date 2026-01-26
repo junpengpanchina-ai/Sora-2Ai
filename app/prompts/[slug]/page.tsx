@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { getBaseUrl } from '@/lib/utils/url'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { isProdBuildPhase, shouldSkipStaticGeneration } from '@/lib/utils/buildPhase'
 import { cache } from 'react'
 import type { Database } from '@/types/database'
 
@@ -11,47 +12,65 @@ type PromptRow = Database['public']['Tables']['prompt_library']['Row']
 
 // 从数据库获取 Prompt
 const getPromptBySlug = cache(async (slug: string, locale?: string) => {
-  const supabase = await createSupabaseServerClient()
-  
-  let query = supabase
-    .from('prompt_library')
-    .select('*')
-    .eq('slug', slug)
-    .eq('is_published', true)
-  
-  if (locale) {
-    query = query.eq('locale', locale)
-  }
-  
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (query as any).maybeSingle()
+  try {
+    const supabase = await createSupabaseServerClient()
 
-  if (error || !data) {
+    let query = supabase
+      .from('prompt_library')
+      .select('*')
+      .eq('slug', slug)
+      .eq('is_published', true)
+
+    if (locale) {
+      query = query.eq('locale', locale)
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (query as any).maybeSingle()
+
+    if (error || !data) {
+      return null
+    }
+
+    return data as PromptRow
+  } catch (error) {
+    console.warn('[prompts/getPromptBySlug] fetch failed (build/runtime), returning null:', {
+      slug,
+      error: error instanceof Error ? error.message : String(error),
+    })
     return null
   }
-
-  return data as PromptRow
 })
 
 // 获取相关 Prompts
 const getRelatedPrompts = cache(async (excludeId: string, category: string, locale: string, limit = 6) => {
-  const supabase = await createSupabaseServerClient()
-  
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('prompt_library')
-    .select('id, slug, title, description, category, locale')
-    .eq('is_published', true)
-    .eq('locale', locale)
-    .eq('category', category)
-    .neq('id', excludeId)
-    .limit(limit)
+  try {
+    const supabase = await createSupabaseServerClient()
 
-  if (error || !data) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('prompt_library')
+      .select('id, slug, title, description, category, locale')
+      .eq('is_published', true)
+      .eq('locale', locale)
+      .eq('category', category)
+      .neq('id', excludeId)
+      .limit(limit)
+
+    if (error || !data) {
+      return []
+    }
+
+    return data as Pick<PromptRow, 'id' | 'slug' | 'title' | 'description' | 'category' | 'locale'>[]
+  } catch (error) {
+    console.warn('[prompts/getRelatedPrompts] fetch failed (build/runtime), returning empty:', {
+      excludeId,
+      category,
+      locale,
+      error: error instanceof Error ? error.message : String(error),
+    })
     return []
   }
-
-  return data as Pick<PromptRow, 'id' | 'slug' | 'title' | 'description' | 'category' | 'locale'>[]
 })
 
 // 获取所有已发布的 Prompt slugs（用于静态生成）
@@ -60,28 +79,40 @@ export async function generateStaticParams() {
     return []
   }
 
-  // 在静态生成时使用 service client，不需要 cookies
-  const supabase = await createServiceClient()
-  
-  // 限制静态生成的数量，避免构建时间过长
-  const MAX_STATIC_PAGES = 100
-  
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('prompt_library')
-    .select('slug, locale')
-    .eq('is_published', true)
-    .not('slug', 'is', null)
-    .order('created_at', { ascending: false }) // 按创建时间倒序，优先生成最新的
-    .limit(MAX_STATIC_PAGES) // 限制数量
-
-  if (error || !data) {
+  if (isProdBuildPhase() && shouldSkipStaticGeneration()) {
     return []
   }
 
-  return data.map((item: { slug: string; locale: string }) => ({
-    slug: item.slug,
-  }))
+  try {
+    // 在静态生成时使用 service client，不需要 cookies
+    const supabase = await createServiceClient()
+
+    // 限制静态生成的数量，避免构建时间过长
+    const MAX_STATIC_PAGES = 100
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('prompt_library')
+      .select('slug, locale')
+      .eq('is_published', true)
+      .not('slug', 'is', null)
+      .order('created_at', { ascending: false }) // 按创建时间倒序，优先生成最新的
+      .limit(MAX_STATIC_PAGES) // 限制数量
+
+    if (error || !data) {
+      return []
+    }
+
+    return data.map((item: { slug: string; locale: string }) => ({
+      slug: item.slug,
+    }))
+  } catch (error) {
+    // Build-time network flakiness should not fail the build.
+    console.warn('[prompts/generateStaticParams] fetch failed, skipping SSG:', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return []
+  }
 }
 
 export async function generateMetadata({ 
