@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 type EventPayload = {
   event: string
@@ -10,13 +10,20 @@ type EventPayload = {
   anon_id?: string
 }
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-)
-
 const ALLOWED_EVENTS = new Set(['example_click', 'hero_generate_click', 'generation_started'])
+
+let supabaseAdmin: SupabaseClient | null = null
+
+function getSupabaseAdmin(): SupabaseClient | null {
+  if (supabaseAdmin) return supabaseAdmin
+
+  const url = process.env.SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return null
+
+  supabaseAdmin = createClient(url, key, { auth: { persistSession: false } })
+  return supabaseAdmin
+}
 
 function safeString(v: unknown, maxLen: number) {
   if (typeof v !== 'string') return null
@@ -32,6 +39,12 @@ export async function POST(req: Request) {
     const event = safeString(body.event, 64)
     if (!event || !ALLOWED_EVENTS.has(event)) {
       return NextResponse.json({ ok: false, error: 'invalid_event' }, { status: 400 })
+    }
+
+    const client = getSupabaseAdmin()
+    if (!client) {
+      // 在本地 / 构建环境未配置 Supabase 时，静默丢弃，避免 build 失败
+      return NextResponse.json({ ok: false, error: 'supabase_not_configured' }, { status: 503 })
     }
 
     const source = safeString(body.source, 64)
@@ -51,7 +64,7 @@ export async function POST(req: Request) {
 
     const user_id = null
 
-    const { error } = await supabaseAdmin.from('event_logs').insert({
+    const { error } = await client.from('event_logs').insert({
       event,
       source,
       user_id,
