@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { Events } from '@/lib/analytics/events'
+import { HERO_EXAMPLES } from '@/lib/examples'
 
 // ============================================================
 // Phase 2A: A/B Copy Variants
@@ -24,57 +25,6 @@ const HERO_COPY = {
 
 // 信任锚点文案（轻量）
 const TRUST_ANCHOR = 'Used by creators, marketers, and indie teams worldwide.'
-
-const EXAMPLES = [
-  { 
-    title: "Cyberpunk rain street", 
-    tag: "Text → Video", 
-    prompt: "A neon-lit cyberpunk street in the rain, cinematic, slow dolly, 4K",
-    // 占位色：蓝紫赛博朋克风
-    gradient: "linear-gradient(135deg, rgba(37, 99, 235, 0.3) 0%, rgba(147, 51, 234, 0.3) 100%)",
-    icon: "🌃"
-  },
-  { 
-    title: "Product hero shot", 
-    tag: "Text → Video", 
-    prompt: "A premium smartwatch on black marble, studio lighting, shallow depth of field, macro cinematic",
-    // 占位色：金属质感
-    gradient: "linear-gradient(135deg, rgba(100, 116, 139, 0.3) 0%, rgba(82, 82, 91, 0.3) 100%)",
-    icon: "⌚"
-  },
-  { 
-    title: "Anime character close-up", 
-    tag: "Text → Video", 
-    prompt: "Anime close-up portrait, soft rim light, subtle breathing motion, film grain",
-    // 占位色：动漫柔和
-    gradient: "linear-gradient(135deg, rgba(236, 72, 153, 0.3) 0%, rgba(244, 63, 94, 0.3) 100%)",
-    icon: "🎭"
-  },
-  { 
-    title: "Real estate walkthrough", 
-    tag: "Text → Video", 
-    prompt: "Modern apartment walkthrough, wide angle, smooth gimbal, warm afternoon light",
-    // 占位色：暖色室内
-    gradient: "linear-gradient(135deg, rgba(245, 158, 11, 0.3) 0%, rgba(249, 115, 22, 0.3) 100%)",
-    icon: "🏠"
-  },
-  { 
-    title: "Food macro cinematic", 
-    tag: "Text → Video", 
-    prompt: "Macro shot of ramen steam swirling, cinematic, 60fps slow motion, bokeh highlights",
-    // 占位色：暖色食物
-    gradient: "linear-gradient(135deg, rgba(249, 115, 22, 0.3) 0%, rgba(239, 68, 68, 0.3) 100%)",
-    icon: "🍜"
-  },
-  { 
-    title: "Talking avatar demo", 
-    tag: "Image → Video", 
-    prompt: "Use the uploaded portrait. Natural talking head, subtle head movement, realistic lighting",
-    // 占位色：人像柔和
-    gradient: "linear-gradient(135deg, rgba(16, 185, 129, 0.3) 0%, rgba(20, 184, 166, 0.3) 100%)",
-    icon: "👤"
-  },
-]
 
 interface HeroV2Props {
   isLoggedIn?: boolean
@@ -116,11 +66,36 @@ export default function HeroV2({ isLoggedIn = false, onGenerate }: HeroV2Props) 
     }
   }, [])
 
-  const handleExampleClick = (examplePrompt: string, exampleTitle: string) => {
+  const handleExampleClick = (examplePrompt: string, exampleId: string) => {
     setPrompt(examplePrompt)
     inputRef.current?.focus()
-    // Phase 2 埋点
-    Events.exampleClick(undefined, exampleTitle)
+
+    // 轻量埋点：记录 Example 点击（用于后续榜单）
+    try {
+      const payload = JSON.stringify({
+        event: 'example_click',
+        source: 'home_hero',
+        example_id: exampleId,
+      })
+      if (navigator?.sendBeacon) {
+        navigator.sendBeacon(
+          '/api/events',
+          new Blob([payload], { type: 'application/json' })
+        )
+      } else {
+        fetch('/api/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+          keepalive: true,
+        }).catch(() => {})
+      }
+    } catch {
+      // ignore
+    }
+
+    // 现有 Phase 2 埋点（保留）
+    Events.exampleClick(undefined, exampleId)
   }
 
   const handleGenerate = () => {
@@ -283,20 +258,25 @@ export default function HeroV2({ isLoggedIn = false, onGenerate }: HeroV2Props) 
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              {EXAMPLES.map((ex) => (
+              {HERO_EXAMPLES.map((ex) => (
                 <button
                   key={ex.title}
                   className="card card-hover text-left p-3 group"
-                  onClick={() => handleExampleClick(ex.prompt, ex.title)}
+                  onClick={() => handleExampleClick(ex.prompt, ex.id)}
                 >
-                  {/* 缩略图：16:9 比例，渐变占位 */}
-                  <div 
-                    className="aspect-video w-full rounded-lg overflow-hidden border border-[var(--border)] flex items-center justify-center"
-                    style={{ background: ex.gradient }}
+                  {/* 缩略图：根据 ratio 保持比例，不拉伸 */}
+                  <div
+                    className={`example-thumb ${
+                      ex.ratio === '9:16'
+                        ? 'ratio-9x16'
+                        : ex.ratio === '4:5'
+                        ? 'ratio-4x5'
+                        : 'ratio-16x9'
+                    }`}
                   >
-                    <span className="text-3xl opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-all duration-200" suppressHydrationWarning>
-                      {ex.icon}
-                    </span>
+                    {/* 先用静态缩略图，后续可以替换为真实帧 */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={ex.thumbnail} alt={ex.title} loading="lazy" />
                   </div>
                   
                   {/* 标题和标签 */}
