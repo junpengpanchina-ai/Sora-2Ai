@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
+import { EmergencyRepairBanner } from '@/components/admin/EmergencyRepairBanner'
 
 interface AdminSceneModelConfigProps {
   onShowBanner: (type: 'success' | 'error' | 'info', text: string) => void
@@ -219,6 +220,7 @@ export default function AdminSceneModelConfig({ onShowBanner }: AdminSceneModelC
 
   return (
     <div className="space-y-6">
+      <EmergencyRepairBanner />
       <Card>
         <CardHeader>
           <CardTitle>场景应用模型配置</CardTitle>

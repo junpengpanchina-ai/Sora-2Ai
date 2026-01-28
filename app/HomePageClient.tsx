@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client'
 
-import { useEffect, useState, useCallback, useRef, type RefObject } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@/components/ui'
@@ -9,7 +9,6 @@ import HeroV2 from './HeroV2'
 import ShowStrip from './ShowStrip'
 import LogoutButton from '@/components/LogoutButton'
 import LoginButton from '@/components/LoginButton'
-import R2Image from '@/components/R2Image'
 import PricingModal from '@/components/PricingModal'
 import { PlanCard } from '@/components/pricing/PlanCard'
 import { CreditUsageTable } from '@/components/pricing/CreditUsageTable'
@@ -230,7 +229,6 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     totalAvailable: number
   } | null>(null)
   const [showPricingModal, setShowPricingModal] = useState(false)
-  const [imagesReady, setImagesReady] = useState(false)
   const [copiedTemplateId, setCopiedTemplateId] = useState<string | null>(null)
   const [homepageSettings, setHomepageSettings] = useState<HomepageSettings | null>(null)
   const [paymentPlans, setPaymentPlans] = useState<Array<{
@@ -250,7 +248,6 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
     display_order: number
   }>>([])
   const [hasRechargeRecords, setHasRechargeRecords] = useState<boolean | null>(null)
-  const imageSectionRef = useRef<HTMLDivElement | null>(null)
   const accountProfile = hydratedProfile ?? userProfile
 
   useEffect(() => {
@@ -783,48 +780,6 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
       console.error('Failed to copy prompt', error)
     }
   }, [])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return
-    }
-
-    if (!('IntersectionObserver' in window)) {
-      setImagesReady(true)
-      return
-    }
-
-    const cleanupFunctions: Array<() => void> = []
-
-    const createObserver = (ref: RefObject<HTMLDivElement>, setVisible: (value: boolean) => void) => {
-      const node = ref.current
-      if (!node) {
-        return
-      }
-
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              setVisible(true)
-              observer.unobserve(entry.target)
-            }
-          })
-        },
-        { rootMargin: '400px' } // Increased from 200px to 400px for earlier loading
-      )
-
-      observer.observe(node)
-      cleanupFunctions.push(() => observer.disconnect())
-    }
-
-    createObserver(imageSectionRef, setImagesReady)
-
-    return () => {
-      cleanupFunctions.forEach((cleanup) => cleanup())
-    }
-  }, [])
-
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from '@/components/ui'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
 import { INDUSTRIES_100 } from '@/lib/data/industries-100'
+import { EmergencyRepairBanner } from '@/components/admin/EmergencyRepairBanner'
 
 interface AdminIndustryModelConfigProps {
   onShowBanner: (type: 'success' | 'error' | 'info', text: string) => void
@@ -223,6 +224,7 @@ export default function AdminIndustryModelConfig({ onShowBanner }: AdminIndustry
 
   return (
     <div className="space-y-6">
+      <EmergencyRepairBanner />
       <Card>
         <CardHeader>
           <CardTitle>行业×场景×模型配置</CardTitle>
