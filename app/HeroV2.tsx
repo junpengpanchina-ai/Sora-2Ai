@@ -117,6 +117,8 @@ export default function HeroV2({ isLoggedIn = false, onGenerate }: HeroV2Props) 
     }
   }
 
+  const heroExamples = HERO_EXAMPLES.filter((x) => x.heroSlot === 'hero').slice(0, 4)
+
   return (
     <section className="relative min-h-[90vh] flex items-center" suppressHydrationWarning>
       {/* 简洁深色背景 */}
@@ -171,6 +173,13 @@ export default function HeroV2({ isLoggedIn = false, onGenerate }: HeroV2Props) 
             <p className="mt-4 text-sm text-[var(--muted)] opacity-70">
               {TRUST_ANCHOR}
             </p>
+
+            {/* 轻量 Recent activity（系统感 × 社交感） */}
+            <div className="recentline">
+              <span className="recentpill">Live</span>
+              <span className="recenttext">Someone just generated “Skincare demo ad”</span>
+              <span className="recentmuted">· 2 min ago</span>
+            </div>
 
             {/* 输入区域 */}
             <div className="mt-8">
@@ -246,50 +255,43 @@ export default function HeroV2({ isLoggedIn = false, onGenerate }: HeroV2Props) 
           </div>
 
           {/* Right: Show (Examples) */}
-          <div className="animate-fade-up" style={{ animationDelay: '100ms' }}>
-            {/* 使用指令：把“平权”改成“推荐入口” */}
-            <div className="mb-3">
-              <div className="text-sm font-medium text-[var(--text)]">
+          <div className="animate-fade-up hero-right" style={{ animationDelay: '100ms' }}>
+            <div className="hero-right-head mb-3">
+              <div className="hero-right-title">
                 Start with an example <span className="text-[var(--muted)]">(recommended)</span>
               </div>
-              <div className="text-xs text-[var(--muted)]">
+              <div className="hero-right-sub">
                 Click any card to auto-fill the prompt, then hit Generate.
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              {HERO_EXAMPLES.map((ex) => (
+            <div className="hero-examples-grid">
+              {heroExamples.map((ex) => (
                 <button
-                  key={ex.title}
-                  className="card card-hover text-left p-3 group"
+                  key={ex.id}
+                  className="card card-hover hero-example-card"
                   onClick={() => handleExampleClick(ex.prompt, ex.id)}
                 >
-                  {/* 缩略图：根据 ratio 保持比例，不拉伸 */}
-                  <div
-                    className={`example-thumb ${
-                      ex.ratio === '9:16'
-                        ? 'ratio-9x16'
-                        : ex.ratio === '4:5'
-                        ? 'ratio-4x5'
-                        : 'ratio-16x9'
-                    }`}
-                  >
-                    {/* 先用静态缩略图，后续可以替换为真实帧 */}
+                  <div className="hero-example-thumb">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={ex.thumbnail} alt={ex.title} loading="lazy" />
+                    <img
+                      src={ex.thumbnail}
+                      alt={ex.title}
+                      loading="lazy"
+                      className={`crop-${ex.tag}`}
+                    />
                   </div>
-                  
-                  {/* 标题和标签 */}
-                  <div className="mt-2.5 flex items-start justify-between gap-2">
+
+                  <div className="example-meta mt-2.5 flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="text-sm font-medium text-[var(--text)] truncate">
+                      <div className="example-title text-sm font-medium text-[var(--text)] truncate">
                         {ex.title}
                       </div>
-                      <div className="text-xs text-[var(--muted)] mt-0.5">
+                      <div className="example-sub text-xs text-[var(--muted)] mt-0.5">
                         {ex.tag}
                       </div>
                     </div>
-                    <span className="badge badge-cta shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-xs">
+                    <span className="badge badge-cta shrink-0 text-xs">
                       Use <span aria-hidden="true">→</span>
                     </span>
                   </div>

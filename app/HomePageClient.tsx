@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@/components/ui'
 import HeroV2 from './HeroV2'
+import ShowStrip from './ShowStrip'
 import LogoutButton from '@/components/LogoutButton'
 import LoginButton from '@/components/LoginButton'
 import R2Image from '@/components/R2Image'
@@ -984,7 +985,9 @@ export default function HomePageClient({ userProfile }: HomePageClientProps) {
         />
       ) : null}
 
-      {/* ========== SHOW 区域 ========== */}
+      {/* ========== SHOW 区域（Phase 2D：Popular scenarios） ========== */}
+      <ShowStrip />
+
       <div className="cosmic-content">
 
 
