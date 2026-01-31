@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { getKeywordPath } from '@/lib/utils/url'
 
 interface RelatedUseCase {
   id: string
@@ -124,7 +125,7 @@ export default function LazyRelatedContent({
             {relatedKeywords.map((keyword) => (
               <Link
                 key={keyword.id}
-                href={`/keywords/${keyword.page_slug}`}
+                href={getKeywordPath(keyword.page_slug)}
                 className="flex flex-col rounded-xl border border-transparent bg-gray-50 p-3 text-sm text-gray-700 transition hover:border-energy-water hover:bg-white dark:bg-gray-800/60 dark:text-gray-200"
               >
                 <span className="font-medium text-gray-900 dark:text-white">

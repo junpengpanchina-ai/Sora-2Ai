@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { getKeywordPath } from '@/lib/utils/url'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
 import type { Database } from '@/types/database'
 import { KEYWORD_INTENT_LABELS, type KeywordIntent } from '@/lib/keywords/schema'
@@ -110,7 +111,7 @@ export default async function KeywordsIndexPage() {
             {keywords.map((keyword) => (
               <Link
                 key={keyword.id}
-                href={`/keywords/${keyword.page_slug}`}
+                href={getKeywordPath(keyword.page_slug)}
                 className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:border-energy-water hover:shadow-lg dark:border-gray-800 dark:bg-gray-900/70"
               >
                 <p className="text-xs uppercase tracking-[0.25em] text-energy-water">

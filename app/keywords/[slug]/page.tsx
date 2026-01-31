@@ -1,11 +1,11 @@
 import { cache } from 'react'
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Database } from '@/types/database'
 import { normalizeFaq, normalizeSteps, KEYWORD_INTENT_LABELS } from '@/lib/keywords/schema'
-import { isBadKeywordSlug } from '@/lib/keywords/bad-slugs'
+import { isBadKeywordSlug, normalizeKeywordSlug } from '@/lib/keywords/bad-slugs'
 import KeywordToolEmbed from '../KeywordToolEmbed'
 import ChristmasBGM from '@/components/ChristmasBGM'
 import { isProdBuildPhase, shouldSkipStaticGeneration } from '@/lib/utils/buildPhase'
@@ -493,8 +493,11 @@ export default async function KeywordLandingPage({ params }: PageProps) {
     if (!trimmed) {
       notFound()
     }
-    // P0: Bad slugs (double prefix, overlong) → 404 (middleware 410; belt-and-suspenders)
+    // P0: Bad slugs (double prefix) → 308 to canonical; overlong → 404
     if (isBadKeywordSlug(trimmed)) {
+      if (trimmed.length <= 200) {
+        redirect(`/keywords/${encodeURIComponent(normalizeKeywordSlug(trimmed))}`)
+      }
       notFound()
     }
     
@@ -543,7 +546,7 @@ export default async function KeywordLandingPage({ params }: PageProps) {
   const isChristmas = pageStyle === 'christmas'
 
   // Additional Structured Data for Keyword Page
-  const { getKeywordPageUrl } = await import('@/lib/utils/url')
+  const { getKeywordPageUrl, getKeywordPath } = await import('@/lib/utils/url')
   const canonical = getKeywordPageUrl(keyword.page_slug)
   
   const keywordStructuredData = {
@@ -778,7 +781,7 @@ export default async function KeywordLandingPage({ params }: PageProps) {
                   {relatedKeywords.map((item) => (
                     <Link
                       key={item.id}
-                      href={`/keywords/${item.page_slug}`}
+                      href={getKeywordPath(item.page_slug)}
                       className="flex flex-col rounded-xl border border-transparent bg-gray-50 p-3 text-sm text-gray-700 transition hover:border-energy-water hover:bg-white dark:bg-gray-800/60 dark:text-gray-200"
                     >
                       <span className="font-medium text-gray-900 dark:text-white">{item.keyword}</span>

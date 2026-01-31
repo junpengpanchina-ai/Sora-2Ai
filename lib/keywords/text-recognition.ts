@@ -747,24 +747,19 @@ function extractPageSlug(text: string): string | null {
   if (value) {
     let cleaned = cleanValue(value).trim()
     
-    // 特殊加白：如果包含 /keywords/keywords- 前缀，保留 keywords- 前缀部分
-    // 例如：/keywords/keywords-england-christmas -> keywords-england-christmas
-    if (cleaned.includes('/keywords/keywords-')) {
-      const match = cleaned.match(/\/keywords\/keywords-(.+)$/)
+    // 特殊加白：如果包含 /keywords/ 提取 slug 部分
+    if (cleaned.includes('/keywords/')) {
+      const match = cleaned.match(/\/keywords\/(.+)$/)
       if (match) {
-        // 保留 keywords- 前缀和后续内容
-        return `keywords-${match[1].trim()}`
+        cleaned = match[1].trim()
+        // 复发源防护：去掉重复 keywords- 前缀
+        cleaned = cleaned.replace(/^(keywords-)+/i, 'keywords-')
       }
     }
     
-    // 如果包含 /keywords/ 但不包含 keywords- 前缀，移除 /keywords/ 但保留其他
-    if (cleaned.startsWith('/keywords/') && !cleaned.includes('keywords-')) {
-      cleaned = cleaned.replace(/^\/keywords\//, '')
-    }
-    
-    // 如果已经包含 keywords- 前缀，保留它（不要移除）
+    // 如果已经包含 keywords- 前缀，保留它（并确保无重复）
     if (cleaned.startsWith('keywords-')) {
-      return cleaned
+      return cleaned.replace(/^(keywords-)+/i, 'keywords-')
     }
     
     // 否则，移除 /keywords/ 前缀（如果有），但不添加 keywords-（让schema.ts中的normalizeSlug处理）

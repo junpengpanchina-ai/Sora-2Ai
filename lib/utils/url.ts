@@ -11,12 +11,22 @@ export function getBaseUrl(): string {
 }
 
 /**
- * 生成长尾词页面的 URL（用于 HTML 页面）
+ * 生成长尾词页面的 path（用于内链 href）
+ * 复发源防护：始终 normalize 后再输出
+ */
+export function getKeywordPath(slug: string): string {
+  const safe = normalizeKeywordSlug(slug || '')
+  return `/keywords/${safe}`
+}
+
+/**
+ * 生成长尾词页面的 URL（用于 HTML 页面、sitemap）
  * 注意：不带 format=xml 参数，这是用户访问的 HTML 页面
+ * 复发源防护：始终 normalize 后再输出，避免 keywords-keywords-* 进入 sitemap/内链
  */
 export function getKeywordPageUrl(slug: string): string {
   const baseUrl = getBaseUrl()
-  return `${baseUrl}/keywords/${slug}`
+  return `${baseUrl}${getKeywordPath(slug)}`
 }
 
 /**

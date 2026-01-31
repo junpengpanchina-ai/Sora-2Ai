@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Database } from '@/types/database'
 import { getKeywordPageUrl, escapeXml } from '@/lib/utils/url'
+import { isBadKeywordSlug } from '@/lib/keywords/bad-slugs'
 
 type KeywordRow = Database['public']['Tables']['long_tail_keywords']['Row']
 
@@ -65,7 +66,13 @@ export async function GET(request: Request) {
 
   const data = rawData as Pick<KeywordRow, 'page_slug' | 'updated_at'>[]
 
-  const urls = data.map((item) => {
+  // P1: 只放 canonical URL；重复前缀 slug 从 sitemap 排除，避免 redirect 污染
+  const filtered = data.filter((item) => {
+    const slug = normalizeKeywordSlug(item.page_slug || '')
+    return slug && !isBadKeywordSlug(slug)
+  })
+
+  const urls = filtered.map((item) => {
     const normalizedSlug = normalizeKeywordSlug(item.page_slug)
     const escapedSlug = escapeXml(normalizedSlug)
     const pageUrl = getKeywordPageUrl(escapedSlug)

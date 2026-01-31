@@ -40,14 +40,14 @@ export function normalizeSlug(input: string): string {
     .replace(/\.(xml|html|htm|json|txt)$/i, '')
     .replace(/[\s_]+/g, '-')
     .replace(/[^a-z0-9-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
+  .replace(/-+/g, '-')
+  .replace(/^-|-$/g, '')
   
-  // 统一添加 keywords- 前缀（如果还没有）
+  // 复发源防护：先去掉已有重复前缀，再决定是否添加
+  slug = slug.replace(/^(keywords-)+/i, '')
   if (!slug.startsWith('keywords-')) {
     slug = `keywords-${slug}`
   }
-  
   return slug
 }
 
