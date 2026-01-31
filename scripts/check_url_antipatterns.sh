@@ -57,16 +57,19 @@ fi
 echo ""
 echo "2️⃣ Checking for duplicate keywords- prefix..."
 
-# 排除：middleware.ts, 本脚本, 规范化函数中的注释
+# 排除：middleware, bad-slugs.ts, 本脚本, 注释行, 规范化函数
 MATCHES=$(grep -rn "keywords-keywords-" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
   --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=.git \
   . 2>/dev/null \
   | grep -v "middleware.ts" \
+  | grep -v "bad-slugs.ts" \
   | grep -v "check_url_antipatterns.sh" \
   | grep -v "^\s*//" \
   | grep -v "^\s*\*" \
   | grep -v "去掉重复" \
   | grep -v "normalize" \
+  | grep -v "Bad slugs" \
+  | grep -v "belt-and-suspenders" \
   || true)
 
 if [ -n "$MATCHES" ]; then

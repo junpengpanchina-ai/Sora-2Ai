@@ -328,13 +328,15 @@ export async function generateMetadata({
 }: { 
   params: { slug: string } 
 }): Promise<Metadata> {
-  const useCase = await getUseCaseBySlug(params.slug)
-  
-  if (!useCase) {
-    return {
-      title: 'Use Case Not Found',
+  try {
+    const useCase = await getUseCaseBySlug(params.slug)
+    
+    if (!useCase) {
+      return {
+        title: 'Use Case Not Found',
+        robots: { index: false, follow: false },
+      }
     }
-  }
 
   const url = `${getBaseUrl()}/use-cases/${params.slug}`
   const canonical =
@@ -364,6 +366,12 @@ export async function generateMetadata({
       url: canonical,
       type: 'article',
     },
+  }
+  } catch {
+    return {
+      title: 'Use Case Not Found',
+      robots: { index: false, follow: false },
+    }
   }
 }
 

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Database } from '@/types/database'
 import { normalizeFaq, normalizeSteps, KEYWORD_INTENT_LABELS } from '@/lib/keywords/schema'
+import { isBadKeywordSlug } from '@/lib/keywords/bad-slugs'
 import KeywordToolEmbed from '../KeywordToolEmbed'
 import ChristmasBGM from '@/components/ChristmasBGM'
 import { isProdBuildPhase, shouldSkipStaticGeneration } from '@/lib/utils/buildPhase'
@@ -394,8 +395,9 @@ export async function generateStaticParams() {
         // 移除可能的 .xml 后缀（兼容旧数据）
         const slug = item.page_slug.replace(/\.xml$/, '')
         const trimmed = slug.trim()
-        // 过滤掉空字符串和过长的 slug
-        return trimmed.length > 0 && trimmed.length <= MAX_SLUG_LENGTH
+        if (trimmed.length === 0 || trimmed.length > MAX_SLUG_LENGTH) return false
+        if (isBadKeywordSlug(trimmed)) return false // P0: exclude bad slugs from SSG
+        return true
       })
       .map((item: { page_slug: string }) => {
         // 移除可能的 .xml 后缀
@@ -481,18 +483,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function KeywordLandingPage({ params }: PageProps) {
   try {
-    const slug = decodeURIComponent(params.slug)
-    console.log(`KeywordLandingPage: Requested slug: ${slug}, params.slug: ${params.slug}`)
-    
-    // Validate slug before processing
-    if (!slug || typeof slug !== 'string' || slug.trim().length === 0) {
-      console.warn('[KeywordLandingPage] Invalid slug:', slug)
+    let slug: string
+    try {
+      slug = decodeURIComponent(params.slug)
+    } catch {
+      notFound()
+    }
+    const trimmed = slug.trim()
+    if (!trimmed) {
+      notFound()
+    }
+    // P0: Bad slugs (double prefix, overlong) → 404 (middleware 410; belt-and-suspenders)
+    if (isBadKeywordSlug(trimmed)) {
       notFound()
     }
     
-    const keyword = await getKeywordBySlug(slug.trim())
+    const keyword = await getKeywordBySlug(trimmed)
     if (!keyword) {
-      console.error(`KeywordLandingPage: Keyword not found for slug: ${slug}`)
       notFound()
     }
     

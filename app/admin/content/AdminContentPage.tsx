@@ -8,6 +8,7 @@ import { useLockdown } from '@/components/admin/AdminLockdownContext'
 import { DisabledOverlay } from '@/components/admin/DisabledOverlay'
 import AdminUseCasesManager from './use-cases/AdminUseCasesManager'
 import AdminKeywordsManager from './keywords/AdminKeywordsManager'
+import AdminKeywordOptimization from './keyword-optimization/AdminKeywordOptimization'
 import AdminComparePagesManager from './compare/AdminComparePagesManager'
 import AdminBlogManager from './blog/AdminBlogManager'
 import AdminBatchesPage from './batches/AdminBatchesPage'
@@ -20,7 +21,7 @@ interface AdminContentPageProps {
   }
 }
 
-type ContentTabType = 'use-cases' | 'keywords' | 'compare' | 'blog' | 'batches'
+type ContentTabType = 'use-cases' | 'keywords' | 'keyword-optimization' | 'compare' | 'blog' | 'batches'
 
 export default function AdminContentPage({ adminUser }: AdminContentPageProps) {
   const router = useRouter()
@@ -59,6 +60,7 @@ export default function AdminContentPage({ adminUser }: AdminContentPageProps) {
                 {[
                   { value: 'use-cases', label: '使用场景' },
                   { value: 'keywords', label: '长尾词' },
+                  { value: 'keyword-optimization', label: '关键词优化' },
                   { value: 'compare', label: '对比页' },
                   { value: 'blog', label: '博客文章' },
                   { value: 'batches', label: '批量生成' },
@@ -112,6 +114,7 @@ export default function AdminContentPage({ adminUser }: AdminContentPageProps) {
           {phase !== 'EXPAND' && <DisabledOverlay />}
           {activeTab === 'use-cases' && <AdminUseCasesManager onShowBanner={showBanner} />}
           {activeTab === 'keywords' && <AdminKeywordsManager onShowBanner={showBanner} />}
+          {activeTab === 'keyword-optimization' && <AdminKeywordOptimization onShowBanner={showBanner} />}
           {activeTab === 'compare' && <AdminComparePagesManager onShowBanner={showBanner} />}
           {activeTab === 'blog' && <AdminBlogManager onShowBanner={showBanner} />}
           {activeTab === 'batches' && <AdminBatchesPage onShowBanner={showBanner} />}

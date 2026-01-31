@@ -27,6 +27,7 @@
       "tabs": [
         { "key": "content-use-cases", "label": "使用场景", "path": "/admin/content?tab=use-cases" },
         { "key": "content-keywords", "label": "长尾词", "path": "/admin/content?tab=keywords" },
+        { "key": "content-keyword-optimization", "label": "关键词优化", "path": "/admin/content?tab=keyword-optimization" },
         { "key": "content-compare", "label": "对比页", "path": "/admin/content?tab=compare" },
         { "key": "content-blog", "label": "博客文章", "path": "/admin/content?tab=blog" },
         { "key": "content-batches", "label": "批量生成", "path": "/admin/content?tab=batches" }

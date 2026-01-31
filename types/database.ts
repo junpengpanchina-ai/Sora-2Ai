@@ -673,6 +673,44 @@ export interface Database {
           updated_at?: string
         }
       }
+      keyword_optimization_overrides: {
+        Row: {
+          id: string
+          keyword: string
+          priority: 'high' | 'medium' | 'low'
+          status: 'active' | 'inactive'
+          adjustment_reason: string | null
+          source: 'manual' | 'trends_api'
+          search_volume: number | null
+          trend_data: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          keyword: string
+          priority?: 'high' | 'medium' | 'low'
+          status?: 'active' | 'inactive'
+          adjustment_reason?: string | null
+          source?: 'manual' | 'trends_api'
+          search_volume?: number | null
+          trend_data?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          keyword?: string
+          priority?: 'high' | 'medium' | 'low'
+          status?: 'active' | 'inactive'
+          adjustment_reason?: string | null
+          source?: 'manual' | 'trends_api'
+          search_volume?: number | null
+          trend_data?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       dynamic_page_seo: {
         Row: {
           id: string

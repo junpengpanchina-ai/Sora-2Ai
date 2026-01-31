@@ -1,13 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isBadKeywordSlug } from '@/lib/keywords/bad-slugs'
 
 export function middleware(req: NextRequest) {
   const url = req.nextUrl
   const pathname = url.pathname
 
   // ============================================================================
-  // 1. /keywords 路由规范化
+  // 1. /keywords 路由
   // ============================================================================
   if (pathname.startsWith('/keywords/')) {
+    const parts = pathname.split('/').filter(Boolean)
+    if (parts.length === 2) {
+      const slug = parts[1]
+      // P0: Bad slugs (keywords-keywords-*, overlong) → 410 Gone
+      // Stops Google wasting crawl; Gate requires no 5xx
+      if (isBadKeywordSlug(slug)) {
+        return new NextResponse('Gone', {
+          status: 410,
+          headers: { 'X-Robots-Tag': 'noindex, nofollow' },
+        })
+      }
+    }
+
     let changed = false
     const newUrl = url.clone()
 
@@ -23,27 +37,13 @@ export function middleware(req: NextRequest) {
       changed = true
     }
 
-    // 1c) 规范化 slug：去掉重复的 keywords- 前缀
-    // /keywords/keywords-keywords-xxx -> /keywords/keywords-xxx
-    const parts = pathname.split('/').filter(Boolean) // ["keywords", "<slug>"]
-    if (parts.length === 2) {
-      const slug = parts[1]
-      // 把连续的 "keywords-" 前缀压缩为一个
-      const normalized = slug.replace(/^(keywords-)+/i, 'keywords-')
-      if (normalized !== slug) {
-        newUrl.pathname = `/keywords/${normalized}`
-        changed = true
-      }
-    }
-
-    // 1d) 去掉 .xml 后缀
+    // 1c) 去掉 .xml 后缀
     if (pathname.endsWith('.xml')) {
       newUrl.pathname = pathname.replace(/\.xml$/, '')
       changed = true
     }
 
     if (changed) {
-      // 301 永久重定向
       return NextResponse.redirect(newUrl, 301)
     }
   }
