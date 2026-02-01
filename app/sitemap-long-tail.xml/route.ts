@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import type { Database } from '@/types/database'
 import { getKeywordPageUrl, escapeXml } from '@/lib/utils/url'
 import { isBadKeywordSlug } from '@/lib/keywords/bad-slugs'
+import { assertNoBadKeywordSlugs } from '@/lib/seo/sitemapGuards'
 
 type KeywordRow = Database['public']['Tables']['long_tail_keywords']['Row']
 
@@ -65,6 +66,10 @@ export async function GET(request: Request) {
   }
 
   const data = rawData as Pick<KeywordRow, 'page_slug' | 'updated_at'>[]
+
+  // 门禁：发现 DB 中 bad slugs 时报警（SITEMAP_STRICT_ASSERT=1 时 fail）
+  const rawSlugs = data.map((item) => (item.page_slug || '').replace(/\.xml$/i, '').trim()).filter(Boolean)
+  assertNoBadKeywordSlugs(rawSlugs, { source: 'sitemap-long-tail' })
 
   // P1: 只放 canonical URL；重复前缀 slug 从 sitemap 排除，避免 redirect 污染
   const filtered = data.filter((item) => {

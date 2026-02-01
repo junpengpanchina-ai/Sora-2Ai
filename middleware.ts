@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isBadKeywordSlug, normalizeKeywordSlug } from '@/lib/keywords/bad-slugs'
+import { reportBadUrlHit } from '@/lib/seo/bad-url-report'
 
 export function middleware(req: NextRequest) {
   const url = req.nextUrl
@@ -15,6 +16,7 @@ export function middleware(req: NextRequest) {
       // P0: Bad slugs (keywords-keywords-*) → 308 to canonical (keywords-xxx)
       // Overlong → 410. Gate: never 5xx.
       if (isBadKeywordSlug(slug)) {
+        reportBadUrlHit(req, 'keywords_repeated_prefix')
         if (slug.length > 200) {
           return new NextResponse('Gone', {
             status: 410,
@@ -62,6 +64,7 @@ export function middleware(req: NextRequest) {
       const slug = parts[1]
       // 中间夹 10+ 位 hex 的异常 URL（混入 id + 超长 + 截断）
       if (/-[0-9a-f]{10,}-/i.test(slug)) {
+        reportBadUrlHit(req, 'use_cases_hex_anomaly')
         const first = slug.split('-')[0]
         if (first) {
           url.pathname = `/use-cases/${first}`
