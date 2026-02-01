@@ -98,7 +98,7 @@ export async function GET(
     })
   } catch (error) {
     console.error('Failed to generate keyword XML:', error)
-    return new NextResponse('Internal Server Error', { status: 500 })
+    return new NextResponse('Keyword not found', { status: 404 })
   }
 }
 

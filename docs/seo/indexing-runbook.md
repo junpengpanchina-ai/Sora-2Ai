@@ -10,7 +10,7 @@
 
 ### A) Middleware 规范化重定向
 - `/keywords/keywords-*`、`/keywords/keywords-keywords-*` → **308** → `/keywords/*`（canonical）
-- `/use-cases/*-[0-9a-f]{10,}-*`（hex 异常） → **308** → `/use-cases/<first>`
+- `/use-cases/*`（含 hex 的 slug）：**不再重定向**，透传至 page 按完整 slug 查库；有则 200，无则 404
 
 ### B) Keywords 页兜底
 - bad slug → **308** 到 canonical
@@ -39,7 +39,8 @@
 - use-cases hex 异常 1 条
 
 **验收标准：**
-- 旧坏 URL 最终必须是：`308/301 → 200` 或 `308/301 → 404(notFound)`
+- keywords 坏 URL：`308 → 200` 或 `308 → 404(notFound)`
+- use-cases 含 hex：直接 `200`（DB 有）或 `404`（DB 无），不再 308
 - **绝不允许**：500 / 502 / 503 / 505 / 5xx
 
 ### 1.2 curl 快速验证命令
@@ -52,13 +53,13 @@ curl -I "https://sora2aivideos.com/keywords/keywords-xxx"
 # 2) keywords 重复两次前缀
 curl -I "https://sora2aivideos.com/keywords/keywords-keywords-xxx"
 
-# 3) use-cases hex 异常
-curl -I "https://sora2aivideos.com/use-cases/fitness-<hex>-xxx"
+# 3) use-cases 含 hex（DB 中 slug 即此格式，直接查库）
+curl -I "https://sora2aivideos.com/use-cases/abstract-art-content-99fc53cc72-in-nft-and-digital-art-ai-videos-are-used-for-motion-enhancement-typ"
 ```
 
 **期望：**
-- 返回 `308` 并带 `Location: https://sora2aivideos.com/keywords/<cleaned>`
-- 最终页 `200` 或 `404`（notFound）
+- keywords：`308` + `Location: /keywords/<cleaned>`；最终页 `200` 或 `404`
+- use-cases：直接 `200`（存在）或 `404`（不存在）
 
 ---
 
@@ -75,7 +76,6 @@ curl -I "https://sora2aivideos.com/use-cases/fitness-<hex>-xxx"
 统计请求路径命中次数（每日汇总）：
 - `/keywords/keywords-`
 - `/keywords/keywords-keywords-`
-- `/use-cases/.*-[0-9a-f]{10,}-`
 
 **期望趋势：**
 - 部署后仍会有命中（历史爬虫缓存/旧链接）

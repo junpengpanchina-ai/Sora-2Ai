@@ -152,10 +152,18 @@ const getKeywordBySlug = cache(async (slug: string): Promise<KeywordPageRecord |
 
   const data = rawData as KeywordRow
 
-  return {
-    ...data,
-    steps: normalizeSteps(data.steps),
-    faq: normalizeFaq(data.faq),
+  try {
+    return {
+      ...data,
+      steps: normalizeSteps(data.steps),
+      faq: normalizeFaq(data.faq),
+    }
+  } catch (err) {
+    console.warn('[keywords/getKeywordBySlug] normalize threw, returning null:', {
+      slug,
+      error: err instanceof Error ? err.message : String(err),
+    })
+    return null
   }
 })
 
@@ -212,11 +220,17 @@ const getRelatedKeywords = cache(async (excludeId: string): Promise<KeywordPageR
 
   const data = (Array.isArray(rawData) ? rawData : []) as KeywordRow[]
 
-  return data.map((item) => ({
-    ...item,
-    steps: normalizeSteps(item.steps),
-    faq: normalizeFaq(item.faq),
-  }))
+  return data.map((item) => {
+    try {
+      return {
+        ...item,
+        steps: normalizeSteps(item.steps),
+        faq: normalizeFaq(item.faq),
+      }
+    } catch {
+      return { ...item, steps: [], faq: [] }
+    }
+  })
 })
 
 // 获取相关使用场景（通过关键词匹配）
@@ -426,25 +440,31 @@ type PageProps = {
   }
 }
 
-const buildMetaTitle = (keyword: KeywordPageRecord) => {
-  if (keyword.title) {
-    return keyword.title
-  }
-  return `${keyword.keyword} | Sora2Ai Video Generator`
+const buildMetaTitle = (keyword: KeywordPageRecord): string => {
+  if (keyword?.title && typeof keyword.title === 'string') return keyword.title
+  const kw = keyword?.keyword
+  return `${typeof kw === 'string' ? kw : 'Keyword'} | Sora2Ai Video Generator`
 }
 
-  const buildMetaDescription = (keyword: KeywordPageRecord) => {
-    if (keyword.meta_description) {
-      return keyword.meta_description
-    }
-    return keyword.intro_paragraph
-      ? keyword.intro_paragraph.slice(0, 155)
-      : `Generate ${keyword.keyword} video content online, including steps, FAQ, and direct tool access.`
+const buildMetaDescription = (keyword: KeywordPageRecord): string => {
+  if (keyword?.meta_description && typeof keyword.meta_description === 'string') {
+    return keyword.meta_description
   }
+  const intro = keyword?.intro_paragraph
+  if (intro && typeof intro === 'string') return intro.slice(0, 155)
+  const kw = keyword?.keyword
+  return `Generate ${typeof kw === 'string' ? kw : 'keyword'} video content online, including steps, FAQ, and direct tool access.`
+}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   try {
-    const keyword = await getKeywordBySlug(params.slug)
+    let slug = params.slug
+    try {
+      slug = decodeURIComponent(params.slug)
+    } catch {
+      return { title: 'Keyword Not Found', robots: { index: false, follow: false } }
+    }
+    const keyword = await getKeywordBySlug(slug.trim())
     if (!keyword) {
       return {
         title: 'Keyword Not Found',
@@ -453,7 +473,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
 
     const { getKeywordPageUrl } = await import('@/lib/utils/url')
-    const canonical = getKeywordPageUrl(keyword.page_slug.replace(/\.xml$/i, ''))
+    const canonical = getKeywordPageUrl((keyword.page_slug || '').toString().replace(/\.xml$/i, ''))
 
     return {
       title: buildMetaTitle(keyword),
@@ -468,16 +488,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         url: canonical,
       },
     }
-  } catch (error) {
-    // 防止 generateMetadata 抛异常导致 500
-    console.error('[keywords/generateMetadata] Error:', {
-      slug: params.slug,
-      error: error instanceof Error ? error.message : String(error),
-    })
-    return {
-      title: 'Keyword Not Found',
-      robots: { index: false, follow: false },
-    }
+  } catch {
+    return { title: 'Keyword Not Found', robots: { index: false, follow: false } }
   }
 }
 
@@ -524,42 +536,49 @@ export default async function KeywordLandingPage({ params }: PageProps) {
       console.error('[KeywordLandingPage] Failed to fetch related use cases:', relatedUseCasesResult.reason)
     }
   const structuredFaq =
-    keyword.faq.length > 0
-      ? {
-          '@context': 'https://schema.org',
-          '@type': 'FAQPage',
-          mainEntity: keyword.faq.map((item) => ({
-            '@type': 'Question',
-            name: item.question,
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: item.answer,
-            },
-          })),
-        }
+    keyword.faq?.length > 0
+      ? (() => {
+          try {
+            return {
+              '@context': 'https://schema.org',
+              '@type': 'FAQPage',
+              mainEntity: keyword.faq
+                .filter((item) => item?.question && item?.answer)
+                .map((item) => ({
+                  '@type': 'Question',
+                  name: String(item.question),
+                  acceptedAnswer: { '@type': 'Answer', text: String(item.answer) },
+                })),
+            }
+          } catch {
+            return null
+          }
+        })()
       : null
 
-  const heroTitle = keyword.h1 || keyword.keyword
-  const intro = keyword.intro_paragraph ?? ''
-  const intentLabel = KEYWORD_INTENT_LABELS[keyword.intent] ?? ''
-  const pageStyle = keyword.page_style ?? 'default'
+  const heroTitle = (keyword.h1 || keyword.keyword || '').toString()
+  const intro = (keyword.intro_paragraph ?? '') && typeof keyword.intro_paragraph === 'string' ? keyword.intro_paragraph : ''
+  const intentLabel = KEYWORD_INTENT_LABELS[keyword.intent as keyof typeof KEYWORD_INTENT_LABELS] ?? ''
+  const pageStyle = (keyword.page_style ?? 'default') as string
   const isChristmas = pageStyle === 'christmas'
 
   // Additional Structured Data for Keyword Page
   const { getKeywordPageUrl, getKeywordPath } = await import('@/lib/utils/url')
   const canonical = getKeywordPageUrl(keyword.page_slug)
   
+  const metaTitle = buildMetaTitle(keyword)
+  const metaDesc = buildMetaDescription(keyword)
   const keywordStructuredData = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: buildMetaTitle(keyword),
-    description: buildMetaDescription(keyword),
+    name: metaTitle,
+    description: metaDesc,
     url: canonical,
     mainEntity: {
       '@type': 'Article',
       headline: heroTitle,
-      description: buildMetaDescription(keyword),
-      articleBody: intro,
+      description: metaDesc,
+      articleBody: typeof intro === 'string' ? intro : '',
       author: {
         '@type': 'Organization',
         name: 'Sora2Ai Videos',
@@ -580,7 +599,15 @@ export default async function KeywordLandingPage({ params }: PageProps) {
       {/* Structured Data for Keyword Page */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(keywordStructuredData) }}
+        dangerouslySetInnerHTML={{
+          __html: (() => {
+            try {
+              return JSON.stringify(keywordStructuredData)
+            } catch {
+              return '{}'
+            }
+          })(),
+        }}
       />
       <ChristmasBGM enabled={isChristmas} />
       <div className={`bg-slate-50 dark:bg-gray-950 ${isChristmas ? 'christmas-theme' : ''}`}>
@@ -701,7 +728,7 @@ export default async function KeywordLandingPage({ params }: PageProps) {
           </div>
 
           <div className="space-y-8">
-            <KeywordToolEmbed defaultPrompt={keyword.keyword} />
+            <KeywordToolEmbed defaultPrompt={typeof keyword.keyword === 'string' ? keyword.keyword : ''} />
 
             <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/70">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Key Points</h3>

@@ -56,23 +56,11 @@ export function middleware(req: NextRequest) {
   }
 
   // ============================================================================
-  // 2. /use-cases: 超长 slug 含 hex 片段（如 fitness-<hex>-xxx）→ 308 到主 slug
+  // 2. /use-cases: 含 hex 的 slug 不再重定向
+  // DB 中 use_cases 的 slug 本身就是完整形式（如 abstract-art-content-99fc53cc72-...），
+  // 重定向到 /use-cases/<first> 会导致目标页不存在 → 404。
+  // 直接透传，由 page 按完整 slug 查库，有则 200，无则 404。
   // ============================================================================
-  if (pathname.startsWith('/use-cases/')) {
-    const parts = pathname.split('/').filter(Boolean)
-    if (parts.length === 2) {
-      const slug = parts[1]
-      // 中间夹 10+ 位 hex 的异常 URL（混入 id + 超长 + 截断）
-      if (/-[0-9a-f]{10,}-/i.test(slug)) {
-        reportBadUrlHit(req, 'use_cases_hex_anomaly')
-        const first = slug.split('-')[0]
-        if (first) {
-          url.pathname = `/use-cases/${first}`
-          return NextResponse.redirect(url, 308)
-        }
-      }
-    }
-  }
 
   // ============================================================================
   // 3. 通用：去掉 ?format=xml 参数（全站）
