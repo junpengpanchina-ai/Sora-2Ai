@@ -84,6 +84,8 @@ export default function VideoPageClient() {
   const [templateBrand, setTemplateBrand] = useState('')
   const [templateLoading, setTemplateLoading] = useState(false)
   const [templateNotice, setTemplateNotice] = useState<string | null>(null)
+  const [templateConsoleLog, setTemplateConsoleLog] = useState<Array<{ ts: string; role: string; locale: string; status: number; ok: boolean; error?: string }>>([])
+  const [showTemplateConsole, setShowTemplateConsole] = useState(false)
   const [referenceUrl, setReferenceUrl] = useState('')
   const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>('9:16')
   const [duration, setDuration] = useState<'10' | '15'>('10')
@@ -178,8 +180,19 @@ export default function VideoPageClient() {
     try {
       setTemplateLoading(true)
       setTemplateNotice(null)
-      const res = await fetch(`/api/prompt-templates/recommend?role=${encodeURIComponent(nextRole)}&locale=en`)
+      const url = `/api/prompt-templates/recommend?role=${encodeURIComponent(nextRole)}&locale=en`
+      const res = await fetch(url)
       const data = await res.json()
+      setTemplateConsoleLog((prev) =>
+        prev.concat({
+          ts: new Date().toISOString(),
+          role: nextRole,
+          locale: 'en',
+          status: res.status,
+          ok: res.ok && !!data?.success,
+          error: data?.error,
+        })
+      )
       if (!res.ok || !data?.success || !data?.item?.id || !data?.item?.content) {
         throw new Error(data?.error || 'Failed to load a template')
       }
@@ -209,6 +222,42 @@ export default function VideoPageClient() {
       setTemplateLoading(false)
     }
   }
+
+  async function testAllRecommendRoles() {
+    const roles: Array<'ads' | 'social' | 'long_form' | 'default'> = ['default', 'long_form', 'ads', 'social']
+    setTemplateLoading(true)
+    for (const role of roles) {
+      try {
+        const url = `/api/prompt-templates/recommend?role=${encodeURIComponent(role)}&locale=en`
+        const res = await fetch(url)
+        const data = await res.json()
+        setTemplateConsoleLog((prev) =>
+          prev.concat({
+            ts: new Date().toISOString(),
+            role,
+            locale: 'en',
+            status: res.status,
+            ok: res.ok && !!data?.success,
+            error: data?.error,
+          })
+        )
+      } catch {
+        setTemplateConsoleLog((prev) =>
+          prev.concat({
+            ts: new Date().toISOString(),
+            role,
+            locale: 'en',
+            status: 0,
+            ok: false,
+            error: 'Network or parse error',
+          })
+        )
+      }
+    }
+    setTemplateLoading(false)
+  }
+
+  const showTemplateDebug = typeof window !== 'undefined' && searchParams.get('template_debug') === '1'
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -1659,6 +1708,55 @@ export default function VideoPageClient() {
               {promptTemplateId ? (
                 <div className="mt-2 text-xs text-blue-100/60">
                   Tracking enabled: prompt_template_id = <span className="text-blue-100/80">{promptTemplateId}</span>
+                </div>
+              ) : null}
+
+              {showTemplateDebug ? (
+                <div className="mt-4 rounded-xl border border-amber-500/30 bg-black/30 p-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowTemplateConsole((v) => !v)}
+                    className="mb-2 flex w-full items-center justify-between text-left text-xs font-semibold text-amber-200"
+                  >
+                    <span>模版调试 Console</span>
+                    <span>{showTemplateConsole ? '▼' : '▶'}</span>
+                  </button>
+                  {showTemplateConsole ? (
+                    <div className="space-y-2 text-xs">
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={testAllRecommendRoles}
+                          disabled={templateLoading}
+                          className="rounded bg-amber-500/30 px-2 py-1 text-amber-200 hover:bg-amber-500/50 disabled:opacity-50"
+                        >
+                          {templateLoading ? 'Testing…' : 'Test 推荐 API (all roles)'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTemplateConsoleLog([])}
+                          className="rounded bg-white/10 px-2 py-1 text-blue-100/80 hover:bg-white/20"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                      <div className="max-h-40 overflow-y-auto font-mono text-blue-100/80">
+                        {templateConsoleLog.length === 0 ? (
+                          <div className="text-blue-100/50">No entries yet. Click &quot;Load a best template&quot; or &quot;Test 推荐 API&quot;.</div>
+                        ) : (
+                          templateConsoleLog.slice(-20).map((entry, i) => (
+                            <div key={i} className="border-b border-white/10 py-1">
+                              <span className="text-blue-100/50">{entry.ts.split('T')[1]?.slice(0, 12)}</span>{' '}
+                              <span className={entry.ok ? 'text-green-400' : 'text-red-400'}>
+                                GET recommend?role={entry.role} → {entry.status}
+                              </span>
+                              {entry.error ? <span className="ml-1 text-red-300"> {entry.error}</span> : null}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </div>
