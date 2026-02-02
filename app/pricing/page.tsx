@@ -1,9 +1,38 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { PricingPage as PricingPageComponent } from "@/components/pricing/PricingPage";
 import { PRICING_CONFIG } from "@/lib/billing/config";
 import type { PlanId } from "@/lib/billing/config";
-export default function PricingPage() {
+
+function PricingPageContent() {
+  const searchParams = useSearchParams();
+  const fromVideo = searchParams?.get("from") === "video";
+  const [pricingBucket, setPricingBucket] = useState<"A" | "B" | null>(null);
+
+  useEffect(() => {
+    if (!fromVideo) {
+      setPricingBucket("A");
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/pricing-ab?from=video", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && (data.bucket === "A" || data.bucket === "B")) {
+          setPricingBucket(data.bucket);
+        } else {
+          setPricingBucket("A");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setPricingBucket("A");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fromVideo]);
 
   const config = {
     currency: PRICING_CONFIG.currency,
@@ -30,7 +59,8 @@ export default function PricingPage() {
       const email = data.session?.user?.email || "";
 
       if (!token) {
-        window.location.href = "/login?next=/pricing";
+        const next = fromVideo ? "/pricing?from=video" : "/pricing";
+        window.location.href = `/login?next=${encodeURIComponent(next)}`;
         return;
       }
 
@@ -76,6 +106,16 @@ export default function PricingPage() {
     <PricingPageComponent
       config={config}
       onCheckout={handleCheckout}
+      fromVideo={fromVideo}
+      pricingBucket={fromVideo ? pricingBucket : "A"}
     />
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] text-white/70">Loading…</div>}>
+      <PricingPageContent />
+    </Suspense>
   );
 }

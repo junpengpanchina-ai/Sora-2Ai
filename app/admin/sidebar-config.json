@@ -9,6 +9,12 @@
       "icon": "LayoutDashboard"
     },
     {
+      "key": "conversion-gate",
+      "label": "转化 Gate",
+      "path": "/admin/conversion-gate",
+      "icon": "Shield"
+    },
+    {
       "key": "billing",
       "label": "计费中心",
       "path": "/admin/billing",

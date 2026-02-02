@@ -1266,6 +1266,7 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                 {[
                   { value: 'dashboard', label: '总览', href: '/admin/dashboard' },
                   { value: 'billing', label: '计费中心', href: '/admin/billing' },
+                  { value: 'conversion-gate', label: '转化 Gate', href: '/admin/conversion-gate' },
                   { value: 'content', label: '内容库', href: '/admin/content' },
                   { value: 'prompts', label: '提示词', href: '/admin/prompts' },
                   { value: 'landing', label: '首页管理', href: '/admin/landing' },
@@ -1274,8 +1275,9 @@ export default function AdminClient({ adminUser }: AdminClientProps) {
                     <button
                       type="button"
                       className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                        (typeof window !== 'undefined' && window.location.pathname === item.href) || 
-                        (item.value === 'dashboard' && typeof window !== 'undefined' && window.location.pathname === '/admin/dashboard')
+                        (typeof window !== 'undefined' && window.location.pathname === item.href) ||
+                        (item.value === 'dashboard' && typeof window !== 'undefined' && window.location.pathname === '/admin/dashboard') ||
+                        (item.value === 'conversion-gate' && typeof window !== 'undefined' && window.location.pathname === '/admin/conversion-gate')
                           ? 'bg-energy-water text-white'
                           : 'text-gray-700 hover:bg-energy-water-surface dark:text-gray-300 dark:hover:bg-gray-700'
                       }`}

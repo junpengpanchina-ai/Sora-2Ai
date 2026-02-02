@@ -5,15 +5,18 @@
 
 import { createClient } from '@/lib/supabase/client'
 
-// 6 个核心事件
+// 6 个核心事件 + 5 分钟漏斗事件
 export type EventName = 
   | 'home_view'                // 首页加载 - Phase 2D 入口基数
   | 'hero_generate_click'      // Hero 点 Generate - 首屏转化
   | 'example_click'            // 点 Example 卡 - 学习成本
   | 'video_page_enter'         // 进 /video - 意图确认
-  | 'generation_started'       // 调 API - 使用开始
-  | 'generation_success'       // 成功 - 产品价值
+  | 'click_generate'           // 点击生成 CTA（video 页）- 漏斗②
+  | 'generation_started'       // 调 API - 使用开始 / 漏斗③ submit_task
+  | 'generation_success'       // 成功 - 产品价值 / 漏斗④ task_success
   | 'generation_failed'        // 失败 - 问题追踪
+  | 'view_result_10s'          // 结果页停留 ≥10s - 漏斗⑤
+  | 'click_upgrade'            // 点击升级/定价 - 漏斗⑥
   | 'pricing_click'            // 看价格 - 付费意图
   | 'download_click'           // 下载视频 - 价值感知
   | 'generate_another_click'   // 再生成一个 - 粘性
@@ -156,6 +159,18 @@ export const Events = {
       name: 'generate_another_click', 
       userId,
     }),
+
+  // 5 分钟漏斗：点击生成 CTA（video 页）
+  clickGenerate: (userId?: string) =>
+    trackEvent({ name: 'click_generate', userId }),
+
+  // 5 分钟漏斗：结果页停留 ≥10 秒
+  viewResult10s: (userId?: string) =>
+    trackEvent({ name: 'view_result_10s', userId }),
+
+  // 5 分钟漏斗：点击升级/定价
+  upgradeClick: (userId?: string, from?: string) =>
+    trackEvent({ name: 'click_upgrade', userId, meta: { from } }),
 }
 
 // ============================================================

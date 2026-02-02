@@ -9,27 +9,32 @@ export default function PaymentCancelPage() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-center text-2xl">
-            <span className="text-gray-600 dark:text-gray-400">Payment Cancelled</span>
+            <span className="text-gray-700 dark:text-gray-300">Payment didn&apos;t go through</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-center">
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              You have cancelled the payment. No charges were made.
+            <p className="text-gray-600 dark:text-gray-400 font-medium">
+              Nothing was charged.
             </p>
-            <p className="text-sm text-gray-500 dark:text-gray-500">
-              If you need to recharge, please return to the homepage and try again.
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">
+              You can retry or use a different payment method.
             </p>
           </div>
-          <div className="flex gap-3">
-            <Link href="/" className="flex-1">
+          <div className="flex flex-col gap-3">
+            <Link href="/pricing" className="flex-1">
               <Button variant="primary" className="w-full">
-                Back to Home
+                👉 Try again
               </Button>
             </Link>
             <Link href="/video" className="flex-1">
               <Button variant="secondary" className="w-full">
-                Generate Video
+                Back to Video
+              </Button>
+            </Link>
+            <Link href="/" className="flex-1">
+              <Button variant="ghost" className="w-full text-gray-500">
+                Home
               </Button>
             </Link>
           </div>

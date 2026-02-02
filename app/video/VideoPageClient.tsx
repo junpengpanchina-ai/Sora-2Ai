@@ -143,6 +143,11 @@ export default function VideoPageClient() {
   const hasTrackedEnterRef = useRef(false)
   const generationStartMsRef = useRef<number | null>(null)
   const trackedResultTaskIdsRef = useRef<Set<string>>(new Set())
+  const viewResult10sFiredRef = useRef<Set<string>>(new Set())
+  const hasClickedUpgradeRef = useRef(false)
+  const firstSuccessShownRef = useRef(false)
+  const hasShownSecondaryNudgeRef = useRef(false)
+  const [showSecondaryUpgradeNudge, setShowSecondaryUpgradeNudge] = useState(false)
   const [userEntitlements, setUserEntitlements] = useState<{
     planId: string;
     veoProEnabled: boolean;
@@ -295,6 +300,44 @@ export default function VideoPageClient() {
     duration,
   ])
 
+  // 5 分钟漏斗⑤: view_result_10s — 结果页停留 ≥10 秒时打点一次（按 task_id 去重）
+  useEffect(() => {
+    const taskId = currentResult?.task_id
+    const status = currentResult?.status
+    if (!taskId || status !== 'succeeded') return
+    if (viewResult10sFiredRef.current.has(taskId)) return
+
+    const interval = setInterval(() => {
+      setTimeOnResultSec((prev) => {
+        const next = prev + 1
+        if (next >= 10) {
+          if (!viewResult10sFiredRef.current.has(taskId)) {
+            viewResult10sFiredRef.current.add(taskId)
+            Events.viewResult10s(userId)
+          }
+        }
+        return next
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [currentResult?.task_id, currentResult?.status, userId])
+
+  // First success → 30s later → secondary upgrade nudge (non-modal, only if not clicked Upgrade yet)
+  useEffect(() => {
+    const status = currentResult?.status
+    if (status !== 'succeeded') {
+      setShowSecondaryUpgradeNudge(false)
+      return
+    }
+    if (firstSuccessShownRef.current) return
+    firstSuccessShownRef.current = true
+    const t = setTimeout(() => {
+      if (hasClickedUpgradeRef.current || hasShownSecondaryNudgeRef.current) return
+      hasShownSecondaryNudgeRef.current = true
+      setShowSecondaryUpgradeNudge(true)
+    }, 30000)
+    return () => clearTimeout(t)
+  }, [currentResult?.status])
 
   const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
     if (!supabase) {
@@ -718,6 +761,7 @@ export default function VideoPageClient() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    Events.clickGenerate(userId)
     // Reset retry count and recommendation on new submission
     setRetryCount(0)
     setShowVeoProRecommendation(false)
@@ -1525,7 +1569,7 @@ export default function VideoPageClient() {
           
           {/* Single Mode Form */}
           {generationMode === 'single' && (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form id="video-form-section" onSubmit={handleSubmit} className="space-y-4">
             {/* New-user template starter (24h path) */}
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_20px_60px_-45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1925,13 +1969,15 @@ export default function VideoPageClient() {
               {!supabase ? 'Initializing...' : loading ? 'Generating Preview...' : 'Generate Preview'}
             </button>
               <p className="mt-2 text-xs text-blue-100/70 text-center">
-              {!supabase
-                ? 'Setting up secure connection… Please wait a moment.'
-                : loading
-                  ? 'Submitting request…'
-                  : promptValidationMessage
-                    ? promptValidationMessage
-                    : 'Ready to generate.'}
+                {!loading && supabase
+                  ? <span className="text-gray-400">No credit card required · Preview first</span>
+                  : !supabase
+                    ? 'Setting up secure connection… Please wait a moment.'
+                    : loading
+                      ? 'Submitting request…'
+                      : promptValidationMessage
+                        ? promptValidationMessage
+                        : 'Ready to generate.'}
               </p>
           </form>
           )}
@@ -2053,14 +2099,28 @@ export default function VideoPageClient() {
 
               {currentResult.status === 'succeeded' && currentResult.video_url && (
                 <>
-                  {/* Phase 2B: Simplified success state - highlight key actions */}
-                  <div className="mt-4 text-center">
-                    <div className="inline-flex items-center gap-2 text-green-400 mb-4">
-                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="text-lg font-semibold">Your video is ready</span>
-                    </div>
+                  {/* Conversion copy: preview → value → CTA (non-pushy, clear next step) */}
+                  <div className="mt-4 text-center space-y-1">
+                    <p className="text-lg font-semibold text-green-400">
+                      🎉 Your video is ready (preview)
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      Unlock HD, remove watermark, and export instantly
+                    </p>
+                    <p className="text-sm">
+                      <Link
+                        href="/pricing?from=video"
+                        className="text-energy-water hover:underline font-medium"
+                        title="Unlock HD export & remove watermark"
+                        onClick={() => {
+                          hasClickedUpgradeRef.current = true
+                          setShowSecondaryUpgradeNudge(false)
+                          Events.upgradeClick(userId, 'success_copy')
+                        }}
+                      >
+                        👉 Upgrade to credits to download
+                      </Link>
+                    </p>
                   </div>
                   
                   <div className="mt-4 flex justify-center">
@@ -2142,6 +2202,7 @@ export default function VideoPageClient() {
                     {/* Generate Another */}
                     <button
                       onClick={() => {
+                        setShowSecondaryUpgradeNudge(false)
                         Events.generateAnotherClick(userId)
                         setCurrentResult(null)
                         setPrompt(currentResult.prompt || '')
@@ -2160,7 +2221,7 @@ export default function VideoPageClient() {
                           href={`/api/video/download/${currentResult.task_id}`}
                           download={`video-${currentResult.task_id}.mp4`}
                           className="inline-flex items-center gap-2 rounded-lg bg-energy-water px-4 py-2 text-sm font-medium text-white hover:bg-energy-water/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          title={videoLoadError ? "Video URL may have expired. Click to try downloading (will attempt to re-fetch from API)." : "Download original quality video directly from API (no compression, no storage)"}
+                          title={videoLoadError ? "Video URL may have expired. Click to try downloading (will attempt to re-fetch from API)." : "Unlock HD export & remove watermark"}
                           onClick={async (e) => {
                             // Always download via fetch + blob with Authorization header.
                             // This avoids download failures caused by missing cookies in some flows.
@@ -2265,6 +2326,26 @@ export default function VideoPageClient() {
                     )}
                   </div>
                   
+                  {/* Secondary upgrade nudge: 30s after first success, non-modal */}
+                  {showSecondaryUpgradeNudge && (
+                    <div className="mt-4 rounded-lg border border-white/15 bg-white/5 p-3 text-center">
+                      <p className="text-sm text-gray-300">
+                        Want to download this in HD?
+                      </p>
+                      <Link
+                        href="/pricing?from=video"
+                        className="mt-1 inline-block text-sm font-medium text-energy-water hover:underline"
+                        onClick={() => {
+                          hasClickedUpgradeRef.current = true
+                          setShowSecondaryUpgradeNudge(false)
+                          Events.upgradeClick(userId, 'secondary_nudge')
+                        }}
+                      >
+                        👉 Upgrade to export
+                      </Link>
+                    </div>
+                  )}
+                  
                   {/* Helper note */}
                   <p className="mt-4 text-xs text-gray-500 text-center">
                     Issues? <Link href="/support" className="underline hover:text-gray-400">Contact support</Link>
@@ -2279,7 +2360,9 @@ export default function VideoPageClient() {
                           setCurrentResult(null)
                         }}
                         onUpgrade={() => {
-                          // Switch to Veo Pro while keeping the current prompt
+                          hasClickedUpgradeRef.current = true
+                          setShowSecondaryUpgradeNudge(false)
+                          Events.upgradeClick(userId, 'sora_to_veo')
                           setModel('veo-pro')
                           setCurrentResult(null)
                         }}
@@ -2310,7 +2393,10 @@ export default function VideoPageClient() {
                         soraRendersThisSession={soraGenerationsSession}
                         promptText={currentResult.prompt}
                         onUpgrade={() => {
-                          router.push('/pricing')
+                          hasClickedUpgradeRef.current = true
+                          setShowSecondaryUpgradeNudge(false)
+                          Events.upgradeClick(userId, 'upgrade_nudge')
+                          router.push('/pricing?from=video')
                         }}
                         onDismiss={() => {
                           // User chose to continue with Sora
@@ -2322,58 +2408,44 @@ export default function VideoPageClient() {
               )}
 
               {currentResult.status === 'failed' && (
-                <div className="mt-4 rounded-md bg-blue-50 p-4 dark:bg-blue-900/20">
-                  <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                    Trying a different variation to improve the result…
+                <div className="mt-4 rounded-lg border border-white/10 bg-white/5 p-4 dark:bg-blue-900/20">
+                  <p className="text-sm font-semibold text-white">
+                    ⚠️ Something went wrong — but your idea is safe
                   </p>
-                  <div className="mt-2 space-y-2">
-                    <p className="text-sm text-red-600 dark:text-red-300">
-                      {currentResult.error || 'Unknown error'}
-                    </p>
-                    
-                    {/* Show Veo Pro recommendation for non-Veo Pro models on failure or retry */}
-                    {model !== 'veo-pro' && (retryCount >= 1 || showVeoProRecommendation) && (
-                      <div className="mt-3">
-                        <VeoProRecommendation 
-                          onClose={() => setShowVeoProRecommendation(false)}
-                        />
-                      </div>
-                    )}
-                    
-                    {/* Show credits refunded message for all failures */}
-                    <div className="mt-3 rounded-md bg-green-50 p-3 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-                      <p className="text-xs font-medium text-green-800 dark:text-green-200 flex items-center gap-1">
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {model === 'veo-pro' 
-                          ? 'Credits have been automatically refunded (Veo Pro auto-refund on failure). You can try again with a different prompt.'
-                          : 'Credits have been automatically refunded. You can try again with a different prompt.'
-                        }
-                      </p>
-                    </div>
-                    {violationInfo && (
-                      <div className="mt-3 rounded-md bg-yellow-50 p-3 dark:bg-yellow-900/20">
-                        <p className="text-xs font-medium text-yellow-800 dark:text-yellow-200 mb-1">
-                          ⚠️ {violationInfo.headline}
-                        </p>
-                        <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                          {violationInfo.description}
-                        </p>
-                        <ul className="mt-1 ml-4 list-disc text-xs text-yellow-700 dark:text-yellow-300 space-y-1">
-                          {violationInfo.suggestions.map((tip) => (
-                            <li key={tip}>{tip}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
+                  <p className="mt-1 text-sm text-gray-400">
+                    We didn&apos;t charge credits. Try again or adjust the prompt.
+                  </p>
                   <button
                     onClick={() => setCurrentResult(null)}
-                    className="mt-3 text-sm text-red-600 hover:text-red-700 dark:text-red-400"
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg bg-energy-water px-4 py-2 text-sm font-medium text-white hover:bg-energy-water/90 transition-colors"
                   >
-                    Close
+                    👉 Retry generation
                   </button>
+                  <p className="mt-3 text-xs text-gray-500">
+                    Credits are only charged on successful generation.
+                  </p>
+                  {violationInfo && (
+                    <div className="mt-3 rounded-md bg-yellow-50/10 p-3 dark:bg-yellow-900/20 border border-yellow-500/30">
+                      <p className="text-xs font-medium text-yellow-200 mb-1">
+                        ⚠️ {violationInfo.headline}
+                      </p>
+                      <p className="text-xs text-yellow-200/80">
+                        {violationInfo.description}
+                      </p>
+                      <ul className="mt-1 ml-4 list-disc text-xs text-yellow-200/80 space-y-1">
+                        {violationInfo.suggestions.map((tip) => (
+                          <li key={tip}>{tip}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {model !== 'veo-pro' && (retryCount >= 1 || showVeoProRecommendation) && (
+                    <div className="mt-3">
+                      <VeoProRecommendation 
+                        onClose={() => setShowVeoProRecommendation(false)}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -2420,6 +2492,23 @@ export default function VideoPageClient() {
             </div>
           </div>
         )}
+
+        {/* Non-intrusive conversion banner: only for humans, no SEO impact (client-only) */}
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-black/90 backdrop-blur-sm py-2 px-4 flex items-center justify-center gap-2 text-sm text-gray-300">
+          <span>🎬 Create your first AI video in 60s · Free preview</span>
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault()
+              document.getElementById('video-form-section')?.scrollIntoView({ behavior: 'smooth' })
+            }}
+            className="text-energy-water hover:underline font-medium"
+          >
+            Try now
+          </a>
+        </div>
+        {/* Spacer so main content is not hidden behind fixed banner */}
+        <div className="h-12" aria-hidden="true" />
 
       </div>
       </div>

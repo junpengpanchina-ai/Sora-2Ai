@@ -144,8 +144,14 @@ export async function POST(req: NextRequest) {
         ip_prefix: ipPrefix ?? "",
       },
       success_url: `${baseUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/pricing?canceled=1`,
+      cancel_url: `${baseUrl}/payment/cancel`,
       allow_promotion_codes: true,
+      // 安心提示：掏卡前消除“会不会每月扣/会不会白给”的阻力（不出现 pay/subscribe 等词）
+      custom_text: {
+        submit: {
+          message: "One-time credits · No subscription. Only charged when generation succeeds.",
+        },
+      },
     });
 
     return NextResponse.json({ url: session.url });

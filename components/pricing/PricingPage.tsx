@@ -8,6 +8,9 @@ import type { PricingConfig } from "@/lib/billing/types";
 type Props = {
   config: PricingConfig;
   onCheckout: (planId: "starter" | "creator" | "studio" | "pro") => void;
+  fromVideo?: boolean;
+  /** A/B: B = 低档 only（只展示一个选项）；A 或未传 = 多档 */
+  pricingBucket?: "A" | "B" | null;
 };
 
 const faq: FAQItem[] = [
@@ -41,91 +44,140 @@ const faq: FAQItem[] = [
   },
 ];
 
-export function PricingPage({ config, onCheckout }: Props) {
+export function PricingPage({ config, onCheckout, fromVideo, pricingBucket = "A" }: Props) {
+  const showLowTierOnly = pricingBucket === "B" && fromVideo;
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#0a0a0a] via-[#1a1a1a] to-[#0a0a0a] text-white">
       <div className="mx-auto max-w-5xl px-4 py-10">
-        <header className="text-center">
-          {/* Phase 2C: 简化开场 - 强调简单、无订阅 */}
-          <h1 className="text-3xl md:text-4xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-            Simple prepaid credits.
-          </h1>
-          <p className="mt-2 text-xl text-white/90">
-            Pay once. Use anytime.
-          </p>
-          <p className="mt-4 text-base text-white/60">
-            Most videos cost 10 credits. No subscriptions. No lock-in.
-          </p>
-        </header>
+        {fromVideo ? (
+          <>
+            <header className="text-center">
+              <h1 className="text-3xl md:text-4xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                You&apos;re almost there
+              </h1>
+              <p className="mt-2 text-xl text-white/90">
+                This video is ready — credits only unlock export
+              </p>
+              <ul className="mt-4 text-left max-w-sm mx-auto space-y-2 text-sm text-white/80">
+                <li className="flex items-center gap-2">✔️ Download in HD</li>
+                <li className="flex items-center gap-2">✔️ No watermark</li>
+                <li className="flex items-center gap-2">✔️ Use it anywhere</li>
+              </ul>
+              <p className="mt-4 text-sm text-green-400/90">
+                Credits are only charged on successful generation.
+              </p>
+              <p className="mt-2 text-base font-medium text-white/90">
+                👉 Choose credits & download
+              </p>
+            </header>
+            <section className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-6">
+              <p className="text-lg font-semibold text-white">Download your video in HD</p>
+              <p className="mt-1 text-sm text-white/80">Credits are one-time — no subscription</p>
+              <p className="mt-1 text-sm text-white/70">Only charged when generation succeeds</p>
+            </section>
+          </>
+        ) : (
+          <header className="text-center">
+            {/* Phase 2C: 简化开场 - 强调简单、无订阅 */}
+            <h1 className="text-3xl md:text-4xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+              Simple prepaid credits.
+            </h1>
+            <p className="mt-2 text-xl text-white/90">
+              Pay once. Use anytime.
+            </p>
+            <p className="mt-4 text-base text-white/60">
+              Most videos cost 10 credits. No subscriptions. No lock-in.
+            </p>
+          </header>
+        )}
 
-        <section className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-          <PlanCard
-            planId="starter"
-            title="Starter"
-            price="$4.90"
-            videoEstimate="~12 videos"
-            badge="Try the workflow"
-            bullets={[
-              "120 bonus credits (7 days)",
-              "Test with Sora + Veo Fast",
-              "Daily limits keep service fair",
-            ]}
-            ctaLabel="Start with Starter"
-            onCta={(id) => onCheckout(id)}
-            footnote="Most videos cost 10 credits."
-          />
+        <section className={`mt-10 grid gap-5 ${showLowTierOnly ? "max-w-md mx-auto" : "md:grid-cols-2 lg:grid-cols-4"}`}>
+          {showLowTierOnly ? (
+            <PlanCard
+              planId="starter"
+              title="Just download this video"
+              price="$4.90"
+              badge={undefined}
+              bullets={[
+                "HD · No watermark",
+                "One-time credits",
+              ]}
+              ctaLabel="Download now"
+              onCta={(id) => onCheckout(id)}
+              footnote="Credits are only charged when generation succeeds."
+            />
+          ) : (
+            <>
+              <PlanCard
+                planId="starter"
+                title="Starter"
+                price="$4.90"
+                videoEstimate="~12 videos"
+                badge="Try the workflow"
+                bullets={[
+                  "120 bonus credits (7 days)",
+                  "Test with Sora + Veo Fast",
+                  "Daily limits keep service fair",
+                ]}
+                ctaLabel="Start with Starter"
+                onCta={(id) => onCheckout(id)}
+                footnote="Most videos cost 10 credits."
+              />
 
-          <PlanCard
-            planId="creator"
-            title="Creator"
-            price="$39"
-            videoEstimate="~60 videos"
-            badge="Recommended"
-            bullets={[
-              "600 permanent credits",
-              "+60 bonus (30 days)",
-              "Unlock Veo Pro",
-              "Better limits + queue",
-            ]}
-            ctaLabel="Get Creator Pack"
-            onCta={(id) => onCheckout(id)}
-            variant="primary"
-            footnote="Most videos cost 10 credits."
-          />
+              <PlanCard
+                planId="creator"
+                title="Creator"
+                price="$39"
+                videoEstimate="~60 videos"
+                badge="Recommended"
+                bullets={[
+                  "600 permanent credits",
+                  "+60 bonus (30 days)",
+                  "Unlock Veo Pro",
+                  "Better limits + queue",
+                ]}
+                ctaLabel="Get Creator Pack"
+                onCta={(id) => onCheckout(id)}
+                variant="primary"
+                footnote="Most videos cost 10 credits."
+              />
 
-          <PlanCard
-            planId="studio"
-            title="Studio"
-            price="$99"
-            videoEstimate="~180 videos"
-            badge="Best for Veo Pro"
-            bullets={[
-              "1,800 permanent credits",
-              "+270 bonus (45 days)",
-              "Priority queue",
-              "For final exports",
-            ]}
-            ctaLabel="Get Studio Pack"
-            onCta={(id) => onCheckout(id)}
-            footnote="Most videos cost 10 credits."
-          />
+              <PlanCard
+                planId="studio"
+                title="Studio"
+                price="$99"
+                videoEstimate="~180 videos"
+                badge="Best for Veo Pro"
+                bullets={[
+                  "1,800 permanent credits",
+                  "+270 bonus (45 days)",
+                  "Priority queue",
+                  "For final exports",
+                ]}
+                ctaLabel="Get Studio Pack"
+                onCta={(id) => onCheckout(id)}
+                footnote="Most videos cost 10 credits."
+              />
 
-          <PlanCard
-            planId="pro"
-            title="Pro"
-            price="$299"
-            videoEstimate="~600 videos"
-            badge="Teams & heavy usage"
-            bullets={[
-              "6,000 permanent credits",
-              "+1,200 bonus (60 days)",
-              "Best value per credit",
-              "Fastest queue",
-            ]}
-            ctaLabel="Get Pro Pack"
-            onCta={(id) => onCheckout(id)}
-            footnote="Most videos cost 10 credits."
-          />
+              <PlanCard
+                planId="pro"
+                title="Pro"
+                price="$299"
+                videoEstimate="~600 videos"
+                badge="Teams & heavy usage"
+                bullets={[
+                  "6,000 permanent credits",
+                  "+1,200 bonus (60 days)",
+                  "Best value per credit",
+                  "Fastest queue",
+                ]}
+                ctaLabel="Get Pro Pack"
+                onCta={(id) => onCheckout(id)}
+                footnote="Most videos cost 10 credits."
+              />
+            </>
+          )}
         </section>
 
         <section className="mt-10">
