@@ -11,6 +11,21 @@ export function getBaseUrl(): string {
 }
 
 /**
+ * 分享页 path（干净 URL，用于分享到社交平台）
+ * 使用 /v/<taskId> 短路径，share 页带 OG/canonical
+ */
+export function getSharePath(taskId: string): string {
+  return `/share/${encodeURIComponent(taskId)}`
+}
+
+/**
+ * 分享页完整 URL（用于复制链接、Twitter/Facebook intent）
+ */
+export function getSharePageUrl(taskId: string): string {
+  return `${getBaseUrl()}${getSharePath(taskId)}`
+}
+
+/**
  * 生成长尾词页面的 path（用于内链 href）
  * 复发源防护：始终 normalize 后再输出
  */

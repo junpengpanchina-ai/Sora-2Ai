@@ -19,6 +19,9 @@ export type EventName =
   | 'click_upgrade'            // 点击升级/定价 - 漏斗⑥
   | 'pricing_click'            // 看价格 - 付费意图
   | 'download_click'           // 下载视频 - 价值感知
+  | 'share_click'              // 分享（区分平台）- 转化漏斗 success_to_share
+  | 'share_unlock_claim'       // 分享后领取去水印权益
+  | 'download_no_watermark_via_share'  // 通过分享解锁的去水印下载
   | 'generate_another_click'   // 再生成一个 - 粘性
 
 interface EventPayload {
@@ -147,12 +150,37 @@ export const Events = {
     }),
   
   // 下载视频
-  downloadClick: (userId?: string) => 
+  downloadClick: (userId?: string, meta?: { videoId?: string }) => 
     trackEvent({ 
       name: 'download_click', 
       userId,
+      meta: meta ? { videoId: meta.videoId } : undefined,
     }),
-  
+
+  // 分享（区分平台，不复用 downloadClick）
+  shareClick: (userId: string | undefined, platform: string, videoId?: string) =>
+    trackEvent({
+      name: 'share_click',
+      userId,
+      meta: { platform, videoId },
+    }),
+
+  // 分享后领取去水印导出权益（share-intent unlock）
+  shareUnlockClaim: (userId: string | undefined, platform: string, taskId: string) =>
+    trackEvent({
+      name: 'share_unlock_claim',
+      userId,
+      meta: { platform, taskId },
+    }),
+
+  // 通过分享解锁的去水印下载
+  downloadNoWatermarkViaShare: (userId: string | undefined, taskId: string) =>
+    trackEvent({
+      name: 'download_no_watermark_via_share',
+      userId,
+      meta: { taskId },
+    }),
+
   // 再生成一个
   generateAnotherClick: (userId?: string) => 
     trackEvent({ 

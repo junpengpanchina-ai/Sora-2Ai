@@ -9,10 +9,12 @@ import VeoProRecommendation from '@/components/VeoProRecommendation'
 import SoraToVeoGuide from '@/components/SoraToVeoGuide'
 import VeoUpgradeNudge from '@/components/growth/VeoUpgradeNudge'
 import { UpgradeNudge } from '@/components/upsell/UpgradeNudge'
+import SocialShareButtons from '@/components/SocialShareButtons'
 import { createClient } from '@/lib/supabase/client'
 import { setPostLoginRedirect } from '@/lib/auth/post-login-redirect'
 import { Events } from '@/lib/analytics/events'
 import { trackPromptEvent } from '@/lib/analytics/prompt-template-events'
+import { getSharePageUrl } from '@/lib/utils/url'
 
 type ViolationType = 'input_moderation' | 'output_moderation' | 'third_party'
 
@@ -150,6 +152,8 @@ export default function VideoPageClient() {
   const firstSuccessShownRef = useRef(false)
   const hasShownSecondaryNudgeRef = useRef(false)
   const [showSecondaryUpgradeNudge, setShowSecondaryUpgradeNudge] = useState(false)
+  /** Task ID that got share-unlock (no-watermark export), one-time per video */
+  const [shareUnlockedTaskId, setShareUnlockedTaskId] = useState<string | null>(null)
   const [userEntitlements, setUserEntitlements] = useState<{
     planId: string;
     veoProEnabled: boolean;
@@ -2302,6 +2306,7 @@ export default function VideoPageClient() {
                     <button
                       onClick={() => {
                         setShowSecondaryUpgradeNudge(false)
+                        setShareUnlockedTaskId(null)
                         Events.generateAnotherClick(userId)
                         setCurrentResult(null)
                         setPrompt(currentResult.prompt || '')
@@ -2315,21 +2320,34 @@ export default function VideoPageClient() {
                       Generate another
                     </button>
                     
-                    {currentResult.task_id && (
+                    {currentResult.task_id && (() => {
+                      const canExportNoWatermark = currentResult.remove_watermark || shareUnlockedTaskId === currentResult.task_id
+                      const downloadUrl = canExportNoWatermark
+                        ? `/api/video/download-nowm/${currentResult.task_id}`
+                        : `/api/video/download/${currentResult.task_id}`
+                      const usedShareUnlock = canExportNoWatermark && !currentResult.remove_watermark
+                      return (
                         <a
-                          href={`/api/video/download/${currentResult.task_id}`}
+                          href={downloadUrl}
                           download={`video-${currentResult.task_id}.mp4`}
                           className="inline-flex items-center gap-2 rounded-lg bg-energy-water px-4 py-2 text-sm font-medium text-white hover:bg-energy-water/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          title={videoLoadError ? "Video URL may have expired. Click to try downloading (will attempt to re-fetch from API)." : "Unlock HD export & remove watermark"}
+                          title={
+                            videoLoadError
+                              ? "Video URL may have expired. Click to try downloading (will attempt to re-fetch from API)."
+                              : (canExportNoWatermark
+                                  ? "Download your video (no watermark)"
+                                  : "Download preview · Share to remove watermark or upgrade with credits")
+                          }
                           onClick={async (e) => {
-                            // Always download via fetch + blob with Authorization header.
-                            // This avoids download failures caused by missing cookies in some flows.
                             e.preventDefault()
-                            Events.downloadClick(userId)
-                            setDidDownloadOrShare(true) // Track download action
+                            if (canExportNoWatermark) {
+                              Events.downloadClick(userId, { videoId: currentResult.task_id })
+                              if (usedShareUnlock) Events.downloadNoWatermarkViaShare(userId, currentResult.task_id)
+                            }
+                            setDidDownloadOrShare(true)
                             try {
                               const authHeaders = await getAuthHeaders()
-                              const response = await fetch(`/api/video/download/${currentResult.task_id}`, {
+                              const response = await fetch(downloadUrl, {
                                 headers: authHeaders,
                                 credentials: 'include',
                               })
@@ -2340,70 +2358,31 @@ export default function VideoPageClient() {
                                 a.href = url
                                 a.download = `video-${currentResult.task_id}.mp4`
                                 a.style.display = 'none'
-                                
-                                // Safely append the element
+                                try { document.body.appendChild(a) } catch (err) { console.warn('Failed to append download link:', err) }
+                                try { a.click() } catch (err) { console.warn('Failed to trigger download:', err) }
                                 try {
-                                  document.body.appendChild(a)
-                                } catch (e) {
-                                  console.warn('Failed to append download link:', e)
-                                }
-                                
-                                // Trigger download
-                                try {
-                                  a.click()
-                                } catch (e) {
-                                  console.warn('Failed to trigger download:', e)
-                                }
-                                
-                                // Safely remove the element with multi-check + try/catch
-                                try {
-                                  // Ensure the element is still in the DOM
-                                  if (a.parentNode && document.body.contains(a)) {
-                                    document.body.removeChild(a)
-                                  } else if (a.parentNode) {
-                                    // If parentNode exists but isn't body, remove from the parent
-                                    a.parentNode.removeChild(a)
-                                  } else {
-                                    // If already removed, call remove() if available
-                                    if (a.remove && typeof a.remove === 'function') {
-                                      a.remove()
-                                    }
-                                  }
-                                } catch {
-                                  // If all removal methods fail, try remove() as a fallback
-                                  try {
-                                    if (a.remove && typeof a.remove === 'function') {
-                                      a.remove()
-                                    }
-                                  } catch (e) {
-                                    // Last resort: ignore. The element may already be removed by other code.
-                                    console.debug('Element removal failed (safe to ignore):', e)
-                                  }
-                                }
-                                
-                                // Revoke object URL
-                                try {
-                                  window.URL.revokeObjectURL(url)
-                                } catch (e) {
-                                  console.warn('Failed to revoke object URL:', e)
-                                }
-                                
-                                // Update state only if still mounted
-                                if (isMountedRef.current) {
-                                  setVideoLoadError(null) // Clear error on success
-                                }
+                                  if (a.parentNode && document.body.contains(a)) document.body.removeChild(a)
+                                  else if (a.parentNode) a.parentNode.removeChild(a)
+                                  else if (typeof a.remove === 'function') a.remove()
+                                } catch { try { if (typeof a.remove === 'function') a.remove() } catch {} }
+                                try { window.URL.revokeObjectURL(url) } catch (err) { console.warn('Failed to revoke object URL:', err) }
+                                if (isMountedRef.current) setVideoLoadError(null)
                               } else if (response.status === 401) {
                                 setVideoLoadError('Unauthorized, please login first')
+                              } else if (response.status === 403) {
+                                const data = await response.json().catch(() => ({}))
+                                setVideoLoadError((data as { error?: string }).error ?? 'No-watermark export not available.')
                               } else if (response.status === 404) {
                                 const errorData = await response.json().catch(() => ({}))
                                 setVideoLoadError(
-                                  errorData.details ||
-                                    errorData.error ||
-                                    'Video not found (the video URL may have expired). Please try generating the video again.'
+                                  (errorData as { details?: string; error?: string }).details
+                                    ?? (errorData as { details?: string; error?: string }).error
+                                    ?? 'Video not found (the video URL may have expired). Please try generating the video again.'
                                 )
                               } else {
                                 const errorData = await response.json().catch(() => ({}))
-                                setVideoLoadError(errorData.details || errorData.error || `Failed to download video (HTTP ${response.status}).`)
+                                const d = errorData as { details?: string; error?: string }
+                                setVideoLoadError(d.details ?? d.error ?? `Failed to download video (HTTP ${response.status}).`)
                               }
                             } catch (error) {
                               console.error('Download error:', error)
@@ -2414,22 +2393,84 @@ export default function VideoPageClient() {
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                           </svg>
-                          {videoLoadError ? 'Try Download' : 'Download'}
+                          {videoLoadError ? 'Try Download' : (canExportNoWatermark ? 'Download (No Watermark)' : 'Download preview')}
                         </a>
-                      )}
+                      )
+                    })()}
                     
-                    {currentResult.remove_watermark && (
-                      <span className="text-xs text-green-400 px-2">
-                        ✓ No Watermark
-                      </span>
+                    {currentResult.remove_watermark ? (
+                      <span className="text-xs text-green-400 px-2">✓ No Watermark</span>
+                    ) : shareUnlockedTaskId === currentResult.task_id ? (
+                      <span className="text-xs text-green-400 px-2">Unlocked: No watermark export</span>
+                    ) : (
+                      <span className="text-xs text-gray-400 px-2">Preview watermark</span>
                     )}
                   </div>
+                  
+                  {/* Upgrade micro-copy when preview (watermark) and not share-unlocked */}
+                  {currentResult.task_id && !currentResult.remove_watermark && shareUnlockedTaskId !== currentResult.task_id && (
+                    <p className="mt-2 text-center">
+                      <Link
+                        href="/pricing?from=video"
+                        className="text-xs text-energy-water hover:underline"
+                        onClick={() => Events.upgradeClick(userId, 'download_preview_hint')}
+                      >
+                        Remove watermark with credits →
+                      </Link>
+                    </p>
+                  )}
+                  
+                  {/* Share to remove watermark / Share this video */}
+                  {currentResult.video_url && currentResult.task_id && (
+                    <div className="mt-4 flex flex-col items-center gap-2">
+                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                        {!currentResult.remove_watermark && shareUnlockedTaskId !== currentResult.task_id
+                          ? 'Share to remove watermark'
+                          : 'Share this video'}
+                      </p>
+                      <SocialShareButtons
+                        url={getSharePageUrl(currentResult.task_id)}
+                        title={(() => {
+                          const base = 'Check out this AI-generated video'
+                          const p = (currentResult.prompt || '').replace(/\s+/g, ' ').trim()
+                          if (!p) return base
+                          const short = p.length > 80 ? p.slice(0, 77) + '...' : p
+                          return `${base}: ${short}`
+                        })()}
+                        size="md"
+                        platforms={['twitter', 'facebook', 'copy', 'instagram']}
+                        onShare={async (platform) => {
+                          setDidDownloadOrShare(true)
+                          Events.shareClick(userId, platform, currentResult.task_id)
+                          try {
+                            const authHeaders = await getAuthHeaders()
+                            const res = await fetch(`/api/video/share-unlock/${currentResult.task_id}`, {
+                              method: 'POST',
+                              headers: {
+                                ...authHeaders,
+                                'x-share-platform': platform,
+                              },
+                              credentials: 'include',
+                            })
+                            const data = await res.json().catch(() => ({}))
+                            if (res.ok && (data as { unlocked?: boolean }).unlocked) {
+                              setShareUnlockedTaskId(currentResult.task_id)
+                              Events.shareUnlockClaim(userId, platform, currentResult.task_id)
+                            }
+                          } catch {}
+                        }}
+                      />
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 text-center max-w-xs">
+                        Sharing helps you get feedback — link opens a clean preview page.
+                      </p>
+                    </div>
+                  )}
                   
                   {/* Secondary upgrade nudge: 30s after first success, non-modal */}
                   {showSecondaryUpgradeNudge && (
                     <div className="mt-4 rounded-lg border border-white/15 bg-white/5 p-3 text-center">
                       <p className="text-sm text-gray-300">
-                        Want to download this in HD?
+                        Remove watermark & export
                       </p>
                       <Link
                         href="/pricing?from=video"
@@ -2440,7 +2481,7 @@ export default function VideoPageClient() {
                           Events.upgradeClick(userId, 'secondary_nudge')
                         }}
                       >
-                        👉 Upgrade to export
+                        👉 Use credits to unlock
                       </Link>
                     </div>
                   )}

@@ -154,6 +154,10 @@ export interface Database {
           created_at: string
           updated_at: string
           completed_at: string | null
+          share_unlocked_at: string | null
+          share_unlocked_by: string | null
+          share_unlock_used: boolean | null
+          share_unlock_expires_at: string | null
         }
         Insert: {
           id?: string
@@ -176,6 +180,10 @@ export interface Database {
           created_at?: string
           updated_at?: string
           completed_at?: string | null
+          share_unlocked_at?: string | null
+          share_unlocked_by?: string | null
+          share_unlock_used?: boolean | null
+          share_unlock_expires_at?: string | null
         }
         Update: {
           id?: string
@@ -198,6 +206,10 @@ export interface Database {
           created_at?: string
           updated_at?: string
           completed_at?: string | null
+          share_unlocked_at?: string | null
+          share_unlocked_by?: string | null
+          share_unlock_used?: boolean | null
+          share_unlock_expires_at?: string | null
         }
       }
       recharge_records: {
