@@ -15,7 +15,8 @@ const batchRequestSchema = z.object({
   prompts: z.array(z.string().min(5)).min(1).max(100),
   model: z.enum(["sora-2", "veo-flash", "veo-pro"]).default("sora-2"),
   aspectRatio: z.enum(["16:9", "9:16"]).default("16:9"),
-  duration: z.enum(["5", "10"]).default("5"),
+  // Sora batch duration: align with single-mode API (10s or 15s)
+  duration: z.enum(["10", "15"]).default("10"),
 });
 
 function jsonResponse<T>(data: T, init?: ResponseInit): NextResponse {

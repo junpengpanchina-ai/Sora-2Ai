@@ -1534,7 +1534,8 @@ export default function VideoPageClient() {
                               prompts,
                               model: batchModel,
                               aspectRatio: batchAspectRatio,
-                              duration: '5',
+                              // Batch generation: use 10s duration to align with allowed Sora lengths (10s/15s)
+                              duration: '10',
                             }),
                           });
                           
