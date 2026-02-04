@@ -12,6 +12,10 @@ async function getShareMeta(taskId: string) {
       .from('video_tasks')
       .select('prompt, video_url, status')
       .eq('id', taskId)
+      .eq('status', 'succeeded')
+      // Soft abuse prevention: future support for deleted_at or visibility
+      // .is('deleted_at', null)
+      // .eq('visibility', 'public')
       .single()
 
     const row = data as { prompt?: string; video_url?: string | null; status?: string } | null

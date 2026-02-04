@@ -31,7 +31,7 @@ export async function POST(
 
     const { data: task, error: taskError } = await supabase
       .from('video_tasks')
-      .select('id, user_id, status, completed_at, remove_watermark, share_unlocked_at, share_unlocked_by, share_unlock_used, share_unlock_expires_at')
+      .select('id, user_id, status, completed_at, remove_watermark, share_unlocked_at, share_unlocked_by, share_unlock_used, share_unlock_expires_at, model, duration')
       .eq('id', taskId)
       .single()
 
@@ -49,6 +49,33 @@ export async function POST(
       share_unlocked_by: string | null
       share_unlock_used: boolean | null
       share_unlock_expires_at: string | null
+      model: string | null
+      duration: number | null
+    }
+
+    // Share-Unlock Eligibility: Veo 8s ✅, Sora 10s ⚠️ (GREEN Gate only), Sora 15s ❌
+    const isEligible = (() => {
+      const model = row.model?.toLowerCase() || ''
+      const duration = row.duration || 0
+      
+      // Veo 8s: 默认允许
+      if (model.includes('veo') && duration === 8) return true
+      
+      // Sora 10s: 需要检查 Gate（当前简化：默认允许，未来可接入 Gate）
+      if (model.includes('sora') && duration === 10) return true
+      
+      // Sora 15s: 禁止
+      if (model.includes('sora') && duration === 15) return false
+      
+      // 其他：默认允许（向后兼容）
+      return true
+    })()
+
+    if (!isEligible) {
+      return NextResponse.json(
+        { error: 'Share unlock not available for this video type. Only Veo 8s and Sora 10s are eligible.' },
+        { status: 403 }
+      )
     }
 
     if (!isOwnedByUser(row, user.id)) {
@@ -83,9 +110,16 @@ export async function POST(
       })
     }
 
-    const completedAt = row.completed_at ? new Date(row.completed_at).getTime() : 0
+    // 时间窗口：必须基于 completed_at（用户心智完成点），未完成不可领
+    if (!row.completed_at) {
+      return NextResponse.json(
+        { error: 'Task not completed yet' },
+        { status: 409 }
+      )
+    }
+    const completedAt = new Date(row.completed_at).getTime()
     const windowMs = SHARE_UNLOCK_WINDOW_MINUTES * 60 * 1000
-    if (completedAt && now.getTime() - completedAt > windowMs) {
+    if (now.getTime() - completedAt > windowMs) {
       return NextResponse.json(
         { error: 'Share unlock expired (claim within 10 minutes of completion)' },
         { status: 410 }

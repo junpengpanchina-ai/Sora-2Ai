@@ -10,6 +10,7 @@ import SoraToVeoGuide from '@/components/SoraToVeoGuide'
 import VeoUpgradeNudge from '@/components/growth/VeoUpgradeNudge'
 import { UpgradeNudge } from '@/components/upsell/UpgradeNudge'
 import SocialShareButtons from '@/components/SocialShareButtons'
+import ShareUnlockUpsell, { ShareUnlockUpsellLight } from '@/components/growth/ShareUnlockUpsell'
 import { createClient } from '@/lib/supabase/client'
 import { setPostLoginRedirect } from '@/lib/auth/post-login-redirect'
 import { Events } from '@/lib/analytics/events'
@@ -154,6 +155,10 @@ export default function VideoPageClient() {
   const [showSecondaryUpgradeNudge, setShowSecondaryUpgradeNudge] = useState(false)
   /** Task ID that got share-unlock (no-watermark export), one-time per video */
   const [shareUnlockedTaskId, setShareUnlockedTaskId] = useState<string | null>(null)
+  /** Share-unlock 过期时间（用于二跳文案） */
+  const [shareUnlockExpiresAt, setShareUnlockExpiresAt] = useState<string | null>(null)
+  /** 是否已通过 share-unlock 下载过（触发二跳） */
+  const [hasDownloadedViaShareUnlock, setHasDownloadedViaShareUnlock] = useState(false)
   const [userEntitlements, setUserEntitlements] = useState<{
     planId: string;
     veoProEnabled: boolean;
@@ -2342,7 +2347,11 @@ export default function VideoPageClient() {
                             e.preventDefault()
                             if (canExportNoWatermark) {
                               Events.downloadClick(userId, { videoId: currentResult.task_id })
-                              if (usedShareUnlock) Events.downloadNoWatermarkViaShare(userId, currentResult.task_id)
+                              if (usedShareUnlock) {
+                                Events.downloadNoWatermarkViaShare(userId, currentResult.task_id)
+                              } else if (currentResult.remove_watermark) {
+                                Events.downloadNoWatermarkPaid(userId, currentResult.task_id)
+                              }
                             }
                             setDidDownloadOrShare(true)
                             try {
@@ -2366,7 +2375,10 @@ export default function VideoPageClient() {
                                   else if (typeof a.remove === 'function') a.remove()
                                 } catch { try { if (typeof a.remove === 'function') a.remove() } catch {} }
                                 try { window.URL.revokeObjectURL(url) } catch (err) { console.warn('Failed to revoke object URL:', err) }
-                                if (isMountedRef.current) setVideoLoadError(null)
+                                if (isMountedRef.current) {
+                                  setVideoLoadError(null)
+                                  if (usedShareUnlock) setHasDownloadedViaShareUnlock(true)
+                                }
                               } else if (response.status === 401) {
                                 setVideoLoadError('Unauthorized, please login first')
                               } else if (response.status === 403) {
@@ -2401,7 +2413,7 @@ export default function VideoPageClient() {
                     {currentResult.remove_watermark ? (
                       <span className="text-xs text-green-400 px-2">✓ No Watermark</span>
                     ) : shareUnlockedTaskId === currentResult.task_id ? (
-                      <span className="text-xs text-green-400 px-2">Unlocked: No watermark export</span>
+                      <span className="text-xs text-green-400 px-2">Unlocked: 1× no-watermark export (valid for 10 minutes)</span>
                     ) : (
                       <span className="text-xs text-gray-400 px-2">Preview watermark</span>
                     )}
@@ -2455,6 +2467,8 @@ export default function VideoPageClient() {
                             const data = await res.json().catch(() => ({}))
                             if (res.ok && (data as { unlocked?: boolean }).unlocked) {
                               setShareUnlockedTaskId(currentResult.task_id)
+                              const d = data as { expiresAt?: string }
+                              if (d.expiresAt) setShareUnlockExpiresAt(d.expiresAt)
                               Events.shareUnlockClaim(userId, platform, currentResult.task_id)
                             }
                           } catch {}
@@ -2463,7 +2477,24 @@ export default function VideoPageClient() {
                       <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 text-center max-w-xs">
                         Sharing helps you get feedback — link opens a clean preview page.
                       </p>
+                      {/* 轻量版二跳文案（下载成功后） */}
+                      {hasDownloadedViaShareUnlock && shareUnlockedTaskId === currentResult.task_id && (
+                        <ShareUnlockUpsellLight userId={userId} />
+                      )}
                     </div>
+                  )}
+                  
+                  {/* Share-Unlock → 付费二跳文案（主版） */}
+                  {shareUnlockedTaskId === currentResult.task_id && shareUnlockExpiresAt && (
+                    <ShareUnlockUpsell
+                      userId={userId}
+                      taskId={currentResult.task_id}
+                      expiresAt={shareUnlockExpiresAt}
+                      hasDownloaded={hasDownloadedViaShareUnlock}
+                      onDismiss={() => {
+                        setShareUnlockExpiresAt(null)
+                      }}
+                    />
                   )}
                   
                   {/* Secondary upgrade nudge: 30s after first success, non-modal */}

@@ -22,6 +22,7 @@ export type EventName =
   | 'share_click'              // 分享（区分平台）- 转化漏斗 success_to_share
   | 'share_unlock_claim'       // 分享后领取去水印权益
   | 'download_no_watermark_via_share'  // 通过分享解锁的去水印下载
+  | 'download_no_watermark_paid'      // 付费去水印下载（用于计算替代率）
   | 'generate_another_click'   // 再生成一个 - 粘性
 
 interface EventPayload {
@@ -177,6 +178,14 @@ export const Events = {
   downloadNoWatermarkViaShare: (userId: string | undefined, taskId: string) =>
     trackEvent({
       name: 'download_no_watermark_via_share',
+      userId,
+      meta: { taskId },
+    }),
+
+  // 付费去水印下载（用于计算 Share Unlock 替代付费率）
+  downloadNoWatermarkPaid: (userId: string | undefined, taskId: string) =>
+    trackEvent({
+      name: 'download_no_watermark_paid',
       userId,
       meta: { taskId },
     }),
