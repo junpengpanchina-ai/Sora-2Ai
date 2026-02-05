@@ -41,7 +41,7 @@ export async function GET(
     if (isUUID) {
       const { data: taskData, error: taskError } = await supabase
         .from('video_tasks')
-        .select('grsai_task_id, status, progress, video_url, error_message, model')
+        .select('grsai_task_id, status, progress, video_url, error_message, model, duration')
         .eq('id', taskIdParam)
         .single()
 
@@ -64,6 +64,8 @@ export async function GET(
           progress: videoTask.progress || 100,
           video_url: videoTask.video_url,
           task_id: taskIdParam,
+          model: videoTask.model || null,
+          duration: (videoTask as { duration?: number }).duration || null,
         })
       }
 
@@ -210,6 +212,12 @@ export async function GET(
             progress: data.progress,
             video_url: finalVideoUrl,
             task_id: internalTaskId || grsaiTaskId,
+          }
+          
+          // Add model and duration if we have internal task ID
+          if (internalTaskId && videoTask) {
+            responseData.model = videoTask.model || null
+            responseData.duration = (videoTask as { duration?: number }).duration || null
           }
           
           // Sora-specific fields

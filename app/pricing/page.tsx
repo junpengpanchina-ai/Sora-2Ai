@@ -9,6 +9,7 @@ import type { PlanId } from "@/lib/billing/config";
 function PricingPageContent() {
   const searchParams = useSearchParams();
   const fromVideo = searchParams?.get("from") === "video";
+  const fromShareUnlock = searchParams?.get("from") === "share_unlock_upsell" || searchParams?.get("from") === "share_unlock_light";
   const [pricingBucket, setPricingBucket] = useState<"A" | "B" | null>(null);
 
   useEffect(() => {
@@ -107,6 +108,7 @@ function PricingPageContent() {
       config={config}
       onCheckout={handleCheckout}
       fromVideo={fromVideo}
+      fromShareUnlock={fromShareUnlock}
       pricingBucket={fromVideo ? pricingBucket : "A"}
     />
   );

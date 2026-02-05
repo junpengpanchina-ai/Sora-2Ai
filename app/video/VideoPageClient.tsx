@@ -11,6 +11,7 @@ import VeoUpgradeNudge from '@/components/growth/VeoUpgradeNudge'
 import { UpgradeNudge } from '@/components/upsell/UpgradeNudge'
 import SocialShareButtons from '@/components/SocialShareButtons'
 import ShareUnlockUpsell, { ShareUnlockUpsellLight } from '@/components/growth/ShareUnlockUpsell'
+import VeoToSoraUpsell, { VeoToSoraUpsellInline } from '@/components/growth/VeoToSoraUpsell'
 import { createClient } from '@/lib/supabase/client'
 import { setPostLoginRedirect } from '@/lib/auth/post-login-redirect'
 import { Events } from '@/lib/analytics/events'
@@ -29,6 +30,8 @@ interface VideoResult {
   error?: string
   prompt?: string
   violationType?: ViolationType
+  model?: string // 模型：'sora-2', 'veo-flash', 'veo-pro'
+  duration?: number // 时长（秒）：8, 10, 15
 }
 
 const VIOLATION_GUIDANCE: Record<ViolationType, { headline: string; description: string; suggestions: string[] }> = {
@@ -2308,22 +2311,38 @@ export default function VideoPageClient() {
                   {/* Phase 2B: Primary action buttons */}
                   <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
                     {/* Generate Another */}
-                    <button
-                      onClick={() => {
-                        setShowSecondaryUpgradeNudge(false)
-                        setShareUnlockedTaskId(null)
-                        Events.generateAnotherClick(userId)
-                        setCurrentResult(null)
-                        setPrompt(currentResult.prompt || '')
-                        setPromptTouched(true)
-                      }}
-                      className="inline-flex items-center gap-2 rounded-xl bg-white/10 border border-white/20 px-5 py-2.5 text-sm font-medium text-white hover:bg-white/15 transition-colors"
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      Generate another
-                    </button>
+                    <div>
+                      <button
+                        onClick={() => {
+                          setShowSecondaryUpgradeNudge(false)
+                          setShareUnlockedTaskId(null)
+                          Events.generateAnotherClick(userId)
+                          setCurrentResult(null)
+                          setPrompt(currentResult.prompt || '')
+                          setPromptTouched(true)
+                        }}
+                        className="inline-flex items-center gap-2 rounded-xl bg-white/10 border border-white/20 px-5 py-2.5 text-sm font-medium text-white hover:bg-white/15 transition-colors"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Generate another
+                      </button>
+                      {/* Veo → Sora Upsell（轻量版，在 Generate another 下方） */}
+                      {hasDownloadedViaShareUnlock && 
+                       currentResult.model && 
+                       currentResult.model.toLowerCase().includes('veo') && 
+                       currentResult.duration === 8 && (
+                        <VeoToSoraUpsellInline
+                          userId={userId}
+                          onTrySora={() => {
+                            setModel('sora-2')
+                            setDuration('10')
+                          }}
+                          onDismiss={() => {}}
+                        />
+                      )}
+                    </div>
                     
                     {currentResult.task_id && (() => {
                       const canExportNoWatermark = currentResult.remove_watermark || shareUnlockedTaskId === currentResult.task_id
@@ -2494,6 +2513,18 @@ export default function VideoPageClient() {
                       onDismiss={() => {
                         setShareUnlockExpiresAt(null)
                       }}
+                    />
+                  )}
+                  
+                  {/* Veo → Sora Upsell（主版：下载后 2 秒显示） */}
+                  {hasDownloadedViaShareUnlock && 
+                   currentResult.model && 
+                   currentResult.model.toLowerCase().includes('veo') && 
+                   currentResult.duration === 8 && (
+                    <VeoToSoraUpsell
+                      userId={userId}
+                      hasDownloadedViaShareUnlock={hasDownloadedViaShareUnlock}
+                      onDismiss={() => {}}
                     />
                   )}
                   

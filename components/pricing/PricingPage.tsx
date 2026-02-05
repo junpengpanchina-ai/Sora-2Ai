@@ -9,6 +9,7 @@ type Props = {
   config: PricingConfig;
   onCheckout: (planId: "starter" | "creator" | "studio" | "pro") => void;
   fromVideo?: boolean;
+  fromShareUnlock?: boolean;
   /** A/B: B = 低档 only（只展示一个选项）；A 或未传 = 多档 */
   pricingBucket?: "A" | "B" | null;
 };
@@ -44,13 +45,55 @@ const faq: FAQItem[] = [
   },
 ];
 
-export function PricingPage({ config, onCheckout, fromVideo, pricingBucket = "A" }: Props) {
+export function PricingPage({ config, onCheckout, fromVideo, fromShareUnlock, pricingBucket = "A" }: Props) {
   const showLowTierOnly = pricingBucket === "B" && fromVideo;
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#0a0a0a] via-[#1a1a1a] to-[#0a0a0a] text-white">
       <div className="mx-auto max-w-5xl px-4 py-10">
-        {fromVideo ? (
+        {fromShareUnlock ? (
+          <>
+            <header className="text-center">
+              <h1 className="text-3xl md:text-4xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                Nice — you unlocked a clean export.
+              </h1>
+              <p className="mt-2 text-xl text-white/90">
+                Want watermark-free videos anytime? Credits remove watermarks on every export — no sharing needed.
+              </p>
+              <ul className="mt-6 text-left max-w-md mx-auto space-y-3 text-sm text-white/80">
+                <li className="flex items-start gap-2">
+                  <span className="text-green-400 mt-0.5">✔️</span>
+                  <span>No watermark on <strong>every</strong> export</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-400 mt-0.5">✔️</span>
+                  <span>Use credits anytime (no subscription)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-400 mt-0.5">✔️</span>
+                  <span>Only charged when generation succeeds</span>
+                </li>
+              </ul>
+              <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+                <button
+                  onClick={() => onCheckout("starter")}
+                  className="px-6 py-3 rounded-lg bg-energy-water text-white font-semibold hover:bg-energy-water/90 transition-colors"
+                >
+                  Get credits & export without watermark
+                </button>
+                <a
+                  href="/video"
+                  className="px-6 py-3 rounded-lg border border-white/20 bg-white/5 text-white/80 font-medium hover:bg-white/10 transition-colors text-center"
+                >
+                  Keep using preview for now
+                </a>
+              </div>
+              <p className="mt-6 text-xs text-white/60 text-center max-w-md mx-auto">
+                Your share unlock is one-time. Credits keep it unlocked for all future videos.
+              </p>
+            </header>
+          </>
+        ) : fromVideo ? (
           <>
             <header className="text-center">
               <h1 className="text-3xl md:text-4xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
