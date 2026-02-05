@@ -2697,7 +2697,7 @@ export default function VideoPageClient() {
 
         {/* Non-intrusive conversion banner: only for humans, no SEO impact (client-only) */}
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-black/90 backdrop-blur-sm py-2 px-4 flex items-center justify-center gap-2 text-sm text-gray-300">
-          <span>🎬 Create your first AI video in 60s · Free preview</span>
+          <span>🎬 Create your first AI video in seconds · Free preview</span>
           <a
             href="#"
             onClick={(e) => {
