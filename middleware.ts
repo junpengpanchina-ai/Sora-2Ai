@@ -63,7 +63,19 @@ export function middleware(req: NextRequest) {
   // ============================================================================
 
   // ============================================================================
-  // 3. 通用：去掉 ?format=xml 参数（全站）
+  // 3. /video 路由：去掉 prompt 参数（单跳 308）
+  // P1: /video?prompt=... → /video（prompt 参数不参与 SEO，避免消耗 crawl budget）
+  // ============================================================================
+  if (pathname === '/video' && url.searchParams.has('prompt')) {
+    reportBadUrlHit(req, 'video_prompt_param')
+    const newUrl = url.clone()
+    newUrl.searchParams.delete('prompt')
+    // 保留其他查询参数（如果有）
+    return NextResponse.redirect(newUrl, 308)
+  }
+
+  // ============================================================================
+  // 4. 通用：去掉 ?format=xml 参数（全站）
   // ============================================================================
   if (url.searchParams.get('format') === 'xml') {
     const newUrl = url.clone()
@@ -79,5 +91,6 @@ export const config = {
   matcher: [
     '/keywords/:path*',
     '/use-cases/:path*',
+    '/video',
   ],
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getBaseUrl } from '@/lib/utils/url'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
 import { INDUSTRIES_100 } from '@/lib/data/industries-100'
+import { assertNoRedirectPatterns } from '@/lib/seo/sitemapGuards'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -89,6 +90,15 @@ export async function GET() {
   
   // 使用当前日期作为 lastmod（静态页面通常不会频繁更新）
   const now = new Date().toISOString().split('T')[0]
+
+  // 生成完整 URL 列表
+  const fullUrls = allPaths.map((item) => {
+    const path = typeof item === 'string' ? item : item.path
+    return `${baseUrl}${path}`
+  })
+
+  // P1: 断言不包含会重定向的 pattern（prompt 参数等）
+  assertNoRedirectPatterns(fullUrls, { source: 'sitemap-static' })
 
   const urls = allPaths.map((item) => {
     const path = typeof item === 'string' ? item : item.path
